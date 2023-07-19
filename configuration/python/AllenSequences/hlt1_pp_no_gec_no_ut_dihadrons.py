@@ -1,5 +1,5 @@
 ###############################################################################
-# (c) Copyright 2022 CERN for the benefit of the LHCb Collaboration           #
+# (c) Copyright 2023 CERN for the benefit of the LHCb Collaboration           #
 #                                                                             #
 # This software is distributed under the terms of the Apache License          #
 # version 2 (Apache-2.0), copied verbatim in the file "COPYING".              #
@@ -8,17 +8,14 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.utils import make_gec
-from AllenConf.hlt1_reconstruction import hlt1_reconstruction
-from PyConf.control_flow import NodeLogic, CompositeNode
+from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
 
-kalman_sequence = CompositeNode(
-    "KalmanSequence", [
-        make_gec("gec"),
-        hlt1_reconstruction(algorithm_name='kalman_sequence')
-        ["dihadron_secondary_vertices"]["dev_two_track_particles"].producer
-    ],
-    NodeLogic.LAZY_AND,
-    force_order=True)
-generate(kalman_sequence)
+hlt1_node = setup_hlt1_node(
+    with_ut=False,
+    EnableGEC=False,
+    enableRateValidator=True,
+    with_calo=False,
+    with_muon=False,
+    with_v0s=False)
+generate(hlt1_node)
