@@ -12,21 +12,28 @@
 
 #include "AlgorithmTypes.cuh"
 #include "VertexDefinitions.cuh"
+#include "MuonDefinitions.cuh"
+#include "ParticleTypes.cuh"
 #include "NNPropagation.cuh"
 #include <cmath>
 
-namespace two_track_mva_evaluator {
+namespace electronid_nn {
 
   struct Parameters {
     MASK_INPUT(dev_event_list_t) dev_event_list;
-    HOST_INPUT(host_number_of_svs_t, unsigned) host_number_of_svs;
-    DEVICE_INPUT(dev_consolidated_svs_t, VertexFit::TrackMVAVertex) dev_svs;
-    DEVICE_INPUT(dev_sv_offsets_t, unsigned) dev_sv_offsets;
-    DEVICE_OUTPUT(dev_two_track_mva_evaluation_t, float) dev_two_track_mva_evaluation;
+
+    HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
+    DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
+    HOST_INPUT(host_number_of_reconstructed_scifi_tracks_t, unsigned) host_number_of_reconstructed_scifi_tracks;
+    DEVICE_INPUT(dev_long_tracks_view_t, Allen::Views::Physics::MultiEventLongTracks) dev_long_tracks_view;
+    DEVICE_INPUT(dev_electronid_features_t, float) dev_electronid_features;
+    DEVICE_INPUT(dev_track_inEcalAcc_t, bool) dev_track_inEcalAcc;
+    DEVICE_INPUT(dev_track_Eop_t, float) dev_track_Eop;
+    DEVICE_OUTPUT(dev_electronid_evaluation_t, float) dev_electronid_evaluation;
     PROPERTY(block_dim_t, "block_dim", "block dimension", DeviceDimensions) block_dim;
   };
 
-  __global__ void two_track_mva_evaluator(
+  __global__ void electronid_nn(
     Parameters,
     const float* weights,
     const float* biases,
@@ -35,7 +42,7 @@ namespace two_track_mva_evaluator {
     const float* monotone_constraints,
     const float lambda);
 
-  struct two_track_mva_evaluator_t : public DeviceAlgorithm, Parameters {
+  struct electronid_nn_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 
     void operator()(
@@ -48,4 +55,4 @@ namespace two_track_mva_evaluator {
     Property<block_dim_t> m_block_dim {this, {{32, 1, 1}}};
   };
 
-} // namespace two_track_mva_evaluator
+} // namespace electronid_nn
