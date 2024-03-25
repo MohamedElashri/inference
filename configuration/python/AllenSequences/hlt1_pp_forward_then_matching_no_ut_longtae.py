@@ -14,7 +14,7 @@ from AllenConf.enum_types import TrackingType
 from AllenConf.utils import make_tae_activity_filter
 
 with make_tae_activity_filter.bind(
-        use_long_tracks=False, name="tae_velo_activity_filter"):
+        use_long_tracks=True, name="tae_long_activity_filter"):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         with_ut=False,
