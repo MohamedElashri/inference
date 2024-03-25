@@ -9,14 +9,16 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.HLT1 import setup_hlt1_node
+from AllenConf.velo_reconstruction import decode_velo
 from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.utils import make_tae_activity_filter
 
-with make_tae_activity_filter.bind(
-        use_long_tracks=False, name="tae_velo_activity_filter"):
-    hlt1_node = setup_hlt1_node(
-        tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        with_ut=False,
-        tae_activity=True)
+with decode_velo.bind(retina_decoding=False):
+    with make_tae_activity_filter.bind(
+            use_long_tracks=False, name="tae_velo_activity_filter"):
+        hlt1_node = setup_hlt1_node(
+            tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+            with_ut=False,
+            tae_activity=True)
 generate(hlt1_node)
