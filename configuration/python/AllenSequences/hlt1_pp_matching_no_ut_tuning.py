@@ -14,8 +14,9 @@ from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 
 hlt1_node = setup_hlt1_node(
-    tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+    tracking_type=TrackingType.MATCHING,
     threshold_settings=get_thresholds("tuning"),
     with_ut=False,
-    enableTupling=True)
+    enableTupling=True,
+    withMCChecking=True)
 generate(hlt1_node)

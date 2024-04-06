@@ -15,7 +15,6 @@ from AllenConf.get_thresholds import get_thresholds
 
 hlt1_node = setup_hlt1_node(
     tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-    threshold_settings=get_thresholds("tuning"),
-    with_ut=False,
-    enableTupling=True)
+    threshold_settings=get_thresholds("no_ut_tuned_1000KHz"),
+    with_ut=False)
 generate(hlt1_node)
