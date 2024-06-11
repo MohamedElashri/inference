@@ -10,36 +10,43 @@
 \*****************************************************************************/
 #pragma once
 
-#include "UTEventModel.cuh"
 #include "UTDefinitions.cuh"
 #include "AlgorithmTypes.cuh"
+#include "UTEventModel.cuh"
 
-namespace ut_find_permutation {
+namespace ut_compress_and_calculate_keys {
   struct Parameters {
-    HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
-    HOST_INPUT(host_accumulated_number_of_ut_clusters_t, unsigned) host_accumulated_number_of_ut_clusters;
+    HOST_INPUT(host_accumulated_number_of_ut_clusters_t, unsigned) host_accumulated_number_of_ut_hits;
+    DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
     MASK_INPUT(dev_event_list_t) dev_event_list;
-    DEVICE_INPUT(dev_ut_sort_keys_t, uint64_t) dev_ut_sort_keys;
+    DEVICE_INPUT(dev_ut_hit_offsets_t, unsigned) dev_ut_hit_offsets;
     DEVICE_INPUT(dev_ut_cluster_offsets_t, unsigned) dev_ut_cluster_offsets;
-    DEVICE_OUTPUT(dev_ut_permutations_t, unsigned) dev_ut_permutations;
+    DEVICE_INPUT(dev_ut_uncompressed_hits_t, char) dev_ut_uncompressed_hits;
+    DEVICE_INPUT(dev_ut_tiebreak_t, uint32_t) dev_ut_tiebreak;
+    DEVICE_OUTPUT(dev_ut_compressed_hits_t, char) dev_ut_compressed_hits;
+    DEVICE_OUTPUT(dev_ut_sort_keys_t, uint64_t) dev_ut_sort_keys;
     PROPERTY(block_dim_t, "block_dim", "block dimensions", DeviceDimensions) block_dim;
   };
 
   /**
-   * @brief Calculates the sorted index (within a sector group) for each UT hit.
+   * @brief UT clusters are uncompressed, compress them to adapt to sorting algorithm.
    */
-  __global__ void ut_find_permutation(Parameters, const unsigned* dev_unique_x_sector_layer_offsets);
+  __global__ void ut_compress_and_calculate_keys(
+    Parameters,
+    const char* ut_geometry,
+    const unsigned* dev_unique_x_sector_layer_offsets);
 
-  struct ut_find_permutation_t : public DeviceAlgorithm, Parameters {
-    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
+  struct ut_compress_and_calculate_keys_t : public DeviceAlgorithm, Parameters {
+    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants& constants)
+      const;
 
     void operator()(
       const ArgumentReferences<Parameters>& arguments,
-      const RuntimeOptions&,
+      const RuntimeOptions& runtime_options,
       const Constants& constants,
       const Allen::Context& context) const;
 
   private:
-    Property<block_dim_t> m_block_dim {this, {{16, 1, 1}}};
+    Property<block_dim_t> m_block_dim {this, {{128, 1, 1}}};
   };
-} // namespace ut_find_permutation
+} // namespace ut_compress_and_calculate_keys
