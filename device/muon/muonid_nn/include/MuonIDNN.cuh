@@ -15,8 +15,9 @@
 #include "MuonDefinitions.cuh"
 #include "ParticleTypes.cuh"
 #include "NNPropagation.cuh"
+#include <cmath>
 
-namespace electronid_nn {
+namespace muonid_nn {
 
   struct Parameters {
     MASK_INPUT(dev_event_list_t) dev_event_list;
@@ -25,23 +26,23 @@ namespace electronid_nn {
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
     HOST_INPUT(host_number_of_reconstructed_scifi_tracks_t, unsigned) host_number_of_reconstructed_scifi_tracks;
     DEVICE_INPUT(dev_long_tracks_view_t, Allen::Views::Physics::MultiEventLongTracks) dev_long_tracks_view;
-    DEVICE_INPUT(dev_electronid_features_t, float) dev_electronid_features;
-    DEVICE_INPUT(dev_track_inEcalAcc_t, bool) dev_track_inEcalAcc;
-    DEVICE_INPUT(dev_track_Eop_t, float) dev_track_Eop;
-    DEVICE_OUTPUT(dev_electronid_evaluation_t, float) dev_electronid_evaluation;
+    DEVICE_INPUT(dev_muonid_features_t, float) dev_muonid_features;
+    DEVICE_INPUT(dev_is_muon_t, bool) dev_is_muon;
+    DEVICE_OUTPUT(dev_muonid_evaluation_t, float) dev_muonid_evaluation;
     PROPERTY(block_dim_t, "block_dim", "block dimension", DeviceDimensions) block_dim;
   };
 
-  __global__ void electronid_nn(
+  __global__ void muonid_nn(
     Parameters,
     const int* layer_sizes,
     const int n_layers,
     const float* monotone_constraints,
     const float lambda);
 
-  struct electronid_nn_t : public DeviceAlgorithm, Parameters {
-    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
+  struct muonid_nn_t : public DeviceAlgorithm, Parameters {
     void update(const Constants& constants) const;
+    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
+
     void operator()(
       const ArgumentReferences<Parameters>& arguments,
       const RuntimeOptions&,
@@ -52,4 +53,4 @@ namespace electronid_nn {
     Property<block_dim_t> m_block_dim {this, {{32, 1, 1}}};
   };
 
-} // namespace electronid_nn
+} // namespace muonid_nn
