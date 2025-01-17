@@ -1,8 +1,8 @@
 /*****************************************************************************\
-* (c) Copyright 2022 CERN for the benefit of the LHCb Collaboration           *
+* (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration           *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
-* version 2 (Apache-2.0), copied verbatim in the file "COPYING".              *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
 *                                                                             *
 * In applying this licence, CERN does not waive the privileges and immunities *
 * granted to it by virtue of its status as an Intergovernmental Organization  *
@@ -11,30 +11,21 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
-#include "CaloGeometry.cuh"
-#include "CaloDigit.cuh"
 
-namespace total_ecal_energy {
+namespace fake_digit_matching {
   struct Parameters {
     HOST_INPUT(host_ecal_number_of_digits_t, unsigned) host_ecal_number_of_digits;
     MASK_INPUT(dev_event_list_t) dev_event_list;
-    DEVICE_INPUT(dev_ecal_digits_offsets_t, unsigned) dev_ecal_digits_offsets;
-    DEVICE_INPUT(dev_ecal_digits_t, CaloDigit) dev_ecal_digits;
-    DEVICE_OUTPUT(dev_total_ecal_e_t, float) dev_total_ecal_e;
+    DEVICE_OUTPUT(dev_ecal_digits_isMatched_t, bool) dev_ecal_digits_isMatched;
   };
 
-  __global__ void get_ecal_energy(Parameters parameters, const char* raw_ecal_geometry, float* dev_ecal_digits_e);
-
-  struct total_ecal_energy_t : public DeviceAlgorithm, Parameters {
+  struct fake_digit_matching_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 
     void operator()(
       const ArgumentReferences<Parameters>& arguments,
       const RuntimeOptions&,
-      const Constants& constants,
-      Allen::Context const&) const;
-
-  private:
-    Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension X"};
+      const Constants&,
+      const Allen::Context& context) const;
   };
-} // namespace total_ecal_energy
+} // namespace fake_digit_matching
