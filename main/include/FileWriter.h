@@ -37,10 +37,10 @@ public:
   }
 
 protected:
-  gsl::span<char> buffer(size_t, size_t buffer_size, size_t) override
+  std::span<char> buffer(size_t, size_t buffer_size, size_t) override
   {
     m_buffer.resize(buffer_size);
-    return gsl::span {&m_buffer[0], static_cast<events_size>(buffer_size)};
+    return std::span {&m_buffer[0], static_cast<events_size>(buffer_size)};
   }
 
   virtual bool write_buffer(size_t) override { return m_output.write(m_buffer.data(), m_buffer.size()); }

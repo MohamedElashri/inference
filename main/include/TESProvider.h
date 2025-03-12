@@ -83,7 +83,7 @@ public:
 
       // bank content
       auto data_size = static_cast<span_size_t<char const>>(banks.data.size());
-      gsl::span<char const> b {banks.data.data(), data_size};
+      std::span<char const> b {banks.data.data(), data_size};
 
       m_banks_and_offsets[i] = {{std::move(b)},
                                 {offsets.data(), 2u},
@@ -132,9 +132,9 @@ public:
     return {false, false, false, 0, 0, odin};
   }
 
-  void event_sizes(size_t const, gsl::span<unsigned int const> const, std::vector<size_t>&) const override {}
+  void event_sizes(size_t const, std::span<unsigned int const> const, std::vector<size_t>&) const override {}
 
-  void copy_banks(size_t const, unsigned int const, gsl::span<char>) const override {}
+  void copy_banks(size_t const, unsigned int const, std::span<char>) const override {}
 
   bool release_buffers() override { return true; }
 

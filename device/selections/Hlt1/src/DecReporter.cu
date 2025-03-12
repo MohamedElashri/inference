@@ -56,7 +56,7 @@ dec_reporter::dec_reporter(dec_reporter::Parameters parameters, unsigned key, un
   Selections::ConstSelections selections {
     parameters.dev_selections, parameters.dev_selections_offsets, number_of_events};
 
-  HltDecReports<false> reports(parameters.dev_dec_reports, event_index, parameters.dev_number_of_active_lines[0]);
+  HltDecReports<false> reports(parameters.dev_dec_reports.get(), event_index, parameters.dev_number_of_active_lines[0]);
   unsigned* event_selected_candidates_counts =
     parameters.dev_max_objects_offsets + event_index * parameters.dev_number_of_active_lines[0];
 

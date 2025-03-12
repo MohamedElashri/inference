@@ -241,7 +241,7 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
   auto source_counts = bin_storage.subspan(4 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
   auto unexpected_counts = bin_storage.subspan(5 * LHCb::RawBank::types().size(), 256);
 
-  auto add_counts = [](Gaudi::Accumulators::StaticHistogram<1>& histo, gsl::span<float> counts) {
+  auto add_counts = [](Gaudi::Accumulators::StaticHistogram<1>& histo, std::span<float> counts) {
     for (size_t i = 0; i < histo.nBins(0); ++i) {
       histo[i] += counts[i];
     }

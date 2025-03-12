@@ -10,10 +10,10 @@
 \*****************************************************************************/
 #pragma once
 
+#include <span>
 #include <vector>
 
 #include <zmq/zmq.hpp>
-#include <gsl/span>
 
 #include "InputProvider.h"
 #include "BankTypes.h"
@@ -118,7 +118,7 @@ protected:
 #endif
   }
 
-  virtual gsl::span<char> buffer(size_t thread_id, size_t buffer_size, size_t n_events) = 0;
+  virtual std::span<char> buffer(size_t thread_id, size_t buffer_size, size_t n_events) = 0;
 
   virtual bool write_buffer(size_t thread_id) = 0;
 
@@ -131,7 +131,7 @@ private:
     unsigned const start_event);
 
   LHCb::MDFHeader*
-  add_mdf_header(gsl::span<char> event_span, unsigned const run_number, gsl::span<unsigned const> routing_bits);
+  add_mdf_header(std::span<char> event_span, unsigned const run_number, std::span<unsigned const> routing_bits);
 
   size_t add_banks(
     Allen::Store::PersistentStore const& store,
@@ -139,9 +139,9 @@ private:
     unsigned const start_event,
     unsigned const event_number,
     unsigned const input_size,
-    gsl::span<char> event_span);
+    std::span<char> event_span);
 
-  void add_checksum(LHCb::MDFHeader* header, gsl::span<char> event_span);
+  void add_checksum(LHCb::MDFHeader* header, std::span<char> event_span);
 
   std::tuple<bool, size_t> output_single_events(
     size_t const thread_id,

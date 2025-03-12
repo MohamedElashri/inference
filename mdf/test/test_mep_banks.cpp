@@ -87,7 +87,7 @@ namespace {
 
 namespace Allen {
   unsigned
-  number_of_banks(gsl::span<char const> allen_banks, gsl::span<unsigned const> allen_offsets, unsigned const i_event)
+  number_of_banks(std::span<char const> allen_banks, std::span<unsigned const> allen_offsets, unsigned const i_event)
   {
     return reinterpret_cast<unsigned const*>(allen_banks.data() + allen_offsets[i_event])[0];
   }
@@ -259,14 +259,14 @@ template<BankTypes BT, bool transpose_mep>
 struct compare {
   void operator()(
     const int,
-    gsl::span<char const> mep_fragments,
-    gsl::span<unsigned const> mep_offsets,
-    gsl::span<unsigned const> mep_sizes,
-    gsl::span<unsigned const> mep_types,
-    gsl::span<char const> allen_banks,
-    gsl::span<unsigned const> allen_offsets,
-    gsl::span<unsigned const> allen_sizes,
-    gsl::span<unsigned const> allen_types,
+    std::span<char const> mep_fragments,
+    std::span<unsigned const> mep_offsets,
+    std::span<unsigned const> mep_sizes,
+    std::span<unsigned const> mep_types,
+    std::span<char const> allen_banks,
+    std::span<unsigned const> allen_offsets,
+    std::span<unsigned const> allen_sizes,
+    std::span<unsigned const> allen_types,
     unsigned const i_event)
   {
 
@@ -301,14 +301,14 @@ template<bool transpose_mep>
 struct compare<BankTypes::ODIN, transpose_mep> {
   void operator()(
     const int,
-    gsl::span<char const> mep_fragments,
-    gsl::span<unsigned const> mep_offsets,
-    gsl::span<unsigned const> mep_sizes,
-    gsl::span<unsigned const> mep_types,
-    gsl::span<char const> allen_banks,
-    gsl::span<unsigned const> allen_offsets,
-    gsl::span<unsigned const> allen_sizes,
-    gsl::span<unsigned const> allen_types,
+    std::span<char const> mep_fragments,
+    std::span<unsigned const> mep_offsets,
+    std::span<unsigned const> mep_sizes,
+    std::span<unsigned const> mep_types,
+    std::span<char const> allen_banks,
+    std::span<unsigned const> allen_offsets,
+    std::span<unsigned const> allen_sizes,
+    std::span<unsigned const> allen_types,
     unsigned const i_event)
   {
     const auto allen_bank = odin_bank<false>(allen_banks.data(), allen_offsets.data(), allen_sizes.data(), i_event);
@@ -340,14 +340,14 @@ template<bool transpose_mep>
 struct compare<BankTypes::VP, transpose_mep> {
   void operator()(
     const int,
-    gsl::span<char const> mep_fragments,
-    gsl::span<unsigned const> mep_offsets,
-    gsl::span<unsigned const> mep_sizes,
-    gsl::span<unsigned const> mep_types,
-    gsl::span<char const> allen_banks,
-    gsl::span<unsigned const> allen_offsets,
-    gsl::span<unsigned const> allen_sizes,
-    gsl::span<unsigned const> allen_types,
+    std::span<char const> mep_fragments,
+    std::span<unsigned const> mep_offsets,
+    std::span<unsigned const> mep_sizes,
+    std::span<unsigned const> mep_types,
+    std::span<char const> allen_banks,
+    std::span<unsigned const> allen_offsets,
+    std::span<unsigned const> allen_sizes,
+    std::span<unsigned const> allen_types,
     unsigned const i_event)
   {
     const auto allen_raw_event = Velo::RawEvent<4, false>(
@@ -377,14 +377,14 @@ template<bool transpose_mep>
 struct compare<BankTypes::UT, transpose_mep> {
   void operator()(
     const int version,
-    gsl::span<char const> mep_fragments,
-    gsl::span<unsigned const> mep_offsets,
-    gsl::span<unsigned const> mep_sizes,
-    gsl::span<unsigned const> mep_types,
-    gsl::span<char const> allen_banks,
-    gsl::span<unsigned const> allen_offsets,
-    gsl::span<unsigned const> allen_sizes,
-    gsl::span<unsigned const> allen_types,
+    std::span<char const> mep_fragments,
+    std::span<unsigned const> mep_offsets,
+    std::span<unsigned const> mep_sizes,
+    std::span<unsigned const> mep_types,
+    std::span<char const> allen_banks,
+    std::span<unsigned const> allen_offsets,
+    std::span<unsigned const> allen_sizes,
+    std::span<unsigned const> allen_types,
     unsigned const i_event)
   {
     const auto allen_raw_event =
@@ -434,14 +434,14 @@ template<bool transpose_mep>
 struct compare<BankTypes::FT, transpose_mep> {
   void operator()(
     const int,
-    gsl::span<char const> mep_fragments,
-    gsl::span<unsigned const> mep_offsets,
-    gsl::span<unsigned const> mep_sizes,
-    gsl::span<unsigned const> mep_types,
-    gsl::span<char const> allen_banks,
-    gsl::span<unsigned const> allen_offsets,
-    gsl::span<unsigned const> allen_sizes,
-    gsl::span<unsigned const> allen_types,
+    std::span<char const> mep_fragments,
+    std::span<unsigned const> mep_offsets,
+    std::span<unsigned const> mep_sizes,
+    std::span<unsigned const> mep_types,
+    std::span<char const> allen_banks,
+    std::span<unsigned const> allen_offsets,
+    std::span<unsigned const> allen_sizes,
+    std::span<unsigned const> allen_types,
     unsigned const i_event)
   {
     const auto allen_raw_event =
@@ -475,14 +475,14 @@ template<bool transpose_mep>
 struct compare<BankTypes::MUON, transpose_mep> {
   void operator()(
     const int,
-    gsl::span<char const> mep_fragments,
-    gsl::span<unsigned const> mep_offsets,
-    gsl::span<unsigned const> mep_sizes,
-    gsl::span<unsigned const> mep_types,
-    gsl::span<char const> allen_banks,
-    gsl::span<unsigned const> allen_offsets,
-    gsl::span<unsigned const> allen_sizes,
-    gsl::span<unsigned const> allen_types,
+    std::span<char const> mep_fragments,
+    std::span<unsigned const> mep_offsets,
+    std::span<unsigned const> mep_sizes,
+    std::span<unsigned const> mep_types,
+    std::span<char const> allen_banks,
+    std::span<unsigned const> allen_offsets,
+    std::span<unsigned const> allen_sizes,
+    std::span<unsigned const> allen_types,
     unsigned const i_event)
   {
 

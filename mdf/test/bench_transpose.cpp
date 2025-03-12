@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
     return static_cast<BankTypes>(bank_ids[raw_bank->type()]);
   };
 
-  gsl::span<char const> bank_data {read_buffer.data(), event_offsets[1]};
+  std::span<char const> bank_data {read_buffer.data(), event_offsets[1]};
   auto is_mc = check_sourceIDs(bank_data);
   Allen::sd_from_raw_bank sd_from_raw;
   Allen::bank_sorter bank_sorter;

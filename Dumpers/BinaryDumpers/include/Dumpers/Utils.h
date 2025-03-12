@@ -40,21 +40,25 @@ namespace DumpUtils {
   bool createDirectory(boost::filesystem::path dir);
 
   namespace detail {
+    template<typename>
+    constexpr bool is_span_v = false;
+    template<typename T, auto N>
+    constexpr bool is_span_v<std::span<T, N>> = true;
 
     template<typename T>
     std::ostream& write(std::ostream& os, const T& t)
     {
       // if you would like to know why there is a check for trivially copyable,
       // please read the 'notes' section of https://en.cppreference.com/w/cpp/types/is_trivially_copyable
-      if constexpr (std::is_same_v<T, gsl::span<const std::byte>>) {
+      if constexpr (std::is_same_v<T, std::span<const std::byte>>) {
         return os.write(reinterpret_cast<const char*>(t.data()), t.size());
       }
-      else if constexpr (std::is_trivially_copyable_v<T> && !gsl::details::is_span<T>::value) {
+      else if constexpr (std::is_trivially_copyable_v<T> && !is_span_v<T>) {
         return os.write(reinterpret_cast<const char*>(&t), sizeof(T));
       }
       else {
         static_assert(std::is_trivially_copyable_v<typename T::value_type>);
-        return write(os, as_bytes(LHCb::make_span(t)));
+        return write(os, std::as_bytes(LHCb::make_span(t)));
       }
     }
 

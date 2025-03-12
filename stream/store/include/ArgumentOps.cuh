@@ -11,7 +11,7 @@
 #pragma once
 
 #include <tuple>
-#include <gsl/gsl>
+#include <span>
 #include "BankTypes.h"
 #include "BackendCommon.h"
 #include "AllenTypeTraits.h"
@@ -28,8 +28,8 @@ namespace Allen {
    */
   template<typename T, typename S>
   void copy_async(
-    gsl::span<T> container_a,
-    gsl::span<S> container_b,
+    std::span<T> container_a,
+    std::span<S> container_b,
     const Allen::Context& context,
     const Allen::memcpy_kind kind,
     const size_t count = 0,
@@ -90,8 +90,8 @@ namespace Allen {
    */
   template<typename T, typename S>
   void copy(
-    gsl::span<T> container_a,
-    gsl::span<S> container_b,
+    std::span<T> container_a,
+    std::span<S> container_b,
     const Allen::Context& context,
     const Allen::memcpy_kind kind,
     const size_t count = 0,
@@ -221,7 +221,7 @@ namespace Allen {
   void data_to_device(ARGUMENTS const& args, BanksAndOffsets const& bno, const Allen::Context& context)
   {
     auto offset = args.template data<DATA_ARG>();
-    for (gsl::span<char const> data_span : bno.fragments) {
+    for (std::span<char const> data_span : bno.fragments) {
       Allen::memcpy_async(offset, data_span.data(), data_span.size_bytes(), Allen::memcpyHostToDevice, context);
       offset += data_span.size_bytes();
     }

@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
 
     while (true) {
 
-      gsl::span<char> buffer_span {buffer.data() + offset, static_cast<::events_size>(buffer.size() - offset)};
+      std::span<char> buffer_span {buffer.data() + offset, static_cast<::events_size>(buffer.size() - offset)};
 
       ++n_filled;
       auto [eof, error, event_span] = MDF::read_event(input, header, buffer_span, decompression_buffer, false);
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
         break;
       }
       size_t event_size = std::accumulate(
-        event_span.begin(), event_span.end(), 0u, [](size_t s, std::tuple<int, gsl::span<const char>> e) {
+        event_span.begin(), event_span.end(), 0u, [](size_t s, std::tuple<int, std::span<const char>> e) {
           return s + std::get<1>(e).size() + LHCb::MDFHeader::sizeOf(3);
         });
       n_bytes += event_size;

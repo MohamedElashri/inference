@@ -13,7 +13,7 @@
 #include <map>
 #include <queue>
 #include <vector>
-#include <gsl/gsl>
+#include <span>
 #include <Store.cuh>
 #include <InputReader.h>
 

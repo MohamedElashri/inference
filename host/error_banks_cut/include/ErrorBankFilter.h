@@ -10,7 +10,7 @@
 \*****************************************************************************/
 #pragma once
 
-#include <gsl/span>
+#include <span>
 #include <memory>
 
 #include "Common.h"

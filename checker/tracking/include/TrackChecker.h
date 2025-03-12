@@ -161,7 +161,7 @@ public:
     m_histos->write();
   }
 
-  void accumulate(const MCEvents& mc_events, gsl::span<Checker::Tracks> tracks, gsl::span<const mask_t> event_list)
+  void accumulate(const MCEvents& mc_events, std::span<Checker::Tracks> tracks, std::span<const mask_t> event_list)
   {
     auto guard = std::scoped_lock {m_mutex};
     for (size_t i = 0; i < event_list.size(); ++i) {

@@ -27,7 +27,7 @@ namespace {
   namespace fs = boost::filesystem;
 
   template<typename T, auto Extent>
-  constexpr void pop_n(gsl::span<const char>& buffer, size_t n, gsl::span<T, Extent> out)
+  constexpr void pop_n(std::span<const char>& buffer, size_t n, std::span<T, Extent> out)
   {
     static_assert(std::is_trivially_copyable_v<T>);
     assert(out.size() >= n);
@@ -38,16 +38,16 @@ namespace {
   }
 
   template<typename Out>
-  constexpr void pop_n(gsl::span<const char>& buffer, size_t n, Out& out)
+  constexpr void pop_n(std::span<const char>& buffer, size_t n, Out& out)
   {
-    pop_n(buffer, n, gsl::span {out});
+    pop_n(buffer, n, std::span {out});
   }
 
   template<typename Out>
-  [[nodiscard]] constexpr Out pop(gsl::span<const char>& buffer)
+  [[nodiscard]] constexpr Out pop(std::span<const char>& buffer)
   {
     Out out {};
-    pop_n(buffer, 1, gsl::span {&out, 1});
+    pop_n(buffer, 1, std::span {&out, 1});
     return out;
   }
 
@@ -162,7 +162,7 @@ void hit_position(
   lookup(std::get<0>(r).get(), tile, x, dx, y, dy, z);
 }
 
-void read_muon_table(gsl::span<const char> raw_input, MuonTable& pad, MuonTable& stripX, MuonTable& stripY)
+void read_muon_table(std::span<const char> raw_input, MuonTable& pad, MuonTable& stripX, MuonTable& stripY)
 {
   size_t n = 0;
   auto version = pop<unsigned int>(raw_input);

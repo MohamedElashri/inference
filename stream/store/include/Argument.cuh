@@ -13,7 +13,7 @@
 #include <string>
 #include <unordered_map>
 #include <typeindex>
-#include <gsl/span>
+#include <span>
 #include <stdexcept>
 
 namespace Allen::Store {
@@ -57,13 +57,13 @@ namespace Allen::Store {
     size_t size_bytes() const { return size() * m_type_size; }
 
     template<typename T>
-    operator gsl::span<T>()
+    operator std::span<T>()
     {
       return {cast<T>(), size()};
     }
 
     template<typename T>
-    operator gsl::span<const T>() const
+    operator std::span<const T>() const
     {
       return {cast<const T>(), size()};
     }

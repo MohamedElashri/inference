@@ -34,7 +34,7 @@ void Consumers::RawGeometry::consume(std::vector<char> const& data)
   Allen::memcpy(m_dev_geometry.get(), data.data(), m_size, Allen::memcpyHostToDevice);
 }
 
-Consumers::BasicGeometry::BasicGeometry(gsl::span<char>& dev_geometry) : m_dev_geometry {dev_geometry} {}
+Consumers::BasicGeometry::BasicGeometry(std::span<char>& dev_geometry) : m_dev_geometry {dev_geometry} {}
 
 void Consumers::BasicGeometry::consume(std::vector<char> const& data)
 {
@@ -43,7 +43,7 @@ void Consumers::BasicGeometry::consume(std::vector<char> const& data)
     // Allocate space
     char* p = nullptr;
     Allen::malloc((void**) &p, data.size());
-    dev_geometry = gsl::span {p, static_cast<span_size_t<char>>(data.size())};
+    dev_geometry = std::span {p, static_cast<span_size_t<char>>(data.size())};
   }
   else if ((size_t) dev_geometry.size() != data.size()) {
     throw StrException {string {"sizes don't match: "} + to_string(dev_geometry.size()) + " " + to_string(data.size())};

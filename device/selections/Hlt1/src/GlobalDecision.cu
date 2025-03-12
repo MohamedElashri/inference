@@ -41,7 +41,7 @@ __global__ void global_decision::global_decision(global_decision::Parameters par
        event_index += blockDim.x) {
     bool global_decision = false;
 
-    HltDecReports reports(parameters.dev_dec_reports, event_index);
+    HltDecReports reports(parameters.dev_dec_reports.get(), event_index);
 
     for (HltDecReport dec_report : reports) {
       global_decision |= dec_report.decision();

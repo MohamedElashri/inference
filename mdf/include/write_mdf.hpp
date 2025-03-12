@@ -10,7 +10,7 @@
 \*****************************************************************************/
 #pragma once
 
-#include <gsl/gsl>
+#include <span>
 
 namespace Allen {
   constexpr int mdf_header_version = 3;
@@ -25,6 +25,6 @@ namespace Allen {
     unsigned char const type,
     unsigned char const version,
     short const sourceID,
-    gsl::span<char const> fragment,
+    std::span<char const> fragment,
     char* buffer);
 } // namespace Allen

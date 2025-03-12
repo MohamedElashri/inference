@@ -38,12 +38,12 @@ namespace Allen {
   using ReadBuffers = std::vector<ReadBuffer>;
 
   struct Slice {
-    std::vector<gsl::span<char>> fragments;
-    gsl::span<unsigned int> offsets;
+    std::vector<std::span<char>> fragments;
+    std::span<unsigned int> offsets;
     size_t fragments_mem_size = 0;
     size_t n_offsets = 0;
-    gsl::span<unsigned int> sizes;
-    gsl::span<unsigned int> types;
+    std::span<unsigned int> sizes;
+    std::span<unsigned int> types;
   };
 
   using BankSlices = std::vector<Slice>;

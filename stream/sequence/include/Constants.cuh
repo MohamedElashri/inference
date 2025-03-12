@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <numeric>
-#include <gsl/gsl>
+#include <span>
 #include <chrono>
 #include "BackendCommon.h"
 #include "Logger.h"
@@ -76,11 +76,11 @@ struct Constants {
   std::vector<uint8_t> host_ut_board_to_sector_group_map;
   std::vector<unsigned> host_ut_sector_to_group_map;
 
-  gsl::span<char> dev_ut_geometry;
-  gsl::span<char> dev_ut_boards;
-  gsl::span<uint16_t> dev_ut_board_geometry_map;
-  gsl::span<uint8_t> dev_ut_board_to_sector_group_map;
-  gsl::span<unsigned> dev_ut_sector_to_group_map;
+  std::span<char> dev_ut_geometry;
+  std::span<char> dev_ut_boards;
+  std::span<uint16_t> dev_ut_board_geometry_map;
+  std::span<uint8_t> dev_ut_board_to_sector_group_map;
+  std::span<unsigned> dev_ut_sector_to_group_map;
 
   UTMagnetTool* dev_ut_magnet_tool = nullptr;
 
@@ -100,7 +100,7 @@ struct Constants {
   std::vector<float> host_gen_crossing_angles;
 
   // Magnet polarity
-  gsl::span<float> dev_magnet_polarity;
+  std::span<float> dev_magnet_polarity;
   std::vector<float> host_magnet_polarity;
 
   // Magnetic field

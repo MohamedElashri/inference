@@ -14,7 +14,7 @@
 #include "MuonDefinitions.cuh"
 #include "MuonRawToHits.cuh"
 #include "MuonRaw.cuh"
-#include <gsl/gsl>
+#include <span>
 
 namespace muon_calculate_srq_size {
   struct Parameters {

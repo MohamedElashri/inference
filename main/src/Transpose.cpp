@@ -46,7 +46,7 @@ std::array<int, LHCb::NBankTypes> Allen::bank_ids()
  * @return     true if any of the sourceIDs has a non-zero value in
  *             its 5 most-significant bits
  */
-bool check_sourceIDs(gsl::span<char const> bank_data)
+bool check_sourceIDs(std::span<char const> bank_data)
 {
 
   auto const* bank = bank_data.data();
@@ -137,7 +137,7 @@ std::tuple<bool, bool, size_t> read_events(
   // Keep track of where to write and the end of the prefetch buffer
   size_t n_bytes = 0;
   bool eof = false, error = false;
-  gsl::span<const char> bank_span;
+  std::span<const char> bank_span;
 
   // Loop until the requested number of events is prefetched, the
   // maximum number of events per prefetch buffer is hit, an error
@@ -148,7 +148,7 @@ std::tuple<bool, bool, size_t> read_events(
     // Read the banks
     auto const buffer_offset = event_offsets[n_filled];
     assert(buffer_offset < buffer.size());
-    gsl::span<char> buffer_span {buffer_start + buffer_offset, static_cast<events_size>(buffer.size() - buffer_offset)};
+    std::span<char> buffer_span {buffer_start + buffer_offset, static_cast<events_size>(buffer.size() - buffer_offset)};
     std::tie(eof, error, bank_span) =
       MDF::read_banks(input, header, std::move(buffer_span), compress_buffer, check_checksum);
     if (eof || error) break;
@@ -231,7 +231,7 @@ std::tuple<bool, bool, size_t> read_events(
  * @return     (success, number of banks per bank type; 0 if the bank is not needed)
  */
 std::tuple<bool, std::array<unsigned int, NBankTypes>> fill_counts(
-  gsl::span<char const> bank_data,
+  std::span<char const> bank_data,
   Allen::sd_from_raw_bank sd_from_raw_bank,
   std::unordered_set<LHCb::RawBank::BankType> const& skip_banks)
 {
@@ -272,7 +272,7 @@ std::tuple<bool, bool, bool> transpose_event(
   std::array<int, NBankTypes>& banks_version,
   EventIDs& event_ids,
   std::vector<char>& event_mask,
-  const gsl::span<char const> bank_data,
+  const std::span<char const> bank_data,
   std::vector<LHCb::RawBank const*>& sorted_banks,
   bool split_by_run)
 {

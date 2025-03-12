@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <span>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,8 +24,6 @@
 #include "BankTypes.h"
 #include "BankMapping.h"
 #include "AllenIO.h"
-
-#include <gsl/gsl>
 
 #include <sys/types.h>
 
@@ -47,22 +46,22 @@ namespace MDF {
 
   void dump_hex(const char* start, int size, std::ostream& out = std::cout);
 
-  std::tuple<bool, bool, std::vector<std::tuple<int, gsl::span<const char>>>> read_event(
+  std::tuple<bool, bool, std::vector<std::tuple<int, std::span<const char>>>> read_event(
     Allen::IO& input,
     LHCb::MDFHeader& h,
-    gsl::span<char> buffer,
+    std::span<char> buffer,
     std::vector<char>& decompression_buffer,
     bool checkChecksum = true,
     bool dbg = false);
 
-  std::tuple<bool, bool, gsl::span<const char>> read_banks(
+  std::tuple<bool, bool, std::span<const char>> read_banks(
     Allen::IO& input,
     const LHCb::MDFHeader& h,
-    gsl::span<char> buffer,
+    std::span<char> buffer,
     std::vector<char>& decompression_buffer,
     bool checkChecksum = true,
     bool dbg = false);
 
-  LHCb::ODIN decode_odin(gsl::span<unsigned const> data, unsigned const version);
+  LHCb::ODIN decode_odin(std::span<unsigned const> data, unsigned const version);
 
 } // namespace MDF

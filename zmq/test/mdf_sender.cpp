@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 
   bool eof = false, error = false;
 
-  std::vector<std::tuple<int, gsl::span<const char>>> event_span;
+  std::vector<std::tuple<int, std::span<const char>>> event_span;
 
   auto input = MDF::open(filename.c_str(), O_RDONLY);
   if (input.good) {

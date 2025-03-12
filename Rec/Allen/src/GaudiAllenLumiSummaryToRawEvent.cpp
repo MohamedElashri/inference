@@ -56,7 +56,6 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> GaudiAllenLumiSummaryToRawEvent:
   if (!lumi_summaries.empty()) {
     raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::BankType::HltLumiSummary, 2u, lumi_summaries);
   }
-  auto lumi_view = raw_event.banks(LHCb::RawBank::BankType::HltLumiSummary);
 
-  return {std::move(raw_event), std::move(lumi_view)};
+  return viewFromRawEvent(std::move(raw_event), LHCb::RawBank::BankType::HltLumiSummary);
 }

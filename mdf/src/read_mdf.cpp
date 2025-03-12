@@ -29,12 +29,12 @@
 #include "root_mdf.hpp"
 
 namespace {
-  using gsl::span;
   using std::array;
   using std::cerr;
   using std::cout;
   using std::ifstream;
   using std::make_tuple;
+  using std::span;
   using std::vector;
 } // namespace
 
@@ -63,10 +63,10 @@ Allen::IO MDF::open(std::string const& filepath, int flags, int mode)
 }
 
 // return eof, error, span that covers all banks in the event
-std::tuple<bool, bool, std::vector<std::tuple<int, gsl::span<const char>>>> MDF::read_event(
+std::tuple<bool, bool, std::vector<std::tuple<int, std::span<const char>>>> MDF::read_event(
   Allen::IO& input,
   LHCb::MDFHeader& h,
-  gsl::span<char> buffer,
+  std::span<char> buffer,
   std::vector<char>& decompression_buffer,
   bool checkChecksum,
   bool dbg)
@@ -104,7 +104,7 @@ std::tuple<bool, bool, std::vector<std::tuple<int, gsl::span<const char>>>> MDF:
         int offset = *block++;
         int size = *block++;
         events.emplace_back(
-          bx, gsl::span<const char> {payload + offset, static_cast<gsl::span<const char>::size_type>(size)});
+          bx, std::span<const char> {payload + offset, static_cast<std::span<const char>::size_type>(size)});
       }
       assert(events.size() == n_blocks);
       return {eof, error, events};
@@ -121,10 +121,10 @@ std::tuple<bool, bool, std::vector<std::tuple<int, gsl::span<const char>>>> MDF:
 }
 
 // return eof, error, span that covers all banks in the event
-std::tuple<bool, bool, gsl::span<const char>> MDF::read_banks(
+std::tuple<bool, bool, std::span<const char>> MDF::read_banks(
   Allen::IO& input,
   const LHCb::MDFHeader& h,
-  gsl::span<char> buffer,
+  std::span<char> buffer,
   std::vector<char>& decompression_buffer,
   bool checkChecksum,
   bool dbg)
@@ -252,7 +252,7 @@ std::tuple<bool, bool, gsl::span<const char>> MDF::read_banks(
 }
 
 // Decode the ODIN bank
-LHCb::ODIN MDF::decode_odin(gsl::span<unsigned const> data, unsigned const version)
+LHCb::ODIN MDF::decode_odin(std::span<unsigned const> data, unsigned const version)
 {
   // we just assume the buffer has the right size and cross fingers.
   // note that we only support the default bank version in Allen
