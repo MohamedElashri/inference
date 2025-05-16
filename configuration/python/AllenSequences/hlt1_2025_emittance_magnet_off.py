@@ -8,23 +8,23 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1 import setup_hlt1_node
+from AllenConf.HLT1 import setup_hlt1_node, default_bgi_activity_lines
 from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
-from AllenConf.velo_reconstruction import make_pr_velo_tracks, decode_velo
+from AllenConf.velo_reconstruction import make_pr_velo_tracks
 
-with decode_velo.bind(retina_decoding=False), make_velo_scifi_matches.bind(
-        ghost_killer_threshold=0.8), make_pr_velo_tracks.bind(
-            missing_modules=[21]):
+with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),\
+      make_pr_velo_tracks.bind(missing_modules=[21]),\
+      default_bgi_activity_lines.bind(enableBGI_full=True)): # Fully enable BGI lines
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        threshold_settings=get_thresholds(
-            "forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1200kHz"
-        ),
-        with_fullKF=True,
         with_ut=True,
-        enableDownstream=True)
+        with_fullKF=True,
+        enableAlignment=False,  # Disable alignment during magnet off
+        enableDownstream=False,  # Downstream not used in technical lines
+        enablePhysics=False,  # Only enable technical lines
+        withSMOG2=False)  # Only enable technical lines
 
 generate(hlt1_node)
