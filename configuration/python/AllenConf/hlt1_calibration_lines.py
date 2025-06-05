@@ -27,7 +27,8 @@ def make_pi02gammagamma_line(calo,
                              pre_scaler=0.05,
                              pre_scaler_hash_string=None,
                              post_scaler_hash_string=None,
-                             enable_tupling=False):
+                             enable_tupling=False,
+                             enable_monitoring=True):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -51,7 +52,8 @@ def make_pi02gammagamma_line(calo,
         maxE19_clusters=1.0,
         minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
         max_n_pvs=1,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring)
 
 
 def make_dst_line(dstars,
