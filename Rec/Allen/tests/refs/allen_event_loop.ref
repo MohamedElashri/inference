@@ -47,7 +47,7 @@ is_muon                                INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D
 make_long_track_particles              INFO Booked 4 Histogram(s) : 1D=4 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 matching_consolidate_tracks_matc...    INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 momentum_brem_correction_2d722be7      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-pv_beamline_cleanup                    INFO Booked 5 Histogram(s) : 1D=5 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+pv_beamline_cleanup                    INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 scifi_consolidate_seeds_matching       INFO Booked 5 Histogram(s) : 1D=5 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 velo_consolidate_tracks                INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 velo_kalman_filter                     INFO Booked 9 Histogram(s) : 1D=9 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -314,13 +314,15 @@ momentum_brem_correction_2d722be7      INFO 1D histograms in directory "momentum
  | BremEoverP                                                                       | "BremE/ ( BremE + P (track) )"                                                   |     186530 |    0.12112 | 0.14722    |     1.9867 |     4.0941 |
  | EoverP                                                                           | "E (Ecal) / P (track)"                                                           |     376583 |    0.34706 | 0.30051    |     1.3464 |     2.2545 |
  | EoverP_hasbrem                                                                   | "E (Ecal) / P (track) (with HasBrem)"                                            |      89615 |    0.40963 | 0.34320    |     1.1587 |     1.3166 |
-pv_beamline_cleanup                    INFO 1D histograms in directory "pv_beamline_cleanup" : 5
+pv_beamline_cleanup                    INFO 1D histograms in directory "pv_beamline_cleanup" : 7
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | n_pvs_event                                                                      | "n_pvs_event"                                                                    |      10000 |     5.1728 | 2.1617     |    0.35345 |    0.10441 |
  | n_smog2_PVs                                                                      | "n_smog2_PVs"                                                                    |      10000 |          0 | 0.0000     |          0 |          0 |
  | pv_x                                                                             | "pv_x"                                                                           |      51646 |-0.00011982 | 0.030488   |  -0.028993 |     1.9904 |
  | pv_y                                                                             | "pv_y"                                                                           |      51646 | 3.1058e-05 | 0.030206   |  -0.054324 |     1.6699 |
  | pv_z                                                                             | "pv_z"                                                                           |      51678 |     1.0058 | 63.432     |  -0.036367 |   -0.11778 |
+ | pv_z_only_pp                                                                     | "pv_z_only_pp"                                                                   |      51646 |     1.1388 | 63.227     |  -0.018796 |   -0.16116 |
+ | pv_z_only_smog                                                                   | "pv_z_only_smog"                                                                 |         32 |    -213.32 | 10.676     |   -0.57156 |   -0.99197 |
 scifi_consolidate_seeds_matching       INFO 1D histograms in directory "scifi_consolidate_seeds_matching" : 5
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | n_scifi_seeds_event                                                              | "n_scifi_seeds_event"                                                            |      10000 |     79.956 | 51.740     |     1.5141 |     4.3304 |
