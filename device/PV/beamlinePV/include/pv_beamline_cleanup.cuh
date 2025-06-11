@@ -42,6 +42,8 @@ namespace pv_beamline_cleanup {
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType);
 
   struct pv_beamline_cleanup_t : public DeviceAlgorithm, Parameters {
@@ -65,6 +67,14 @@ namespace pv_beamline_cleanup {
     Allen::Monitoring::Histogram<> m_histogram_pv_x {this, "pv_x", "pv_x", {1000u, -2.f, 2.f}};
     Allen::Monitoring::Histogram<> m_histogram_pv_y {this, "pv_y", "pv_y", {1000u, -2.f, 2.f}};
     Allen::Monitoring::Histogram<> m_histogram_pv_z {this, "pv_z", "pv_z", {2000u, -600.f, 200.f}};
+    Allen::Monitoring::Histogram<> m_histogram_pv_z_only_pp {this,
+                                                             "pv_z_only_pp",
+                                                             "pv_z_only_pp",
+                                                             {2000u, -200.f, 200.f}};
+    Allen::Monitoring::Histogram<> m_histogram_pv_z_only_smog {this,
+                                                               "pv_z_only_smog",
+                                                               "pv_z_only_smog",
+                                                               {2000u, -600.f, -200.f}};
     Allen::Monitoring::Histogram<> m_histogram_n_smogpvs {this, "n_smog2_PVs", "n_smog2_PVs", {10, -0.5f, 9.5f}};
   };
 } // namespace pv_beamline_cleanup
