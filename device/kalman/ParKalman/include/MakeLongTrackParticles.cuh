@@ -62,7 +62,10 @@ namespace make_long_track_particles {
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_n_trks,
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_eta,
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_phi,
-    Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_pt);
+    Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_qop,
+    Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_pt,
+    Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_tx,
+    Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_ty);
 
   struct make_long_track_particles_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
@@ -76,10 +79,13 @@ namespace make_long_track_particles {
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
 
-    Allen::Monitoring::Histogram<> m_histogram_n_trks {this, "number_of_trks", "NTrks", {500 + 1, -0.5f, 500 + 0.5}};
-    Allen::Monitoring::Histogram<> m_histogram_trk_eta {this, "trk_eta", "etaTrk", {400u, 0.f, 10.f}};
+    Allen::Monitoring::Histogram<> m_histogram_n_trks {this, "number_of_trks", "NTrks", {501u, -0.5f, 500.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_trk_eta {this, "trk_eta", "etaTrk", {500u, 0.f, 10.f}};
     Allen::Monitoring::Histogram<> m_histogram_trk_phi {this, "trk_phi", "phiTrk", {1000u, -3.2f, 3.2f}};
-    Allen::Monitoring::Histogram<> m_histogram_trk_pt {this, "trk_pt", "ptTrk", {1000u, 0.f, 1e4f}};
+    Allen::Monitoring::Histogram<> m_histogram_trk_qop {this, "trk_qop", "q/p", {200u, -1e-3f, 1e-3f}};
+    Allen::Monitoring::Histogram<> m_histogram_trk_pt {this, "trk_pt", "ptTrk", {500u, 0.f, 1e4f}};
+    Allen::Monitoring::Histogram<> m_histogram_trk_tx {this, "trk_tx", "txTrk", {200u, -1.0f, 1.0f}};
+    Allen::Monitoring::Histogram<> m_histogram_trk_ty {this, "trk_ty", "tyTrk", {200u, -0.4f, 0.4f}};
   };
 
 } // namespace make_long_track_particles

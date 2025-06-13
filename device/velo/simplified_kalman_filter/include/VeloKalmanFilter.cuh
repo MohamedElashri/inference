@@ -239,11 +239,11 @@ namespace velo_kalman_filter {
     Allen::Monitoring::Histogram<> m_histogram_velo_total_track_eta {this,
                                                                      "velo_total_track_eta",
                                                                      "#total_eta",
-                                                                     {800u, -10.f, 10.f}};
+                                                                     {1000u, -10.f, 10.f}};
     Allen::Monitoring::Histogram<> m_histogram_velo_total_track_phi {this,
                                                                      "velo_total_track_phi",
                                                                      "#total_phi",
-                                                                     {160u, -4.f, 4.f}};
+                                                                     {1000u, -3.2f, 3.2f}};
     Allen::Monitoring::Histogram<> m_histogram_velo_total_track_nhits {this,
                                                                        "velo_total_track_nhits",
                                                                        "total N. hits / track",
@@ -251,11 +251,11 @@ namespace velo_kalman_filter {
     Allen::Monitoring::Histogram<> m_histogram_velo_forward_track_eta {this,
                                                                        "velo_forward_track_eta",
                                                                        "#forward_eta",
-                                                                       {800u, -10.f, 10.f}};
+                                                                       {1000u, -10.f, 10.f}};
     Allen::Monitoring::Histogram<> m_histogram_velo_forward_track_phi {this,
                                                                        "velo_forward_track_phi",
                                                                        "#forward_phi",
-                                                                       {160u, -4.f, 4.f}};
+                                                                       {1000u, -3.2f, 3.2f}};
     Allen::Monitoring::Histogram<> m_histogram_velo_forward_track_nhits {this,
                                                                          "velo_forward_track_nhits",
                                                                          "forward N. hits / track",
@@ -263,11 +263,11 @@ namespace velo_kalman_filter {
     Allen::Monitoring::Histogram<> m_histogram_velo_backward_track_eta {this,
                                                                         "velo_backward_track_eta",
                                                                         "#backward_eta",
-                                                                        {800u, -10.f, 10.f}};
+                                                                        {1000u, -10.f, 10.f}};
     Allen::Monitoring::Histogram<> m_histogram_velo_backward_track_phi {this,
                                                                         "velo_backward_track_phi",
                                                                         "#backward_phi",
-                                                                        {160u, -4.f, 4.f}};
+                                                                        {1000u, -3.2f, 3.2f}};
     Allen::Monitoring::Histogram<> m_histogram_velo_backward_track_nhits {this,
                                                                           "velo_backward_track_nhits",
                                                                           "backward N. hits / track",

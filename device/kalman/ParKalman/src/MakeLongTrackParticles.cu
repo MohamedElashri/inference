@@ -39,7 +39,10 @@ void make_long_track_particles::make_long_track_particles_t::operator()(
     m_histogram_n_trks.data(context),
     m_histogram_trk_eta.data(context),
     m_histogram_trk_phi.data(context),
-    m_histogram_trk_pt.data(context));
+    m_histogram_trk_qop.data(context),
+    m_histogram_trk_pt.data(context),
+    m_histogram_trk_tx.data(context),
+    m_histogram_trk_ty.data(context));
 }
 
 void __global__ make_long_track_particles::make_particles(
@@ -48,7 +51,10 @@ void __global__ make_long_track_particles::make_particles(
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_n_trks,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_eta,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_phi,
-  Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_pt)
+  Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_qop,
+  Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_pt,
+  Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_tx,
+  Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_ty)
 {
   const unsigned number_of_events = parameters.dev_number_of_events[0];
   const unsigned event_index = blockIdx.x;
@@ -80,7 +86,10 @@ void __global__ make_long_track_particles::make_particles(
       auto state = (parameters.dev_kalman_states_view + event_number)->state(i);
       dev_histogram_trk_eta.increment(state.eta());
       dev_histogram_trk_phi.increment(std::atan2(state.ty(), state.tx()));
+      dev_histogram_trk_qop.increment(state.qop());
       dev_histogram_trk_pt.increment(state.pt());
+      dev_histogram_trk_tx.increment(state.tx());
+      dev_histogram_trk_ty.increment(state.ty());
     }
   }
 

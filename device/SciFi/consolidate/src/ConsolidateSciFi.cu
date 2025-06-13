@@ -21,7 +21,10 @@ __device__ void create_scifi_views_impl(
   Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_eta,
   Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_phi,
   Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_nhits,
-  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_qop)
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_qop,
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_pt,
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_tx,
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_ty)
 {
   const unsigned number_of_events = parameters.dev_number_of_events[0];
   const unsigned event_number = blockIdx.x;
@@ -83,7 +86,10 @@ __device__ void create_scifi_views_impl(
       dev_histo_long_track_forward_eta,
       dev_histo_long_track_forward_phi,
       dev_histo_long_track_forward_nhits,
-      dev_histo_long_track_forward_qop);
+      dev_histo_long_track_forward_qop,
+      dev_histo_long_track_forward_pt,
+      dev_histo_long_track_forward_tx,
+      dev_histo_long_track_forward_ty);
   }
 
   if (threadIdx.x == 0) {
@@ -114,7 +120,10 @@ __global__ void create_scifi_views(
   Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_eta,
   Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_phi,
   Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_nhits,
-  Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_qop)
+  Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_qop,
+  Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_pt,
+  Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_tx,
+  Allen::Monitoring::Histogram<>::DeviceType dev_histo_long_track_forward_ty)
 {
   const auto* ut_tracks =
     Allen::dyn_cast<const Allen::Views::UT::Consolidated::MultiEventVeloUTTracks*>(*parameters.dev_tracks_view);
@@ -125,7 +134,10 @@ __global__ void create_scifi_views(
       dev_histo_long_track_forward_eta,
       dev_histo_long_track_forward_phi,
       dev_histo_long_track_forward_nhits,
-      dev_histo_long_track_forward_qop);
+      dev_histo_long_track_forward_qop,
+      dev_histo_long_track_forward_pt,
+      dev_histo_long_track_forward_tx,
+      dev_histo_long_track_forward_ty);
   }
   else {
     const auto* velo_tracks =
@@ -136,7 +148,10 @@ __global__ void create_scifi_views(
       dev_histo_long_track_forward_eta,
       dev_histo_long_track_forward_phi,
       dev_histo_long_track_forward_nhits,
-      dev_histo_long_track_forward_qop);
+      dev_histo_long_track_forward_qop,
+      dev_histo_long_track_forward_pt,
+      dev_histo_long_track_forward_tx,
+      dev_histo_long_track_forward_ty);
   }
 }
 
@@ -188,6 +203,9 @@ void scifi_consolidate_tracks::scifi_consolidate_tracks_t::operator()(
   auto dev_histo_long_track_forward_phi = m_histogram_long_track_forward_phi.data(context);
   auto dev_histo_long_track_forward_nhits = m_histogram_long_track_forward_nhits.data(context);
   auto dev_histo_long_track_forward_qop = m_histogram_long_track_forward_qop.data(context);
+  auto dev_histo_long_track_forward_pt = m_histogram_long_track_forward_pt.data(context);
+  auto dev_histo_long_track_forward_tx = m_histogram_long_track_forward_tx.data(context);
+  auto dev_histo_long_track_forward_ty = m_histogram_long_track_forward_ty.data(context);
 
   global_function(scifi_consolidate_tracks)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
@@ -201,7 +219,10 @@ void scifi_consolidate_tracks::scifi_consolidate_tracks_t::operator()(
     dev_histo_long_track_forward_eta,
     dev_histo_long_track_forward_phi,
     dev_histo_long_track_forward_nhits,
-    dev_histo_long_track_forward_qop);
+    dev_histo_long_track_forward_qop,
+    dev_histo_long_track_forward_pt,
+    dev_histo_long_track_forward_tx,
+    dev_histo_long_track_forward_ty);
 
   if (with_ut) {
     PrefixSum::prefix_sum<dev_used_ut_hits_offsets_t>(*this, arguments, context);
@@ -404,9 +425,11 @@ __device__ void scifi_consolidate_tracks::scifi_consolidate_tracks_t::monitor(
   Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_eta,
   Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_phi,
   Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_nhits,
-  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_qop)
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_qop,
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_pt,
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_tx,
+  Allen::Monitoring::Histogram<>::DeviceType& dev_histo_long_track_forward_ty)
 {
-
   const auto tx = velo_state.tx();
   const auto ty = velo_state.ty();
   const float slope2 = tx * tx + ty * ty;
@@ -414,10 +437,14 @@ __device__ void scifi_consolidate_tracks::scifi_consolidate_tracks_t::monitor(
   const auto nhits = long_track.number_of_hits();
   const auto eta = eta_from_rho(rho);
   const auto phi = std::atan2(ty, tx);
+  const auto pt = long_track.pt(velo_state);
   // printf("tx %.4f , ty %.4f, nhits: %d \n", tx,ty,nhits);
 
   dev_histo_long_track_forward_eta.increment(eta);
   dev_histo_long_track_forward_phi.increment(phi);
   dev_histo_long_track_forward_nhits.increment(nhits);
   dev_histo_long_track_forward_qop.increment(long_track.qop());
+  dev_histo_long_track_forward_pt.increment(pt);
+  dev_histo_long_track_forward_tx.increment(tx);
+  dev_histo_long_track_forward_ty.increment(ty);
 }
