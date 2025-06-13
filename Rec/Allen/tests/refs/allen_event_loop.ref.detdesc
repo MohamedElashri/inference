@@ -44,8 +44,8 @@ fit_prompt_dihadron_secondary_ve...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D
 fit_v0_secondary_vertices              INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 gather_selections                      INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 is_muon                                INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-make_long_track_particles              INFO Booked 4 Histogram(s) : 1D=4 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-matching_consolidate_tracks_matc...    INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+make_long_track_particles              INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+matching_consolidate_tracks_matc...    INFO Booked 9 Histogram(s) : 1D=9 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 momentum_brem_correction_2d722be7      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 pv_beamline_cleanup                    INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 scifi_consolidate_seeds_matching       INFO Booked 5 Histogram(s) : 1D=5 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -295,19 +295,25 @@ is_muon                                INFO 1D histograms in directory "is_muon"
  | n_muons                                                                          | "# muons"                                                                        |     461097 |    0.10964 | 0.31244    |     2.4988 |     4.2442 |
  | pv_x                                                                             | "pv_x"                                                                           |      29987 |          2 | 0.0000     |          0 |          0 |
  | pv_y                                                                             | "pv_y"                                                                           |      50552 |     502.24 | 337.18     |     2.9637 |     35.088 |
-make_long_track_particles              INFO 1D histograms in directory "make_long_track_particles" : 4
+make_long_track_particles              INFO 1D histograms in directory "make_long_track_particles" : 7
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | number_of_trks                                                                   | "NTrks"                                                                          |      10000 |      46.11 | 26.711     |    0.73811 |      0.468 |
- | trk_eta                                                                          | "etaTrk"                                                                         |     461097 |     3.6668 | 0.71862    |   -0.13999 |   -0.83279 |
+ | trk_eta                                                                          | "etaTrk"                                                                         |     461097 |     3.6668 | 0.71862    |   -0.13999 |    -0.8328 |
  | trk_phi                                                                          | "phiTrk"                                                                         |     461097 | -0.0040984 | 1.8038     |-0.00085944 |    -1.2489 |
- | trk_pt                                                                           | "ptTrk"                                                                          |     461030 |     661.49 | 586.04     |     3.3618 |     21.217 |
-matching_consolidate_tracks_matc...    INFO 1D histograms in directory "matching_consolidate_tracks_matching" : 6
+ | trk_pt                                                                           | "ptTrk"                                                                          |     461030 |     661.48 | 586.07     |     3.3614 |     21.214 |
+ | trk_qop                                                                          | "q/p"                                                                            |     461097 |  1.326e-06 | 0.00015144 | -0.0058843 |   -0.82437 |
+ | trk_tx                                                                           | "txTrk"                                                                          |     461097 |-0.00041769 | 0.061149   |  0.0076484 |     3.2954 |
+ | trk_ty                                                                           | "tyTrk"                                                                          |     461097 |-7.2111e-05 | 0.057078   |  -0.029812 |     1.5126 |
+matching_consolidate_tracks_matc...    INFO 1D histograms in directory "matching_consolidate_tracks_matching" : 9
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | long_track_ghost_prob                                                            | "GhostProb"                                                                      |     461097 |   0.076534 | 0.10011    |     2.0818 |     4.0091 |
- | long_track_matching_eta                                                          | "#eta"                                                                           |     461097 |     3.6663 | 0.71835    |   -0.13956 |   -0.83215 |
+ | long_track_matching_eta                                                          | "#eta"                                                                           |     461097 |     3.6662 | 0.71833    |   -0.13965 |   -0.83227 |
  | long_track_matching_nhits                                                        | "N. hits / track"                                                                |     461097 |     25.145 | 3.2507     |   0.027714 |   -0.50394 |
- | long_track_matching_phi                                                          | "#phi"                                                                           |     461097 | -0.0041285 | 1.8039     |-0.00085723 |    -1.2487 |
+ | long_track_matching_phi                                                          | "#phi"                                                                           |     461097 | -0.0041249 | 1.8038     |-0.00082194 |    -1.2488 |
+ | long_track_matching_pt                                                           | "pt"                                                                             |     461030 |     660.97 | 585.85     |     3.3623 |     21.222 |
  | long_track_matching_qop                                                          | "q/p"                                                                            |     461097 | 1.3272e-06 | 0.00015181 | -0.0058222 |   -0.82083 |
+ | long_track_matching_tx                                                           | "tx"                                                                             |     461097 |-0.00042222 | 0.061160   |  0.0076975 |     3.2901 |
+ | long_track_matching_ty                                                           | "ty"                                                                             |     461097 |-7.1521e-05 | 0.057085   |  -0.029684 |     1.5111 |
  | n_long_tracks_matching_event                                                     | "n_long_tracks_matching_event"                                                   |      10000 |      46.11 | 26.711     |    0.73811 |      0.468 |
 momentum_brem_correction_2d722be7      INFO 1D histograms in directory "momentum_brem_correction_2d722be7" : 3
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
@@ -335,12 +341,12 @@ velo_consolidate_tracks                INFO 1D histograms in directory "velo_con
  | n_velo_tracks_event                                                              | "n_velo_tracks_event"                                                            |       9999 |     250.12 | 134.33     |    0.77697 |    0.89125 |
 velo_kalman_filter                     INFO 1D histograms in directory "velo_kalman_filter" : 9
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
- | velo_backward_track_eta                                                          | "#backward_eta"                                                                  |     935907 |    -3.0143 | 0.80746    |   0.011252 |    -0.6287 |
+ | velo_backward_track_eta                                                          | "#backward_eta"                                                                  |     935907 |    -3.0143 | 0.80742    |   0.011359 |   -0.62884 |
  | velo_backward_track_nhits                                                        | "backward N. hits / track"                                                       |     935908 |     4.5929 | 1.3876     |     1.2513 |     2.3966 |
- | velo_backward_track_phi                                                          | "#backward_phi"                                                                  |     935908 |-0.00020729 | 1.7950     |  -0.012918 |    -1.1696 |
- | velo_forward_track_eta                                                           | "#forward_eta"                                                                   |    1566014 |     3.2753 | 1.0900     |    0.11831 |   -0.98396 |
+ | velo_backward_track_phi                                                          | "#backward_phi"                                                                  |     935908 |-0.00020345 | 1.7949     |   -0.01286 |    -1.1698 |
+ | velo_forward_track_eta                                                           | "#forward_eta"                                                                   |    1566014 |     3.2753 | 1.0900     |    0.11825 |     -0.984 |
  | velo_forward_track_nhits                                                         | "forward N. hits / track"                                                        |    1566014 |     7.3357 | 3.4695     |    0.58273 |   -0.57484 |
- | velo_forward_track_phi                                                           | "#forward_phi"                                                                   |    1566014 | -0.0031376 | 1.8200     |  -0.004291 |    -1.2094 |
- | velo_total_track_eta                                                             | "#total_eta"                                                                     |    2501921 |    0.92254 | 3.2016     |   -0.37194 |    -1.4824 |
+ | velo_forward_track_phi                                                           | "#forward_phi"                                                                   |    1566014 |  -0.003142 | 1.8200     | -0.0042865 |    -1.2095 |
+ | velo_total_track_eta                                                             | "#total_eta"                                                                     |    2501921 |    0.92254 | 3.2016     |   -0.37193 |    -1.4825 |
  | velo_total_track_nhits                                                           | "total N. hits / track"                                                          |    2501922 |     6.3097 | 3.1649     |     1.0962 |    0.44518 |
- | velo_total_track_phi                                                             | "#total_phi"                                                                     |    2501922 | -0.0020414 | 1.8107     | -0.0074665 |    -1.1947 |
+ | velo_total_track_phi                                                             | "#total_phi"                                                                     |    2501922 | -0.0020428 | 1.8107     | -0.0074425 |    -1.1949 |
