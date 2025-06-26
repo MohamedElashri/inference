@@ -145,7 +145,7 @@ full:
     geometry: "geometry_dddb-20240427_sim10-2024.Q1.2-v1.1-md100"
 
     
-    # run throughput, PbPb samples, 2024 default PbPb sequence
+  # run throughput, PbPb samples, 2024 default PbPb sequence
   - type: "throughput"
     sequence:
       - hlt1_PbPb_PbSMOG
@@ -165,6 +165,20 @@ full:
       - hlt1_PbPb_PbSMOG
     dataset: "official-expected-2024-PbAr-minbias-mdf"
     geometry: "geometry_dddb-20231017_sim-20231017-vc-md100"
+    timeout: 2400
+    collision_type: "PbPb"
+    allowed_devices:
+      - epyc7502
+      - a5000
+      - geforcertx3090
+
+  # run throughput, OO samples, 2025 default OO sequence
+  # Just use PbPb running options.
+  - type: "throughput"
+    sequence:
+      - hlt1_LightIon_IonSMOG_veloSP
+    dataset: "official-expected-2025-OO-minbias"
+    geometry: "geometry_2025-v00.02_sim10-2025-v00.01-mu100"
     timeout: 2400
     collision_type: "PbPb"
     allowed_devices:
