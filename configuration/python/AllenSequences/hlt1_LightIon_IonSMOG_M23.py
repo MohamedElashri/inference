@@ -21,11 +21,11 @@ with make_routingbits_writer.bind(rb_map=rb_map_LightIon):
     with make_heavy_ion_event_line.bind(
             PbPb_SMOG_z_separation=-330.), make_velo_scifi_matches.bind(
                 ghost_killer_threshold=0.8), make_pr_velo_tracks.bind(
-                    missing_modules=[21]):
+                    missing_modules=[21, 23]):
         with make_ecal_clusters.bind(
                 seed_min_adc=10, neighbour_min_adc=2, min_et=200, min_e19=0):
             hlt1_node = setup_hlt1_node(
-                prescale=True,
+                prescale=False,
                 with_ut=True,
                 EnableGEC=True,
                 reco_particles=True,
