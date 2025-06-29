@@ -560,7 +560,7 @@ def setup_hlt1_node(withMCChecking=False,
                 make_velo_micro_bias_line(
                     reconstructed_objects["velo_tracks"],
                     name="Hlt1VeloMicroBias",
-                    pre_scaler=0.15,
+                    pre_scaler=1.,
                     post_scaler=1.,
                     min_velo_tracks=3))
         ]
