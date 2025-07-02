@@ -51,7 +51,7 @@ using namespace ParKalmanFilter;
 using Vector10 = Vector<10>;
 using Vector2 = Vector<2>;
 using SymMatrix2x2 = SquareMatrix<true, 2>;
-using Matrix2x2 = SquareMatrix<false, 2>;
+using Matrix5x5 = SquareMatrix<false, 5>;
 
 // Parameters for beamline propagation and VELO-only Kalman Filter.
 static constexpr float rffoilscatter = 0.6;
@@ -95,7 +95,7 @@ __device__ inline float SciFi_dy(const Allen::Views::SciFi::Consolidated::Track&
 ////////////////////////////////////////////////////////////////////////
 // Functions for doing the extrapolation.
 __device__ inline void
-ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix2x2& F, SymMatrix5x5& Q, trackInfo& tI)
+ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F, SymMatrix5x5& Q, trackInfo& tI)
 {
   // step size in z
   KalmanFloat dz = zTo - tI.m_Lastz;
@@ -114,16 +114,14 @@ ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix2x2& F,
   x[1] += x[3] * dz;
 
   // determine the Jacobian
-  // NB: F is *not* the standard definition of f_ij = del f_i / del x_j
-  // would be F(0,2), F(1,3)
-  F(0, 0) = dz;
-  F(0, 1) = dz;
+  F(0, 2) = dz;
+  F(1, 3) = dz;
 
-  // would be F(2, 4)
-  F(1, 0) = par;
+  // tx
+  F(2, 4) = par;
 
-  // would be F(0,4)
-  F(1, 1) = ((KalmanFloat) 0.5) * dz * F(1, 0);
+  // x
+  F(0, 4) = ((KalmanFloat) 0.5) * dz * F(2, 4);
 
   // Set noise matrix
   KalmanFloat sigt = dev_pars[index_offset + 0] * ((KalmanFloat) 1.0e-5) + dev_pars[index_offset + 1] * fabsf(x[4]);
@@ -775,13 +773,14 @@ __device__ inline void PredictStateV(
 {
 
   // Transportation and noise.
-  Matrix2x2 F;
+  Matrix5x5 F;
+  F.SetElements(F_diag);
   SymMatrix5x5 Q;
   Q.SetElements(Q_sym_zero);
   ExtrapolateInV(dev_pars, (KalmanFloat) track.hit(nHit).z(), x, F, Q, tI);
 
   // Transport the covariance matrix.
-  C = similarity_5_5_VP(F, C);
+  C = similarity_5_5(F, C);
 
   // Add noise.
   // C = C + Q;
@@ -828,7 +827,7 @@ __device__ inline void PredictStateVUT(
   // Init transport matrix
   tI.m_RefPropForwardTotal = F;
   // Transport the covariance matrix
-  C = similarity_5_5_VUT(F, C);
+  C = similarity_5_5(F, C);
 
   // Add noise.
   // C = C + Q;
@@ -863,7 +862,7 @@ __device__ inline void PredictStateUT(
 
   ExtrapolateInUT(dev_pars, zTo, x, F, Q, tI, layer);
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
-  C = similarity_5_5_UT(F, C);
+  C = similarity_5_5(F, C);
   // C = C + Q;
   AeApB(C, Q);
   // tI.m_Lastz = zTo; // is set in the ExtrapolateInUT function
@@ -883,7 +882,7 @@ __device__ inline void PredictStateTFT(
 
   // Transport the covariance matrix.
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
-  C = similarity_5_5_TFT(F, C);
+  C = similarity_5_5(F, C);
   // lastz = z; Done in extrapolate
 }
 //----------------------------------------------------------------------
@@ -912,7 +911,7 @@ __device__ inline void PredictStateUTT(
   // Q is not physical, since the scattering would be double counted otherwise. -> Potential to save on the calculation
   // F is a physical transport that needs to be added to tI.m_RefPropForwardTotal
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
-  C = similarity_5_5_UT(F, C);
+  C = similarity_5_5(F, C);
   tI.m_Lastz = zBegin; // not really needed but good for understanding.
 
   // Calculate the extrapolation for a reference state that uses
@@ -933,7 +932,7 @@ __device__ inline void PredictStateUTT(
 
   // Transport covariance matrix.
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
-  C = similarity_5_5_UTT(F, C);
+  C = similarity_5_5(F, C);
   // C = C + Q;
   AeApB(C, Q);
 
@@ -980,7 +979,7 @@ __device__ inline void PredictStateT(
 
   // Transport matrix
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
-  C = similarity_5_5_T(F, C);
+  C = similarity_5_5(F, C);
   // C = C + Q;
   AeApB(C, Q);
   // tI.m_Lastz = zTo; Done in extrapolate
