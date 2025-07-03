@@ -1115,8 +1115,8 @@ def default_bgi_activity_lines(pvs,
     pvs_z_all = make_checkCylPV(
         pvs,
         name="BGIPVsCylAll",
-        min_vtx_z=-2000.,
-        max_vtz_z=2000.,
+        min_vtx_z=-3000.,
+        max_vtz_z=3000.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines = []
@@ -1125,8 +1125,8 @@ def default_bgi_activity_lines(pvs,
     velo_states_z_all = make_checkPseudoPV(
         velo_states,
         name="BGIPseudoPVsAll",
-        min_state_z=-2000.,
-        max_state_z=2000.,
+        min_state_z=-3000.,
+        max_state_z=3000.,
         max_state_rho_sq=max_cyl_rad_sq,
         min_local_nTracks=10.)
     lines += [
@@ -1156,7 +1156,7 @@ def default_bgi_activity_lines(pvs,
     velo_states_z_up = make_checkPseudoPV(
         velo_states,
         name="BGIPseudoPVsUp",
-        min_state_z=-2000.,
+        min_state_z=-3000.,
         max_state_z=-250.,
         max_state_rho_sq=max_cyl_rad_sq,
         min_local_nTracks=10.)
@@ -1174,7 +1174,7 @@ def default_bgi_activity_lines(pvs,
         velo_states,
         name="BGIPseudoPVsDown",
         min_state_z=250.,
-        max_state_z=2000.,
+        max_state_z=3000.,
         max_state_rho_sq=max_cyl_rad_sq,
         min_local_nTracks=10.)
     lines += [
@@ -1234,7 +1234,7 @@ def default_bgi_activity_lines(pvs,
     pvs_z_up = make_checkCylPV(
         pvs,
         name="BGIPVsCylUp",
-        min_vtx_z=-2000.,
+        min_vtx_z=-3000.,
         max_vtz_z=-250.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
@@ -1252,7 +1252,7 @@ def default_bgi_activity_lines(pvs,
         pvs,
         name="BGIPVsCylDown",
         min_vtx_z=250.,
-        max_vtz_z=2000.,
+        max_vtz_z=3000.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines += [
