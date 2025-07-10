@@ -40,6 +40,7 @@ error_bank_filter                      INFO Booked 8 Histogram(s) : 1D=8 2D=0 3D
 fit_dihadron_secondary_vertices        INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 fit_dihadrons_noipcut_secondary_...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 fit_dilepton_secondary_vertices        INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+fit_dilepton_secondary_vertices_...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 fit_prompt_dihadron_secondary_ve...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 fit_v0_secondary_vertices              INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
 gather_selections                      INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -113,8 +114,8 @@ gather_selections                      INFO Number of counters : 82
  | "Hlt1DiMuonNoIPPass"                            |         8 |
  | "Hlt1DiMuonNoIPRate"                            |         8 |
  | "Hlt1DiMuonNoIP_SSPass"                         |         7 |
- | "Hlt1DiMuonSoftPass"                            |         6 |
- | "Hlt1DiMuonSoftRate"                            |         6 |
+ | "Hlt1DiMuonSoftPass"                            |        11 |
+ | "Hlt1DiMuonSoftRate"                            |        11 |
  | "Hlt1DiPhotonHighMassPass"                      |        33 |
  | "Hlt1DiPhotonHighMassRate"                      |        33 |
  | "Hlt1Dst2D0PiAlignmentPass"                     |         2 |
@@ -283,6 +284,9 @@ fit_dihadrons_noipcut_secondary_...    INFO 1D histograms in directory "fit_diha
 fit_dilepton_secondary_vertices        INFO 1D histograms in directory "fit_dilepton_secondary_vertices" : 1
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | number_of_svs                                                                    | "NSVs"                                                                           |      10000 |     15.665 | 30.977     |     6.4315 |     89.226 |
+fit_dilepton_secondary_vertices_...    INFO 1D histograms in directory "fit_dilepton_secondary_vertices_nopt" : 1
+ | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
+ | number_of_svs                                                                    | "NSVs"                                                                           |      10000 |     24.411 | 45.319     |     4.7849 |     36.532 |
 fit_prompt_dihadron_secondary_ve...    INFO 1D histograms in directory "fit_prompt_dihadron_secondary_vertices" : 1
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | number_of_svs                                                                    | "NSVs"                                                                           |      10000 |     15.896 | 20.759     |     2.5049 |     8.7388 |
@@ -291,8 +295,8 @@ fit_v0_secondary_vertices              INFO 1D histograms in directory "fit_v0_s
  | number_of_svs                                                                    | "NSVs"                                                                           |      10000 |     0.8556 | 1.8789     |     5.8279 |     76.025 |
 gather_selections                      INFO 1D histograms in directory "gather_selections" : 2
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
- | line_passes                                                                      | "line passes"                                                                    |      17397 |     81.079 | 19.634     |   -0.80305 |   -0.41944 |
- | line_rates                                                                       | "line rates"                                                                     |        655 |     74.859 | 29.746     |    -1.1732 |   -0.39345 |
+ | line_passes                                                                      | "line passes"                                                                    |      17402 |     81.068 | 19.643     |   -0.80238 |   -0.42184 |
+ | line_rates                                                                       | "line rates"                                                                     |        660 |     74.606 | 29.774     |    -1.1462 |   -0.45031 |
 is_muon                                INFO 1D histograms in directory "is_muon" : 3
  | ID                                                                               | Title                                                                            |      #     |     Mean   |    RMS     |  Skewness  |  Kurtosis  |
  | n_muons                                                                          | "# muons"                                                                        |     458942 |    0.10949 | 0.31225    |     2.5013 |     4.2565 |
