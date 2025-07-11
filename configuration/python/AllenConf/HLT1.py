@@ -46,6 +46,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
     prompt_dihadrons = reconstructed_objects[
         "prompt_dihadron_secondary_vertices"]
     dileptons = reconstructed_objects["dilepton_secondary_vertices"]
+    dileptons_nopt = reconstructed_objects["dilepton_secondary_vertices_nopt"]
     v0s = reconstructed_objects["v0_secondary_vertices"]
     lambda_track_from_c = reconstructed_objects["lambda_track_from_c"]
     v0_twotrack_pairs = reconstructed_objects["v0_sv_twotrack_pairs"]
@@ -443,7 +444,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 oppositeSign=False,
                 pre_scaler=0.01),
             make_di_muon_soft_line(
-                long_tracks, dileptons, name="Hlt1DiMuonSoft"),
+                long_tracks, dileptons_nopt, name="Hlt1DiMuonSoft"),
             make_track_muon_mva_line(
                 long_tracks,
                 long_track_particles,

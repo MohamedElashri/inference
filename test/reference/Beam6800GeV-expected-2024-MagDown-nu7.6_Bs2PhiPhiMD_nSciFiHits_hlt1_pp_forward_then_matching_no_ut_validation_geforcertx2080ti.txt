@@ -120,7 +120,7 @@ Hlt1DiMuonNoIP:                          0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiMuonNoIPNorm:                      1/   500, (   60.00 +/-    59.94) kHz
 Hlt1DiMuonNoIPNorm_SS:                   0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiMuonNoIP_SS:                       0/   500, (    0.00 +/-     0.00) kHz
-Hlt1DiMuonSoft:                          0/   500, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonSoft:                          1/   500, (   60.00 +/-    59.94) kHz
 Hlt1DiPhotonHighMass:                    3/   500, (  180.00 +/-   103.61) kHz
 Hlt1DiProtonHighMass:                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Dst2D0Pi:                            0/   500, (    0.00 +/-     0.00) kHz
@@ -178,7 +178,7 @@ Hlt1UpsilonAlignment:                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1VeloMicroBias:                       1/   500, (   60.00 +/-    59.94) kHz
 Hlt1VeloMicroBiasVeloClosing:            0/   500, (    0.00 +/-     0.00) kHz
 Hlt1XiOmegaLLL:                          0/   500, (    0.00 +/-     0.00) kHz
-Inclusive:                             314/   500, (18840.00 +/-   648.47) kHz
+Inclusive:                             315/   500, (18900.00 +/-   647.75) kHz
 
 
 seed_validator validation:
@@ -332,7 +332,7 @@ Hlt1DiMuonNoIP:                          0           0
 Hlt1DiMuonNoIPNorm:                      1           2
 Hlt1DiMuonNoIPNorm_SS:                   0           0
 Hlt1DiMuonNoIP_SS:                       0           0
-Hlt1DiMuonSoft:                          0           0
+Hlt1DiMuonSoft:                          1           1
 Hlt1DiPhotonHighMass:                    3           6
 Hlt1DiProtonHighMass:                    0           0
 Hlt1Dst2D0Pi:                            0           0
@@ -391,12 +391,12 @@ Hlt1VeloMicroBias:                       1           0
 Hlt1VeloMicroBiasVeloClosing:            0           0
 Hlt1XiOmegaLLL:                          0           0
 
-Total decisions:      548
-Total tracks:         1157
+Total decisions:      549
+Total tracks:         1159
 Total calos clusters: 9
-Total SVs:            1067
-Total hits:           25447
-Total stdinfo:        14108
+Total SVs:            1068
+Total hits:           25491
+Total stdinfo:        14129
 
 
 velo_validator validation:
