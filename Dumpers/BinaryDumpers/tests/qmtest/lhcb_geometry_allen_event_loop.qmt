@@ -23,7 +23,7 @@
   <argument name="args"><set>
     <text>../../options/allen.py</text>
     <text>--test-file-db-key</text><text>upgrade_Sept2022_minbias_0fb_md_mdf</text>
-    <text>--sequence</text><text>$ALLEN_INSTALL_DIR/constants/hlt1_pp_no_ut.json</text>
+    <text>--sequence</text><text>$ALLEN_INSTALL_DIR/constants/hlt1_pp_default.json</text>
     <text>--monitoring-filename</text><text>allen_event_loop.root</text>
     <text>-n</text><text>10000</text>
   </set></argument>
