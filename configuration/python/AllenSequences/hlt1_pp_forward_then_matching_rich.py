@@ -9,18 +9,9 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.HLT1 import setup_hlt1_node
-from AllenConf.velo_reconstruction import decode_velo
 from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
-from AllenConf.get_thresholds import get_thresholds
-from AllenConf.filters import make_tae_activity_filter
 
-with decode_velo.bind(retina_decoding=False):
-    with make_tae_activity_filter.bind(
-            use_long_tracks=True, name="tae_long_activity_filter"):
-        hlt1_node = setup_hlt1_node(
-            tracking_type=TrackingType.MATCHING,
-            threshold_settings=get_thresholds("no_ut_tuned_1000KHz"),
-            with_ut=False,
-            tae_activity=True)
+hlt1_node = setup_hlt1_node(
+    with_rich=True, tracking_type=TrackingType.FORWARD_THEN_MATCHING)
 generate(hlt1_node)

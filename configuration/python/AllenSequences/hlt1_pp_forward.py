@@ -8,11 +8,9 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.scifi_reconstruction import decode_scifi
-from PyConf.control_flow import NodeLogic, CompositeNode
+from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
+from AllenConf.enum_types import TrackingType
 
-decode_scifi = CompositeNode("DecodeScifi",
-                             [decode_scifi()["dev_scifi_hits"].producer])
-
-generate(decode_scifi)
+hlt1_node = setup_hlt1_node(tracking_type=TrackingType.FORWARD)
+generate(hlt1_node)
