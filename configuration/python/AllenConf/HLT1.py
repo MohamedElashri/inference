@@ -158,7 +158,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 reconstructed_objects['downstream_secondary_vertices'],
                 minPt=thresholds.DownstreamGammaToEE_minPt,
                 name="Hlt1DownstreamGammaToEE",
-                post_scaler=0.2,
+                post_scaler=1.,
                 enable_monitoring=True,
                 enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 Monitoring Line / Trigger disabled
