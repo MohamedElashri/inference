@@ -40,7 +40,7 @@ if [ "${TARGET}" = "CPU" ]; then
     CMDPREFIX="numactl --cpunodebind=${NUMA_NODE} --membind=${NUMA_NODE} ./toolchain/wrapper"
     ALLEN="./Allen -t ${THREADS}"
 elif [ "${TARGET}" = "CUDA" ]; then
-    export PATH=$PATH:/usr/local/cuda/bin
+    export PATH=$PATH:/usr/local/cuda/bin:/cvmfs/projects.cern.ch/lcg/releases/cuda/12.4/x86_64-linux/bin
     GPU_UUID=${CI_RUNNER_DESCRIPTION_SPLIT[2]}
     GPU_NUMBER=$(nvidia-smi -L | grep ${GPU_UUID} | awk '{ print $2; }' | sed -e 's/://')
     NUMA_NODE=$(nvidia-smi topo --id ${GPU_UUID} --get-numa-id-of-nearby-cpu | awk '{ print $NF; }')
@@ -48,7 +48,7 @@ elif [ "${TARGET}" = "CUDA" ]; then
 
 
     if [ "${RUN_SANITIZER}" = "1" ]; then
-        CMDPREFIX="${CMDPREFIX} /usr/local/cuda/bin/compute-sanitizer --tool ${SANITIZER_TOOL} --padding 32"
+        CMDPREFIX="${CMDPREFIX} /cvmfs/projects.cern.ch/lcg/releases/cuda/12.4/x86_64-linux/bin/compute-sanitizer --tool ${SANITIZER_TOOL} --padding 32"
     fi
 
     ALLEN="./Allen"
