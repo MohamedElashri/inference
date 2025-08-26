@@ -60,16 +60,8 @@ a5000:
     - .a5000
     - .run_job
 
-
-epyc7502:
-  extends:
-    - .epyc7502
-    - .run_job
-
-
 .device-jobs:
   dependencies:
-    - epyc7502
     - a5000
     - geforcertx2080ti
     - geforcertx3090
@@ -94,7 +86,6 @@ physics-efficiency:
 #     - .default_rules_always_run
 #   needs:
 #     - a5000
-#     - epyc7502
 
 
 throughput:
@@ -208,17 +199,6 @@ CUDA:
 #   variables:
 #     LCG_QUALIFIER: hip5
 
-
-# CPU
-epyc7502-full:
-  extends:
-    - .epyc7502
-    - .run_jobs
-    - .default_rules_always_run
-    - .cpu_run_job
-  timeout: 2h
-
-
 # GPU / CUDA
 # RTX 3090
 geforcertx3090-full:
@@ -256,9 +236,6 @@ geforcertx2080ti-full:
   # N.B. dependencies: is used instead of needs:, as the needs: job limit
   # is 50. See https://docs.gitlab.com/ee/ci/yaml/#changing-the-needs-job-limit
   dependencies:
-    # CPU
-    - epyc7502-full
-
     # CUDA
     - geforcertx3090-full
     - geforcertx2080ti-full

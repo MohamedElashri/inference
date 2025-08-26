@@ -73,7 +73,6 @@ minimal:
   #   disable_run_changes: ["1"] # TODO FIXME Fix disable-run-changes 0 case!!!
   #   timeout: 600
   #   allowed_devices:
-  #     - epyc7502
   #     - a5000
 
 full:
@@ -144,7 +143,6 @@ full:
     timeout: 2400
     collision_type: "PbPb"
     allowed_devices:
-      - epyc7502
       - a5000
       - geforcertx3090
 
@@ -157,7 +155,6 @@ full:
     timeout: 2400
     collision_type: "PbPb"
     allowed_devices:
-      - epyc7502
       - a5000
       - geforcertx3090
 
