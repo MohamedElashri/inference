@@ -77,7 +77,7 @@ void DumpRawBanks::operator()(
   LHCb::ODIN const& odin) const
 {
   if (!m_createdDirectories) {
-    std::lock_guard {m_dirMutex};
+    std::lock_guard _ {m_dirMutex};
     if (!m_createdDirectories) {
       for (auto bt : LHCb::RawBank::types()) {
         auto const& banks = std::get<0>(transposed_banks[bt]);
