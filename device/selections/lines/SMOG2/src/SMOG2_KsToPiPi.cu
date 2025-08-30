@@ -61,12 +61,11 @@ __device__ bool SMOG2_kstopipi_line::SMOG2_kstopipi_line_t::fill_tuples(
     const auto trk2 = static_cast<const Allen::Views::Physics::BasicParticle*>(particle.child(1));
 
     parameters.sv_masses[index] = particle.m12(Allen::mPi, Allen::mPi);
-    parameters.minipchi2[index] = particle.minipchi2();
-    parameters.ip[index] = particle.ip();
     parameters.svz[index] = particle.vertex().z();
     parameters.track1pt[index] = trk1->state().pt();
     parameters.track2pt[index] = trk2->state().pt();
     parameters.minipchi2[index] = particle.minipchi2();
+    parameters.ip[index] = particle.ip();
     parameters.pvz[index] = particle.pv().position.z;
     parameters.pt[index] = particle.vertex().pt();
   }
