@@ -63,7 +63,7 @@ namespace SMOG2_kstopipi_line {
         histogram_smogks_pt(algo.m_histogram_smogks_pt.data(ctx))
       {}
     };
-    using monitoring_types = std::tuple<sv_masses_t, svz_t, track1pt_t, track2pt_t, minipchi2_t, ip_t>;
+    using monitoring_types = std::tuple<sv_masses_t, svz_t, track1pt_t, track2pt_t, minipchi2_t, ip_t, pvz_t, pt_t>;
 
     __device__ static bool
     select(const Parameters&, const DeviceProperties&, std::tuple<const Allen::Views::Physics::CompositeParticle>);
