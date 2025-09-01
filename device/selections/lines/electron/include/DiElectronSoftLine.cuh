@@ -95,10 +95,10 @@ namespace di_electron_soft_line {
     Allen::Property<float> m_DESoftM0 {this, "DESoftM0", 483.f, "lower m(pipi) for KS->pipi veto"};
     Allen::Property<float> m_DESoftM1 {this, "DESoftM1", 513.f, "higher m(pipi) for KS->pipi veto"};
     Allen::Property<float> m_DESoftM2 {this, "DESoftM2", 800.f, "upper m(ee)"};
-    Allen::Property<float> m_DESoftMinIP {this, "DESoftMinIP", 1.45f, "min(IP) of the electrons"};
-    Allen::Property<float> m_DESoftMinRho2 {this, "DESoftMinRho2", 9.1f, "minimum transverse distance to the beampipe"};
-    Allen::Property<float> m_DESoftMaxDOCA {this, "DESoftMaxDOCA", 0.096f, "max DOCA between electrons"};
-    Allen::Property<float> m_DESoftMaxIPDZ {this, "DESoftMaxIPDZ", 0.0024f, "DESoftMaxIPDZ description"};
+    Allen::Property<float> m_DESoftMinIP {this, "DESoftMinIP", 1.4f, "min(IP) of the electrons"};
+    Allen::Property<float> m_DESoftMinRho2 {this, "DESoftMinRho2", 9.f, "minimum transverse distance to the beampipe"};
+    Allen::Property<float> m_DESoftMaxDOCA {this, "DESoftMaxDOCA", 0.1f, "max DOCA between electrons"};
+    Allen::Property<float> m_DESoftMaxIPDZ {this, "DESoftMaxIPDZ", 0.0045f, "DESoftMaxIPDZ description"};
     Allen::Property<float> m_DESoftMinZ {this, "DESoftMinZ", -375.f, "min z"};
     Allen::Property<float> m_DESoftMaxZ {this, "DESoftMaxZ", 635.f, "max z"};
     Allen::Property<float> m_DESoftGhost {this,
