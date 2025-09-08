@@ -278,7 +278,7 @@ void calo_decode::calo_decode_t::operator()(
     if (bank_version <= 3 && geom_version <= 3) {
       return true;
     }
-    else if ((bank_version == 4 || bank_version == 5) && geom_version == 4) {
+    else if ((bank_version == 4 || bank_version == 5) && (geom_version == 4 || geom_version == 5)) {
       return true;
     }
     return false;
