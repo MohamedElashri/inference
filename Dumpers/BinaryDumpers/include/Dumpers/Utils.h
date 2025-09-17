@@ -58,7 +58,8 @@ namespace DumpUtils {
       }
       else {
         static_assert(std::is_trivially_copyable_v<typename T::value_type>);
-        return write(os, std::as_bytes(LHCb::make_span(t)));
+        using std::as_bytes;
+        return write(os, as_bytes(LHCb::make_span(t)));
       }
     }
 

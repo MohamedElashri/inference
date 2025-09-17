@@ -118,4 +118,3 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PVDumper::operator()(
 
   return viewFromRawEvent(std::move(rawEvent), m_bankType);
 }
-

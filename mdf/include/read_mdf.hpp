@@ -63,5 +63,12 @@ namespace MDF {
     bool dbg = false);
 
   LHCb::ODIN decode_odin(std::span<unsigned const> data, unsigned const version);
+  // temporary migration hack to decouple the version of span used in Allen
+  // from the span used in LHCb
+  template<typename S>
+  LHCb::ODIN decode_odin(S s, unsigned const version)
+  {
+    return decode_odin({s.data(), s.size()}, version);
+  }
 
 } // namespace MDF
