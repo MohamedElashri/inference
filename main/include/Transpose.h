@@ -79,8 +79,8 @@ bool check_sourceIDs(gsl::span<char const> bank_data);
  */
 inline bool sort_by_bank_type(LHCb::RawBank const* a, LHCb::RawBank const* b)
 {
-  bool a_velo = a->type() == LHCb::RawBank::VP || a->type() == LHCb::RawBank::VPRetinaCluster;
-  bool b_velo = b->type() == LHCb::RawBank::VP || b->type() == LHCb::RawBank::VPRetinaCluster;
+  bool a_velo = a->type() == LHCb::RawBank::BankType::VP || a->type() == LHCb::RawBank::BankType::VPRetinaCluster;
+  bool b_velo = b->type() == LHCb::RawBank::BankType::VP || b->type() == LHCb::RawBank::BankType::VPRetinaCluster;
   if (a_velo != b_velo) {
     return a_velo;
   }
@@ -101,8 +101,8 @@ inline bool sort_by_sourceID(LHCb::RawBank const* a, LHCb::RawBank const* b)
 {
   // Special case to avoid mixing VP and VPRetinateCluster banks
   if (
-    (a->type() == LHCb::RawBank::VP || a->type() == LHCb::RawBank::VPRetinaCluster) &&
-    (b->type() == LHCb::RawBank::VP || b->type() == LHCb::RawBank::VPRetinaCluster)) {
+    (a->type() == LHCb::RawBank::BankType::VP || a->type() == LHCb::RawBank::BankType::VPRetinaCluster) &&
+    (b->type() == LHCb::RawBank::BankType::VP || b->type() == LHCb::RawBank::BankType::VPRetinaCluster)) {
     return sort_by_bank_type(a, b);
   }
   else {

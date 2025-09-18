@@ -70,7 +70,7 @@ namespace Allen {
     return reinterpret_cast<unsigned const*>(event_data)[0];
   }
 
-  static constexpr uint8_t LastBankType = static_cast<uint8_t>(to_integral(LHCb::RawBank::LastType));
+  static constexpr uint8_t LastBankType = static_cast<uint8_t>(LHCb::RawBank::types().size());
 } // namespace Allen
 
 namespace MEP {

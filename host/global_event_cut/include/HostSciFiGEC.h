@@ -60,7 +60,7 @@ namespace host_scifi_gec {
       const auto scifi_event = SciFi::RawEvent<mep_layout> {
         parameters.scifi_banks[0].data(), scifi_offsets.data(), scifi_sizes.data(), scifi_types.data(), event_number};
       for (unsigned i = 0; i < scifi_event.number_of_raw_banks(); ++i) {
-        if (scifi_event.bank_type(i) == LHCb::RawBank::FTCluster) {
+        if (scifi_event.bank_type(i) == LHCb::RawBank::BankType::FTCluster) {
           n_SciFi_clusters += scifi_event.bank_size(i);
         }
       }

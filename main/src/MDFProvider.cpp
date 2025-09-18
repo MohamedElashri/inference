@@ -316,7 +316,7 @@ MDFProvider::raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_
   // contains the MDF header as bank payload; it does not belong to
   // the original event and should be skipped
   auto const* daq_bank = reinterpret_cast<LHCb::RawBank const*>(event_buffer.data() + event_offset);
-  assert(daq_bank->type() == LHCb::RawBank::DAQ);
+  assert(daq_bank->type() == LHCb::RawBank::BankType::DAQ);
   auto const daq_bank_size = daq_bank->totalSize();
 
   auto const* banks_start = event_buffer.data() + event_offset + daq_bank_size;

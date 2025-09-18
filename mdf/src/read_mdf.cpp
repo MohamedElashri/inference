@@ -84,12 +84,12 @@ std::tuple<bool, bool, std::vector<std::tuple<int, gsl::span<const char>>>> MDF:
       cout << "Bad magic in first bank.\n";
       return {false, true, {}};
     }
-    else if (first_bank->type() == LHCb::RawBank::DAQ && first_bank->version() == DAQ_STATUS_BANK) {
+    else if (first_bank->type() == LHCb::RawBank::BankType::DAQ && first_bank->version() == DAQ_STATUS_BANK) {
       // skip the DAQ status bank
       payload += first_bank->totalSize();
       first_bank = reinterpret_cast<LHCb::RawBank const*>(payload);
     }
-    if (first_bank->type() != LHCb::RawBank::TAEHeader) {
+    if (first_bank->type() != LHCb::RawBank::BankType::TAEHeader) {
       events.emplace_back(0, bank_span);
       return {eof, error, events};
     }
@@ -142,7 +142,7 @@ std::tuple<bool, bool, gsl::span<const char>> MDF::read_banks(
   auto build_bank = [raw_size, &h](char* address) {
     auto* b = reinterpret_cast<LHCb::RawBank*>(address);
     b->setMagic();
-    b->setType(LHCb::RawBank::DAQ);
+    b->setType(LHCb::RawBank::BankType::DAQ);
     b->setSize(raw_size);
     b->setVersion(DAQ_STATUS_BANK);
     b->setSourceID(0);

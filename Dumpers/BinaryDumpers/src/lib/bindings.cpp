@@ -34,7 +34,7 @@ namespace {
         }
         to.insert(n);
       }
-      mapping.emplace(LHCb::RawBank::typeName(lhcb_bt), std::move(to));
+      mapping.emplace(toString(lhcb_bt), std::move(to));
     }
     return mapping;
   }

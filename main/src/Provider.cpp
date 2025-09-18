@@ -263,11 +263,11 @@ std::unique_ptr<IInputProvider> Allen::make_provider(
   auto [veloSP, retina] = Allen::velo_decoding_type(configuration_reader);
   std::unordered_set<LHCb::RawBank::BankType> skip_banks {};
   if (!veloSP && retina) {
-    skip_banks.insert(LHCb::RawBank::Velo);
-    skip_banks.insert(LHCb::RawBank::VP);
+    skip_banks.insert(LHCb::RawBank::BankType::Velo);
+    skip_banks.insert(LHCb::RawBank::BankType::VP);
   }
   else if (veloSP && !retina) {
-    skip_banks.insert(LHCb::RawBank::VPRetinaCluster);
+    skip_banks.insert(LHCb::RawBank::BankType::VPRetinaCluster);
   }
 
   if (!mdf_input.empty()) {

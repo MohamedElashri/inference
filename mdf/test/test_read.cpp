@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
     }
 
     for (auto [bx, bank_span] : event_span) {
-      array<size_t, LHCb::RawBank::LastType + 1> bank_counts {0};
+      array<size_t, LHCb::RawBank::types().size() + 1> bank_counts {0};
 
       std::stringstream bank_stream, odin_stream, rb_stream;
 
@@ -154,9 +154,9 @@ int main(int argc, char* argv[])
 
         bool dump_bank = b->type() == dump_type && (!dump_n || (dump_n && bank_counts[b->type()] == *dump_n));
 
-        if (b->type() < LHCb::RawBank::LastType) {
+        if (b->type() < LHCb::RawBank::types().size()) {
           ++bank_counts[b->type()];
-          if (b->type() == LHCb::RawBank::ODIN && (!dump.empty() || quiet)) {
+          if (b->type() == LHCb::RawBank::BankType::ODIN && (!dump.empty() || quiet)) {
             auto odin = MDF::decode_odin(b->range<unsigned>(), b->version());
             odin_stream << "run " << odin.runNumber() << " event " << std::setw(15) << odin.eventNumber()
                         << " event_type "
@@ -167,7 +167,7 @@ int main(int argc, char* argv[])
                         << odin.timeAlignmentEventCentral();
           }
 
-          if (b->type() == LHCb::RawBank::HltRoutingBits && (!dump.empty() || quiet)) {
+          if (b->type() == LHCb::RawBank::BankType::HltRoutingBits && (!dump.empty() || quiet)) {
             std::bitset<64> routing_bits {*(b->begin<unsigned long>())};
             rb_stream << "RBs: [";
             bool first = true;
@@ -193,7 +193,7 @@ int main(int argc, char* argv[])
           }
         }
         else {
-          ++bank_counts[LHCb::RawBank::LastType];
+          ++bank_counts[LHCb::RawBank::types().size()];
         }
 
         if (!dump.empty() && dump_bank) {
@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
 
         // Move to next raw bank
         bank += b->totalSize();
-        if (b->type() != LHCb::RawBank::DAQ) {
+        if (b->type() != LHCb::RawBank::BankType::DAQ) {
           bank_total_size += b->totalSize();
         }
       }
