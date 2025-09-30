@@ -40,10 +40,13 @@ void brem_recovery::brem_recovery_t::operator()(
   Allen::memset_async<dev_ecal_digits_isBremMatched_t>(arguments, 0, context);
 
   global_function(brem_recovery)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
-    arguments, constants.dev_ecal_geometry);
+    arguments, constants.dev_ecal_geometry, m_min_et_gamma);
 }
 
-__global__ void brem_recovery::brem_recovery(brem_recovery::Parameters parameters, const char* raw_ecal_geometry)
+__global__ void brem_recovery::brem_recovery(
+  brem_recovery::Parameters parameters,
+  const char* raw_ecal_geometry,
+  const float min_et_gamma)
 {
   const unsigned number_of_events = parameters.dev_number_of_events[0];
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
@@ -104,11 +107,14 @@ __global__ void brem_recovery::brem_recovery(brem_recovery::Parameters parameter
       digits_isBremMatched[digit_index] = true;
     }
 
-    parameters.dev_brem_E[track_index_with_offset] = sum_cell_E;
-    parameters.dev_brem_ET[track_index_with_offset] =
-      sum_cell_E * sqrtf(
-                     (velo_state.tx() * velo_state.tx() + velo_state.ty() * velo_state.ty()) /
-                     (velo_state.tx() * velo_state.tx() + velo_state.ty() * velo_state.ty() + 1.f));
+    float uT = sqrtf(
+      (velo_state.tx() * velo_state.tx() + velo_state.ty() * velo_state.ty()) /
+      (velo_state.tx() * velo_state.tx() + velo_state.ty() * velo_state.ty() + 1.f));
+    float gamma =
+      ((sum_cell_E * uT > min_et_gamma) && (N_matched_digits > 0)) ? ecal_geometry.getGamma(digit_indices[0]) : 0.f;
+
+    parameters.dev_brem_E[track_index_with_offset] = sum_cell_E + gamma;
+    parameters.dev_brem_ET[track_index_with_offset] = (sum_cell_E + gamma) * uT;
     parameters.dev_brem_inECALacc[track_index_with_offset] = inAcc;
     parameters.dev_brem_ecal_digits[track_index_with_offset] = digit_indices;
     parameters.dev_brem_ecal_digits_size[track_index_with_offset] = N_matched_digits;
