@@ -164,9 +164,12 @@ __device__ void track_digit_selective_matching::track_digit_selective_matching_i
     parameters.dev_matched_ecal_digits[track_index + event_offset] = digit_indices;
     parameters.dev_matched_ecal_digits_size[track_index + event_offset] = N_matched_digits;
     parameters.dev_track_inEcalAcc[track_index + event_offset] = inAcc;
-    const auto eop = sum_cell_E * fabsf(long_track.qop());
-    parameters.dev_track_Eop[track_index + event_offset] = eop;
-    parameters.dev_track_Eop3x3[track_index + event_offset] = barycenter_E * fabsf(long_track.qop());
+    const float gamma = N_matched_digits > 0 ? ecal_geometry.getGamma(digit_indices[0]) : 0.f;
+    const float eop_estimate = (sum_cell_E + gamma) * fabsf(long_track.qop());
+    const float gamma_corrected = gamma * ((eop_estimate < 1) ? eop_estimate : 1.f);
+    parameters.dev_track_Eop[track_index + event_offset] = (sum_cell_E + gamma_corrected) * fabsf(long_track.qop());
+    parameters.dev_track_Eop3x3[track_index + event_offset] =
+      (barycenter_E + gamma_corrected) * fabsf(long_track.qop());
     parameters.dev_track_isElectron[track_index + event_offset] =
       parameters.dev_track_Eop[track_index + event_offset] > 0.7f;
     parameters.dev_delta_barycenter_x[track_index + event_offset] = (xV - xbar);
