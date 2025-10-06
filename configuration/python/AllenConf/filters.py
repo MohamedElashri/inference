@@ -431,9 +431,9 @@ def sd_error_filter():
             "error_types": ["VeloError"]
         },
         "UT": {
-            "data_types": ["UT", "UTFull"],
+            "data_types": ["UT"],
             "other_types": ["UTPedestal", "UTNZS", "UTSpecial"],
-            "error_types": ["UTError"]
+            "error_types": ["UTError", "UTFull"]
         },
         "Rich1": {
             "data_types": ["Rich"],
