@@ -261,6 +261,8 @@ namespace Allen {
           assert(track_index < m_size);
           return KalmanState {m_base_pointer, m_offset + track_index, m_total_number_of_tracks};
         }
+
+        __host__ __device__ unsigned total_number_of_states() const { return m_total_number_of_tracks; }
       };
 
       struct SecondaryVertex {

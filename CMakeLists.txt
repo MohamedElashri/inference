@@ -167,6 +167,17 @@ if(CALLGRIND_PROFILE)
   add_compile_definitions(CALLGRIND_PROFILE)
 endif()
 
+# Choice of memory backend for magnetic field
+option(MAGFIELD_USE_TEXTURE "Use cuda texture memory for magnetic field" ON)
+if(NOT TARGET_DEVICE STREQUAL "CUDA")
+  # if target is not cuda, fallback to regular memory
+  set(MAGFIELD_USE_TEXTURE OFF)
+endif()
+message(STATUS "Magfield use texture: " ${MAGFIELD_USE_TEXTURE})
+if(MAGFIELD_USE_TEXTURE)
+  add_compile_definitions(MAGFIELD_USE_TEXTURE)
+endif()
+
 set(WITH_Allen_PRIVATE_DEPENDENCIES TRUE)
 include(AllenDependencies)
 

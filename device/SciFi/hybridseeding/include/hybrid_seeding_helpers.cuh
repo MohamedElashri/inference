@@ -11,6 +11,7 @@
 #pragma once
 
 #include <tuple>
+#include <BackendCommon.h>
 #include "States.cuh"
 #include "SciFiEventModel.cuh"
 
@@ -26,11 +27,7 @@ namespace hybrid_seeding {
     unsigned int size = array_size;
 
     // Unroll 10 time to cover arrays of size max 1024
-#if defined(__clang__) or defined(__NVCC__)
-#pragma unroll
-#elif defined(__GNUC__)
-#pragma GCC unroll 10
-#endif
+    UNROLL(10)
     for (unsigned int step = 0; step < 10; step++) {
       unsigned int half = size / 2;
       low += (array[low + half] < needle) * (size - half);

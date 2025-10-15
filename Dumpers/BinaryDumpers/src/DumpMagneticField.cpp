@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2000-2019 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2000-2025 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -8,9 +8,6 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-
-#ifndef DUMPMAGNETICFIELD_H
-#define DUMPMAGNETICFIELD_H 1
 
 #include <tuple>
 #include <vector>
@@ -29,23 +26,16 @@
 
 #include "Dumper.h"
 
-/** @class DumpMagneticField
- *  Dump Magnetic Field Polarity.
- *
- *  @author Nabil Garroum
- *  @date   2022-04-21
- *  This Class dumps Data for Magnetic Field polarity using DD4HEP and Gaudi Algorithm
- *  This Class uses a detector description
- *  This Class is basically an instation of a Gaudi algorithm with specific inputs and outputs:
- *  The role of this class is to get data from TES to Allen for the Magnetic Field
- */
 namespace Dumpers {
   struct MagneticField {
-    MagneticField(std::vector<char>& data, const DeMagnet& magField)
+    MagneticField(std::vector<char>& data, const DeMagnet& deMagnet)
     {
+      const auto* grid = deMagnet.fieldGrid();
       DumpUtils::Writer output {};
-      float polarity = magField.isDown() ? -1.f : 1.f;
-      output.write(polarity);
+      output.write(grid->invDXYZ());
+      output.write(grid->sizeXYZ());
+      output.write(grid->minXYZ());
+      output.write(grid->field());
       data = output.buffer();
     }
   };
@@ -70,22 +60,20 @@ DECLARE_COMPONENT(DumpMagneticField)
 // Add the multitransformer call , which keyvalues for Magnetic Field ?
 
 DumpMagneticField::DumpMagneticField(const std::string& name, ISvcLocator* svcLoc) :
-  Dumper(name, svcLoc, {KeyValue {"MagneticFieldLocation", location(name, "Polarity")}})
+  Dumper(name, svcLoc, {KeyValue {"MagneticFieldLocation", location(name, "Magfield")}})
 {}
 
 StatusCode DumpMagneticField::initialize()
 {
   return Dumper::initialize().andThen([&] {
-    register_producer(Allen::NonEventData::MagneticField::id, "polarity", m_data);
+    register_producer(Allen::NonEventData::MagneticField::id, "magfield", m_data);
     addConditionDerivation(
-      {LHCb::Det::Magnet::det_path}, inputLocation<Dumpers::MagneticField>(), [&](DeMagnet const& magField) {
-        auto polarity = Dumpers::MagneticField {m_data, magField};
+      {LHCb::Det::Magnet::det_path}, inputLocation<Dumpers::MagneticField>(), [&](DeMagnet const& deMagnet) {
+        auto magfield = Dumpers::MagneticField {m_data, deMagnet};
         dump();
-        return polarity;
+        return magfield;
       });
   });
 }
 
 void DumpMagneticField::operator()(const Dumpers::MagneticField&) const {}
-
-#endif // DUMPMAGNETICFIELD_H

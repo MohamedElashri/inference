@@ -1568,6 +1568,15 @@ def setup_hlt1_node(enablePhysics=True,
             "AllenWithLumi", [hlt1_node, lumi_with_prefilter],
             NodeLogic.NONLAZY_AND,
             force_order=False)
+    """
+    if with_fullKF:
+        # Added for testing magnetic field
+        hlt1_node = CompositeNode(
+            "AllenExtrapolatedStates",
+            [hlt1_node, reconstructed_objects["extrapolated_states"]],
+            NodeLogic.NONLAZY_AND,
+            force_order=True)
+    """
 
     if with_rich:
         hlt1_node = CompositeNode(

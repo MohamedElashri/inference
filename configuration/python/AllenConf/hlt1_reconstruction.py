@@ -19,7 +19,7 @@ from AllenConf.primary_vertex_reconstruction import make_pvs
 from AllenConf.secondary_vertex_reconstruction import (
     make_kalman_velo_only, make_basic_particles, fit_secondary_vertices,
     make_sv_track_pairs, make_sv_pairs, make_generic_sv_pairs,
-    make_three_body_svs, make_kalman_long)
+    make_three_body_svs, make_kalman_long, make_extrapolated_states)
 from AllenConf.jet_reconstruction import make_cone_jets
 from AllenConf.validators import (
     velo_validation, veloUT_validation, seeding_validation,
@@ -159,6 +159,14 @@ def hlt1_reconstruction(algorithm_name='',
         kalman_long_tracks = make_kalman_long(long_tracks, pvs, muonID)
         KF_long_track = kalman_long_tracks
         output.update({"kalman_long_track": kalman_long_tracks})
+
+        # Added for testing magfield extrapolation:
+        output.update({
+            "extrapolated_states":
+            make_extrapolated_states(
+                KF_long_track["dev_kalman_states_view"],
+                long_tracks["host_number_of_reconstructed_scifi_tracks"])
+        })
     else:
         kalman_velo_only = make_kalman_velo_only(long_tracks, pvs, muonID)
         output.update({"kalman_velo_only": kalman_velo_only})

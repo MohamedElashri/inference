@@ -66,7 +66,14 @@ namespace Allen {
       inline static std::string const id = "CrossingAngles";
     };
 
-    /** @class UTLookupTables
+    /** @class MagneticFieldPolarity
+     *  Identifier for the magnetic field non-event data for Allen
+     */
+    struct MagneticFieldPolarity : Identifier {
+      inline static std::string const id = "MagneticFieldPolarity";
+    };
+
+    /** @class MagneticField
      *  Identifier for the magnetic field non-event data for Allen
      */
     struct MagneticField : Identifier {

@@ -134,24 +134,18 @@ template<unsigned num_input, unsigned num_node>
 __device__ inline float Allen::MVAModels::DeviceSingleLayerFCNN<num_input, num_node>::evaluate(float* input) const
 {
   using ModelType = Allen::MVAModels::DeviceSingleLayerFCNN<num_input, num_node>;
-// Data preprocessing
-#if (defined(TARGET_DEVICE_CUDA) && defined(__CUDACC__))
-#pragma unroll
-#endif
+  // Data preprocessing
+  UNROLL(100)
   for (unsigned i = 0; i < ModelType::nInput; i++) {
     // input[i] = __fdividef(input[i] - input_mean[i], input_std[i]);
     input[i] = (input[i] - mean[i]) / std[i];
   }
   float h1[ModelType::nNode] = {0.f};
 
-// First layer
-#if (defined(TARGET_DEVICE_CUDA) && defined(__CUDACC__))
-#pragma unroll
-#endif
+  // First layer
+  UNROLL(100)
   for (unsigned i = 0; i < ModelType::nNode; i++) {
-#if (defined(TARGET_DEVICE_CUDA) && defined(__CUDACC__))
-#pragma unroll
-#endif
+    UNROLL(100)
     for (unsigned j = 0; j < ModelType::nInput; j++) {
       h1[i] += input[j] * weights1[i][j];
     }
@@ -160,9 +154,7 @@ __device__ inline float Allen::MVAModels::DeviceSingleLayerFCNN<num_input, num_n
 
   // Output layer
   float output = 0.f;
-#if (defined(TARGET_DEVICE_CUDA) && defined(__CUDACC__))
-#pragma unroll
-#endif
+  UNROLL(100)
   for (unsigned i = 0; i < ModelType::nNode; i++) {
     output += h1[i] * weights2[i];
   }

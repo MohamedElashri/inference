@@ -124,15 +124,26 @@ namespace Consumers {
   private:
     std::reference_wrapper<Constants> m_constants;
   };
-  struct MagneticField final : public Allen::NonEventData::Consumer {
+
+  struct MagneticFieldPolarity final : public Allen::NonEventData::Consumer {
   public:
-    MagneticField(gsl::span<float>&, std::vector<float>&);
+    MagneticFieldPolarity(gsl::span<float>&, std::vector<float>&);
 
     void consume(std::vector<char> const& data) override;
 
   private:
     std::reference_wrapper<gsl::span<float>> m_dev_magnet_polarity;
     std::reference_wrapper<std::vector<float>> m_host_magnet_polarity;
+  };
+
+  struct MagneticField final : public Allen::NonEventData::Consumer {
+  public:
+    MagneticField(Constants& constants);
+
+    void consume(std::vector<char> const& data) override;
+
+  private:
+    std::reference_wrapper<Constants> m_constants;
   };
 
   struct MuonGeometry final : public Allen::NonEventData::Consumer {

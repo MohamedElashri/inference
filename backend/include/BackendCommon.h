@@ -39,6 +39,15 @@
 #include "CUDABackend.h"
 #endif
 
+#define DO_PRAGMA_(x) _Pragma(#x)
+#define DO_PRAGMA(x) DO_PRAGMA_(x)
+
+#if defined(__clang__) or defined(__NVCC__)
+#define UNROLL(n) DO_PRAGMA(unroll)
+#elif defined(__GNUC__)
+#define UNROLL(n) DO_PRAGMA(GCC unroll n)
+#endif
+
 #if defined(DEVICE_COMPILER)
 namespace Allen {
   namespace device {
