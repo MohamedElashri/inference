@@ -16,6 +16,10 @@ stdout: |-
   HLTControlFlowMgr                      INFO Will measure time between events 0 and 0 (stop might be some events later)
   HLTControlFlowMgr                      INFO Starting loop on events
   DeviceFTGeometry                       INFO Conditions DB is compatible with FT bank version 7 and 8.
+  Loading magfield grid, nbins x,y,z : (81, 81, 146)
+  dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
+  dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
+  dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
   Starting timer for throughput measurement
   Input complete
   Hlt1D2KK                               INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -55,17 +59,18 @@ stdout: |-
   ApplicationMgr                         INFO Application Manager Stopped successfully
   HLTControlFlowMgr                      INFO
   HLTControlFlowMgr                      INFO StateTree: CFNode   #executed  #passed
-  NONLAZY_OR: allen_non_event_data               #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   AllenODINProducer/AllenODINProducer_e608fece  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpBeamline/DeviceBeamline                   #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpVPGeometry/DeviceVPGeometry               #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpUTGeometry/DeviceUTGeometry               #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpUTLookupTables/DeviceUTLookupTables       #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpCaloGeometry/DeviceCaloGeometry           #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMagneticField/DeviceMagneticField         #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpFTGeometry/DeviceFTGeometry               #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMuonGeometry/DeviceMuonGeometry           #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMuonTable/DeviceMuonTable                 #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+  NONLAZY_OR: allen_non_event_data                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   AllenODINProducer/AllenODINProducer_e608fece           #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpBeamline/DeviceBeamline                            #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpVPGeometry/DeviceVPGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpUTGeometry/DeviceUTGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpUTLookupTables/DeviceUTLookupTables                #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpCaloGeometry/DeviceCaloGeometry                    #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMagneticField/DeviceMagneticField                  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMagneticFieldPolarity/DeviceMagneticFieldPolarity  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpFTGeometry/DeviceFTGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMuonGeometry/DeviceMuonGeometry                    #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMuonTable/DeviceMuonTable                          #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
   HLTControlFlowMgr                      INFO Histograms converted successfully according to request.
   ApplicationMgr                         INFO Application Manager Finalized successfully
   ApplicationMgr                         INFO Application Manager Terminated successfully
