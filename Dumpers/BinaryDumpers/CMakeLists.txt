@@ -47,6 +47,7 @@ gaudi_add_module(BinaryDumpersModule
                    src/DumpFTGeometry.cpp
                    src/DumpFTHits.cpp
                    src/DumpMagneticField.cpp
+                   src/DumpMagneticFieldPolarity.cpp
                    src/DumpMuonCommonHits.cpp
                    src/DumpMuonCoords.cpp
                    src/DumpMuonGeometry.cpp

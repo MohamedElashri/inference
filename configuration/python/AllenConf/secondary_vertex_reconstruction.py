@@ -13,7 +13,7 @@ from AllenCore.algorithms import (
     make_long_track_particles_t, filter_tracks_t, fit_secondary_vertices_t,
     empty_lepton_id_t, sv_combiner_t, filter_svs_t, filter_two_svs_t,
     generic_sv_combiner_t, calc_max_combos_t, filter_sv_track_t,
-    kalman_filter_t, combine_sv_track_t, flatten_svs_t)
+    kalman_filter_t, combine_sv_track_t, flatten_svs_t, extrapolate_states_t)
 from AllenConf.utils import initialize_number_of_events, mep_layout
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 from AllenCore.generator import make_algorithm
@@ -47,6 +47,17 @@ def make_kalman_long(long_tracks, pvs, is_muon_result,
         "dev_kalman_fit_results": kalman.dev_kalman_fit_results_t,
         "dev_kalman_states_view": kalman.dev_kalman_states_view_t
     }
+
+
+def make_extrapolated_states(states, n_states, step_dz=100.0, n_steps=100):
+    extrapolator = make_algorithm(
+        extrapolate_states_t,
+        name='extrapolate_states_{hash}',
+        host_number_of_input_states_t=n_states,
+        dev_kalman_states_view_t=states,
+        n_steps=n_steps,
+        step_dz=step_dz)
+    return extrapolator.dev_states_t
 
 
 def make_kalman_velo_only(long_tracks,

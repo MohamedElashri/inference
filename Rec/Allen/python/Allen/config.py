@@ -17,9 +17,10 @@ from PyConf import configurable
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.application import ApplicationOptions, configure_input, configure
 from PyConf.Algorithms import (
-    DumpBeamline, DumpCaloGeometry, DumpMagneticField, DumpVPGeometry,
-    DumpCrossingAngles, DumpFTGeometry, DumpUTGeometry, DumpUTLookupTables,
-    DumpMuonGeometry, DumpMuonTable, AllenODINProducer, DumpRichPDMDBMapping,
+    DumpBeamline, DumpCaloGeometry, DumpMagneticField,
+    DumpMagneticFieldPolarity, DumpVPGeometry, DumpCrossingAngles,
+    DumpFTGeometry, DumpUTGeometry, DumpUTLookupTables, DumpMuonGeometry,
+    DumpMuonTable, AllenODINProducer, DumpRichPDMDBMapping,
     DumpRichCableMapping)
 from DDDB.CheckDD4Hep import UseDD4Hep
 from PyConf.reading import get_generator_BeamParameters
@@ -109,8 +110,10 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
                     'ut_tables')],
             'ECal': [(DumpCaloGeometry, 'DeviceCaloGeometry', {},
                       'ecal_geometry')],
-            'Magnet': [(DumpMagneticField, 'DeviceMagneticField', {},
-                        'polarity')],
+            'Magnet':
+            [(DumpMagneticField, 'DeviceMagneticField', {}, 'magfield'),
+             (DumpMagneticFieldPolarity, 'DeviceMagneticFieldPolarity', {},
+              'polarity')],
             'FTCluster': [(DumpFTGeometry, 'DeviceFTGeometry', {},
                            'scifi_geometry')],
             'Muon': [(DumpMuonGeometry, 'DeviceMuonGeometry', {},
@@ -132,8 +135,10 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
                     'ut_tables')],
             'ECal': [(DumpCaloGeometry, 'DeviceCaloGeometry', {},
                       'ecal_geometry')],
-            'Magnet': [(DumpMagneticField, 'DeviceMagneticField', {},
-                        'polarity')],
+            'Magnet':
+            [(DumpMagneticField, 'DeviceMagneticField', {}, 'magfield'),
+             (DumpMagneticFieldPolarity, 'DeviceMagneticFieldPolarity', {},
+              'polarity')],
             'FTCluster': [(DumpFTGeometry, 'DeviceFTGeometry', {},
                            'scifi_geometry')],
             'Muon': [(DumpMuonGeometry, 'DeviceMuonGeometry', {},
