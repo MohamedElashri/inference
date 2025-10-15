@@ -11,7 +11,6 @@
 #pragma once
 
 #include <vector>
-#include "BankTypes.h"
 #include "MCEvent.h"
 
 // Forward declare IInputProvider to avoid including "InputProvider.h" from device code
