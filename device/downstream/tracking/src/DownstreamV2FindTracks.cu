@@ -127,6 +127,9 @@ __global__ void downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_0(
   const auto event_number = parameters.dev_event_list[blockIdx.x];
   const auto number_of_events = parameters.dev_number_of_events[0];
 
+  // Alias
+  constexpr auto invalid_hit = Downstream::Structs::invalid_hit;
+
   // UT hits
   const auto total_number_of_ut_hits = parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups];
   UT::HitOffsets ut_hit_offsets {parameters.dev_ut_hit_offsets, event_number};
@@ -227,8 +230,8 @@ __global__ void downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_0(
     Downstream::Structs::CompactTrack out;
     out.scifi_idx = scifi_offset + scifi_idx;
     out.ut_hits[0] = best_hit.best() + hit_cache.HitOffset();
-    out.ut_hits[1] = -1;
-    out.ut_hits[2] = -1;
+    out.ut_hits[1] = invalid_hit;
+    out.ut_hits[2] = invalid_hit;
     out.ut_hits[3] = h3_idx;
     output_tracks[idx] = out;
   }
@@ -378,6 +381,9 @@ __global__ void downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_2(
   const auto event_number = parameters.dev_event_list[blockIdx.x];
   const auto number_of_events = parameters.dev_number_of_events[0];
 
+  // Alias
+  constexpr auto invalid_hit = Downstream::Structs::invalid_hit;
+
   // UT hits
   const auto total_number_of_ut_hits = parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups];
   UT::HitOffsets ut_hit_offsets {parameters.dev_ut_hit_offsets, event_number};
@@ -435,11 +441,12 @@ __global__ void downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_2(
     // Get candidates
     const auto dist_10 =
       (x0 + tx * ut_hits.zAtYEq0(h10_idx)) - (ut_hits.xAt(h10_idx, scifi_state.yAt(ut_hits.zAtYEq0(h10_idx))));
-    const auto dist_11 = (h11_idx != -1) ? (x0 + tx * ut_hits.zAtYEq0(h11_idx)) -
-                                             (ut_hits.xAt(h11_idx, scifi_state.yAt(ut_hits.zAtYEq0(h11_idx)))) :
-                                           std::numeric_limits<float>::infinity();
+    const auto dist_11 =
+      (h11_idx != invalid_hit) ?
+        (x0 + tx * ut_hits.zAtYEq0(h11_idx)) - (ut_hits.xAt(h11_idx, scifi_state.yAt(ut_hits.zAtYEq0(h11_idx)))) :
+        std::numeric_limits<float>::infinity();
 
-    Downstream::Helpers::BestSelector<short2> best_combination;
+    Downstream::Helpers::BestSelector<ushort2> best_combination;
 
     // Compute the search range
     const auto layer_dxdy = dev_ut_layer_geometry->mean_dxdy[layer];
@@ -471,9 +478,9 @@ __global__ void downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_2(
           }
           const float xdist = (x0 + tx * hit.zAtYEq0()) - hit.xAt(expected_hit_y);
           if (fabsf(xdist) < xTol) {
-            best_combination.add(xdist + dist_10, make_short2(h10_idx, idx));
-            if (h11_idx != -1) {
-              best_combination.add(xdist + dist_11, make_short2(h11_idx, idx));
+            best_combination.add(xdist + dist_10, make_ushort2(h10_idx, idx));
+            if (h11_idx != invalid_hit) {
+              best_combination.add(xdist + dist_11, make_ushort2(h11_idx, idx));
             }
           }
         });

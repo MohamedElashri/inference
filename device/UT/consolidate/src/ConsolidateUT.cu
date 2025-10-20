@@ -90,7 +90,7 @@ __device__ void populate(const UT::TrackHits& track, const F& assign)
   int hit_number = 0;
   for (unsigned i = 0; i < UT::Constants::n_layers; ++i) {
     const auto hit_index = track.hits[i];
-    if (hit_index != -1) {
+    if (hit_index != UT::TrackHits::invalid_hit) {
       assign(hit_number++, hit_index);
     }
   }
@@ -102,7 +102,7 @@ __device__ void populate_plane_code(const UT::TrackHits& track, const F& assign)
   int hit_number = 0;
   for (unsigned i = 0; i < UT::Constants::n_layers; ++i) {
     const auto hit_index = track.hits[i];
-    if (hit_index != -1) {
+    if (hit_index != UT::TrackHits::invalid_hit) {
       assign(hit_number++, i);
     }
   }
