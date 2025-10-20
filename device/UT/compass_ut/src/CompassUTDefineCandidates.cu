@@ -95,6 +95,9 @@ __global__ void compass_ut_define_candidates::compass_ut_hit_preselection(
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   const unsigned number_of_events = parameters.dev_number_of_events[0];
 
+  // Alias
+  constexpr auto invalid_hit = CompassUT::Structs::invalid_hit;
+
   // UT hits
   const unsigned total_number_of_hits = parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups];
   const UT::HitOffsets ut_hit_offsets {parameters.dev_ut_hit_offsets, event_number};
@@ -169,8 +172,10 @@ __global__ void compass_ut_define_candidates::compass_ut_hit_preselection(
     // Find hit ranges
     //
     unsigned num_ranges = 0;
-    CompassUT::Structs::LayerHitRanges hit_ranges = {
-      short2 {-1, -1}, short2 {-1, -1}, short2 {-1, -1}, short2 {-1, -1}};
+    CompassUT::Structs::LayerHitRanges hit_ranges = {ushort2 {invalid_hit, invalid_hit},
+                                                     ushort2 {invalid_hit, invalid_hit},
+                                                     ushort2 {invalid_hit, invalid_hit},
+                                                     ushort2 {invalid_hit, invalid_hit}};
     unsigned num_candidates = 0;
     const auto fired_sectors =
       dev_ut_layer_geometry->find_sectors(layer, expected_layer_y - yTolLayer, expected_layer_y + yTolLayer);
@@ -199,7 +204,7 @@ __global__ void compass_ut_define_candidates::compass_ut_hit_preselection(
       if (hit_end <= hit_start) continue;
 
       // Fill result
-      hit_ranges[num_ranges] = short2 {static_cast<short>(hit_start), static_cast<short>(hit_end)};
+      hit_ranges[num_ranges] = ushort2 {static_cast<ushort>(hit_start), static_cast<ushort>(hit_end)};
       num_ranges++;
       num_candidates += hit_end - hit_start;
     }
@@ -218,6 +223,9 @@ compass_ut_define_candidates::compass_ut_fill_cadidates(Parameters parameters, f
   // General
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   const unsigned number_of_events = parameters.dev_number_of_events[0];
+
+  // Alias
+  constexpr auto invalid_hit = CompassUT::Structs::invalid_hit;
 
   // UT hits
   const unsigned total_number_of_hits = parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups];
@@ -270,7 +278,7 @@ compass_ut_define_candidates::compass_ut_fill_cadidates(Parameters parameters, f
       const auto hit_start = hit_ranges[sector_idx].x;
       const auto hit_end = hit_ranges[sector_idx].y;
 
-      if (hit_start == -1 || hit_end == -1) break;
+      if (hit_start == invalid_hit || hit_end == invalid_hit) break;
 
       for (int h = hit_start; h < hit_end; h++) {
         const auto zAtYEq0 = ut_hits.zAtYEq0(h);

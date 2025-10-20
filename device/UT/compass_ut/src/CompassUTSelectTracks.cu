@@ -107,7 +107,7 @@ __global__ void compass_ut_select_tracks::compass_ut_kill_clone_tracks(
     for (unsigned i = threadIdx.x; i < input_size; i += blockDim.x) {
       const auto candidate = parameters.dev_ut_track_output_tracks[input_offset + i];
       const auto hit = candidate.ut_hits[layer];
-      if (hit >= 0) {
+      if (hit != CompassUT::Structs::invalid_hit) {
         atomicMin(best_scores + get_idx(hit - hit_layer_offset), __float_as_int(candidate.score));
       }
     }
