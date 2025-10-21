@@ -94,7 +94,7 @@ namespace {
 
         int32_t source_id = raw_bank.source_id;
         if (!((source_id >> 11) == 11)) continue; // Only decode Ecal banks
-        if (raw_bank.type != LHCb::RawBank::BankType::Calo) {
+        if (raw_bank.type != LHCb::Event::Enum::RawBank::BankType::Calo) {
           // printf("at event %u, raw bank %u bank type = %u \n", event_number, bank_number, raw_bank.type);
           continue; // Only decode data banks
         }

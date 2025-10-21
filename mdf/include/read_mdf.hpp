@@ -28,7 +28,6 @@
 #include <sys/types.h>
 
 #include "Event/ODIN.h"
-#include "Event/RawBank.h"
 #include "mdf_header.hpp"
 
 namespace {

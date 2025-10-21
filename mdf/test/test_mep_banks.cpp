@@ -25,7 +25,6 @@
 #include <ProgramOptions.h>
 #include <FileSystem.h>
 #include <MEPTools.h>
-#include <Event/RawBank.h>
 #include <Timer.h>
 #include <ClusteringDefinitions.cuh>
 #include <SciFiRaw.cuh>

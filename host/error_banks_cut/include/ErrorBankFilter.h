@@ -16,7 +16,6 @@
 #include "Common.h"
 #include "AlgorithmTypes.cuh"
 #include "InputProvider.h"
-#include "Event/RawBank.h"
 #include <MEPTools.h>
 
 #ifndef ALLEN_STANDALONE

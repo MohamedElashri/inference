@@ -21,7 +21,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <Event/RawBank.h>
 #include <mdf_header.hpp>
 #include <read_mdf.hpp>
 #include <Timer.h>

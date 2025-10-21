@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 
 #include <InputProvider.h>
-#include <Event/RawBank.h>
 #include <Event/ODIN.h>
 #include <TransposeTypes.h>
 

@@ -33,7 +33,7 @@ namespace {
       auto raw_bank = raw_event.raw_bank(bank_number);
       int32_t source_id = raw_bank.source_id;
 
-      if (raw_bank.type != LHCb::RawBank::BankType::Plume) {
+      if (raw_bank.type != LHCb::Event::Enum::RawBank::BankType::Plume) {
         continue;
       }
 
@@ -45,7 +45,7 @@ namespace {
           if (source_id != 0x5001) continue;
         }
         else {
-          if (source_id != 0x5001 and source_id != 0x5002 and source_id != 0x5003 and source_id != 0x5004) continue;
+          if (source_id != 0x5001 && source_id != 0x5002 && source_id != 0x5003 && source_id != 0x5004) continue;
         }
 
         uint32_t ovr_thb = {0}; // overthreshold bits: 1 bit objects for the n_ch channels
@@ -57,8 +57,8 @@ namespace {
 
         for (unsigned ch = 0; ch < n_ch; ++ch) {
 
-          if (ch >= Lumi::Constants::n_plume_lumi_channels and (n_bank == 1 or n_bank == 2)) { // decode only the lumi
-                                                                                               // PMTs in banks 1 and 2
+          if (ch >= Lumi::Constants::n_plume_lumi_channels && (n_bank == 1 or n_bank == 2)) { // decode only the lumi
+                                                                                              // PMTs in banks 1 and 2
             continue;
           }
 

@@ -14,6 +14,7 @@
 #include "VeloEventModel.cuh"
 #include "VeloConsolidated.cuh"
 #include "UTRaw.cuh"
+#include <Event/RawBankType.h>
 #include "BackendCommon.h"
 #include <ostream>
 #include <stdint.h>
@@ -51,7 +52,8 @@ namespace UT {
 
     __host__ __device__ inline bool allowed_rawbank_type(const uint8_t type)
     {
-      return (type == LHCb::RawBank::BankType::UT || type == LHCb::RawBank::BankType::UTError);
+      return (
+        type == LHCb::Event::Enum::RawBank::BankType::UT || type == LHCb::Event::Enum::RawBank::BankType::UTError);
     }
   } // namespace Decoding
 

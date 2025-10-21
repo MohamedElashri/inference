@@ -23,6 +23,8 @@
 #include <mdf_header.hpp>
 #include <raw_helpers.hpp>
 
+#include <Event/RawBank.h>
+
 #include <HltDecReport.cuh>
 #include <InputProvider.h>
 #include <OutputHandler.h>

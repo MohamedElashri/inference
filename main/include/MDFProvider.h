@@ -33,7 +33,7 @@
 #include <sourceid.h>
 #include <read_mdf.hpp>
 #include <write_mdf.hpp>
-#include <Event/RawBank.h>
+#include <Event/RawBankType.h>
 #include "BankMapping.h"
 
 #include <SliceUtils.h>
@@ -70,7 +70,7 @@ struct MDFProviderConfig {
 
   bool split_by_run = false;
 
-  std::unordered_set<LHCb::RawBank::BankType> skip_banks;
+  std::unordered_set<LHCb::Event::Enum::RawBank::BankType> skip_banks;
 };
 
 /**

@@ -20,7 +20,6 @@
 #include <cmath>
 
 #include <span>
-#include <Event/RawBank.h>
 #include <read_mdf.hpp>
 #include <read_mep.hpp>
 #include <eb_header.hpp>

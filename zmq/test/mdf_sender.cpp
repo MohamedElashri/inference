@@ -15,6 +15,7 @@
 #include <ZeroMQ/IZeroMQSvc.h>
 #include <read_mdf.hpp>
 #include <zmq/svc.h>
+#include <Event/RawBank.h>
 
 #include <boost/program_options.hpp>
 
