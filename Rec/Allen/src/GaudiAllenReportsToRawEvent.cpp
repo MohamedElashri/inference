@@ -55,16 +55,19 @@ public:
     auto routing_bits = LHCb::span {allen_routing_bits}.first(RoutingBitsDefinition::n_words);
     raw_event.addBank(
       Hlt1::Constants::sourceID_sel_reports,
-      LHCb::RawBank::HltSelReports,
+      LHCb::RawBank::BankType::HltSelReports,
       Hlt1::Constants::version_sel_reports,
       sel_reports);
     raw_event.addBank(
-      Hlt1::Constants::sourceID, LHCb::RawBank::HltDecReports, dec_reports.version(), dec_reports.bank_data());
-    raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::HltRoutingBits, 0u, routing_bits);
+      Hlt1::Constants::sourceID,
+      LHCb::RawBank::BankType::HltDecReports,
+      dec_reports.version(),
+      dec_reports.bank_data());
+    raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::BankType::HltRoutingBits, 0u, routing_bits);
 
-    auto dec_view = raw_event.banks(LHCb::RawBank::HltDecReports);
-    auto sel_view = raw_event.banks(LHCb::RawBank::HltSelReports);
-    auto rb_view = raw_event.banks(LHCb::RawBank::HltRoutingBits);
+    auto dec_view = raw_event.banks(LHCb::RawBank::BankType::HltDecReports);
+    auto sel_view = raw_event.banks(LHCb::RawBank::BankType::HltSelReports);
+    auto rb_view = raw_event.banks(LHCb::RawBank::BankType::HltRoutingBits);
     // without std::move here the RawEvent gets copied which would invalidate the view
     // View creation must be after RawEvent is made
     return {std::move(raw_event), std::move(dec_view), std::move(sel_view), std::move(rb_view)};

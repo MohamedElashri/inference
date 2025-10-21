@@ -11,12 +11,12 @@
 #include <Transpose.h>
 
 namespace {
-  std::unordered_set<LHCb::RawBank::BankType> dont_count = {LHCb::RawBank::DAQ,
-                                                            LHCb::RawBank::TAEHeader,
-                                                            LHCb::RawBank::HltDecReports,
-                                                            LHCb::RawBank::HltSelReports,
-                                                            LHCb::RawBank::HltRoutingBits,
-                                                            LHCb::RawBank::HltLumiSummary};
+  std::unordered_set<LHCb::RawBank::BankType> dont_count = {LHCb::RawBank::BankType::DAQ,
+                                                            LHCb::RawBank::BankType::TAEHeader,
+                                                            LHCb::RawBank::BankType::HltDecReports,
+                                                            LHCb::RawBank::BankType::HltSelReports,
+                                                            LHCb::RawBank::BankType::HltRoutingBits,
+                                                            LHCb::RawBank::BankType::HltLumiSummary};
 }
 
 std::array<int, LHCb::NBankTypes> Allen::bank_ids()
@@ -165,12 +165,12 @@ std::tuple<bool, bool, size_t> read_events(
         error_cout << "Bad magic in first bank.\n";
         return {false, true, {}};
       }
-      else if (first_bank->type() == LHCb::RawBank::DAQ && first_bank->version() == DAQ_STATUS_BANK) {
+      else if (first_bank->type() == LHCb::RawBank::BankType::DAQ && first_bank->version() == DAQ_STATUS_BANK) {
         // skip the DAQ status bank
         payload += first_bank->totalSize();
         first_bank = reinterpret_cast<LHCb::RawBank const*>(payload);
       }
-      if (first_bank->type() != LHCb::RawBank::TAEHeader) {
+      if (first_bank->type() != LHCb::RawBank::BankType::TAEHeader) {
         // Not a TAE event
         event_offsets[n_filled + 1] = bank_span.data() + bank_span.size() - buffer_start;
         n_bytes += bank_span.size();
@@ -350,7 +350,7 @@ std::tuple<bool, bool, bool> transpose_event(
 
     // Check what to do with this bank
     if (allen_type == BankTypes::ODIN) {
-      auto const odin_error = b->type() >= LHCb::RawBank::DaqErrorFragmentThrottled;
+      auto const odin_error = b->type() >= LHCb::RawBank::BankType::DaqErrorFragmentThrottled;
       event_mask[event_ids.size()] = !odin_error;
 
       if (!odin_error) {
