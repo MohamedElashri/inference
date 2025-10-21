@@ -215,9 +215,8 @@ if (NOT STANDALONE)
     Dumpers/BinaryDumpers
     Dumpers/RootDumpers)
 
-  lhcb_env(
-    SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
-    SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+  lhcb_env(SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
+  lhcb_env(PRIVATE SET ALLEN_PROJECT_ROOT ${PROJECT_SOURCE_DIR})
 endif()
 
 # Detect CUDA architecture
