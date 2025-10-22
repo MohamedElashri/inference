@@ -193,7 +193,7 @@ __global__ void velo_calculate_sorting_key(
 
     unsigned index_within_raw_bank = cluster_number - (sensor_pair_offsets[sensor_pair] - event_clusters_offset);
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
-    if (raw_bank.type == LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
+    if (raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
       populate_sorting_key<decoding_version>(
         parameters.dev_hit_sorting_key,
         g,
@@ -353,7 +353,7 @@ __global__ void decode_retinaclusters_sorted(
 
     unsigned index_within_raw_bank = cluster_number - sensor_pair_offsets[sensor_pair];
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
-    if (raw_bank.type == LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
+    if (raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
       populate_retinacluster<decoding_version>(
         velo_cluster_container,
         g,

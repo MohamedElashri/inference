@@ -89,7 +89,7 @@ void error_bank_filter::error_bank_filter_t::init()
     std::vector<std::string> labels;
     labels.reserve(types.size());
     std::transform(types.begin(), types.end(), std::back_inserter(labels), [](auto bt) {
-      if (bt < LHCb::RawBank::types().size()) {
+      if ((uint8_t) bt < LHCb::RawBank::types().size()) {
         return toString(bt);
       }
       else if (bt == LHCb::RawBank::BankType::LastType) {
@@ -100,9 +100,9 @@ void error_bank_filter::error_bank_filter_t::init()
       }
     });
 
-    mapping.fill(static_cast<LHCb::RawBank::BankType>(256));
+    mapping.fill(256);
     for (size_t i = 0; i < types.size(); ++i) {
-      mapping[types[i]] = i;
+      mapping[(uint8_t) types[i]] = i;
     }
 
     auto* histo = new Gaudi::Accumulators::StaticHistogram<1> {
@@ -233,13 +233,14 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
   // Clear all temporary bin storage
   auto bin_storage = parameters.host_counts.get();
   std::memset(bin_storage.data(), 0, bin_storage.size_bytes());
-  auto data_counts = bin_storage.subspan(0, LHCb::RawBank::types().size());
-  auto other_counts = bin_storage.subspan(LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
-  auto error_counts = bin_storage.subspan(2 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
-  auto sd_counts = bin_storage.subspan(3 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
+  const auto spanSize = LHCb::RawBank::types().size();
+  auto data_counts = bin_storage.subspan(0, spanSize);
+  auto other_counts = bin_storage.subspan(spanSize, spanSize);
+  auto error_counts = bin_storage.subspan(2 * spanSize, spanSize);
+  auto sd_counts = bin_storage.subspan(3 * spanSize, spanSize);
   // Don't need this many counts, but let's stick with it
-  auto source_counts = bin_storage.subspan(4 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
-  auto unexpected_counts = bin_storage.subspan(5 * LHCb::RawBank::types().size(), 256);
+  auto source_counts = bin_storage.subspan(4 * spanSize, spanSize);
+  auto unexpected_counts = bin_storage.subspan(5 * spanSize, 256);
 
   auto add_counts = [](Gaudi::Accumulators::StaticHistogram<1>& histo, std::span<float> counts) {
     for (size_t i = 0; i < histo.nBins(0); ++i) {

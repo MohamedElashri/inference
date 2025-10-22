@@ -153,8 +153,9 @@ __device__ void decode_muon_bank(
 
     bool corrupted = false;
     for (unsigned link = threadIdx.y; link < number_of_readout_fibers; link += blockDim.y) {
-      unsigned current_pointer =
-        raw_bank.type == LHCb::Event::Enum::RawBank::BankType::MuonError ? link_start_pointer + 3 : link_start_pointer;
+      unsigned current_pointer = raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::MuonError ?
+                                   link_start_pointer + 3 :
+                                   link_start_pointer;
 
       auto size_of_link = (static_cast<unsigned>(range_data[current_pointer] & 0xF0) >> 4) + 1;
       for (unsigned j = 0; j < link; ++j) {
@@ -181,8 +182,9 @@ __device__ void decode_muon_bank(
       auto regionOfLink = muonGeometry->RegionOfLink(tell_number, pci_number, reroutered_link);
       auto quarterOfLink = muonGeometry->QuarterOfLink(tell_number, pci_number, reroutered_link);
 
-      unsigned current_pointer =
-        raw_bank.type == LHCb::Event::Enum::RawBank::BankType::MuonError ? link_start_pointer + 3 : link_start_pointer;
+      unsigned current_pointer = raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::MuonError ?
+                                   link_start_pointer + 3 :
+                                   link_start_pointer;
       auto size_of_link = (static_cast<unsigned>(range_data[current_pointer] & 0xF0) >> 4) + 1;
 
       for (unsigned j = 0; j < link; ++j) {
@@ -279,8 +281,8 @@ __global__ void muon_populate_tile_and_tdc_kernel(
     const auto raw_bank = raw_event.raw_bank(bank_index);
 
     if (
-      raw_bank.type != LHCb::Event::Enum::RawBank::BankType::Muon &&
-      raw_bank.type != LHCb::Event::Enum::RawBank::BankType::MuonError)
+      raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::Muon &&
+      raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::MuonError)
       continue; // skip invalid raw banks
 
     decode_muon_bank<decoding_version>(
