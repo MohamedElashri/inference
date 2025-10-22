@@ -45,6 +45,6 @@ public:
 
 private:
   int count_reconstructible_mc_particles(const LHCb::MCVertex&, const MCTrackInfo&) const;
-  LHCb::RawBank::BankType m_bankType = LHCb::RawBank::OTError;
+  LHCb::RawBank::BankType m_bankType = LHCb::RawBank::BankType::OTError;
 };
 #endif // PVDUMPER_H

@@ -33,7 +33,6 @@ if (NOT STANDALONE)
   lhcb_find_package(Rec 34.0 REQUIRED)
 
   find_package(AIDA REQUIRED)
-  find_package(fmt REQUIRED)
   find_package(TBB REQUIRED)
 
   # Detect device target from binary tag
@@ -95,11 +94,10 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
 endif()
 
 find_package(cppgsl REQUIRED)
+find_package(fmt REQUIRED)
 
 # std::filesytem detection
 find_package(Filesystem REQUIRED)
-
-find_package(umesimd REQUIRED)
 
 find_package(PkgConfig)
 pkg_check_modules(zmq libzmq REQUIRED IMPORTED_TARGET)
@@ -110,7 +108,7 @@ endif()
 
 if(WITH_Allen_PRIVATE_DEPENDENCIES)
   # We need a Python 3 interpreter
-  find_package(Python 3 REQUIRED Interpreter Development.Module)
+  find_package(Python 3 REQUIRED Interpreter Development)
 
   # Catch2 for tests
   find_package(Catch2 REQUIRED)

@@ -407,9 +407,6 @@ __global__ void track_matching::track_matching_add_ut_hits(
   // Try up to MaxNumIteration times.
   // If a candidate overflows, try using a tighter threshold.
   // If it still exceeds after MaxNumIteration times, simply reset the event to 0.
-#if (defined(TARGET_DEVICE_CUDA) && defined(__CUDACC__))
-#pragma unroll
-#endif
   for (unsigned iteration = 0; iteration < MaxNumIteration; iteration++) {
     bool overflow = false;
     for (unsigned layer = 0; layer < UT::Constants::n_layers; layer++) {

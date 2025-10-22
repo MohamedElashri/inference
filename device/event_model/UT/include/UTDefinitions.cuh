@@ -51,7 +51,7 @@ namespace UT {
 
     __host__ __device__ inline bool allowed_rawbank_type(const uint8_t type)
     {
-      return (type == LHCb::RawBank::UT || type == LHCb::RawBank::UTError);
+      return (type == LHCb::RawBank::BankType::UT || type == LHCb::RawBank::BankType::UTError);
     }
   } // namespace Decoding
 

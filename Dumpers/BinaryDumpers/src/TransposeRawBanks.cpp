@@ -208,9 +208,11 @@ std::array<TransposedBanks, NBankTypes> TransposeRawBanks::operator()(VOC<LHCb::
         auto const& banks = rawBanks[bt_idx];
         if (
           std::any_of(
-            banks.begin(), banks.end(), [](LHCb::RawBank const* bank) { return bank->type() == LHCb::RawBank::VP; }) &&
+            banks.begin(),
+            banks.end(),
+            [](LHCb::RawBank const* bank) { return bank->type() == LHCb::RawBank::BankType::VP; }) &&
           std::any_of(banks.begin(), banks.end(), [](LHCb::RawBank const* bank) {
-            return bank->type() == LHCb::RawBank::VPRetinaCluster;
+            return bank->type() == LHCb::RawBank::BankType::VPRetinaCluster;
           })) {
           // Sort VP banks first by bank type and then by source ID to partition in VP and VPRetinaCluster banks.
           compare = [](LHCb::RawBank const* a, LHCb::RawBank const* b) {

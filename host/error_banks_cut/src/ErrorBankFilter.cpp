@@ -51,7 +51,7 @@ void error_bank_filter::error_bank_filter_t::set_arguments_size(
   set_size<host_number_of_selected_events_t>(arguments, 1);
   set_size<dev_output_event_list_t>(arguments, n_events);
   set_size<host_output_event_list_t>(arguments, n_events);
-  set_size<host_temp_counts_t>(arguments, 5 * LHCb::RawBank::LastType + 256);
+  set_size<host_temp_counts_t>(arguments, 5 * LHCb::RawBank::types().size() + 256);
 }
 
 void error_bank_filter::error_bank_filter_t::init()
@@ -89,10 +89,10 @@ void error_bank_filter::error_bank_filter_t::init()
     std::vector<std::string> labels;
     labels.reserve(types.size());
     std::transform(types.begin(), types.end(), std::back_inserter(labels), [](auto bt) {
-      if (bt < LHCb::RawBank::LastType) {
-        return LHCb::RawBank::typeName(bt);
+      if (bt < LHCb::RawBank::types().size()) {
+        return toString(bt);
       }
-      else if (bt == LHCb::RawBank::LastType) {
+      else if (bt == LHCb::RawBank::BankType::LastType) {
         return std::string {"LastType"};
       }
       else {
@@ -233,13 +233,13 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
   // Clear all temporary bin storage
   auto bin_storage = parameters.host_counts.get();
   std::memset(bin_storage.data(), 0, bin_storage.size_bytes());
-  auto data_counts = bin_storage.subspan(0, LHCb::RawBank::LastType);
-  auto other_counts = bin_storage.subspan(LHCb::RawBank::LastType, LHCb::RawBank::LastType);
-  auto error_counts = bin_storage.subspan(2 * LHCb::RawBank::LastType, LHCb::RawBank::LastType);
-  auto sd_counts = bin_storage.subspan(3 * LHCb::RawBank::LastType, LHCb::RawBank::LastType);
+  auto data_counts = bin_storage.subspan(0, LHCb::RawBank::types().size());
+  auto other_counts = bin_storage.subspan(LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
+  auto error_counts = bin_storage.subspan(2 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
+  auto sd_counts = bin_storage.subspan(3 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
   // Don't need this many counts, but let's stick with it
-  auto source_counts = bin_storage.subspan(4 * LHCb::RawBank::LastType, LHCb::RawBank::LastType);
-  auto unexpected_counts = bin_storage.subspan(5 * LHCb::RawBank::LastType, 256);
+  auto source_counts = bin_storage.subspan(4 * LHCb::RawBank::types().size(), LHCb::RawBank::types().size());
+  auto unexpected_counts = bin_storage.subspan(5 * LHCb::RawBank::types().size(), 256);
 
   auto add_counts = [](Gaudi::Accumulators::StaticHistogram<1>& histo, gsl::span<float> counts) {
     for (size_t i = 0; i < histo.nBins(0); ++i) {
@@ -279,7 +279,7 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
       auto const& other_bank_types = sd_info.other_bank_types;
       auto const& error_bank_types = sd_info.error_bank_types;
 
-      if (bank_type >= LHCb::RawBank::BankType::LastType) {
+      if (bank_type >= LHCb::RawBank::types().size()) {
         ++invalid_count;
         return false;
       }

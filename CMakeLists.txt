@@ -17,7 +17,7 @@ if(STANDALONE AND NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{CMAKE_TOOLCHA
   set(CMAKE_TOOLCHAIN_FILE $ENV{CMAKE_TOOLCHAIN_FILE})
 endif()
 
-project(Allen VERSION 6.14
+project(Allen VERSION 7.4
         LANGUAGES C CXX)
 
 # ---------------
@@ -165,6 +165,17 @@ endif()
 option(CALLGRIND_PROFILE "Set Callgrind macros around sequence" OFF)
 if(CALLGRIND_PROFILE)
   add_compile_definitions(CALLGRIND_PROFILE)
+endif()
+
+# Choice of memory backend for magnetic field
+option(MAGFIELD_USE_TEXTURE "Use cuda texture memory for magnetic field" ON)
+if(NOT TARGET_DEVICE STREQUAL "CUDA")
+  # if target is not cuda, fallback to regular memory
+  set(MAGFIELD_USE_TEXTURE OFF)
+endif()
+message(STATUS "Magfield use texture: " ${MAGFIELD_USE_TEXTURE})
+if(MAGFIELD_USE_TEXTURE)
+  add_compile_definitions(MAGFIELD_USE_TEXTURE)
 endif()
 
 set(WITH_Allen_PRIVATE_DEPENDENCIES TRUE)
@@ -688,7 +699,7 @@ allen_add_host_library(HostCommon SHARED
   main/src/Transpose.cpp)
 
 target_link_libraries(AllenCommon INTERFACE
-  LHCbEvent AllenFS nlohmann_json::nlohmann_json cppgsl::cppgsl)
+  LHCbEvent AllenFS nlohmann_json::nlohmann_json cppgsl::cppgsl fmt::fmt)
 target_link_libraries(HostCommon PRIVATE
   mdf EventModel Gear Backend mdf AllenCommon LHCbEvent Boost::iostreams Rangev3::rangev3)
 

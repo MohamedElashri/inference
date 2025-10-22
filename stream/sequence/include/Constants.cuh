@@ -51,6 +51,9 @@ namespace Rich::Future::DAQ::Allen {
 namespace UT::Constants {
   struct UTLayerGeometry;
 }
+namespace MagneticField {
+  struct Magfield;
+} // namespace MagneticField
 
 /**
  * @brief Struct intended as a singleton with constants defined on GPU.
@@ -99,6 +102,9 @@ struct Constants {
   // Magnet polarity
   gsl::span<float> dev_magnet_polarity;
   std::vector<float> host_magnet_polarity;
+
+  // Magnetic field
+  MagneticField::Magfield* magnetic_field = nullptr;
 
   // Looking forward
   LookingForward::Constants* host_looking_forward_constants;

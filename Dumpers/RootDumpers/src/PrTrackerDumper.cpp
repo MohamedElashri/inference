@@ -218,7 +218,7 @@ private:
 
   Gaudi::Property<std::string> m_outputDirectory {this, "OutputDirectory", "TrackerDumper"};
   Gaudi::Property<bool> m_writeROOT {this, "DumpToROOT", true};
-  Gaudi::Property<LHCb::RawBank::BankType> m_bankType {this, "BankType", LHCb::RawBank::OTRaw};
+  Gaudi::Property<LHCb::RawBank::BankType> m_bankType {this, "BankType", LHCb::RawBank::BankType::OTRaw};
 };
 
 // Declaration of the Algorithm Factory
