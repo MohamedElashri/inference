@@ -35,11 +35,11 @@ __global__ void velo_count_sp_per_sensor(
 
     unsigned* superpixels_offsets = parameters.dev_superpixels_offsets + event_number * Velo::Constants::n_sensors;
 
-    if (check_velo_rawbank && raw_bank.type == LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster)
+    if (check_velo_rawbank && raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster)
       n_unexpected_velo_rawbank.increment();
     if (
-      raw_bank.type != LHCb::Event::Enum::RawBank::BankType::VP &&
-      raw_bank.type != LHCb::Event::Enum::RawBank::BankType::Velo)
+      raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::VP &&
+      raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::Velo)
       continue;
 
     if constexpr (decoding_version == 2 || decoding_version == 3) {
@@ -99,8 +99,8 @@ __global__ void velo_partition_superpixels(
     unsigned* superpixels_offsets = parameters.dev_superpixels_offsets + event_number * Velo::Constants::n_sensors;
 
     if (
-      raw_bank.type != LHCb::Event::Enum::RawBank::BankType::VP &&
-      raw_bank.type != LHCb::Event::Enum::RawBank::BankType::Velo)
+      raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::VP &&
+      raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::Velo)
       continue;
 
     if constexpr (decoding_version == 2 || decoding_version == 3) {

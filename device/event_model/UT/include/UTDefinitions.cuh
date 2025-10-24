@@ -53,7 +53,8 @@ namespace UT {
     __host__ __device__ inline bool allowed_rawbank_type(const uint8_t type)
     {
       return (
-        type == LHCb::Event::Enum::RawBank::BankType::UT || type == LHCb::Event::Enum::RawBank::BankType::UTError);
+        type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::UT ||
+        type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::UTError);
     }
   } // namespace Decoding
 

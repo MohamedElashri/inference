@@ -62,7 +62,7 @@ namespace host_ut_gec {
           auto const fragment_offset = ut_offsets[2 + number_of_ut_raw_banks * (1 + event_number) + i] - block_offset;
           char const* bank_data = parameters.ut_banks[i].data() + fragment_offset;
           auto const bank_type = MEP::bank_type(bank_data, ut_types.data(), event_number, i);
-          if (bank_type != LHCb::Event::Enum::RawBank::BankType::UT) continue;
+          if (bank_type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::UT) continue;
           auto const bank_size = MEP::bank_size(bank_data, ut_sizes.data(), event_number, i);
           if (ut_raw_bank_version == 4)
             n_clusters += UTRawBank<4> {sourceID, bank_data, bank_size, bank_type}.get_n_hits();
@@ -78,7 +78,7 @@ namespace host_ut_gec {
 
         for (unsigned i = 0; i < ut_event.number_of_raw_banks(); ++i) {
           auto const bank_type = Allen::bank_type(ut_types.data(), event_number, i);
-          if (bank_type != LHCb::Event::Enum::RawBank::BankType::UT) continue;
+          if (bank_type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::UT) continue;
           if (ut_raw_bank_version == 4)
             n_clusters += ut_event.raw_bank<4>(i).get_n_hits();
           else if (ut_raw_bank_version == 3)

@@ -49,10 +49,10 @@ __global__ void calculate_number_of_retinaclusters_each_sensor_pair_kernel(
   for (unsigned raw_bank_number = threadIdx.x; raw_bank_number < number_of_raw_banks; raw_bank_number += blockDim.x) {
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
     if (
-      check_velo_rawbank && (raw_bank.type == LHCb::Event::Enum::RawBank::BankType::VP ||
-                             raw_bank.type == LHCb::Event::Enum::RawBank::BankType::Velo))
+      check_velo_rawbank && (raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::VP ||
+                             raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::Velo))
       n_unexpected_velo_rawbank.increment();
-    if (raw_bank.type == LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
+    if (raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
       if constexpr (decoding_version == 2 || decoding_version == 3) {
         each_sensor_pair_size[raw_bank.sourceID] =
           (masked_modules & (1 << (raw_bank.sourceID / 4))) ? 0 : raw_bank.count;

@@ -33,7 +33,7 @@ namespace {
       auto raw_bank = raw_event.raw_bank(bank_number);
       int32_t source_id = raw_bank.source_id;
 
-      if (raw_bank.type != LHCb::Event::Enum::RawBank::BankType::Plume) {
+      if (raw_bank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::Plume) {
         continue;
       }
 

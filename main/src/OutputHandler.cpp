@@ -510,7 +510,7 @@ size_t OutputHandler::add_banks(
                         std::span<char const> data,
                         char* output) -> size_t {
     // add the dec report
-    return data.empty() ? 0u : Allen::add_raw_bank(bank_type, version, source_id, data, output);
+    return data.empty() ? 0u : Allen::add_raw_bank((uint8_t) bank_type, version, source_id, data, output);
   };
 
   for_each(hlt_banks, [&output, &add_hlt_bank](auto b) {

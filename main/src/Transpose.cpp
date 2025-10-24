@@ -27,11 +27,11 @@ std::array<int, LHCb::NBankTypes> Allen::bank_ids()
     auto it = Allen::bank_mapping.find(bt);
     if (it != Allen::bank_mapping.end()) {
       for (auto allen_bt : it->second) {
-        ids[bt] = static_cast<int>(allen_bt);
+        ids[(uint8_t) bt] = static_cast<int>(allen_bt);
       }
     }
     else {
-      ids[bt] = -1;
+      ids[(uint8_t) bt] = -1;
     }
   }
   return ids;
@@ -83,7 +83,7 @@ bool check_sourceIDs(std::span<char const> bank_data)
 BankTypes sd_from_bank_type(LHCb::RawBank const* raw_bank)
 {
   static auto const bank_ids = Allen::bank_ids();
-  auto const bt = bank_ids[raw_bank->type()];
+  auto const bt = bank_ids[(uint8_t) raw_bank->type()];
   return bt == -1 ? BankTypes::Unknown : static_cast<BankTypes>(bt);
 }
 
