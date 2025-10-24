@@ -182,16 +182,21 @@ elseif(STANDALONE)
       "${LHCBROOT}/Event/DAQEvent/src/RawBank.cpp"
       "${LHCBROOT}/Event/DAQEvent/src/ODIN.cpp")
 
+    if(NOT LHCB_TARGET_BRANCH)
+      set(LHCB_TARGET_BRANCH "master" CACHE STRING "LHCB target branch")
+    endif()
+
     add_custom_command(
       OUTPUT "${PROJECT_SEQUENCE_DIR}/PyConf"
       BYPRODUCTS ${LHCBOUTPUTS}
       COMMENT "Checking out LHCb project from the LHCb stack"
       COMMAND
         ${CMAKE_COMMAND} -E rm -rf ${PROJECT_BINARY_DIR}/external/LHCb/Event &&
-        ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} clone https://gitlab.cern.ch/lhcb/LHCb.git ${PROJECT_BINARY_DIR}/external/LHCb &&
+        ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} clone -b ${LHCB_TARGET_BRANCH} https://gitlab.cern.ch/lhcb/LHCb.git ${PROJECT_BINARY_DIR}/external/LHCb &&
         ${CMAKE_COMMAND} -E create_symlink ${LHCBROOT_RELSEQ}/PyConf/python/PyConf ${PROJECT_SEQUENCE_DIR}/PyConf)
     add_custom_target(checkout_lhcb DEPENDS "${PROJECT_SEQUENCE_DIR}/PyConf" ${LHCBOUTPUTS})
     message(STATUS "LHCBROOT set to ${LHCBROOT}")
+    message(STATUS "LHCB_TARGET_BRANCH set to ${LHCB_TARGET_BRANCH}")
   endif()
 
   if (DEFINED ENV{GAUDIROOT})
@@ -207,14 +212,20 @@ elseif(STANDALONE)
     file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/external/Gaudi")
     set(GAUDIROOT "${PROJECT_BINARY_DIR}/external/Gaudi" CACHE STRING "GAUDI root directory")
     file(RELATIVE_PATH GAUDIROOT_RELPATH ${PROJECT_SEQUENCE_DIR} ${GAUDIROOT})
+
+    if(NOT GAUDI_TARGET_BRANCH)
+      set(GAUDI_TARGET_BRANCH "master" CACHE STRING "Gaudi target branch")
+    endif()
+
     add_custom_command(
       OUTPUT "${PROJECT_SEQUENCE_DIR}/GaudiKernel"
       COMMENT "Checking out Gaudi project from the LHCb stack"
       COMMAND
-        ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} clone https://gitlab.cern.ch/gaudi/Gaudi.git ${PROJECT_BINARY_DIR}/external/Gaudi &&
+        ${CMAKE_COMMAND} -E env ${GIT_EXECUTABLE} clone -b ${GAUDI_TARGET_BRANCH} https://gitlab.cern.ch/gaudi/Gaudi.git ${PROJECT_BINARY_DIR}/external/Gaudi &&
         ${CMAKE_COMMAND} -E create_symlink ${GAUDIROOT_RELPATH}/GaudiKernel/python/GaudiKernel ${PROJECT_SEQUENCE_DIR}/GaudiKernel)
     add_custom_target(checkout_gaudi DEPENDS "${PROJECT_SEQUENCE_DIR}/GaudiKernel")
     message(STATUS "GAUDIROOT set to ${GAUDIROOT}")
+    message(STATUS "GAUDI_TARGET_BRANCH set to ${GAUDI_TARGET_BRANCH}")
   endif()
 
   # Unfortunately this has to be defined here to make the generated
