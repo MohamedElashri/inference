@@ -102,7 +102,17 @@ def default_physics_lines(reconstructed_objects, prescale, reco_particles,
             max_velo_tracks_SMOG=0,
             min_long_tracks=1,
             min_velo_tracks_PbPb=2,
-            pre_scaler=0.8 if prescale else 1)
+            pre_scaler=0.8 if prescale else 1),
+        make_heavy_ion_event_line(
+            name="Hlt1HeavyIonPbSMOGUPCMB",
+            velo_tracks=velo_tracks,
+            long_track_particles=long_track_particles,
+            pvs=pvs,
+            decoded_calo=decoded_calo,
+            max_velo_tracks_PbPb=0,
+            min_velo_tracks_SMOG=1,
+            max_velo_tracks_SMOG=10,
+            min_long_tracks=1)
     ]
     if reco_particles:
         lines += [
