@@ -77,11 +77,11 @@ namespace {
   }
 
   template<typename T>
-  void alloc_and_copy(std::vector<T>& host_data, gsl::span<T>& device_data)
+  void alloc_and_copy(std::vector<T>& host_data, std::span<T>& device_data) // FIXME: span by & is weird
   {
     T* p;
     Allen::malloc((void**) &p, host_data.size() * sizeof(T));
-    device_data = gsl::span {p, host_data.size()};
+    device_data = {p, host_data.size()};
     Allen::memcpy(device_data.data(), host_data.data(), host_data.size() * sizeof(T), Allen::memcpyHostToDevice);
   }
 
@@ -102,7 +102,7 @@ void Consumers::UTGeometry::initialize(std::vector<char> const& data)
   using span_type = typename std::remove_reference_t<decltype(dev_ut_geometry)>::value_type;
   char* g = nullptr;
   Allen::malloc((void**) &g, data.size());
-  dev_ut_geometry = gsl::span {g, static_cast<span_size_t<span_type>>(data.size())};
+  dev_ut_geometry = {g, static_cast<span_size_t<span_type>>(data.size())};
   const ::UTGeometry geometry {data};
 
   // Fill sector to group map

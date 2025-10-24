@@ -20,7 +20,7 @@
 #include <InputReader.h>
 #include <FileWriter.h>
 #include <ZMQOutputSender.h>
-#include <Event/RawBank.h>
+#include <Event/RawBankType.h>
 #include <FileSystem.h>
 #include <InputReader.h>
 
@@ -261,13 +261,13 @@ std::unique_ptr<IInputProvider> Allen::make_provider(
 
   // This is a hack to avoid copying both SP and Retina banks to the device.
   auto [veloSP, retina] = Allen::velo_decoding_type(configuration_reader);
-  std::unordered_set<LHCb::RawBank::BankType> skip_banks {};
+  std::unordered_set<LHCb::Event::Enum::RawBank::BankType> skip_banks {};
   if (!veloSP && retina) {
-    skip_banks.insert(LHCb::RawBank::BankType::Velo);
-    skip_banks.insert(LHCb::RawBank::BankType::VP);
+    skip_banks.insert(LHCb::Event::Enum::RawBank::BankType::Velo);
+    skip_banks.insert(LHCb::Event::Enum::RawBank::BankType::VP);
   }
   else if (veloSP && !retina) {
-    skip_banks.insert(LHCb::RawBank::BankType::VPRetinaCluster);
+    skip_banks.insert(LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster);
   }
 
   if (!mdf_input.empty()) {

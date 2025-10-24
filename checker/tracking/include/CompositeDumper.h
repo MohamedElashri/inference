@@ -70,8 +70,8 @@ public:
   template<typename T>
   void accumulate(
     MCEvents const& mc_events,
-    gsl::span<const Checker::Composites> tracks,
-    gsl::span<const mask_t> event_list,
+    std::span<const Checker::Composites> tracks,
+    std::span<const mask_t> event_list,
     FillComposite_t const& fill_composite,
     FilterComposite_t const& filter_composite =
       [](const unsigned, const Checker::Composite&, const MatchedComposite_t&) -> bool { return true; },
@@ -157,8 +157,8 @@ namespace {
 template<typename CheckerType>
 void CompositeDumper::accumulate(
   MCEvents const& mc_events,
-  gsl::span<const Checker::Composites> all_composites,
-  gsl::span<const mask_t> event_list,
+  std::span<const Checker::Composites> all_composites,
+  std::span<const mask_t> event_list,
   FillComposite_t const& fill_composite,
   FilterComposite_t const& filter_composite,
   FilterEvent_t const& filter_event)

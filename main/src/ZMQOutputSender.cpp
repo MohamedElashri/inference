@@ -109,10 +109,10 @@ void ZMQOutputSender::handle()
   }
 }
 
-gsl::span<char> ZMQOutputSender::buffer(size_t, size_t buffer_size, size_t)
+std::span<char> ZMQOutputSender::buffer(size_t, size_t buffer_size, size_t)
 {
   m_buffer.rebuild(buffer_size);
-  return gsl::span {static_cast<char*>(m_buffer.data()), static_cast<events_size>(buffer_size)};
+  return std::span {static_cast<char*>(m_buffer.data()), static_cast<events_size>(buffer_size)};
 }
 
 bool ZMQOutputSender::write_buffer(size_t)

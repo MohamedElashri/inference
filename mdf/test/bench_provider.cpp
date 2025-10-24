@@ -16,7 +16,6 @@
 #include <unordered_set>
 #include <map>
 
-#include <Event/RawBank.h>
 #include <read_mdf.hpp>
 #include <Timer.h>
 #include <MDFProvider.h>

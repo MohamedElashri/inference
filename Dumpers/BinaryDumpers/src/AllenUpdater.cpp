@@ -89,7 +89,7 @@ void AllenUpdater::registerProducer(string const& id, Allen::NonEventData::Produ
   }
 }
 
-void AllenUpdater::update(gsl::span<unsigned const> odin_data)
+void AllenUpdater::update(std::span<unsigned const> odin_data)
 {
   {
     std::scoped_lock lock {m_odinMutex};

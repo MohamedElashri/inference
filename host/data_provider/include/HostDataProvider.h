@@ -13,14 +13,14 @@
 #include "Common.h"
 #include "AlgorithmTypes.cuh"
 #include "InputProvider.h"
-#include <gsl/span>
+#include <span>
 
 namespace host_data_provider {
   struct Parameters {
-    HOST_OUTPUT(host_raw_banks_t, gsl::span<char const>) host_raw_banks;
-    HOST_OUTPUT(host_raw_offsets_t, gsl::span<unsigned int const>) host_raw_offsets;
-    HOST_OUTPUT(host_raw_sizes_t, gsl::span<unsigned int const>) host_raw_sizes;
-    HOST_OUTPUT(host_raw_types_t, gsl::span<unsigned int const>) host_raw_types;
+    HOST_OUTPUT(host_raw_banks_t, std::span<char const>) host_raw_banks;
+    HOST_OUTPUT(host_raw_offsets_t, std::span<unsigned int const>) host_raw_offsets;
+    HOST_OUTPUT(host_raw_sizes_t, std::span<unsigned int const>) host_raw_sizes;
+    HOST_OUTPUT(host_raw_types_t, std::span<unsigned int const>) host_raw_types;
     HOST_OUTPUT(host_raw_bank_version_t, int) host_raw_bank_version;
   };
 

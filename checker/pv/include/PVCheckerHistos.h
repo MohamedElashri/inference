@@ -20,26 +20,26 @@ public:
   PVCheckerHistos(CheckerInvoker const* invoker, std::string const& root_file, std::string const& directory);
 
   void accumulate(
-    gsl::span<const AllenRecPVInfo> vec_all_rec,
-    gsl::span<const double> vec_rec_x,
-    gsl::span<const double> vec_rec_y,
-    gsl::span<const double> vec_rec_z,
-    gsl::span<const double> vec_diff_x,
-    gsl::span<const double> vec_diff_y,
-    gsl::span<const double> vec_diff_z,
-    gsl::span<const double> vec_err_x,
-    gsl::span<const double> vec_err_y,
-    gsl::span<const double> vec_err_z,
-    gsl::span<const int> vec_n_trinmcpv,
-    gsl::span<const int> vec_n_mcpv,
-    gsl::span<const int> vec_mcpv_recd,
-    gsl::span<const int> vec_recpv_fake,
-    gsl::span<const int> vec_mcpv_mult,
-    gsl::span<const int> vec_recpv_mult,
-    gsl::span<const double> vec_mcpv_zpos,
-    gsl::span<const double> vec_mc_x,
-    gsl::span<const double> vec_mc_y,
-    gsl::span<const double> vec_mc_z);
+    std::span<const AllenRecPVInfo> vec_all_rec,
+    std::span<const double> vec_rec_x,
+    std::span<const double> vec_rec_y,
+    std::span<const double> vec_rec_z,
+    std::span<const double> vec_diff_x,
+    std::span<const double> vec_diff_y,
+    std::span<const double> vec_diff_z,
+    std::span<const double> vec_err_x,
+    std::span<const double> vec_err_y,
+    std::span<const double> vec_err_z,
+    std::span<const int> vec_n_trinmcpv,
+    std::span<const int> vec_n_mcpv,
+    std::span<const int> vec_mcpv_recd,
+    std::span<const int> vec_recpv_fake,
+    std::span<const int> vec_mcpv_mult,
+    std::span<const int> vec_recpv_mult,
+    std::span<const double> vec_mcpv_zpos,
+    std::span<const double> vec_mc_x,
+    std::span<const double> vec_mc_y,
+    std::span<const double> vec_mc_z);
 
   void write();
 

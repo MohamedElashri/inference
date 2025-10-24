@@ -8,17 +8,19 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-// Include files
-
-// local
-#include "PVDumper.h"
+#include "Event/MCParticle.h"
+#include "Event/MCTrackInfo.h"
+#include "Event/MCVertex.h"
+#include "Event/ODIN.h"
+#include "Event/RawEvent.h"
+#include "Event/RawBank.h"
+#include "LHCbAlgs/Transformer.h"
+#include "Associators/Associators.h"
 #include "Associators/Associators.h"
 #include <Dumpers/Utils.h>
-#include <boost/filesystem.hpp>
+#include <string>
 
 namespace {
-
-  namespace fs = boost::filesystem;
 
   void collectProductss(
     const LHCb::MCVertex& mcpv,
@@ -34,7 +36,42 @@ namespace {
       }
     }
   }
+
+  // count number reconstructible tracks in the same way as PrimaryVertexChecker
+  int count_reconstructible_mc_particles(const LHCb::MCVertex& avtx, const MCTrackInfo& trInfo)
+  {
+    std::vector<const LHCb::MCParticle*> allproducts;
+    collectProductss(avtx, avtx, allproducts);
+
+    return std::count_if(allproducts.begin(), allproducts.end(), [&](const auto* pmcp) {
+      if (pmcp->particleID().threeCharge() == 0 || !trInfo.hasVelo(pmcp)) return false;
+      double dv2 = (avtx.position() - pmcp->originVertex()->position()).Mag2();
+      return dv2 < 0.0000001 && pmcp->p() > 100. * Gaudi::Units::MeV;
+    });
+  }
 } // namespace
+
+/** @class PVDumper PVDumper.h
+ *  tool to dump the MC truth informaiton for PVs
+ *  based on the PrTrackerDumper code
+ *
+ *  @author Florian Reiss
+ *  @date   2018-12-17
+ */
+class PVDumper
+  : public LHCb::Algorithm::MultiTransformer<
+      std::tuple<LHCb::RawEvent, LHCb::RawBank::View>(const LHCb::MCVertices& MCVertices, const LHCb::MCProperty&)> {
+public:
+  /// Standard constructor
+  PVDumper(const std::string& name, ISvcLocator* pSvcLocator);
+
+  std::tuple<LHCb::RawEvent, LHCb::RawBank::View> operator()(
+    const LHCb::MCVertices& MCVertices,
+    const LHCb::MCProperty&) const override;
+
+private:
+  static const LHCb::RawBank::BankType m_bankType = LHCb::RawBank::BankType::OTError;
+};
 
 // Declaration of the Algorithm Factory
 DECLARE_COMPONENT(PVDumper)
@@ -44,21 +81,18 @@ DECLARE_COMPONENT(PVDumper)
 //=============================================================================
 
 PVDumper::PVDumper(const std::string& name, ISvcLocator* pSvcLocator) :
-  Transformer(
-    name,
-    pSvcLocator,
-    // Input
-    {KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
-     KeyValue {"MCPropertyLocation", LHCb::MCPropertyLocation::TrackInfo}},
-    // Output
-    KeyValue {"OutputRawEventLocation", "Allen/MCPVRawEvent"})
+  MultiTransformer {name,
+                    pSvcLocator,
+                    {KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
+                     KeyValue {"MCPropertyLocation", LHCb::MCPropertyLocation::TrackInfo}},
+                    {KeyValue {"OutputRawEventLocation", "Allen/MCPVRawEvent"},
+                     KeyValue {"OutputRawBankLocation", "Allen/MCPVRawBank"}}}
 {}
 
-StatusCode PVDumper::initialize() { return StatusCode::SUCCESS; }
-
-LHCb::RawEvent PVDumper::operator()(const LHCb::MCVertices& MCVertices, const LHCb::MCProperty& MCProp) const
+std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PVDumper::operator()(
+  const LHCb::MCVertices& MCVertices,
+  const LHCb::MCProperty& MCProp) const
 {
-
   DumpUtils::Writer writer;
 
   auto goodVertex = [](const auto* v) {
@@ -82,18 +116,5 @@ LHCb::RawEvent PVDumper::operator()(const LHCb::MCVertices& MCVertices, const LH
     rawEvent.addBank(sourceID, m_bankType, 1, data);
   }
 
-  return rawEvent;
-}
-
-// count number reconstructible tracks in the same way as PrimaryVertexChecker
-int PVDumper::count_reconstructible_mc_particles(const LHCb::MCVertex& avtx, const MCTrackInfo& trInfo) const
-{
-  std::vector<const LHCb::MCParticle*> allproducts;
-  collectProductss(avtx, avtx, allproducts);
-
-  return std::count_if(allproducts.begin(), allproducts.end(), [&](const auto* pmcp) {
-    if (pmcp->particleID().threeCharge() == 0 || !trInfo.hasVelo(pmcp)) return false;
-    double dv2 = (avtx.position() - pmcp->originVertex()->position()).Mag2();
-    return dv2 < 0.0000001 && pmcp->p() > 100. * Allen::Units::MeV;
-  });
+  return viewFromRawEvent(std::move(rawEvent), m_bankType);
 }

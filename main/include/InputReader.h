@@ -16,7 +16,7 @@
 #include <string>
 #include <algorithm>
 #include <unordered_set>
-#include <gsl/gsl>
+#include <span>
 #include "nlohmann/json.hpp"
 #include "Configuration.h"
 

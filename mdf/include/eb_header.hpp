@@ -11,7 +11,7 @@
 #pragma once
 
 #include <vector>
-#include <gsl/gsl>
+#include <span>
 #include <Common.h>
 
 namespace EB {
@@ -25,20 +25,20 @@ namespace EB {
     }
 
     template<typename T>
-    gsl::span<T> make_span(uint16_t nf, char const*& d)
+    std::span<T> make_span(uint16_t nf, char const*& d)
     {
-      gsl::span<T> s {const_cast<T*>(reinterpret_cast<T const*>(d)), padded_size<T>(nf)};
+      std::span<T> s {const_cast<T*>(reinterpret_cast<T const*>(d)), padded_size<T>(nf)};
       d += s.size_bytes();
       return s;
     }
 
     template<typename T>
-    void resize(uint16_t nf, std::vector<T>& cont, gsl::span<T>& view)
+    void resize(uint16_t nf, std::vector<T>& cont, std::span<T>& view)
     {
       auto size = padded_size<T>(nf);
       cont.resize(size);
       cont.assign(size, 0);
-      view = gsl::span<T> {&cont[0], static_cast<span_size_t<T>>(size)};
+      view = std::span<T> {&cont[0], static_cast<span_size_t<T>>(size)};
     }
   } // namespace detail
 
@@ -85,9 +85,9 @@ namespace EB {
     uint32_t reserved = 0;
     uint64_t mep_size = 0;
 
-    gsl::span<uint16_t> source_ids;
-    gsl::span<uint16_t> versions;
-    gsl::span<uint32_t> offsets;
+    std::span<uint16_t> source_ids;
+    std::span<uint16_t> versions;
+    std::span<uint32_t> offsets;
 
     static uint32_t base_size()
     {
@@ -149,8 +149,8 @@ namespace EB {
     uint16_t n_frag = 0;
     uint16_t reserved = 0;
     uint32_t block_size = 0;
-    gsl::span<unsigned char> types;
-    gsl::span<uint16_t> sizes;
+    std::span<unsigned char> types;
+    std::span<uint16_t> sizes;
 
     static uint32_t header_size(uint16_t nf)
     {

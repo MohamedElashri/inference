@@ -87,7 +87,7 @@ Allen::Slices allocate_slices(
         sizes_mem[i] = 0;
         types_mem[i] = 0;
       }
-      std::vector<gsl::span<char>> bank_spans {};
+      std::vector<std::span<char>> bank_spans {};
       if (n_bytes) {
         bank_spans.emplace_back(events_mem, n_bytes);
       }
@@ -109,7 +109,7 @@ void free_slices(Allen::Slices& slices)
     for (auto& slice : bank_slices) {
       if (!slice.fragments.empty() && !slice.fragments[0].empty()) {
         Allen::free_host(slice.fragments[0].data());
-        slice.fragments[0] = gsl::span<char> {};
+        slice.fragments[0] = std::span<char> {};
       }
       if (!slice.offsets.empty()) {
         Allen::free_host(slice.offsets.data());

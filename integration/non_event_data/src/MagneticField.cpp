@@ -21,7 +21,7 @@ namespace {
 } // namespace
 
 Consumers::MagneticFieldPolarity::MagneticFieldPolarity(
-  gsl::span<float>& dev_magnet_polarity,
+  std::span<float>& dev_magnet_polarity,
   std::vector<float>& host_magnet_polarity) :
   m_dev_magnet_polarity {dev_magnet_polarity},
   m_host_magnet_polarity {host_magnet_polarity}

@@ -11,7 +11,7 @@
 #pragma once
 
 #include <tuple>
-#include <gsl/gsl>
+#include <span>
 #include <vector>
 #include <cstring>
 #include <unordered_map>
@@ -43,7 +43,7 @@ namespace Allen::Store {
     InputAggregate(Tuple t, std::index_sequence<Is...>) : m_argument_data_v {std::get<Is>(t)...}
     {}
 
-    gsl::span<T> get(const unsigned index) const
+    std::span<T> get(const unsigned index) const
     {
       assert(index < m_argument_data_v.size() && "Index is in bounds");
       return m_argument_data_v[index].get();

@@ -13,7 +13,6 @@
 // Gaudi
 #include <GaudiAlg/Transformer.h>
 #include <GaudiAlg/FunctionalUtilities.h>
-#include <Event/RawBank.h>
 #include <RuntimeOptions.h>
 #include "AllenROOTService.h"
 

@@ -10,19 +10,19 @@
 \*****************************************************************************/
 #pragma once
 
-#include <Event/RawBank.h>
+#include <Event/RawBankType.h>
 
 #include "Common.h"
 #include "SciFiRaw.cuh"
 #include "AlgorithmTypes.cuh"
-#include <gsl/span>
+#include <span>
 
 namespace host_scifi_gec {
   struct Parameters {
-    HOST_INPUT(host_scifi_raw_banks_t, gsl::span<char const>) scifi_banks;
-    HOST_INPUT(host_scifi_raw_offsets_t, gsl::span<unsigned int const>) scifi_offsets;
-    HOST_INPUT(host_scifi_raw_sizes_t, gsl::span<unsigned int const>) scifi_sizes;
-    HOST_INPUT(host_scifi_raw_types_t, gsl::span<unsigned int const>) scifi_types;
+    HOST_INPUT(host_scifi_raw_banks_t, std::span<char const>) scifi_banks;
+    HOST_INPUT(host_scifi_raw_offsets_t, std::span<unsigned int const>) scifi_offsets;
+    HOST_INPUT(host_scifi_raw_sizes_t, std::span<unsigned int const>) scifi_sizes;
+    HOST_INPUT(host_scifi_raw_types_t, std::span<unsigned int const>) scifi_types;
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
     HOST_OUTPUT(host_output_event_list_t, unsigned) host_output_event_list;
     HOST_OUTPUT(host_number_of_selected_events_t, unsigned) host_number_of_selected_events;
@@ -60,7 +60,7 @@ namespace host_scifi_gec {
       const auto scifi_event = SciFi::RawEvent<mep_layout> {
         parameters.scifi_banks[0].data(), scifi_offsets.data(), scifi_sizes.data(), scifi_types.data(), event_number};
       for (unsigned i = 0; i < scifi_event.number_of_raw_banks(); ++i) {
-        if (scifi_event.bank_type(i) == LHCb::RawBank::BankType::FTCluster) {
+        if (scifi_event.bank_type(i) == LHCb::Event::Enum::RawBank::BankType::FTCluster) {
           n_SciFi_clusters += scifi_event.bank_size(i);
         }
       }
