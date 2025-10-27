@@ -27,10 +27,10 @@
 
 std::vector<Checker::Tracks> prepareVeloTracks(
   const unsigned number_of_events,
-  gsl::span<const unsigned> track_atomics,
-  gsl::span<const unsigned> track_hit_number,
-  gsl::span<const char> track_hits,
-  gsl::span<const mask_t> event_list)
+  std::span<const unsigned> track_atomics,
+  std::span<const unsigned> track_hit_number,
+  std::span<const char> track_hits,
+  std::span<const mask_t> event_list)
 {
   /* Tracks to be checked, save in format for checker */
   std::vector<Checker::Tracks> checker_tracks(event_list.size());
@@ -61,16 +61,16 @@ std::vector<Checker::Tracks> prepareVeloTracks(
 
 std::vector<Checker::Tracks> prepareUTTracks(
   const unsigned number_of_events,
-  gsl::span<const unsigned> velo_track_atomics,
-  gsl::span<const unsigned> velo_track_hit_number,
-  gsl::span<const char> velo_track_hits,
-  gsl::span<const char> kalman_velo_states,
-  gsl::span<const unsigned> ut_track_atomics,
-  gsl::span<const unsigned> ut_track_hit_number,
-  gsl::span<const char> ut_track_hits,
-  gsl::span<const unsigned> ut_track_velo_indices,
-  gsl::span<const float> ut_qop,
-  gsl::span<const mask_t> event_list)
+  std::span<const unsigned> velo_track_atomics,
+  std::span<const unsigned> velo_track_hit_number,
+  std::span<const char> velo_track_hits,
+  std::span<const char> kalman_velo_states,
+  std::span<const unsigned> ut_track_atomics,
+  std::span<const unsigned> ut_track_hit_number,
+  std::span<const char> ut_track_hits,
+  std::span<const unsigned> ut_track_velo_indices,
+  std::span<const float> ut_qop,
+  std::span<const mask_t> event_list)
 {
   std::vector<Checker::Tracks> checker_tracks(event_list.size());
   for (unsigned i = 0; i < event_list.size(); i++) {
@@ -129,13 +129,13 @@ std::vector<Checker::Tracks> prepareUTTracks(
 
 std::vector<Checker::Tracks> prepareUnmatchedSeedingTracks(
   const unsigned number_of_events,
-  gsl::span<const bool> matched_is_scifi_track_used,
-  gsl::span<const unsigned> scifi_seed_atomics,
-  gsl::span<const unsigned> scifi_seed_hit_number,
-  gsl::span<const char> scifi_seed_hits,
-  gsl::span<const SciFi::Seeding::Track> scifi_seeds,
-  gsl::span<const MiniState> seeding_states,
-  gsl::span<const mask_t> event_list)
+  std::span<const bool> matched_is_scifi_track_used,
+  std::span<const unsigned> scifi_seed_atomics,
+  std::span<const unsigned> scifi_seed_hit_number,
+  std::span<const char> scifi_seed_hits,
+  std::span<const SciFi::Seeding::Track> scifi_seeds,
+  std::span<const MiniState> seeding_states,
+  std::span<const mask_t> event_list)
 {
   /* Tracks to be checked, save in format for checker */
   std::vector<Checker::Tracks> checker_tracks(event_list.size());
@@ -182,12 +182,12 @@ std::vector<Checker::Tracks> prepareUnmatchedSeedingTracks(
 
 std::vector<Checker::Tracks> prepareSeedingTracks(
   const unsigned number_of_events,
-  gsl::span<const unsigned> scifi_seed_atomics,
-  gsl::span<const unsigned> scifi_seed_hit_number,
-  gsl::span<const char> scifi_seed_hits,
-  gsl::span<const SciFi::Seeding::Track> scifi_seeds, // FIXME
-  gsl::span<const MiniState> seeding_states,
-  gsl::span<const mask_t> event_list)
+  std::span<const unsigned> scifi_seed_atomics,
+  std::span<const unsigned> scifi_seed_hit_number,
+  std::span<const char> scifi_seed_hits,
+  std::span<const SciFi::Seeding::Track> scifi_seeds, // FIXME
+  std::span<const MiniState> seeding_states,
+  std::span<const mask_t> event_list)
 {
   /* Tracks to be checked, save in format for checker */
   std::vector<Checker::Tracks> checker_tracks(event_list.size());
@@ -228,12 +228,12 @@ std::vector<Checker::Tracks> prepareSeedingTracks(
 
 std::vector<Checker::Tracks> prepareSeedingTracksXZ(
   const unsigned number_of_events,
-  gsl::span<const unsigned> scifi_seed_atomics,
-  gsl::span<const unsigned> scifi_seed_hit_number,
-  gsl::span<const char> raw_scifi_hits,
-  gsl::span<const unsigned> raw_scifi_hit_count,
-  gsl::span<const SciFi::Seeding::TrackXZ> scifi_seeds, // FIXME
-  gsl::span<const mask_t> event_list)
+  std::span<const unsigned> scifi_seed_atomics,
+  std::span<const unsigned> scifi_seed_hit_number,
+  std::span<const char> raw_scifi_hits,
+  std::span<const unsigned> raw_scifi_hit_count,
+  std::span<const SciFi::Seeding::TrackXZ> scifi_seeds, // FIXME
+  std::span<const mask_t> event_list)
 {
   /* Tracks to be checked, save in format for checker */
 

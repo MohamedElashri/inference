@@ -13,14 +13,14 @@
 namespace {
 
   template<typename T>
-  inline void copy_to_data(gsl::span<char> dst, std::vector<T> src, unsigned& offset)
+  inline void copy_to_data(std::span<char> dst, std::vector<T> src, unsigned& offset)
   {
     memcpy(dst.data() + offset, src.data(), sizeof(T) * src.size());
     offset += sizeof(T) * src.size();
   }
 
   template<typename T>
-  inline void copy_to_data(gsl::span<char> dst, T src, unsigned& offset)
+  inline void copy_to_data(std::span<char> dst, T src, unsigned& offset)
   {
     *(reinterpret_cast<T*>(dst.data() + offset)) = src;
     offset += sizeof(T);

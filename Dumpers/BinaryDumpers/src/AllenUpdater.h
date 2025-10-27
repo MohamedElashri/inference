@@ -56,7 +56,7 @@ public:
    *
    * @return     void
    */
-  void update(gsl::span<unsigned const> odin) override;
+  void update(std::span<unsigned const> odin) override;
 
   /**
    * @brief      Register a consumer for that will consume binary non-event

@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
 
   bool eof = false, error = false;
 
-  std::vector<std::tuple<int, gsl::span<const char>>> event_span;
+  std::vector<std::tuple<int, std::span<const char>>> event_span;
 
   auto input = MDF::open(filename.c_str(), O_RDONLY);
   if (input.good) {
@@ -152,10 +152,10 @@ int main(int argc, char* argv[])
         std::string det = (sys == nullptr) ? "Unknown" : sys;
         std::string fill(7 - det.size(), ' ');
 
-        bool dump_bank = b->type() == dump_type && (!dump_n || (dump_n && bank_counts[b->type()] == *dump_n));
+        bool dump_bank = b->type() == dump_type && (!dump_n || (dump_n && bank_counts[(uint8_t) b->type()] == *dump_n));
 
-        if (b->type() < LHCb::RawBank::types().size()) {
-          ++bank_counts[b->type()];
+        if ((uint8_t) b->type() < LHCb::RawBank::types().size()) {
+          ++bank_counts[(uint8_t) b->type()];
           if (b->type() == LHCb::RawBank::BankType::ODIN && (!dump.empty() || quiet)) {
             auto odin = MDF::decode_odin(b->range<unsigned>(), b->version());
             odin_stream << "run " << odin.runNumber() << " event " << std::setw(15) << odin.eventNumber()
@@ -193,7 +193,7 @@ int main(int argc, char* argv[])
           }
         }
         else {
-          ++bank_counts[LHCb::RawBank::types().size()];
+          ++bank_counts[(uint8_t) LHCb::RawBank::BankType::LastType];
         }
 
         if (!dump.empty() && dump_bank) {

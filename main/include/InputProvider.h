@@ -17,8 +17,7 @@
 #include <mutex>
 #include <optional>
 #include <any>
-
-#include <gsl/gsl>
+#include <span>
 
 #include <Event/ODIN.h>
 
@@ -104,10 +103,10 @@ public:
 
   virtual void event_sizes(
     size_t const slice_index,
-    gsl::span<unsigned int const> const selected_events,
+    std::span<unsigned int const> const selected_events,
     std::vector<size_t>& sizes) const = 0;
 
-  virtual void copy_banks(size_t const slice_index, unsigned int const event, gsl::span<char> buffer) const = 0;
+  virtual void copy_banks(size_t const slice_index, unsigned int const event, std::span<char> buffer) const = 0;
 
   virtual bool release_buffers() = 0;
 };

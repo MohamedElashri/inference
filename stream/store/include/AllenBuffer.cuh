@@ -11,7 +11,7 @@
 #pragma once
 
 #include <MemoryManager.cuh>
-#include <gsl/gsl>
+#include <span>
 #include <variant>
 
 namespace Allen {
@@ -26,7 +26,7 @@ namespace Allen {
     private:
       Allen::Store::memory_manager_t<S>* m_mem_manager = nullptr;
       const std::string m_tag = "";
-      gsl::span<T> m_span {};
+      std::span<T> m_span {};
       bool m_allocated = false;
 
     public:
@@ -56,10 +56,10 @@ namespace Allen {
           m_mem_manager->free(m_tag);
         }
         m_allocated = true;
-        m_span = gsl::span<T> {reinterpret_cast<T*>(m_mem_manager->reserve(m_tag, size * sizeof(T))), size};
+        m_span = std::span<T> {reinterpret_cast<T*>(m_mem_manager->reserve(m_tag, size * sizeof(T))), size};
       }
-      __host__ gsl::span<T> get() { return m_span; }
-      __host__ gsl::span<const T> get() const { return m_span; }
+      __host__ std::span<T> get() { return m_span; }
+      __host__ std::span<const T> get() const { return m_span; }
     };
 
     /**
@@ -76,7 +76,7 @@ namespace Allen {
       __host__ nonstandalone_buffer(size_t size) : m_vector(size) {}
       __host__ nonstandalone_buffer(nonstandalone_buffer&& o) : m_vector {std::move(o.m_vector)} {}
       __host__ void resize(size_t size) { m_vector.resize(size); }
-      __host__ gsl::span<T> get()
+      __host__ std::span<T> get()
       {
         if constexpr (std::is_same_v<std::decay_t<T>, bool>) {
           return {Allen::forward_type_t<T, bool*>(m_vector.data()), m_vector.size()};
@@ -85,7 +85,7 @@ namespace Allen {
           return m_vector;
         }
       }
-      __host__ gsl::span<const T> get() const
+      __host__ std::span<const T> get() const
       {
         if constexpr (std::is_same_v<std::decay_t<T>, bool>) {
           return {Allen::forward_type_t<T, bool*>(m_vector.data()), m_vector.size()};
@@ -109,7 +109,7 @@ namespace Allen {
   struct buffer {
   private:
     std::variant<details::standalone_buffer<S, T>, details::nonstandalone_buffer<T>> m_buffer;
-    gsl::span<T> m_span;
+    std::span<T> m_span;
 
   public:
     __host__ buffer(Allen::Store::memory_manager_t<S>& mem_manager, const std::string& tag) :
@@ -138,8 +138,8 @@ namespace Allen {
         },
         m_buffer);
     }
-    constexpr __host__ gsl::span<T> get() { return m_span; }
-    constexpr __host__ gsl::span<const T> get() const { return m_span; }
+    constexpr __host__ std::span<T> get() { return m_span; }
+    constexpr __host__ std::span<const T> get() const { return m_span; }
     constexpr __host__ auto begin() const
     {
       static_assert(S == Allen::Store::Scope::Host);
@@ -164,7 +164,7 @@ namespace Allen {
       static_assert(S == Allen::Store::Scope::Host);
       return get()[i];
     }
-    constexpr __host__ operator gsl::span<T>() { return get(); }
+    constexpr __host__ operator std::span<T>() { return get(); }
     constexpr __host__ auto operator-> () const { return data(); }
     constexpr __host__ operator T*() const { return data(); }
     constexpr __host__ auto empty() const { return m_span.empty(); }

@@ -17,6 +17,7 @@
 #include "Event/RawBank.h"
 #include "Event/RawEvent.h"
 #include "Event/VPLightCluster.h"
+#include "Kernel/ParticleIDs.h"
 #include "UTDAQ/UTInfo.h"
 #include "PrKernel/UTHit.h"
 #include "PrKernel/UTHitHandler.h"
@@ -153,9 +154,10 @@ using Gaudi::Functional::Traits::useLegacyGaudiAlgorithm;
  *  @date   2017-11-06
  */
 
-class PrTrackerDumper : public Gaudi::Functional::Transformer<
-                          LHCb::RawEvent(
+class PrTrackerDumper : public Gaudi::Functional::MultiTransformer<
+                          std::tuple<LHCb::RawEvent, LHCb::RawBank::View>(
                             const LHCb::MCParticles&,
+                            const LHCb::MCVertices&,
                             const std::vector<LHCb::VPLightCluster>&,
                             const LHCb::Pr::FT::Hits&,
                             const UT::HitHandler&,
@@ -203,8 +205,9 @@ public:
     const unsigned int nbHits_in_SciFi,
     DumpUtils::Writer& outfile) const;
 
-  LHCb::RawEvent operator()(
+  std::tuple<LHCb::RawEvent, LHCb::RawBank::View> operator()(
     const LHCb::MCParticles& MCParticles,
+    const LHCb::MCVertices& mcVert,
     const std::vector<LHCb::VPLightCluster>& VPClusters,
     const LHCb::Pr::FT::Hits& ftHits,
     const UT::HitHandler& utHits,
@@ -229,16 +232,17 @@ DECLARE_COMPONENT(PrTrackerDumper)
 //=============================================================================
 
 PrTrackerDumper::PrTrackerDumper(const string& name, ISvcLocator* pSvcLocator) :
-  Transformer(
+  MultiTransformer {
     name,
     pSvcLocator,
     {KeyValue {"MCParticlesLocation", LHCb::MCParticleLocation::Default},
+     KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
      KeyValue {"VPLightClusterLocation", LHCb::VPClusterLocation::Light},
      KeyValue {"FTHitsLocation", PrFTInfo::SciFiHitsLocation},
      KeyValue {"UTHitsLocation", UTInfo::HitLocation},
      KeyValue {"ODINLocation", LHCb::ODINLocation::Default},
      KeyValue {"LinkerLocation", Links::location("Pr/LHCbID")}},
-    KeyValue {"OutputRawEventLocation", "Allen/MCRawEvent"})
+    {KeyValue {"OutputRawEventLocation", "Allen/MCRawEvent"}, KeyValue {"OutputRawBanksLocation", "Allen/MCRawBanks"}}}
 {}
 
 StatusCode PrTrackerDumper::initialize()
@@ -337,25 +341,6 @@ void PrTrackerDumper::write_MCP_info(
   }
 }
 
-int computeNbUTHits(const UT::HitHandler& prUTHitHandler)
-{
-  int nbHits = 0;
-  for (int iSide = 0; iSide < NBSIDE; ++iSide) {
-    for (int iLayer = 0; iLayer < NBHALFLAYER; ++iLayer) {
-      for (int iStave = 0; iStave < NBSTAVE; ++iStave) {
-        for (int iFace = 0; iFace < NBFACE; ++iFace) {
-          for (int iModule = 0; iModule < NBMODULE; ++iModule) {
-            for (int iSector = 0; iSector < NBSUBSECTOR; ++iSector) {
-              nbHits += prUTHitHandler.hits(iSide, iLayer, iStave, iFace, iModule, iSector).size();
-            }
-          }
-        }
-      }
-    }
-  }
-  return nbHits;
-}
-
 double mcpTau(const LHCb::MCParticle* mcp)
 {
   if (mcp->originVertex()) {
@@ -370,8 +355,9 @@ double mcpTau(const LHCb::MCParticle* mcp)
   return 0;
 }
 
-LHCb::RawEvent PrTrackerDumper::operator()(
+std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
   const LHCb::MCParticles& MCParticles,
+  const LHCb::MCVertices& mcVert,
   const vector<LHCb::VPLightCluster>& VPClusters,
   const LHCb::Pr::FT::Hits& ftHits,
   const UT::HitHandler& prUTHitHandler,
@@ -502,7 +488,7 @@ LHCb::RawEvent PrTrackerDumper::operator()(
   }
 
   nbHits_in_Velo = VPClusters.size();
-  nbHits_in_UT = computeNbUTHits(prUTHitHandler);
+  nbHits_in_UT = prUTHitHandler.nbHits();
   nbHits_in_SciFi = (int) ftHits.size();
 
   // SciFi
@@ -638,22 +624,13 @@ LHCb::RawEvent PrTrackerDumper::operator()(
     (*tree)->Branch("charge", &charge);
   }
   // Count number of reconstructible primary vertices
-  LHCb::MCVertices* mcVert = getIfExists<LHCb::MCVertices>(LHCb::MCVertexLocation::Default);
-  if (mcVert == nullptr) {
-    error() << "Could not find MCVertices at " << LHCb::MCParticleLocation::Default << endmsg;
-  }
-  unsigned int nPrim = 0;
-  for (LHCb::MCVertices::iterator itV = mcVert->begin(); mcVert->end() != itV; ++itV) {
-    if ((*itV)->isPrimary()) {
-      int nbVisible = 0;
-      for (const auto* mcparticle : MCParticles) {
-        if (mcparticle->primaryVertex() == *itV) {
-          if (trackInfo.hasVelo(mcparticle)) nbVisible++;
-        }
-      }
-      if (nbVisible > 4) ++nPrim;
-    }
-  }
+  unsigned int nPrim = std::count_if(mcVert.begin(), mcVert.end(), [&](const auto* itV) {
+    if (!itV->isPrimary()) return false;
+    int nbVisible = std::count_if(MCParticles.begin(), MCParticles.end(), [&](const auto* mcparticle) {
+      return mcparticle->primaryVertex() == &(*itV) && trackInfo.hasVelo(mcparticle);
+    });
+    return nbVisible > 4;
+  });
 
   // Count number of MC partcles with hits in trackers
   unsigned int nMCPsWithHits = 0;
@@ -817,48 +794,45 @@ LHCb::RawEvent PrTrackerDumper::operator()(
       ovtx_y = mcparticle->originVertex()->position().y();
       ovtx_z = mcparticle->originVertex()->position().z();
       const LHCb::MCParticle* mother = mcparticle->originVertex()->mother();
-      if (nullptr != mother) {
-        if (nullptr != mother->originVertex()) {
-          double rOrigin = mother->originVertex()->position().rho();
-          if (fabs(rOrigin) < 5.) { // radial origin position of the mother within 5 mm from beam pipe
-            int pid = abs(mother->particleID().pid());
-            if (
-              130 == pid ||  // K0L
-              310 == pid ||  // K0S
-              3122 == pid || // Lambda
-              3222 == pid || // Sigma+
-              3212 == pid || // Sigma0
-              3112 == pid || // Sigma-
-              3322 == pid || // Xsi0
-              3312 == pid || // Xsi-
-              3334 == pid    // Omega-
-            ) {
-              fromStrangeDecay = true;
-            }
+      if (mother && mother->originVertex()) {
+        double rOrigin = mother->originVertex()->position().rho();
+        if (fabs(rOrigin) < 5.) { // radial origin position of the mother within 5 mm from beam pipe
+          constexpr auto strange_ids = std::array {LHCb::ParticleIDs::kaon_long,
+                                                   LHCb::ParticleIDs::kaon_short,
+                                                   LHCb::ParticleIDs::lambda,
+                                                   LHCb::ParticleIDs::sigma_plus,
+                                                   LHCb::ParticleIDs::sigma_zero,
+                                                   LHCb::ParticleIDs::sigma_minus,
+                                                   LHCb::ParticleIDs::xi_zero,
+                                                   LHCb::ParticleIDs::xi_minus,
+                                                   LHCb::ParticleIDs::omega_minus};
+          if (std::ranges::any_of(strange_ids, [pid = std::abs(mother->particleID())](auto i) { return i == pid; })) {
+            fromStrangeDecay = true;
           }
         }
       }
-      while (nullptr != mother) {
+      while (mother) {
         // Bottom.
         if (mother->particleID().hasBottom() && (mother->particleID().isMeson() || mother->particleID().isBaryon())) {
+          fromBeautyDecay = true;
           DecayOriginMother_pid = mother->particleID().pid();
           DecayOriginMother_key = mother->key();
           DecayOriginMother_pt = mother->momentum().Pt();
-          fromBeautyDecay = true;
           DecayOriginMother_tau = mcpTau(mother);
         }
         // Charm.
         if (mother->particleID().hasCharm() && (mother->particleID().isMeson() || mother->particleID().isBaryon())) {
+          fromCharmDecay = true;
           DecayOriginMother_pid = mother->particleID().pid();
           DecayOriginMother_key = mother->key();
           DecayOriginMother_pt = mother->momentum().Pt();
-          fromCharmDecay = true;
           DecayOriginMother_tau = mcpTau(mother);
         }
         // Higgs/EW.
         if (
-          mother->particleID().pid() == 23 || std::abs(mother->particleID().pid()) == 24 ||
-          mother->particleID().pid() == 25) {
+          mother->particleID() == LHCb::ParticleIDs::z_boson ||
+          std::abs(mother->particleID()) == LHCb::ParticleIDs::w_plus ||
+          mother->particleID() == LHCb::ParticleIDs::higgs_boson) {
           DecayOriginMother_pid = mother->particleID().pid();
           DecayOriginMother_key = mother->key();
           DecayOriginMother_pt = mother->momentum().Pt();
@@ -1070,7 +1044,7 @@ LHCb::RawEvent PrTrackerDumper::operator()(
     file->Write();
     file->Close();
   }
-  return rawEvent;
+  return viewFromRawEvent(std::move(rawEvent), m_bankType);
 }
 
 int PrTrackerDumper::mcVertexType(const LHCb::MCParticle& particle) const

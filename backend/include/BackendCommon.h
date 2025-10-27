@@ -26,7 +26,7 @@
 #include <cassert>
 #include <cmath>
 #include <array>
-#include <gsl/gsl>
+#include <span>
 #include "AllenTypeTraits.h"
 #include "BackendCommonInterface.h"
 
@@ -114,8 +114,8 @@ namespace Allen {
 #include <cmath>
 #endif
 
-// Replacement for gsl::span in device code when building with HIP,
-// gsl::span works for CUDA and CPU
+// Replacement for span in device code when building with HIP,
+// std::span works for CUDA and CPU
 namespace Allen::device {
 #if defined(TARGET_DEVICE_HIP)
   template<class T>
@@ -168,7 +168,7 @@ namespace Allen::device {
     constexpr __device__ __host__ T* rend() const { return m_ptr - 1; }
   };
 #else
-  using gsl::span;
+  using std::span;
 #endif
 } // namespace Allen::device
 

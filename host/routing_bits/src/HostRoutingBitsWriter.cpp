@@ -67,7 +67,7 @@ void host_routingbits_writer::host_routingbits_writer_t::operator()(
 
 void host_routingbits_writer::host_routingbits_impl(
   unsigned host_number_of_events,
-  gsl::span<const unsigned> host_dec_reports,
+  std::span<const unsigned> host_dec_reports,
   unsigned* host_routing_bits,
   const std::unordered_map<uint32_t, boost::dynamic_bitset<>>& rb_ids)
 {

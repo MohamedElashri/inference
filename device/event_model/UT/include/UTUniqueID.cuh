@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <numeric>
-#include <gsl/gsl>
+#include <span>
 #include <chrono>
 #include "BackendCommon.h"
 #include "Logger.h"

@@ -13,7 +13,7 @@
 #include "Common.h"
 #include "AlgorithmTypes.cuh"
 #include "InputProvider.h"
-#include <gsl/gsl>
+#include <span>
 
 namespace layout_provider {
   struct Parameters {

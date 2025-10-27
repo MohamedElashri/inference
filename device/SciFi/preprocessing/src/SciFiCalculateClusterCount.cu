@@ -44,7 +44,7 @@ __global__ void scifi_calculate_cluster_count_kernel(
     uint32_t* hits_module;
 
     auto rawbank = scifi_raw_event.raw_bank(iRawBank);
-    if (rawbank.type != LHCb::RawBank::BankType::FTCluster) continue;
+    if (rawbank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::FTCluster) continue;
 
     const auto iRowInMap = SciFi::getRowInMap(rawbank, geom);
     if (iRowInMap == geom.number_of_banks) continue;

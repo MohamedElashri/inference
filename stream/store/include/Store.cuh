@@ -11,7 +11,7 @@
 #pragma once
 
 #include <tuple>
-#include <gsl/gsl>
+#include <span>
 #include <vector>
 #include <optional>
 #include <cstring>
@@ -73,16 +73,17 @@ namespace Allen::Store {
     }
 
     template<typename T>
-    std::optional<gsl::span<const T>> try_at(const std::string& k) const
+    std::optional<std::span<const T>> try_at(const std::string& k) const
     {
       auto i = m_store.find(k);
       if (i == end(m_store)) return std::nullopt;
-      return static_cast<gsl::span<const T>>(i->second);
+      return static_cast<std::span<const T>>(i->second);
     }
 
     template<typename T>
     void inject(const std::string& k, const std::vector<T>& value)
     {
+      static_assert(std::is_trivially_copyable_v<T>);
       Allen::Store::AllenArgument arg {std::in_place_type<T>, k, Allen::Store::Scope::Host};
       arg.set_size(value.size());
       reserve(arg);
@@ -90,7 +91,7 @@ namespace Allen::Store {
       if (!ok) {
         throw std::runtime_error("store register_entry failed, entry already exists");
       }
-      gsl::span<T> arg_span = arg;
+      std::span<T> arg_span = arg;
       std::memcpy(arg_span.data(), value.data(), value.size() * sizeof(T));
     }
 
@@ -103,7 +104,7 @@ namespace Allen::Store {
       if (!ok) {
         throw std::runtime_error("store register_entry failed, entry already exists");
       }
-      gsl::span<bool> arg_span = arg;
+      std::span<bool> arg_span = arg;
       for (auto i = 0u; i < value.size(); ++i) {
         arg_span[i] = value[i];
       }
@@ -306,7 +307,7 @@ namespace Allen::Store {
     }
 
     template<typename T>
-    gsl::span<typename T::type> get() const
+    std::span<typename T::type> get() const
     {
       return arg<T>();
     }

@@ -17,14 +17,23 @@
 #include "HltConstants.cuh"
 #include <RoutingBitsDefinition.h>
 
+namespace {
+  // temporary migration hack to decouple the version of span used in Allen
+  // from the span used in LHCb
+  template<typename T>
+  auto convert_(T const& s)
+  {
+    return LHCb::make_span(s.data(), s.size());
+  }
+} // namespace
+
 class GaudiAllenReportsToRawEvent
   : public LHCb::Algorithm::MultiTransformer<
       std::tuple<LHCb::RawEvent, LHCb::RawBank::View, LHCb::RawBank::View, LHCb::RawBank::View>(
         const std::vector<unsigned>&,
         const std::vector<unsigned>&,
         const std::vector<unsigned>&,
-        const std::vector<unsigned>&),
-      LHCb::Algorithm::Traits::writeOnly<LHCb::RawEvent>> {
+        const std::vector<unsigned>&)> {
 public:
   // Standard constructor
   GaudiAllenReportsToRawEvent(const std::string& name, ISvcLocator* pSvcLocator) :
@@ -62,15 +71,14 @@ public:
       Hlt1::Constants::sourceID,
       LHCb::RawBank::BankType::HltDecReports,
       dec_reports.version(),
-      dec_reports.bank_data());
+      convert_(dec_reports.bank_data()));
     raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::BankType::HltRoutingBits, 0u, routing_bits);
 
-    auto dec_view = raw_event.banks(LHCb::RawBank::BankType::HltDecReports);
-    auto sel_view = raw_event.banks(LHCb::RawBank::BankType::HltSelReports);
-    auto rb_view = raw_event.banks(LHCb::RawBank::BankType::HltRoutingBits);
-    // without std::move here the RawEvent gets copied which would invalidate the view
-    // View creation must be after RawEvent is made
-    return {std::move(raw_event), std::move(dec_view), std::move(sel_view), std::move(rb_view)};
+    return viewsFromRawEvent(
+      std::move(raw_event),
+      std::array {LHCb::RawBank::BankType::HltDecReports,
+                  LHCb::RawBank::BankType::HltSelReports,
+                  LHCb::RawBank::BankType::HltRoutingBits});
   }
 };
 

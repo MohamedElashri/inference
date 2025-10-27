@@ -17,7 +17,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cassert>
-#include <gsl/span>
+#include <span>
 #include "nlohmann/json.hpp"
 #include "Common.h"
 
@@ -74,11 +74,11 @@ std::string bank_name(BankTypes type);
 BankTypes bank_type(std::string bank_name);
 
 struct BanksAndOffsets {
-  std::vector<gsl::span<const char>> fragments;
-  gsl::span<unsigned const> offsets;
+  std::vector<std::span<const char>> fragments;
+  std::span<unsigned const> offsets;
   size_t fragments_mem_size = 0;
-  gsl::span<unsigned const> sizes;
-  gsl::span<unsigned const> types;
+  std::span<unsigned const> sizes;
+  std::span<unsigned const> types;
   int version = -1;
 };
 

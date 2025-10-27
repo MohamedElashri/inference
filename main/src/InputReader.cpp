@@ -8,7 +8,7 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include <gsl/gsl>
+#include <span>
 #include <InputReader.h>
 #include <boost/algorithm/string.hpp>
 #include "InputTools.h"

@@ -13,6 +13,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -88,7 +89,7 @@ namespace Allen {
        *
        * @return     void
        */
-      virtual void update(gsl::span<unsigned const> odin_data) = 0;
+      virtual void update(std::span<unsigned const> odin_data) = 0;
 
       /**
        * @brief      Register a consumer for that will consume binary non-event

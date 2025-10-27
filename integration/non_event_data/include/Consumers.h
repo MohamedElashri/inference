@@ -13,7 +13,7 @@
 #include <Constants.cuh>
 #include <Dumpers/IUpdater.h>
 #include <cassert>
-#include <gsl/gsl>
+#include <span>
 
 namespace Consumers {
 
@@ -30,12 +30,12 @@ namespace Consumers {
 
   struct BasicGeometry final : public Allen::NonEventData::Consumer {
   public:
-    BasicGeometry(gsl::span<char>& dev_geometry);
+    BasicGeometry(std::span<char>& dev_geometry);
 
     void consume(std::vector<char> const& data) override;
 
   private:
-    std::reference_wrapper<gsl::span<char>> m_dev_geometry;
+    std::reference_wrapper<std::span<char>> m_dev_geometry;
   };
 
   struct VPGeometry final : public Allen::NonEventData::Consumer {
@@ -127,12 +127,13 @@ namespace Consumers {
 
   struct MagneticFieldPolarity final : public Allen::NonEventData::Consumer {
   public:
-    MagneticFieldPolarity(gsl::span<float>&, std::vector<float>&);
+    MagneticFieldPolarity(std::span<float>&, std::vector<float>&);
 
     void consume(std::vector<char> const& data) override;
 
   private:
-    std::reference_wrapper<gsl::span<float>> m_dev_magnet_polarity;
+    std::reference_wrapper<std::span<float>>
+      m_dev_magnet_polarity; // FIXME: a reference wrapper around a span does not make sense!
     std::reference_wrapper<std::vector<float>> m_host_magnet_polarity;
   };
 

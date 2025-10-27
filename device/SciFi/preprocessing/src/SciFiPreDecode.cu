@@ -34,7 +34,7 @@ scifi_pre_decode_kernel(scifi_pre_decode::Parameters parameters, const unsigned 
   for (unsigned iRawBank = threadIdx.x; iRawBank < scifi_raw_event.number_of_raw_banks(); iRawBank += blockDim.x) {
 
     auto rawbank = scifi_raw_event.raw_bank(iRawBank);
-    if (rawbank.type != LHCb::RawBank::BankType::FTCluster) continue;
+    if (rawbank.type != (uint8_t) LHCb::Event::Enum::RawBank::BankType::FTCluster) continue;
 
     const auto iRowInMap = SciFi::getRowInMap(rawbank, geom);
     if (iRowInMap == geom.number_of_banks) continue;

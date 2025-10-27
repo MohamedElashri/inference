@@ -80,7 +80,7 @@ void DumpRawBanks::operator()(
     std::lock_guard _ {m_dirMutex};
     if (!m_createdDirectories) {
       for (auto bt : LHCb::RawBank::types()) {
-        auto const& banks = std::get<0>(transposed_banks[bt]);
+        auto const& banks = std::get<0>(transposed_banks[(uint8_t) bt]);
         if (!banks.empty()) {
           if (!DumpUtils::createDirectory(outputDirectory(bt))) {
             throw GaudiException {
@@ -93,7 +93,7 @@ void DumpRawBanks::operator()(
   }
 
   for (auto bt : LHCb::RawBank::types()) {
-    auto const& rawBanks = std::get<0>(transposed_banks[bt]);
+    auto const& rawBanks = std::get<0>(transposed_banks[(uint8_t) bt]);
     if (!rawBanks.empty()) {
       DumpUtils::FileWriter outfile =
         outputDirectory(bt) + "/" + to_string(odin.runNumber()) + "_" + to_string(odin.eventNumber()) + ".bin";
