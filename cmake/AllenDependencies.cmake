@@ -11,8 +11,6 @@
 if (NOT STANDALONE)
   message(STATUS "LHCb stack build")
 
-  set(BUILD_TESTING ON)
-
   # Find modules we need
   list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/modules)
 

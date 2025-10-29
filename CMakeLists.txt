@@ -23,8 +23,12 @@ project(Allen VERSION 9.1
 # ---------------
 # Boolean options
 # ---------------
-
-option(BUILD_TESTING "Build test programs" OFF)
+if(STANDALONE)
+  set(BUILD_TESTING_INIT OFF)
+else()
+  set(BUILD_TESTING_INIT ON)
+endif()
+option(BUILD_TESTING "Build test programs" ${BUILD_TESTING_INIT})
 option(USE_KALMAN_DOUBLE_PRECISION "Use double precision Kalman filter" OFF)
 option(CPU_USE_REAL_HALF "Use half_t with uint16_t backend" OFF)
 option(STANDALONE "Build Allen standalone" OFF)
