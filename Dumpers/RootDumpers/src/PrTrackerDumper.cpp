@@ -135,14 +135,6 @@ namespace {
 
   namespace fs = boost::filesystem;
 
-#ifdef USE_DD4HEP
-  constexpr int NBSIDE = 2;
-  constexpr int NBHALFLAYER = 4;
-  constexpr int NBSTAVE = 9;
-  constexpr int NBFACE = 2;
-  constexpr int NBMODULE = 8;
-  constexpr int NBSUBSECTOR = 2;
-#endif
 } // namespace
 
 using Gaudi::Functional::Traits::useLegacyGaudiAlgorithm;
@@ -416,29 +408,16 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
   // See Pr/PrKernel/UTHit definitions to know the info to store
   map<const LHCb::MCParticle*, vector<UT::Hit>> UTHits_on_MCParticles;
   vector<UT::Hit> non_Assoc_UTHits;
-  for (int iSide = 0; iSide < NBSIDE; ++iSide) {
-    for (int iLayer = 0; iLayer < NBHALFLAYER; ++iLayer) {
-      for (int iStave = 0; iStave < NBSTAVE; ++iStave) {
-        for (int iFace = 0; iFace < NBFACE; ++iFace) {
-          for (int iModule = 0; iModule < NBMODULE; ++iModule) {
-            for (int iSector = 0; iSector < NBSUBSECTOR; ++iSector) {
-              for (auto& hit : prUTHitHandler.hits(iSide, iLayer, iStave, iFace, iModule, iSector)) {
-                LHCb::LHCbID lhcbid = hit.lhcbID();
-                auto mcparticlesrelations = HitMCParticleLinks.from(lhcbid.lhcbID());
-                if (mcparticlesrelations.empty()) {
-                  non_Assoc_UTHits.push_back(hit);
-                }
-                else {
-                  for (const auto& mcp : mcparticlesrelations) {
-                    auto MCP = mcp.to();
-                    //---> weightassociation = mcp.weight();
-                    UTHits_on_MCParticles[MCP].push_back(hit);
-                  }
-                }
-              }
-            }
-          }
-        }
+  for (const auto& hit : prUTHitHandler.hits()) {
+    LHCb::LHCbID lhcbid = hit.lhcbID();
+    auto mcparticlesrelations = HitMCParticleLinks.from(lhcbid.lhcbID());
+    if (mcparticlesrelations.empty()) {
+      non_Assoc_UTHits.push_back(hit);
+    }
+    else {
+      for (const auto& mcp : mcparticlesrelations) {
+        //---> weightassociation = mcp.weight();
+        UTHits_on_MCParticles[mcp.to()].push_back(hit);
       }
     }
   }
@@ -624,9 +603,9 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
     (*tree)->Branch("charge", &charge);
   }
   // Count number of reconstructible primary vertices
-  unsigned int nPrim = std::count_if(mcVert.begin(), mcVert.end(), [&](const auto* itV) {
+  unsigned int nPrim = std::ranges::count_if(mcVert, [&](const auto* itV) {
     if (!itV->isPrimary()) return false;
-    int nbVisible = std::count_if(MCParticles.begin(), MCParticles.end(), [&](const auto* mcparticle) {
+    int nbVisible = std::ranges::count_if(MCParticles, [&](const auto* mcparticle) {
       return mcparticle->primaryVertex() == &(*itV) && trackInfo.hasVelo(mcparticle);
     });
     return nbVisible > 4;

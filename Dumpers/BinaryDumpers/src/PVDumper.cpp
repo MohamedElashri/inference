@@ -43,7 +43,7 @@ namespace {
     std::vector<const LHCb::MCParticle*> allproducts;
     collectProductss(avtx, avtx, allproducts);
 
-    return std::count_if(allproducts.begin(), allproducts.end(), [&](const auto* pmcp) {
+    return std::ranges::count_if(allproducts, [&](const auto* pmcp) {
       if (pmcp->particleID().threeCharge() == 0 || !trInfo.hasVelo(pmcp)) return false;
       double dv2 = (avtx.position() - pmcp->originVertex()->position()).Mag2();
       return dv2 < 0.0000001 && pmcp->p() > 100. * Gaudi::Units::MeV;
@@ -99,7 +99,7 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PVDumper::operator()(
     return !v->mother() && v->type() == LHCb::MCVertex::MCVertexType::ppCollision;
   };
 
-  int n_PVs = std::count_if(MCVertices.begin(), MCVertices.end(), goodVertex);
+  int n_PVs = std::ranges::count_if(MCVertices, goodVertex);
   writer.write(n_PVs);
 
   MCTrackInfo trInfo {MCProp};

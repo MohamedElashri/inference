@@ -93,7 +93,6 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
   message(STATUS "HIP runtime: ${HIP_RUNTIME_LIB}")
 endif()
 
-find_package(cppgsl REQUIRED)
 find_package(fmt REQUIRED)
 
 # std::filesytem detection
