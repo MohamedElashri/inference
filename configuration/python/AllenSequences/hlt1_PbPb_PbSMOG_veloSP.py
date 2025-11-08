@@ -11,7 +11,7 @@
 from AllenConf.HLT1_PbPb import setup_hlt1_node
 from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
-from AllenConf.velo_reconstruction import decode_velo
+from AllenConf.velo_reconstruction import decode_velo, make_pr_velo_tracks
 from AllenConf.persistency import make_routingbits_writer, rb_map_PbPb
 from AllenConf.hlt1_heavy_ions_lines import make_heavy_ion_event_line
 from AllenConf.calo_reconstruction import make_ecal_clusters
@@ -21,10 +21,13 @@ with decode_velo.bind(retina_decoding=False):
         with make_ecal_clusters.bind(
                 seed_min_adc=10, neighbour_min_adc=2, min_et=200, min_e19=0):
             with make_heavy_ion_event_line.bind(PbPb_SMOG_z_separation=-330.):
-                hlt1_node = setup_hlt1_node(
-                    prescale=True,
-                    with_ut=True,
-                    EnableGEC=True,
-                    reco_particles=True,
-                    tracking_type=TrackingType.FORWARD_THEN_MATCHING)
-                generate(hlt1_node)
+                with decode_velo.bind(
+                        retina_decoding=False), make_pr_velo_tracks.bind(
+                            missing_modules=[21, 23, 41], skip_forward=2):
+                    hlt1_node = setup_hlt1_node(
+                        prescale=True,
+                        with_ut=True,
+                        EnableGEC=True,
+                        reco_particles=True,
+                        tracking_type=TrackingType.FORWARD_THEN_MATCHING)
+                    generate(hlt1_node)
