@@ -128,7 +128,7 @@ rb_map_PbPb = {
     'Hlt1(VeloMicroBias|BeamGas|HeavyIonPbPbMBOneTrack|HeavyIonPbPbMicroBias)':
     2,
     # RB 3 Tracker alignment
-    'Hlt1D2KPiAlignment|Hlt1HeavyIonPbPbUPCMB': 3,
+    'Hlt1(D2KPiAlignment|HeavyIonPbPbUPCMB)': 3,
     # RB 4 Muon alignment
     'Hlt1DiMuonJpsiMassAlignment': 4,
     # RB 5 RICH1 alignment

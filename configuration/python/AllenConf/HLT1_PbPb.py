@@ -60,22 +60,20 @@ def default_physics_lines(reconstructed_objects, prescale, reco_particles,
             decoded_calo=decoded_calo,
             min_velo_tracks_PbPb=1,
             pre_scaler=0.01),
-        make_heavy_ion_event_line(
+        make_smog_microbias_event_line(
             name="Hlt1HeavyIonPbSMOGMicroBias",
             velo_tracks=velo_tracks,
             long_track_particles=long_track_particles,
             pvs=pvs,
             decoded_calo=decoded_calo,
-            min_pvs_SMOG=1,
-            pre_scaler=0.01 if prescale else 1),
-        make_heavy_ion_event_line(
+            min_pvs_SMOG=1),
+        make_smog_onetrack_event_line(
             name="Hlt1HeavyIonPbSMOGMBOneTrack",
             velo_tracks=velo_tracks,
             long_track_particles=long_track_particles,
             pvs=pvs,
             decoded_calo=decoded_calo,
-            min_velo_tracks_SMOG=1,
-            pre_scaler=0.01 if prescale else 1),
+            min_velo_tracks_SMOG=1),
         make_heavy_ion_event_line(
             name="Hlt1HeavyIonPbPbHadronic",
             velo_tracks=velo_tracks,
@@ -429,7 +427,7 @@ def setup_hlt1_node(withMCChecking=False,
         make_gec(
             count_ut=False,
             count_velo=True,
-            max_scifi_clusters=30000,
+            max_scifi_clusters=40000,
             max_velo_clusters=60000)
     ] if EnableGEC else []
     odin_err_filter = [odin_error_filter("odin_error_filter")
@@ -466,7 +464,7 @@ def setup_hlt1_node(withMCChecking=False,
             count_scifi=False,
             count_ut=False,
             min_velo_clusters=200,
-            max_velo_clusters=30000)
+            max_velo_clusters=5000)
     ]
 
     if ActivityForClosing == ActivityType.VELO_CLUSTERS:
@@ -657,7 +655,7 @@ def setup_hlt1_node(withMCChecking=False,
             reconstructed_objects["pvs"],
             reconstructed_objects["velo_states"],
             prefilter=(prefilter_upc_bgi if mini else prefilters_bgi),
-            enableBGI_full=False,
+            enableBGI_full=True,
             PbPb_collision=True)
 
     with line_maker.bind(prefilter=[sd_error_filter()]):
