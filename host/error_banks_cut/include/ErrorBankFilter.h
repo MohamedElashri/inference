@@ -45,6 +45,34 @@ namespace error_bank_filter {
     using key_type = std::string;
     using mapped_type = std::vector<std::string>;
 
+    bank_types_t() = default;
+    bank_types_t(bank_types_t&&) = default;
+    bank_types_t(bank_types_t const&) = default;
+    bank_types_t& operator=(bank_types_t const&) = default;
+    bank_types_t& operator=(bank_types_t&&) = default;
+    // ---- constructor from a range of pair-like elements ----
+    template<std::ranges::input_range R>
+      requires(!std::same_as<std::remove_cvref_t<R>, bank_types_t>) &&
+      std::convertible_to<std::ranges::range_reference_t<R>, std::pair<key_type, mapped_type>> explicit bank_types_t(
+        R&& r)
+    {
+      for (auto&& e : r)
+        insert(e);
+    }
+    // ---- generic assignment from a range of pair-like elements ----
+    template<std::ranges::input_range R>
+      requires(!std::same_as<std::remove_cvref_t<R>, bank_types_t>) &&
+      std::convertible_to<std::ranges::range_reference_t<R>, std::pair<key_type, mapped_type>> bank_types_t& operator=(
+        R&& r)
+    {
+      data_types.clear();
+      other_types.clear();
+      error_types.clear();
+      for (auto&& e : r)
+        insert(e);
+      return *this;
+    }
+
     void insert(std::pair<key_type, mapped_type> v)
     {
       if (v.first == "data_types") {
