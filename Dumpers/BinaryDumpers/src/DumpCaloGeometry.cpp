@@ -54,7 +54,7 @@ namespace Dumpers {
       // start at this index. Using the num we can further index these 32 channels.
       // Wasted space: 32 * 16 bits per missing card code
 
-      const unsigned geom_version = det.nSourceIDs() == 0 ? 3 : 4; // version 3 for run2, version 4 for run3
+      const unsigned geom_version = det.nSourceIDs() == 0 ? 3 : 5; // version 3 for run2, version 4 or higher for run3
 
       const auto [cards_or_febs, feb_indices] = [&]() -> std::array<std::vector<int>, 2> {
         if (geom_version == 3) { // version 3 for run 2
@@ -66,7 +66,7 @@ namespace Dumpers {
           }
           return {cards, std::vector<int> {}};
         }
-        else { // version 4 for run 3
+        else { // version 4 or higher for run 3
           using MapType = std::map<int, std::vector<int>>;
           MapType map = det.getSourceIDsMap();
           std::vector<int> vec_febs(750, 0);
@@ -108,7 +108,7 @@ namespace Dumpers {
       int max = 0;
       size_t max_channels = 0;
       for (int card : cards_or_febs) {
-        if (geom_version == 4 && card == 0) continue;
+        if (geom_version >= 4 && card == 0) continue;
         const auto curCode = geom_version == 3 ? det.cardCode(card) : det.getFEBindex(card);
         // get FEB numbers from TELL40Link map
         min = std::min(curCode, min);
@@ -159,6 +159,7 @@ namespace Dumpers {
       std::vector<uint16_t> neighbors(indexSize * max_neighbors, USHRT_MAX);
       std::vector<float> xy(indexSize * 2, 0.f);
       std::vector<float> gain(indexSize, 0.f);
+      std::vector<float> gamma(indexSize, 0.f);
       // Create neighbours per cellID.
       for (auto const& param : det.cellParams()) {
         auto const caloIndex = LHCb::Detector::Calo::Index {param.cellID()};
@@ -177,6 +178,7 @@ namespace Dumpers {
         xy[idx * 2] = param.x();
         xy[idx * 2 + 1] = param.y();
         gain[idx] = det.cellGain(param.cellID());
+        gamma[idx] = det.getGamma(param.cellID());
       }
 
       // Get toLocalMatrix
@@ -243,11 +245,16 @@ namespace Dumpers {
       output.write(static_cast<uint32_t>(digits_ranges.size()));
       output.write(digits_ranges);
 
-      if (geom_version == 4) {
+      if (geom_version >= 4) {
         output.write(static_cast<uint32_t>(cards_or_febs.size()));
         output.write(cards_or_febs);
         output.write(static_cast<uint32_t>(feb_indices.size()));
         output.write(feb_indices);
+      }
+
+      if (geom_version == 5) {
+        output.write(static_cast<uint32_t>(gamma.size()));
+        output.write(gamma);
       }
 
       data = output.buffer();

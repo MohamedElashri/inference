@@ -46,6 +46,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
     prompt_dihadrons = reconstructed_objects[
         "prompt_dihadron_secondary_vertices"]
     dileptons = reconstructed_objects["dilepton_secondary_vertices"]
+    dileptons_nopt = reconstructed_objects["dilepton_secondary_vertices_nopt"]
     v0s = reconstructed_objects["v0_secondary_vertices"]
     lambda_track_from_c = reconstructed_objects["lambda_track_from_c"]
     v0_twotrack_pairs = reconstructed_objects["v0_sv_twotrack_pairs"]
@@ -157,7 +158,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 reconstructed_objects['downstream_secondary_vertices'],
                 minPt=thresholds.DownstreamGammaToEE_minPt,
                 name="Hlt1DownstreamGammaToEE",
-                post_scaler=0.2,
+                post_scaler=1.,
                 enable_monitoring=True,
                 enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 Monitoring Line / Trigger disabled
@@ -443,7 +444,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 oppositeSign=False,
                 pre_scaler=0.01),
             make_di_muon_soft_line(
-                long_tracks, dileptons, name="Hlt1DiMuonSoft"),
+                long_tracks, dileptons_nopt, name="Hlt1DiMuonSoft"),
             make_track_muon_mva_line(
                 long_tracks,
                 long_track_particles,
@@ -660,7 +661,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 name="Hlt1DiElectronHighMass"),
             make_di_electron_soft_line(
                 long_tracks,
-                dileptons,
+                dileptons_nopt,
                 calo_matching_objects,
                 name="Hlt1DiElectronSoft"),
             make_cone_jet_line(
@@ -1115,8 +1116,8 @@ def default_bgi_activity_lines(pvs,
     pvs_z_all = make_checkCylPV(
         pvs,
         name="BGIPVsCylAll",
-        min_vtx_z=-2000.,
-        max_vtz_z=2000.,
+        min_vtx_z=-3000.,
+        max_vtz_z=3000.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines = []
@@ -1125,8 +1126,8 @@ def default_bgi_activity_lines(pvs,
     velo_states_z_all = make_checkPseudoPV(
         velo_states,
         name="BGIPseudoPVsAll",
-        min_state_z=-2000.,
-        max_state_z=2000.,
+        min_state_z=-3000.,
+        max_state_z=3000.,
         max_state_rho_sq=max_cyl_rad_sq,
         min_local_nTracks=10.)
     lines += [
@@ -1156,7 +1157,7 @@ def default_bgi_activity_lines(pvs,
     velo_states_z_up = make_checkPseudoPV(
         velo_states,
         name="BGIPseudoPVsUp",
-        min_state_z=-2000.,
+        min_state_z=-3000.,
         max_state_z=-250.,
         max_state_rho_sq=max_cyl_rad_sq,
         min_local_nTracks=10.)
@@ -1174,7 +1175,7 @@ def default_bgi_activity_lines(pvs,
         velo_states,
         name="BGIPseudoPVsDown",
         min_state_z=250.,
-        max_state_z=2000.,
+        max_state_z=3000.,
         max_state_rho_sq=max_cyl_rad_sq,
         min_local_nTracks=10.)
     lines += [
@@ -1234,7 +1235,7 @@ def default_bgi_activity_lines(pvs,
     pvs_z_up = make_checkCylPV(
         pvs,
         name="BGIPVsCylUp",
-        min_vtx_z=-2000.,
+        min_vtx_z=-3000.,
         max_vtz_z=-250.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
@@ -1252,7 +1253,7 @@ def default_bgi_activity_lines(pvs,
         pvs,
         name="BGIPVsCylDown",
         min_vtx_z=250.,
-        max_vtz_z=2000.,
+        max_vtz_z=3000.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines += [

@@ -123,62 +123,86 @@ rb_map = {
 #routing bits for Heavy ions
 rb_map_PbPb = {
     # RB 1 Lumi after HLT1
-    '^Hlt1.*Lumi.*':
-    1,
+    '^Hlt1.*Lumi.*': 1,
     # RB 2 Velo alignment
-    'Hlt1(VeloMicroBias|BeamGas|HeavyIonPbPbMBOneTrack|Hlt1HeavyIonPbPbMicroBias)':
+    'Hlt1(VeloMicroBias|BeamGas|HeavyIonPbPbMBOneTrack|HeavyIonPbPbMicroBias)':
     2,
     # RB 3 Tracker alignment
-    'Hlt1D2KPiAlignment|Hlt1HeavyIonPbPbUPCMB':
-    3,
+    'Hlt1D2KPiAlignment|Hlt1HeavyIonPbPbUPCMB': 3,
     # RB 4 Muon alignment
-    'Hlt1DiMuonJpsiMassAlignment':
-    4,
+    'Hlt1DiMuonJpsiMassAlignment': 4,
     # RB 5 RICH1 alignment
-    'Hlt1RICH1Alignment':
-    5,
+    'Hlt1RICH1Alignment': 5,
     # RB 6 TAE passthrough
-    'Hlt1TAEPassthrough':
-    6,
+    'Hlt1TAEPassthrough': 6,
     # RB 7 RICH2 alignment
-    'Hlt1RICH2Alignment':
-    7,
+    'Hlt1RICH2Alignment': 7,
     # RB 8 Velo (closing) monitoring
-    'Hlt1VeloMicroBias.*':
-    8,
+    'Hlt1VeloMicroBias.*': 8,
     # RB 9 ECAL pi0 calibration
-    'Hlt1HeavyIonPbPbUPCDiPhoton_LowPt':
-    9,
+    'Hlt1HeavyIonPbPbUPCDiPhoton_LowPt': 9,
     # RB 10 ODIN calibration triggers
-    'Hlt1ODINCalib':
-    10,
+    'Hlt1ODINCalib': 10,
     # RB 11 BGI lines
-    'Hlt1BGI.*':
-    11,
+    'Hlt1BGI.*': 11,
     # RB 12 Upsilon Alignment
-    'Hlt1UpsilonAlignment':
-    12,
+    'Hlt1UpsilonAlignment': 12,
     #RB 13 for minimal PbPb activity
-    'Hlt1MinimalActivity':
-    13,
+    'Hlt1MinimalActivity': 13,
     # RB 14 HLT1 beam-beam physics for monitoring and alignment
-    'Hlt1(HeavyIonPbPbHadronic|GECCentPassthrough)':
-    14,
+    'Hlt1(HeavyIonPbPbHadronic|GECCentPassthrough)': 14,
     # RB 15 HLT1 beam-gas physics for monitoring and alignment
-    'Hlt1(HeavyIonPbSMOGHadronic|GECCentPassthrough)':
-    15,
+    'Hlt1(HeavyIonPbSMOGHadronic|GECCentPassthrough)': 15,
     # RB 17 physics for CalibMon
-    'Hlt1(Dst2D0Pi|DetJpsiToMuMuPosTagLine|DetJpsiToMuMuNegTagLine)':
-    17,
+    'Hlt1(Dst2D0Pi|DetJpsiToMuMuPosTagLine|DetJpsiToMuMuNegTagLine)': 17,
     # RB 21 HLT1 physics for NZS
-    'Hlt1NonZeroSuppress':
-    21,
+    'Hlt1NonZeroSuppress': 21,
     # RB 25 error banks
-    'Hlt1ErrorBank':
-    25,
+    'Hlt1ErrorBank': 25,
     # RB 26 HLT1 large-event passthrough
-    'Hlt1PassthroughLargeEvent':
-    26
+    'Hlt1PassthroughLargeEvent': 26
+}
+
+#routing bits for Light ions
+rb_map_LightIon = {
+    # RB 1 Lumi after HLT1
+    '^Hlt1.*Lumi.*': 1,
+    # RB 2 Velo alignment
+    'Hlt1(VeloMicroBias|BeamGas|LightIonMicroBias)': 2,
+    # RB 3 Tracker alignment
+    'Hlt1D2KPiAlignment|Hlt1LightIonUPCMB': 3,
+    # RB 4 Muon alignment
+    'Hlt1DiMuonJpsiMassAlignment': 4,
+    # RB 5 RICH1 alignment
+    'Hlt1RICH1Alignment': 5,
+    # RB 6 TAE passthrough
+    'Hlt1TAEPassthrough': 6,
+    # RB 7 RICH2 alignment
+    'Hlt1RICH2Alignment': 7,
+    # RB 8 Velo (closing) monitoring
+    'Hlt1VeloMicroBias.*': 8,
+    # RB 9 ECAL pi0 calibration
+    'Hlt1LightIonUPCDiPhoton_LowPt': 9,
+    # RB 10 ODIN calibration triggers
+    'Hlt1ODINCalib': 10,
+    # RB 11 BGI lines
+    'Hlt1BGI.*': 11,
+    # RB 12 Upsilon Alignment
+    'Hlt1UpsilonAlignment': 12,
+    #RB 13 for minimal PbPb activity
+    'Hlt1MinimalActivity': 13,
+    # RB 14 HLT1 beam-beam physics for monitoring and alignment
+    'Hlt1(LightIonMicroBias|GECCentPassthrough)': 14,
+    # RB 15 HLT1 beam-gas physics for monitoring and alignment
+    'Hlt1(LightIonSMOGMicroBias|GECCentPassthrough)': 15,
+    # RB 17 physics for CalibMon
+    'Hlt1(Dst2D0Pi|DetJpsiToMuMuPosTagLine|DetJpsiToMuMuNegTagLine)': 17,
+    # RB 21 HLT1 physics for NZS
+    'Hlt1NonZeroSuppress': 21,
+    # RB 25 error banks
+    'Hlt1ErrorBank': 25,
+    # RB 26 HLT1 large-event passthrough
+    'Hlt1PassthroughLargeEvent': 26
 }
 
 

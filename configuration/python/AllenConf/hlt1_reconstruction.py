@@ -276,6 +276,26 @@ def hlt1_reconstruction(algorithm_name='',
         require_same_pv=False,
         require_lepton=True)
 
+    # Dileptons SV reconstruction should be independent of PV reconstruction to
+    # avoid lifetime biases.
+    dileptons_nopt = fit_secondary_vertices(
+        long_tracks,
+        pvs,
+        KF_long_track,
+        long_track_particles,
+        fit_secondary_vertices_name=algorithm_name +
+        'fit_dilepton_secondary_vertices_nopt',
+        track_min_pt_both=0.,
+        track_min_pt_either=0.,
+        track_min_ipchi2_both=-999.,
+        track_min_ipchi2_either=-999.,
+        track_min_ip_both=-999.,
+        track_min_ip_either=-999.,
+        track_max_chi2ndof=track_max_chi2ndof,
+        min_sum_pt=0.,
+        require_same_pv=False,
+        require_lepton=True)
+
     # V0s are highly displaced and have opposite-sign charged tracks.
     v0s = fit_secondary_vertices(
         long_tracks,
@@ -389,6 +409,7 @@ def hlt1_reconstruction(algorithm_name='',
         "dihadron_secondary_vertices": dihadrons,
         "prompt_dihadron_secondary_vertices": prompt_dihadrons,
         "dilepton_secondary_vertices": dileptons,
+        "dilepton_secondary_vertices_nopt": dileptons_nopt,
         "v0_secondary_vertices": v0s,
         "lambda_track_from_c": lambda_track_from_c,
         "v0_sv_twotrack_pairs": v0_twotrack_pairs,

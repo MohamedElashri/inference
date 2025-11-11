@@ -15,7 +15,10 @@
 #include "BackendCommon.h"
 
 namespace CompassUT::Structs {
-  using LayerHitRanges = std::array<short2, 4>;
+
+  constexpr static ushort invalid_hit = std::numeric_limits<unsigned short>::max();
+
+  using LayerHitRanges = std::array<ushort2, 4>;
 
   struct alignas(4) Candidate {
     uint16_t velo_index;
@@ -25,7 +28,7 @@ namespace CompassUT::Structs {
   struct alignas(16) VeloUTTrack {
     unsigned velo_index;
     float score;
-    int16_t ut_hits[4];
+    uint16_t ut_hits[4];
   } __attribute__((packed));
 
   struct FitResult {

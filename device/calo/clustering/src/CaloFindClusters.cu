@@ -57,6 +57,7 @@ __device__ void simple_clusters(
       }
     }
     cluster.e -= corrections[c];
+    cluster.e += calo.getGamma(seed_cluster.id);
 
     for (uint16_t n = 0; n < Calo::Constants::max_neighbours; n++) {
       auto const n_id = cluster.digits[n];

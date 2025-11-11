@@ -73,7 +73,7 @@ namespace {
     const float* bdl_table,
     UT::ConstHits& ut_hits,
     const MiniState& velo_state,
-    const int16_t* best_hits,
+    const uint16_t* best_hits,
     const float sigma_velo_slope)
   {
     //
@@ -107,7 +107,7 @@ namespace {
 
       for (unsigned i = 0; i < UT::Constants::n_layers; ++i) {
         const auto hit_index = best_hits[i];
-        if (hit_index >= 0) {
+        if (hit_index != CompassUT::Structs::invalid_hit) {
           const float wi = ut_hits.weight(hit_index);
           const float ci = ut_hits.cosT(hit_index);
           last_z = ut_hits.zAtYEq0(hit_index);
@@ -143,7 +143,7 @@ namespace {
 
       for (unsigned i = 0; i < UT::Constants::n_layers; ++i) {
         const auto hit_index = best_hits[i];
-        if (hit_index >= 0) {
+        if (hit_index != CompassUT::Structs::invalid_hit) {
           const float zd = ut_hits.zAtYEq0(hit_index);
           const float xd = xUTFit + xSlopeUTFit * (zd - UT::Constants::zMidUT);
           // x_pos_layer
@@ -207,7 +207,7 @@ namespace {
       const float yyProto = velo_state.y() - velo_state.ty() * velo_state.z();
 
       for (unsigned i = 0; i < UT::Constants::n_layers; ++i) {
-        if (best_hits[i] != -1) {
+        if (best_hits[i] != CompassUT::Structs::invalid_hit) {
           const auto hit = best_hits[i];
 
           const float yy = yyProto + (velo_state.ty() * ut_hits.zAtYEq0(hit));
@@ -253,7 +253,7 @@ namespace {
       // // float chi2 = weight * (distX * distX * distCorrectionX2 + offsetY * offsetY / (1.0f + ty * ty));
 
       // for (unsigned i = 0; i < UT::Constants::n_layers; ++i) {
-      //   if (best_hits[i] != -1) {
+      //   if (best_hits[i] != CompassUT::Structs::invalid_hit) {
       //     const auto hit = best_hits[i];
 
       //     const float w = ut_hits.weight(hit);
@@ -303,7 +303,7 @@ namespace {
 
   // Fit UT hits without VELO constraints
   __device__ bool
-  free_fit(UT::ConstHits& ut_hits, const MiniState& vp_state, const int16_t* found_hits, free_state_t& out)
+  free_fit(UT::ConstHits& ut_hits, const MiniState& vp_state, const uint16_t* found_hits, free_state_t& out)
   {
     using UT::Constants::n_layers;
     using UT::Constants::zMidUT;
@@ -312,7 +312,7 @@ namespace {
 
     for (unsigned i = 0; i < n_layers; i++) {
       const auto hit = found_hits[i];
-      if (hit == -1) continue;
+      if (hit == CompassUT::Structs::invalid_hit) continue;
       const auto w = ut_hits.weight(hit);
       const auto zAtYEq0 = ut_hits.zAtYEq0(hit);
       const auto dz = zAtYEq0 - zMidUT;
@@ -393,6 +393,9 @@ __global__ void compass_ut_fit_tracks::compass_ut_fit_tracks(
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   const unsigned number_of_events = parameters.dev_number_of_events[0];
 
+  // Alias
+  constexpr auto invalid_hit = CompassUT::Structs::invalid_hit;
+
   // UT hits
   const unsigned total_number_of_hits = parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups];
   const UT::HitOffsets ut_hit_offsets {parameters.dev_ut_hit_offsets, event_number};
@@ -428,8 +431,8 @@ __global__ void compass_ut_fit_tracks::compass_ut_fit_tracks(
     if ((p < min_momentum_final) || (pt < min_pt_final)) continue;
 
     // Compute number of hits
-    const auto nHits = (candidate.ut_hits[0] >= 0) + (candidate.ut_hits[1] >= 0) + (candidate.ut_hits[2] >= 0) +
-                       (candidate.ut_hits[3] >= 0);
+    const auto nHits = (candidate.ut_hits[0] != invalid_hit) + (candidate.ut_hits[1] != invalid_hit) +
+                       (candidate.ut_hits[2] != invalid_hit) + (candidate.ut_hits[3] != invalid_hit);
 
     // Ghost killing
     const auto model = (nHits == 3) ? dev_velout_ghostkiller_3hits : dev_velout_ghostkiller_4hits;

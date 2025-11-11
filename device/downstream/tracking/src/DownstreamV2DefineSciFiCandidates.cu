@@ -100,6 +100,9 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_find_hit_ra
   const auto event_number = parameters.dev_event_list[blockIdx.x];
   const auto number_of_events = parameters.dev_number_of_events[0];
 
+  // Alias
+  constexpr auto invalid_hit = Downstream::Structs::invalid_hit;
+
   // Offsets
   const auto seed_offset = parameters.dev_offsets_seeding_tracks[event_number];
   const auto num_seed = parameters.dev_offsets_seeding_tracks[event_number + 1] - seed_offset;
@@ -167,8 +170,10 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_find_hit_ra
     // Get fired sectors
     const auto fired_sectors = dev_ut_layer_geometry->find_sectors(layer, layer_y - yTolLayer, layer_y + yTolLayer);
     unsigned num_ranges = 0;
-    Downstream::Structs::LayerHitRanges out_ranges = {
-      short2 {-1, -1}, short2 {-1, -1}, short2 {-1, -1}, short2 {-1, -1}};
+    Downstream::Structs::LayerHitRanges out_ranges = {ushort2 {invalid_hit, invalid_hit},
+                                                      ushort2 {invalid_hit, invalid_hit},
+                                                      ushort2 {invalid_hit, invalid_hit},
+                                                      ushort2 {invalid_hit, invalid_hit}};
     for (unsigned sector_idx = 0; sector_idx < 4; sector_idx++) {
       const auto sector = fired_sectors[sector_idx];
       if (sector == -1) break;
@@ -208,6 +213,9 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_compute_num
   // Basics
   const auto event_number = parameters.dev_event_list[blockIdx.x];
 
+  // Alias
+  constexpr auto invalid_hit = Downstream::Structs::invalid_hit;
+
   // Offsets
   const auto input_offset = parameters.dev_offsets_seeding_tracks[event_number];
   const auto output_offset = parameters.dev_downstream_seed_offsets[event_number];
@@ -221,10 +229,10 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_compute_num
 
   for (unsigned i = threadIdx.x; i < input_size; i += blockDim.x) {
     const auto ranges = input_seeds[i].hits;
-    output_counters[i * 4 + 0] = (ranges[0].x == -1) ? 0 : ranges[0].y - ranges[0].x;
-    output_counters[i * 4 + 1] = (ranges[1].x == -1) ? 0 : ranges[1].y - ranges[1].x;
-    output_counters[i * 4 + 2] = (ranges[2].x == -1) ? 0 : ranges[2].y - ranges[2].x;
-    output_counters[i * 4 + 3] = (ranges[3].x == -1) ? 0 : ranges[3].y - ranges[3].x;
+    output_counters[i * 4 + 0] = (ranges[0].x == invalid_hit) ? 0 : ranges[0].y - ranges[0].x;
+    output_counters[i * 4 + 1] = (ranges[1].x == invalid_hit) ? 0 : ranges[1].y - ranges[1].x;
+    output_counters[i * 4 + 2] = (ranges[2].x == invalid_hit) ? 0 : ranges[2].y - ranges[2].x;
+    output_counters[i * 4 + 3] = (ranges[3].x == invalid_hit) ? 0 : ranges[3].y - ranges[3].x;
   }
 }
 
@@ -247,7 +255,7 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_fill_pairs(
     const auto output_idx = output_offset + i;
     for (unsigned r = 0; r < 4; r++) {
       const auto range = seed.hits[r];
-      if (range.x == -1) break;
+      if (range.x == Downstream::Structs::invalid_hit) break;
 
       const auto output_hit_offset = parameters.dev_downstream_seed_hits_offsets[output_idx * 4 + r];
       const auto output_num_hits =

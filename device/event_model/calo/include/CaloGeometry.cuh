@@ -35,6 +35,7 @@ struct CaloGeometry {
   int* vec_febs = nullptr;
   uint32_t vec_febIndices_size = 0;
   int* vec_febIndices = nullptr;
+  float* gamma = nullptr;
 
   __device__ __host__ CaloGeometry(const char* raw_geometry)
   {
@@ -79,7 +80,7 @@ struct CaloGeometry {
     p += sizeof(uint32_t); // Skip digits_ranges_size
     digits_ranges = (uint32_t*) p;
 
-    if (geom_version == 4) {
+    if (geom_version >= 4) {
       p += sizeof(float) * digits_ranges_size; // Skip digits_ranges
       vec_febs_size = *((uint32_t*) p);
       p += sizeof(uint32_t); // Skip vec_febs_size
@@ -88,19 +89,26 @@ struct CaloGeometry {
       vec_febIndices_size = *((uint32_t*) p);
       p += sizeof(uint32_t); // Skip vec_febIndices_size
       vec_febIndices = (int*) p;
-      //    p += sizeof(int) * vec_febIndices_size; // Skip vec_febs
+    }
+
+    if (geom_version == 5) {
+      p += sizeof(int) * vec_febIndices_size; // Skip vec_febs
+      // const uint32_t gamma_size = *((uint32_t*) p);
+      p += sizeof(uint32_t); // Skip gamma_size
+      gamma = (float*) p;
+      // p += sizeof(float) * gamma_size; // Skip gamma
     }
   }
 
   __device__ __host__ inline int getFEB(uint32_t source_id, int nFeb) const
   {
-    assert(geom_version == 4 && "getFEB is only available for decoding_version 4 or higher");
+    assert(geom_version >= 4 && "getFEB is only available for decoding_version 4 or higher");
     return vec_febs[3 * (source_id & 0x7ff) + nFeb];
   }
 
   __device__ __host__ inline int getFEBindex(uint32_t source_id, int nFeb) const
   {
-    assert(geom_version == 4 && "getFEBIndex is only available for decoding_version 4 or higher");
+    assert(geom_version >= 4 && "getFEBIndex is only available for decoding_version 4 or higher");
     return vec_febIndices[3 * (source_id & 0x7ff) + nFeb];
   }
 
@@ -116,6 +124,9 @@ struct CaloGeometry {
 
   // Convert ADC to energy
   __device__ __host__ inline float getE(uint16_t cellid, int16_t adc) const { return gain[cellid] * (adc - pedestal); }
+
+  // Get the 'gamma' correction for clusters
+  __device__ __host__ inline float getGamma(uint16_t cellid) const { return gamma ? gamma[cellid] : 0.f; }
 
   // Intercept track with calo plane, where 0 is front, 1 is showermax, 2 is back
   __device__ __host__ inline float getZFromTrackToCaloplaneIntersection(MiniState state, int plane) const

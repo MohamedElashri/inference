@@ -174,11 +174,11 @@ namespace two_calo_clusters_line {
                                               "Discard candidates with bremsstrahlung-matched clusters"};
     Allen::Property<float> m_histogramdiphotonMassMin {this,
                                                        "histogram_diphoton_mass_min",
-                                                       0.f,
+                                                       50.f,
                                                        "histogram_diphoton_mass_min description"};
     Allen::Property<float> m_histogramdiphotonMassMax {this,
                                                        "histogram_diphoton_mass_max",
-                                                       2000.f,
+                                                       300.f,
                                                        "histogram_diphoton_mass_max description"};
     Allen::Property<unsigned int> m_histogramdiphotonMassNBins {this,
                                                                 "histogram_diphoton_mass_nbins",
@@ -197,7 +197,7 @@ namespace two_calo_clusters_line {
                                                               100u,
                                                               "histogram_diphoton_pt_nbins description"};
 
-    Allen::Monitoring::Histogram<> m_histogram_diphoton_mass {this, "diphoton_mass", "m(diphoton)", {100u, 0.f, 2e3f}};
+    Allen::Monitoring::Histogram<> m_histogram_diphoton_mass {this, "diphoton_mass", "m(diphoton)", {100u, 50.f, 3e2f}};
     Allen::Monitoring::Histogram<> m_histogram_diphoton_pt {this, "diphoton_pt", "pT(diphoton)", {100u, 0.f, 2e3f}};
   };
 } // namespace two_calo_clusters_line

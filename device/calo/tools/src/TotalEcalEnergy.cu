@@ -62,5 +62,8 @@ __global__ void total_ecal_energy::get_ecal_energy(
     if (digit.is_valid() && digit.adc > 0) {
       event_ecal_digits_e[digit_index] = ecal_geometry.getE(digit_index, digit.adc);
     }
+    else {
+      event_ecal_digits_e[digit_index] = 0.f;
+    }
   }
 }

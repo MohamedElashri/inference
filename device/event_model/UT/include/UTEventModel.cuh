@@ -61,12 +61,14 @@ namespace UT {
   };
 
   struct TrackHits {
+    constexpr static ushort invalid_hit = std::numeric_limits<unsigned short>::max();
+
     float qop;
     float x, z;
     float tx;
     unsigned short hits_num = 0;
     unsigned short velo_track_index;
-    short hits[UT::Constants::max_track_size];
+    unsigned short hits[UT::Constants::max_track_size];
 
     friend std::ostream& operator<<(std::ostream& stream, const TrackHits& hit)
     {

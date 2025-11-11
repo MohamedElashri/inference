@@ -60,6 +60,9 @@ __global__ void compass_ut_find_tracks::compass_ut_find_tracks(
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   const unsigned number_of_events = parameters.dev_number_of_events[0];
 
+  // Alias
+  constexpr auto invalid_hit = CompassUT::Structs::invalid_hit;
+
   // UT hits
   const unsigned total_number_of_hits = parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups];
   const UT::HitOffsets ut_hit_offsets {parameters.dev_ut_hit_offsets, event_number};
@@ -99,7 +102,7 @@ __global__ void compass_ut_find_tracks::compass_ut_find_tracks(
                   ((h0_z0 - vp_state.z()) * (h0_z0 - vp_state.z()));
 
     // Find best hits
-    int16_t best_hits[4] = {-1, -1, -1, -1};
+    uint16_t best_hits[4] = {invalid_hit, invalid_hit, invalid_hit, invalid_hit};
     best_hits[layers[case_idx][0]] = candidate.hit_idx;
     unsigned num_hits = 1;
     float score = 0.f;

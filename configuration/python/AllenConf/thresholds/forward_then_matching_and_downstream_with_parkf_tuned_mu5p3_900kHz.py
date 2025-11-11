@@ -44,5 +44,5 @@ threshold_settings = Thresholds(
     DownstreamTwoTrackKs_minTrackPt_piKs=550,
     DiProtonHighMass_P_minPt=5000,
     DiProtonHighMass_PP_minPt=6000,
-    DownstreamGammaToEE_minPt=1250,
+    DownstreamGammaToEE_minPt=2300,
 )

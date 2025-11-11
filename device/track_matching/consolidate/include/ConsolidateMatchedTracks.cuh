@@ -124,6 +124,9 @@ namespace matching_consolidate_tracks {
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::AveragingCounter<>::DeviceType);
 
   struct matching_consolidate_tracks_t : public DeviceAlgorithm, Parameters {
@@ -144,6 +147,9 @@ namespace matching_consolidate_tracks {
       Allen::Monitoring::Histogram<>::DeviceType&,
       Allen::Monitoring::Histogram<>::DeviceType&,
       Allen::Monitoring::Histogram<>::DeviceType&,
+      Allen::Monitoring::Histogram<>::DeviceType&,
+      Allen::Monitoring::Histogram<>::DeviceType&,
+      Allen::Monitoring::Histogram<>::DeviceType&,
       Allen::Monitoring::Histogram<>::DeviceType&);
 
   private:
@@ -157,11 +163,11 @@ namespace matching_consolidate_tracks {
     Allen::Monitoring::Histogram<> m_histogram_long_track_matching_eta {this,
                                                                         "long_track_matching_eta",
                                                                         "#eta",
-                                                                        {400u, 0.f, 10.f}};
+                                                                        {500u, 0.f, 10.f}};
     Allen::Monitoring::Histogram<> m_histogram_long_track_matching_phi {this,
                                                                         "long_track_matching_phi",
                                                                         "#phi",
-                                                                        {160u, -4.f, 4.f}};
+                                                                        {1000u, -3.2f, 3.2f}};
     Allen::Monitoring::Histogram<> m_histogram_long_track_matching_nhits {this,
                                                                           "long_track_matching_nhits",
                                                                           "N. hits / track",
@@ -174,5 +180,20 @@ namespace matching_consolidate_tracks {
                                                                       "long_track_ghost_prob",
                                                                       "GhostProb",
                                                                       {100u, 0.f, 0.6f}};
+
+    Allen::Monitoring::Histogram<> m_histogram_long_track_matching_pt {this,
+                                                                       "long_track_matching_pt",
+                                                                       "pt",
+                                                                       {500u, 0.f, 1e4f}};
+
+    Allen::Monitoring::Histogram<> m_histogram_long_track_matching_tx {this,
+                                                                       "long_track_matching_tx",
+                                                                       "tx",
+                                                                       {200u, -1.0f, 1.0f}};
+
+    Allen::Monitoring::Histogram<> m_histogram_long_track_matching_ty {this,
+                                                                       "long_track_matching_ty",
+                                                                       "ty",
+                                                                       {200u, -0.4f, 0.4f}};
   };
 } // namespace matching_consolidate_tracks

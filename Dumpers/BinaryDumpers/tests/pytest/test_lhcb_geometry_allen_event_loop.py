@@ -16,7 +16,7 @@ class Test(LHCbExeTest):
     command = [
         'python', '../../options/allen.py', '--test-file-db-key',
         'upgrade_Sept2022_minbias_0fb_md_mdf', '--sequence',
-        '$ALLEN_INSTALL_DIR/constants/hlt1_pp_no_ut.json',
+        '$ALLEN_INSTALL_DIR/constants/hlt1_pp_default.json',
         '--monitoring-filename', 'allen_event_loop.root', '-n', '10000'
     ]
     timeout = 600

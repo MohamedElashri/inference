@@ -37,7 +37,9 @@ void pv_beamline_cleanup::pv_beamline_cleanup_t::operator()(
     m_histogram_n_smogpvs.data(context),
     m_histogram_pv_x.data(context),
     m_histogram_pv_y.data(context),
-    m_histogram_pv_z.data(context));
+    m_histogram_pv_z.data(context),
+    m_histogram_pv_z_only_pp.data(context),
+    m_histogram_pv_z_only_smog.data(context));
 }
 
 __device__ void pv_beamline_cleanup::sort_pvs_by_z(PV::Vertex* final_vertices, unsigned n_vertices)
@@ -80,7 +82,9 @@ __global__ void pv_beamline_cleanup::pv_beamline_cleanup(
   Allen::Monitoring::Histogram<>::DeviceType dev_n_smogpvs_histo,
   Allen::Monitoring::Histogram<>::DeviceType dev_pv_x_histo,
   Allen::Monitoring::Histogram<>::DeviceType dev_pv_y_histo,
-  Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_histo)
+  Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_histo,
+  Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_only_pp_histo,
+  Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_only_smog_histo)
 {
 
   __shared__ unsigned tmp_number_vertices[1];
@@ -121,6 +125,10 @@ __global__ void pv_beamline_cleanup::pv_beamline_cleanup(
       if (-200 < vertex1.position.z && vertex1.position.z < 200) {
         dev_pv_x_histo.increment(vertex1.position.x);
         dev_pv_y_histo.increment(vertex1.position.y);
+        dev_pv_z_only_pp_histo.increment(vertex1.position.z);
+      }
+      if (-600 < vertex1.position.z && vertex1.position.z <= -200) {
+        dev_pv_z_only_smog_histo.increment(vertex1.position.z);
       }
 
       if (vertex1.position.z < BeamlinePVConstants::Common::SMOG2_pp_separation) atomicAdd(tmp_number_SMOG_vertices, 1);
