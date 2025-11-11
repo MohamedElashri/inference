@@ -67,8 +67,8 @@ histos:
         ID: n_data_banks
         Title: '"n_data_banks"'
         '#': '50000'
-        Mean: '8.4'
-        RMS: '3.2000'
+        Mean: '7.6'
+        RMS: '2.8000'
         Skewness: '-1.5'
         Kurtosis: '0.25'
     header:
