@@ -50,7 +50,7 @@ counters:
     BytesWritten_EcalGeometry:
       binomial: false
       name: BytesWritten_EcalGeometry
-      count: 202524
+      count: 227104
   DeviceFTGeometry:
     set: DeviceFTGeometry
     total_counters: 1
