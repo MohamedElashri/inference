@@ -376,7 +376,7 @@ def setup_hlt1_node(withMCChecking=False,
                     tae_activity=True,
                     minimal_activity_type=ActivityType.VELO_CLUSTERS,
                     ActivityForClosing=ActivityType.VELO_CLUSTERS,
-                    DisableLinesDuringVPClosing=False,
+                    DisableLinesDuringVPClosing=True,
                     mini=False,
                     with_fullKF=False,
                     enabled_lines=[r'.*?'],
@@ -610,7 +610,7 @@ def setup_hlt1_node(withMCChecking=False,
                     reconstructed_objects["velo_tracks"],
                     name="Hlt1VeloMicroBiasVeloClosing",
                     pre_scaler=1.,
-                    post_scaler=1.))
+                    post_scaler=.5))
         ]
     with line_maker.bind(prefilter=prefilter_veloMicroBias):
         monitoring_lines += [
