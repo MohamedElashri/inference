@@ -234,7 +234,7 @@ elseif(STANDALONE)
   add_library(LHCbEvent STATIC ${LHCBOUTPUTS})
   target_compile_definitions(LHCbEvent PUBLIC ODIN_WITHOUT_GAUDI)
   add_dependencies(LHCbEvent checkout_lhcb checkout_gaudi)
-  target_link_libraries(LHCbEvent PUBLIC ROOT::Core ROOT::MathCore Boost::headers cppgsl::cppgsl)
+  target_link_libraries(LHCbEvent PUBLIC ROOT::Core ROOT::MathCore Boost::headers)
   target_include_directories(
     LHCbEvent
     PUBLIC

@@ -17,16 +17,6 @@
 #include "HltConstants.cuh"
 #include <RoutingBitsDefinition.h>
 
-namespace {
-  // temporary migration hack to decouple the version of span used in Allen
-  // from the span used in LHCb
-  template<typename T>
-  auto convert_(T const& s)
-  {
-    return LHCb::make_span(s.data(), s.size());
-  }
-} // namespace
-
 class GaudiAllenReportsToRawEvent
   : public LHCb::Algorithm::MultiTransformer<
       std::tuple<LHCb::RawEvent, LHCb::RawBank::View, LHCb::RawBank::View, LHCb::RawBank::View>(
@@ -71,7 +61,7 @@ public:
       Hlt1::Constants::sourceID,
       LHCb::RawBank::BankType::HltDecReports,
       dec_reports.version(),
-      convert_(dec_reports.bank_data()));
+      dec_reports.bank_data());
     raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::BankType::HltRoutingBits, 0u, routing_bits);
 
     return viewsFromRawEvent(
