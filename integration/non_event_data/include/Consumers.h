@@ -49,6 +49,50 @@ namespace Consumers {
     std::reference_wrapper<Constants> m_constants;
   };
 
+  struct RichPDMDBDecodeMapping final : public Allen::NonEventData::Consumer {
+  public:
+    RichPDMDBDecodeMapping(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_pdmdb_mapping) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct RichTel40CableMapping final : public Allen::NonEventData::Consumer {
+  public:
+    RichTel40CableMapping(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_cable_mapping) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct Rich1Geometry final : public Allen::NonEventData::Consumer {
+  public:
+    Rich1Geometry(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_1_geometry) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct Rich2Geometry final : public Allen::NonEventData::Consumer {
+  public:
+    Rich2Geometry(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_2_geometry) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
   struct UTBoards final : public Allen::NonEventData::Consumer {
   public:
     UTBoards(Constants& constants);

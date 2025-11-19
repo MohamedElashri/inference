@@ -16,6 +16,24 @@ namespace Allen::warp {
 
 #if defined(TARGET_DEVICE_CUDA)
 
+  __device__ inline unsigned warp_mask()
+  {
+    const unsigned warp_size = min(blockDim.x, 32);
+    const unsigned warp_offset = ((threadIdx.y * blockDim.x + threadIdx.x) % 32) / warp_size;
+    return ((1 << warp_size) - 1) << (warp_size * warp_offset);
+  }
+
+  __device__ inline unsigned reduce_add_warp_sync(unsigned value)
+  {
+    const unsigned warp_size = min(blockDim.x, 32);
+    const unsigned warp_offset = ((threadIdx.y * blockDim.x + threadIdx.x) % 32) / warp_size;
+    const unsigned mask = ((1 << warp_size) - 1) << (warp_size * warp_offset);
+    for (int offset = warp_size / 2; offset > 0; offset /= 2) {
+      value += __shfl_xor_sync(mask, value, offset);
+    }
+    return value;
+  }
+
   __device__ inline unsigned prefix_sum_and_increase_size(const bool process_element, unsigned& size)
   {
     const auto mask = __ballot_sync(0xFFFFFFFF, process_element);
@@ -114,6 +132,10 @@ namespace Allen::warp {
   }
 
 #elif defined(TARGET_DEVICE_CPU)
+
+  __device__ inline unsigned warp_mask() { return 1; }
+
+  __device__ inline unsigned reduce_add_warp_sync(unsigned value) { return value; }
 
   __device__ inline unsigned prefix_sum_and_increase_size(const bool process_element, unsigned& size)
   {

@@ -37,7 +37,7 @@ using std::signbit;
 #define __constant__
 #define __syncthreads()
 #define __threadfence()
-#define __syncwarp()
+#define __syncwarp(...)
 #define __launch_bounds__(_i)
 #define __popc __builtin_popcount
 #define __popcll __builtin_popcountll
@@ -63,6 +63,37 @@ inline uint32_t __brev(uint32_t x)
   x = ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
   x = ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
   return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
+}
+
+// Find the position of the n-th set to 1 bit in a 32-bit integer
+inline unsigned __fns(unsigned mask, unsigned base, int offset)
+{
+  // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#integer-arithmetic-instructions-fns
+  unsigned d = 0xffffffff;
+  if (offset == 0) {
+    if (mask & (1 << base)) {
+      d = base;
+    }
+  }
+  else {
+    int pos = base;
+    int count = std::abs(offset) - 1;
+    int inc = (offset > 0) ? 1 : -1;
+
+    while ((pos >= 0) && (pos < 32)) {
+      if (mask & (1 << pos)) {
+        if (count == 0) {
+          d = pos;
+          break;
+        }
+        else {
+          count--;
+        }
+      }
+      pos += inc;
+    }
+  }
+  return d;
 }
 
 unsigned inline __ballot_sync(unsigned mask, int predicate) { return predicate & mask; }

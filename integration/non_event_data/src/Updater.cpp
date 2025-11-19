@@ -65,7 +65,9 @@ namespace Allen {
                        tuple {NonEventData::MuonGeometry {}, std::string("muon_geometry.bin")},
                        tuple {NonEventData::MuonLookupTables {}, std::string("muon_tables.bin")},
                        tuple {NonEventData::RichPDMDBMapping {}, std::string("rich_pdmdbmaps.bin")},
-                       tuple {NonEventData::RichCableMapping {}, std::string("rich_tel40maps.bin")}};
+                       tuple {NonEventData::RichCableMapping {}, std::string("rich_tel40maps.bin")},
+                       tuple {NonEventData::Rich1Geometry {}, std::string("rich_1_geometry.bin")},
+                       tuple {NonEventData::Rich2Geometry {}, std::string("rich_2_geometry.bin")}};
 
       for_each(producers, [this, &geometry_producer](const auto& p) {
         using id_t = typename std::remove_reference_t<decltype(std::get<0>(p))>;

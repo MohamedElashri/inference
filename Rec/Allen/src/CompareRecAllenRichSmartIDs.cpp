@@ -19,25 +19,27 @@
 #include "RichDecoding.cuh"
 #include "RichPDMDBDecodeMapping.cuh"
 
-class TestAllenRichPixels final : public Gaudi::Functional::Consumer<void(
-                                    const std::vector<Allen::RichSmartID>&,
-                                    const std::vector<Allen::RichSmartID>&,
-                                    const Rich::Future::DAQ::DecodedData&)> {
+using AllenRichSmartID = Allen::Rich::Decoding::SmartID;
+
+class CompareRecAllenRichSmartIDs final : public Gaudi::Functional::Consumer<void(
+                                            const std::vector<AllenRichSmartID>&,
+                                            const std::vector<AllenRichSmartID>&,
+                                            const Rich::Future::DAQ::DecodedData&)> {
 
 public:
   /// Standard constructor
-  TestAllenRichPixels(const std::string& name, ISvcLocator* pSvcLocator);
+  CompareRecAllenRichSmartIDs(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
   void operator()(
-    const std::vector<Allen::RichSmartID>&,
-    const std::vector<Allen::RichSmartID>&,
+    const std::vector<AllenRichSmartID>&,
+    const std::vector<AllenRichSmartID>&,
     const Rich::Future::DAQ::DecodedData&) const override;
 };
 
-DECLARE_COMPONENT(TestAllenRichPixels)
+DECLARE_COMPONENT(CompareRecAllenRichSmartIDs)
 
-TestAllenRichPixels::TestAllenRichPixels(const std::string& name, ISvcLocator* pSvcLocator) :
+CompareRecAllenRichSmartIDs::CompareRecAllenRichSmartIDs(const std::string& name, ISvcLocator* pSvcLocator) :
   Consumer(
     name,
     pSvcLocator,
@@ -46,9 +48,9 @@ TestAllenRichPixels::TestAllenRichPixels(const std::string& name, ISvcLocator* p
      KeyValue {"RichDecodedData", Rich::Future::DAQ::DecodedDataLocation::Default}})
 {}
 
-void TestAllenRichPixels::operator()(
-  const std::vector<Allen::RichSmartID>& allen_rich1_smart_ids,
-  const std::vector<Allen::RichSmartID>& allen_rich2_smart_ids,
+void CompareRecAllenRichSmartIDs::operator()(
+  const std::vector<AllenRichSmartID>& allen_rich1_smart_ids,
+  const std::vector<AllenRichSmartID>& allen_rich2_smart_ids,
   const Rich::Future::DAQ::DecodedData& rec_rich_pixels) const
 {
   auto allen_rich1_ids = allen_rich1_smart_ids;
@@ -56,15 +58,15 @@ void TestAllenRichPixels::operator()(
   auto allen_rich2_ids = allen_rich2_smart_ids;
   std::sort(allen_rich2_ids.begin(), allen_rich2_ids.end(), [](auto a, auto b) { return a.key() < b.key(); });
 
-  std::vector<Allen::RichSmartID> rec_rich1_ids;
-  std::vector<Allen::RichSmartID> rec_rich2_ids;
+  std::vector<AllenRichSmartID> rec_rich1_ids;
+  std::vector<AllenRichSmartID> rec_rich2_ids;
   auto r1i = Rich::Rich1, r2i = Rich::Rich2;
   for (auto& [rD, rec_ids] : std::array {std::tie(r1i, rec_rich1_ids), std::tie(r2i, rec_rich2_ids)}) {
     for (const auto& pD : rec_rich_pixels[rD]) {
       for (const auto& mD : pD) {
         for (const auto& pd : mD) {
           std::transform(pd.smartIDs().begin(), pd.smartIDs().end(), std::back_inserter(rec_ids), [](auto id) {
-            return Allen::RichSmartID {id.key()};
+            return AllenRichSmartID {id.key()};
           });
         }
       }
@@ -78,7 +80,7 @@ void TestAllenRichPixels::operator()(
     if (rec_ids.size() != allen_ids.size()) {
       error() << "Allen and Rec " << rich << " Smart ID containers are not the same size" << endmsg;
     }
-    std::vector<Allen::RichSmartID> only_allen, only_rec;
+    std::vector<AllenRichSmartID> only_allen, only_rec;
     std::set_difference(
       allen_ids.begin(),
       allen_ids.end(),

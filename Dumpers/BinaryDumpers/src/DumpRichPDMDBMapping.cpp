@@ -33,15 +33,24 @@
 // Dumper
 #include "Dumper.h"
 #include <Dumpers/Utils.h>
+#include "RichPDMDBDecodeMapping.cuh"
 
 namespace {
   struct RichPDMDBMapping {
     RichPDMDBMapping() = default;
-    RichPDMDBMapping(std::vector<char>& data, const Rich::Future::DAQ::PDMDBDecodeMapping& tel40Maps)
+    RichPDMDBMapping(std::vector<char>& data, const Rich::Future::DAQ::PDMDBDecodeMapping& mapping)
     {
-      Rich::Future::DAQ::Allen::PDMDBDecodeMapping allenTel40Maps {tel40Maps};
+      Allen::Rich::Decoding::PDMDBDecodeMapping allenPDMDBMapping;
+
+      allenPDMDBMapping.m_pdmDataR =
+        std::bit_cast<Allen::Rich::Decoding::PDMDBDecodeMapping::RTypeRichData>(mapping.pdmDataR());
+      allenPDMDBMapping.m_pdmDataH =
+        std::bit_cast<Allen::Rich::Decoding::PDMDBDecodeMapping::PDMData>(mapping.pdmDataH());
+      allenPDMDBMapping.m_isInitialised = mapping.isInitialised();
+      allenPDMDBMapping.m_mappingVer = mapping.version();
+
       DumpUtils::Writer output {};
-      output.write(allenTel40Maps);
+      output.write(allenPDMDBMapping);
       data = output.buffer();
     }
   };

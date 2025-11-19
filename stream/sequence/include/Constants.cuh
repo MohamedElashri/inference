@@ -43,11 +43,13 @@ namespace MatchUpstreamMuon {
 namespace TrackMatchingConsts {
   struct MagnetParametrization;
 }
-namespace Rich::Future::DAQ::Allen {
-  class PDMDBDecodeMapping;
-  class Tel40CableMapping;
-} // namespace Rich::Future::DAQ::Allen
-
+namespace Allen::Rich::Decoding {
+  struct PDMDBDecodeMapping;
+  struct Tel40CableMapping;
+} // namespace Allen::Rich::Decoding
+namespace Allen::Rich {
+  struct RichDetector;
+} // namespace Allen::Rich
 namespace UT::Constants {
   struct UTLayerGeometry;
 }
@@ -154,8 +156,13 @@ struct Constants {
   // Rich
   std::vector<char> host_rich_pdmdb_mapping;
   std::vector<char> host_rich_cable_mapping;
-  char* dev_rich_pdmdb_mapping;
-  char* dev_rich_cable_mapping;
+  std::vector<char> host_rich_1_geometry;
+  std::vector<char> host_rich_2_geometry;
+
+  Allen::Rich::Decoding::PDMDBDecodeMapping* dev_rich_pdmdb_mapping = nullptr;
+  Allen::Rich::Decoding::Tel40CableMapping* dev_rich_cable_mapping = nullptr;
+  Allen::Rich::RichDetector* dev_rich_1_geometry = nullptr;
+  Allen::Rich::RichDetector* dev_rich_2_geometry = nullptr;
 
   /**
    * @brief Reserves and initializes constants.

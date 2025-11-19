@@ -27,6 +27,7 @@ target_include_directories(EventModel INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lumi/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/neural_network/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/jets/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/rich/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/momentum_evaluation/include>)
 
 target_link_libraries(EventModel INTERFACE AllenCommon)

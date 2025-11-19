@@ -21,16 +21,14 @@
 #include <set>
 #include <string>
 
-namespace Rich::Future::DAQ::Allen {
+namespace Allen::Rich::Decoding {
 
   /// Helper class for RICH PDMDB readout mapping
-  class PDMDBDecodeMapping final {
-  public:
+  struct PDMDBDecodeMapping final {
     // data types
 
     /// The data for each anode
-    class BitData final {
-    public:
+    struct BitData final {
       /// The EC number (0-3)
       int8_t ec;
       /// The PMT number in EC
@@ -38,7 +36,6 @@ namespace Rich::Future::DAQ::Allen {
       /// The Anode index (0-63)
       int8_t anode;
 
-    public:
       /// Default constructor
       BitData() = default;
       /// Constructor from values
@@ -51,7 +48,8 @@ namespace Rich::Future::DAQ::Allen {
       {}
     };
 
-  private:
+    using FrameBitmask = std::array<uint8_t, 11>; // first half (6bytes) + second half (5bytes)
+
     // defines
 
     /// Max Number of frames per PDMDB
@@ -78,7 +76,6 @@ namespace Rich::Future::DAQ::Allen {
     ///  R-Type Module data for each RICH
     using RTypeRichData = std::array<PDMData, 2>;
 
-  private:
     // methods
 
     /// Get the PDMDB data for given RICH, PDMDB and frame
@@ -100,7 +97,6 @@ namespace Rich::Future::DAQ::Allen {
       }
     }
 
-  public:
     /// mapping version
     __host__ __device__ inline auto version() const { return m_mappingVer; }
 
@@ -110,11 +106,22 @@ namespace Rich::Future::DAQ::Allen {
     /// Get PDMDB data for given Tel40 data
     __host__ __device__ inline const auto& getFrameData(const Tel40CableMapping::Tel40LinkData& cData) const
     {
-      const auto rich = cData.smartID.getData(::Allen::RichSmartID::ShiftRich, ::Allen::RichSmartID::MaskRich);
+      const auto rich = cData.smartID.getData(SmartID::ShiftRich, SmartID::MaskRich);
       return getFrameData(rich, cData.pdmdbNum, cData.linkNum, cData.isHType);
     }
 
-  private:
+    __host__ __device__ inline const auto& getFrameValidMask(const Tel40CableMapping::Tel40LinkData& cData) const
+    {
+      const auto rich = cData.smartID.getData(SmartID::ShiftRich, SmartID::MaskRich);
+      if (!cData.isHType) {
+        // R type PMT
+        return m_pdmMaskR[rich][cData.pdmdbNum][cData.linkNum];
+      }
+      else {
+        return m_pdmMaskH[cData.pdmdbNum][cData.linkNum];
+      }
+    }
+
     // data
 
     /// R type data
@@ -128,6 +135,9 @@ namespace Rich::Future::DAQ::Allen {
 
     /// Mapping version
     int m_mappingVer {-1};
+
+    std::array<std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule>, 2> m_pdmMaskR {};
+    std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule> m_pdmMaskH {};
   };
 
-} // namespace Rich::Future::DAQ::Allen
+} // namespace Allen::Rich::Decoding

@@ -12,41 +12,34 @@
 
 #include <array>
 #include <RichDefinitions.cuh>
+#include <RichSmartID.cuh>
 
-namespace Rich::Future::DAQ::Allen {
+namespace Allen::Rich::Decoding {
   /// Helper class for RICH PMT data format encoding
-  class Tel40CableMapping final {
-
-  public:
+  struct Tel40CableMapping final {
     /// Struct for storing data for each Tel40 Link
-    class Tel40LinkData final {
-    public:
+    struct Tel40LinkData final {
       /// RICH SmartID
-      ::Allen::RichSmartID smartID;
+      SmartID smartID {};
       /// Module Number
-      int32_t moduleNum;
+      int32_t moduleNum {0};
       /// Source ID
-      int16_t sourceID;
+      int16_t sourceID {0};
       /// Tel40 connector
-      int8_t connector;
+      int8_t connector {0};
       /// PDMDB number (0,1)
-      int8_t pdmdbNum;
+      int8_t pdmdbNum {0};
       /// Link number
-      int8_t linkNum;
+      int8_t linkNum {0};
       /// PMT type
       bool isHType {false};
       /// Is Link Active
-      bool isActive {false};
-
-    public:
-      /// Default constructor
-      Tel40LinkData() = default;
+      bool isActive {false}; // TODO: remove (already stored in metadata)
     };
 
-    class Tel40MetaData final {
-    public:
-      uint32_t nActiveLinks;
-      bool hasInactiveLinks;
+    struct Tel40MetaData final {
+      uint32_t validLinkMask {0};
+      bool hasInactiveLinks {true}; // TODO: remove
     };
 
     /// Max number of links(frames) per PDMDB
@@ -71,12 +64,11 @@ namespace Rich::Future::DAQ::Allen {
     using PDMDBData = std::array<PDMDBLinkData, PDMDBPerModule>;
 
     /// Tel40 data for each Module
-    using ModuleTel40Data = std::array<PDMDBData, 300>; // 300 is totalmodules
+    using ModuleTel40Data = std::array<PDMDBData, SmartID::TotalModules>;
 
     using Tel40SourceIDs = std::array<std::array<std::array<std::array<Tel40LinkData, 24>, 164>, 2>, 2>;
     using Tel40SourceMetas = std::array<std::array<std::array<Tel40MetaData, 164>, 2>, 2>;
 
-  public:
     // accessors
 
     /// Access the initialisation state
@@ -119,12 +111,9 @@ namespace Rich::Future::DAQ::Allen {
     /// mapping version
     inline auto version() const { return m_mappingVer; }
 
-  private:
-    // data
-
     /// Tel40 connection mapping data
-    Tel40SourceIDs m_tel40ConnData;
-    Tel40SourceMetas m_tel40ConnMeta;
+    Tel40SourceIDs m_tel40ConnData {};
+    Tel40SourceMetas m_tel40ConnMeta {};
 
     /// Tel40 Module Mapping data
     ModuleTel40Data m_tel40ModuleData;
@@ -135,5 +124,4 @@ namespace Rich::Future::DAQ::Allen {
     /// Mapping version
     int m_mappingVer {-1};
   };
-
-} // namespace Rich::Future::DAQ::Allen
+} // namespace Allen::Rich::Decoding

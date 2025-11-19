@@ -39,7 +39,8 @@ gaudi_add_module(AllenWrapper
                    src/CompareRecAllenFTClusters.cpp
                    src/CompareRecAllenVPHits.cpp
                    src/TestVeloClusters.cpp
-                   src/TestAllenRichPixels.cpp
+                   src/CompareRecAllenRichSmartIDs.cpp
+                   src/CompareRecAllenRichPixels.cpp
                    src/IOMonitor.cpp
                  LINK
                    AllenLib
