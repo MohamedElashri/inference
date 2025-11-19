@@ -200,15 +200,10 @@ namespace error_bank_filter {
   std::ostream& operator<<(std::ostream& s, bank_types_t bt) { return Gaudi::Utils::toStream(std::move(bt), s); }
 } // namespace error_bank_filter
 
-namespace Gaudi {
-  namespace Parsers {
-
-    template<typename Iterator, typename Skipper>
-    struct Grammar_<Iterator, error_bank_filter::bank_types_t, Skipper> {
-      typedef MapGrammar<Iterator, error_bank_filter::bank_types_t, Skipper> Grammar;
-    };
-
-    StatusCode parse(error_bank_filter::bank_types_t& bt, const std::string& in);
-  } // namespace Parsers
-} // namespace Gaudi
+namespace Gaudi::Parsers {
+  template<typename Iterator, typename Skipper>
+  struct Grammar_<Iterator, error_bank_filter::bank_types_t, Skipper> {
+    typedef MapGrammar<Iterator, error_bank_filter::bank_types_t, Skipper> Grammar;
+  };
+} // namespace Gaudi::Parsers
 #endif
