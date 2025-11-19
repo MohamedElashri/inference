@@ -11,7 +11,18 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
-#include <RichDefinitions.cuh>
+#include <RichSmartID.cuh>
+
+#if defined(TARGET_DEVICE_CUDA)
+#define RICH_DECODING_BLOCK_DIM_X 32
+#define RICH_DECODING_BLOCK_DIM_Y 4
+#else
+// Default to CPU-like configuration
+// Although Allen automatically sets this up for CPU,
+// we need a variable for array sizes in compile-time
+#define RICH_DECODING_BLOCK_DIM_X 1
+#define RICH_DECODING_BLOCK_DIM_Y 1
+#endif
 
 namespace rich_decoding {
   struct Parameters {
@@ -24,7 +35,7 @@ namespace rich_decoding {
     DEVICE_INPUT(dev_rich_raw_input_types_t, uint) dev_rich_raw_input_types;
     DEVICE_OUTPUT(dev_rich_hit_offsets_t, unsigned) dev_rich_hit_offsets;
     HOST_OUTPUT(host_rich_total_number_of_hits_t, unsigned) host_rich_total_number_of_hits;
-    DEVICE_OUTPUT(dev_smart_ids_t, Allen::RichSmartID) dev_smart_ids;
+    DEVICE_OUTPUT(dev_smart_ids_t, Allen::Rich::Decoding::SmartID) dev_smart_ids;
   };
 
   struct rich_decoding_t : public DeviceAlgorithm, Parameters {
@@ -37,6 +48,14 @@ namespace rich_decoding {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 64, "block dimension x"};
+    // Changed to use 2D block dimensions for better parallelism
+    // threads in x-dimension for warp-level operations
+    // threads in y-dimension for bank-level parallelism
+    Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", {RICH_DECODING_BLOCK_DIM_X}, "block x dimension"};
+    Allen::Property<unsigned> m_block_dim_y {this, "block_dim_y", {RICH_DECODING_BLOCK_DIM_Y}, "block y dimension"};
+    Allen::Property<dim3> m_block_dim {this,
+                                       "block_dim",
+                                       {RICH_DECODING_BLOCK_DIM_X, RICH_DECODING_BLOCK_DIM_Y, 1},
+                                       "block dimensions"};
   };
 } // namespace rich_decoding

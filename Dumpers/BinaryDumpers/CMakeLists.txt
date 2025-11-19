@@ -34,7 +34,8 @@ gaudi_add_library(BinaryDumpers
                     LHCb::RecEvent
                     LHCb::RichFutureDAQLib
                     LHCb::RichFutureKernel
-                    )
+		    LHCb::RichDetectorsLib
+		    LHCb::RichDetLib)
 
 gaudi_add_module(BinaryDumpersModule
                  SOURCES
@@ -59,6 +60,7 @@ gaudi_add_module(BinaryDumpersModule
                    src/DumpVPGeometry.cpp
                    src/DumpRichCableMapping.cpp
                    src/DumpRichPDMDBMapping.cpp
+                   src/DumpRichGeometry.cpp
                    src/PVDumper.cpp
                    src/ProvideConstants.cpp
                    src/TestMuonTable.cpp
@@ -79,7 +81,8 @@ gaudi_add_module(BinaryDumpersModule
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MuonDAQLib
-                   Rec::PrKernel
+		   LHCb::RichDetLib
+		   Rec::PrKernel
                    yaml-cpp::yaml-cpp
                    BinaryDumpers)
 

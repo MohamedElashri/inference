@@ -21,7 +21,7 @@ from PyConf.Algorithms import (
     DumpMagneticFieldPolarity, DumpVPGeometry, DumpCrossingAngles,
     DumpFTGeometry, DumpUTGeometry, DumpUTLookupTables, DumpMuonGeometry,
     DumpMuonTable, AllenODINProducer, DumpRichPDMDBMapping,
-    DumpRichCableMapping)
+    DumpRichCableMapping, DumpRichGeometry)
 from DDDB.CheckDD4Hep import UseDD4Hep
 from PyConf.reading import get_generator_BeamParameters
 from GaudiConf.LbExec import Options as DefaultOptions
@@ -122,7 +122,9 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
             'Rich': [(DumpRichPDMDBMapping, 'DeviceRichPDMDBMapping', {},
                       'rich_pdmdbmaps'),
                      (DumpRichCableMapping, 'DeviceRichCableMapping', {},
-                      'rich_tel40maps')]
+                      'rich_tel40maps'),
+                     (DumpRichGeometry, 'DeviceRichGeometry', {},
+                      'rich_geometry')]
         }
     else:
         converter_types = {
@@ -147,7 +149,9 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
             'Rich': [(DumpRichPDMDBMapping, 'DeviceRichPDMDBMapping', {},
                       'rich_pdmdbmaps'),
                      (DumpRichCableMapping, 'DeviceRichCableMapping', {},
-                      'rich_tel40maps')]
+                      'rich_tel40maps'),
+                     (DumpRichGeometry, 'DeviceRichGeometry', {},
+                      'rich_geometry')]
         }
 
     detector_names = {
