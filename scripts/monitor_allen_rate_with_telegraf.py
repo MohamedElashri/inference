@@ -20,7 +20,9 @@ import datetime
 import socket as sock
 import sys
 import zmq
+import re
 
+socket_expr = re.compile(R'allen_throughput_[a-z0-9]{2}')
 ON_POSIX = 'posix' in sys.builtin_module_names
 
 
@@ -55,22 +57,17 @@ def main():
     #     print('usage: allen_throughput.py <connect_to> <connect_to...>')
     #     sys.exit(1)
 
+    socket_ids = [s for s in os.listdir('/tmp') if socket_expr.match(s)]
+
     ctx = zmq.Context()
     sockets = {}
     connections = {
-        "ipc:///tmp/allen_throughput_%s": (["0"], 'AllenInstance',
-                                           'allen_rate'),
-        # "tcp://%s:%s": ([('lbdaqrome02', '35001')], 'OutputWriter',
-        #                 'output_rate')
+        "ipc:///tmp/%s": (socket_ids, 'AllenInstance', 'allen_rate'),
     }
     for connection, (ids, app_name, rate_name) in connections.items():
         for socket_id in ids:
-            if len(socket_id) > 1:
-                con = connection % socket_id[:-1]
-                app_id = socket_id[-1]
-            else:
-                con = connection % socket_id
-                app_id = socket_id
+            con = connection % socket_id
+            app_id = socket_id
             print("connecting to: " + con)
             s = ctx.socket(zmq.SUB)
             s.connect(con)
@@ -87,7 +84,6 @@ def main():
             if socket in polled and polled[socket] == zmq.POLLIN:
                 message = socket.recv()
                 print(socket_id, message)
-                send_to_telegraf(message, socket_id, app_name, rate_name)
 
 
 if __name__ == "__main__":

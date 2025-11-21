@@ -68,7 +68,7 @@ std::tuple<bool, std::string, unsigned, unsigned> Allen::set_device(int cuda_dev
     cudaCheck(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
   }
 
-  return {true, device_properties.name, device_properties.textureAlignment, device_properties.pciDeviceID};
+  return {true, device_properties.name, device_properties.textureAlignment, device_properties.pciBusID};
 }
 
 std::tuple<bool, int> Allen::get_device_id(const std::string& pci_bus_id)
