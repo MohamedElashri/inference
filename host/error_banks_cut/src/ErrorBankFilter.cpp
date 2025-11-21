@@ -367,37 +367,3 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
 
   parameters.host_number_of_selected_events[0] = selected_events.count();
 }
-
-#ifndef ALLEN_STANDALONE
-StatusCode Gaudi::Parsers::parse(error_bank_filter::bank_types_t& bt, const std::string& in)
-{
-  auto s = std::string_view {in};
-  if (!s.empty() && s.front() == s.back() && (s.front() == '\'' || s.front() == '\"')) {
-    s.remove_prefix(1);
-    s.remove_suffix(1);
-  }
-  std::map<std::string, std::vector<std::string>> tmp;
-  auto sc = parse(tmp, std::string {s});
-  if (sc.isFailure()) return sc;
-
-  try {
-    for_each(
-      std::tuple {std::tuple {std::string {"data_banks"}, std::ref(bt.data_types)},
-                  std::tuple {std::string {"other_banks"}, std::ref(bt.other_types)},
-                  std::tuple {std::string {"error_banks"}, std::ref(bt.error_types)}},
-      [&tmp](auto entry) {
-        auto const& k = std::get<0>(entry);
-        auto& m = std::get<1>(entry).get();
-        if (!tmp.count(k)) {
-          throw StrException {"missing key" + k};
-        }
-        else {
-          m = tmp[k];
-        }
-      });
-    return StatusCode::SUCCESS;
-  } catch (StrException const&) {
-    return StatusCode::FAILURE;
-  }
-}
-#endif
