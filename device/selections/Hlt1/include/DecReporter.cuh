@@ -16,6 +16,7 @@ namespace dec_reporter {
   struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
     HOST_INPUT(host_number_of_active_lines_t, unsigned) host_number_of_active_lines;
+    HOST_INPUT(host_names_of_active_lines_t, char) host_names_of_active_lines;
     DEVICE_INPUT(dev_number_of_active_lines_t, unsigned) dev_number_of_active_lines;
     DEVICE_INPUT(dev_selections_t, uint32_t) dev_selections;
     DEVICE_INPUT(dev_selections_offsets_t, unsigned) dev_selections_offsets;
@@ -41,5 +42,10 @@ namespace dec_reporter {
     Allen::Property<unsigned> m_tck {this, "tck", 0, "TCK"};
     Allen::Property<unsigned> m_key {this, "encoding_key", 0xDEADBEEF, "encoding key"};
     Allen::Property<unsigned> m_taskID {this, "task_id", 1, "Task ID"};
+    Allen::Property<unsigned> m_warn_mean_event_limit {this,
+                                                       "warn_mean_event_limit",
+                                                       1000,
+                                                       "Warning mean limit per event"};
+    Allen::Property<unsigned> m_warn_line_limit {this, "warn_line_limit", 1000, "Warning limit per line"};
   };
 } // namespace dec_reporter
