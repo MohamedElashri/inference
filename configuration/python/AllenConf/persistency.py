@@ -251,6 +251,8 @@ def make_dec_reporter(lines, TCK=0, encoding_key=None):
         tck=TCK,
         encoding_key=encoding_key,
         host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_names_of_active_lines_t=gather_selections.
+        host_names_of_active_lines_t,
         host_number_of_active_lines_t=gather_selections.
         host_number_of_active_lines_t,
         dev_number_of_active_lines_t=gather_selections.
