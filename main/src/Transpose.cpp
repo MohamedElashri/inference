@@ -83,8 +83,12 @@ bool check_sourceIDs(std::span<char const> bank_data)
 BankTypes sd_from_bank_type(LHCb::RawBank const* raw_bank)
 {
   static auto const bank_ids = Allen::bank_ids();
-  auto const bt = bank_ids[(uint8_t) raw_bank->type()];
-  return bt == -1 ? BankTypes::Unknown : static_cast<BankTypes>(bt);
+  auto const bid = bank_ids[(uint8_t) raw_bank->type()];
+  auto const bt = bid == -1 ? BankTypes::Unknown : static_cast<BankTypes>(bid);
+  if (bt == BankTypes::Rich1) { // Some banks can only be distinguished by sourceID
+    return sd_from_sourceID(raw_bank);
+  }
+  return bt;
 }
 
 /**
