@@ -31,6 +31,6 @@ with decode_velo.bind(retina_decoding=False):
                         EnableGEC=True,
                         reco_particles=True,
                         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-                        veloMicroBias_prescaler=0.12,
-                        highEt_prescaler=0.08)
+                        veloMicroBias_prescaler=0.1,
+                        highEt_prescaler=0.05)
                     generate(hlt1_node)
