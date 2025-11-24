@@ -157,7 +157,7 @@ def default_physics_lines(reconstructed_objects, prescale, reco_particles,
     return [line_maker(line) for line in lines]
 
 
-def upc_physics_lines(reconstructed_objects):
+def upc_physics_lines(reconstructed_objects, highEt_prescaler=0.1):
 
     pvs = reconstructed_objects["pvs"]
     velo_tracks = reconstructed_objects["velo_tracks"]
@@ -202,7 +202,7 @@ def upc_physics_lines(reconstructed_objects):
             calo=ecal_clusters,
             minEt=800,
             max_ecal_clusters=10,
-            pre_scaler=0.1)
+            pre_scaler=highEt_prescaler)
     ]
     return [line_maker(line) for line in lines]
 
@@ -380,7 +380,9 @@ def setup_hlt1_node(withMCChecking=False,
                     mini=False,
                     with_fullKF=False,
                     enabled_lines=[r'.*?'],
-                    disabled_lines=[]):
+                    disabled_lines=[],
+                    veloMicroBias_prescaler=0.15,
+                    highEt_prescaler=0.1):
 
     if with_fullKF:
         from AllenConf.secondary_vertex_reconstruction import ParKF_cuts as chi2_cuts
@@ -563,7 +565,8 @@ def setup_hlt1_node(withMCChecking=False,
                                                   prescale, reco_particles,
                                                   with_muon, chi2_cuts)
         with line_maker.bind(prefilter=prefilter_photon_velo_upc):
-            physics_lines += upc_physics_lines(reconstructed_objects)
+            physics_lines += upc_physics_lines(reconstructed_objects,
+                                               highEt_prescaler)
 
             if EnableGEC:
                 physics_lines += [
@@ -618,7 +621,7 @@ def setup_hlt1_node(withMCChecking=False,
                 make_velo_micro_bias_line(
                     reconstructed_objects["velo_tracks"],
                     name="Hlt1VeloMicroBias",
-                    pre_scaler=0.15,
+                    pre_scaler=veloMicroBias_prescaler,
                     post_scaler=1.,
                     min_velo_tracks=3))
         ]
