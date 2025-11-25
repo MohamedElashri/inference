@@ -268,7 +268,8 @@ def odin_monitoring_lines(lumiline_name, lumilinefull_name, with_gec,
 def alignment_monitoring_lines(reconstructed_objects,
                                reco_particles,
                                chi2_cuts,
-                               with_muon=True):
+                               with_muon=True,
+                               prefilters=[]):
 
     velo_tracks = reconstructed_objects["velo_tracks"]
     material_interaction_tracks = reconstructed_objects[
@@ -292,18 +293,6 @@ def alignment_monitoring_lines(reconstructed_objects,
             long_track_particles,
             maxTrChi2=chi2_cuts.Hlt1RICH2Alignment_maxTrChi2,
             name="Hlt1RICH2Alignment"),
-        make_z_range_materialvertex_seed_line(
-            material_interaction_tracks,
-            min_z_materialvertex_seed=300,
-            max_z_materialvertex_seed=1000,
-            name="Hlt1MaterialVertexSeedsDownstreamz",
-            pre_scaler=0.005),
-        make_z_range_materialvertex_seed_line(
-            material_interaction_tracks,
-            min_z_materialvertex_seed=700,
-            max_z_materialvertex_seed=1000,
-            name="Hlt1MaterialVertexSeeds_DWFS",
-            pre_scaler=0.1)
     ]
 
     if reco_particles:
@@ -350,7 +339,32 @@ def alignment_monitoring_lines(reconstructed_objects,
                     enable_tupling=False)
             ]
 
-    return [line_maker(line) for line in lines]
+    lines = [line_maker(line, prefilter=prefilters) for line in lines]
+    material_interaction_velo_gec = velo_gec("material_velo_gec", 0, 35000)
+    lines += [
+        line_maker(
+            make_z_range_materialvertex_seed_line(
+                material_interaction_tracks,
+                min_z_materialvertex_seed=300,
+                max_z_materialvertex_seed=1000,
+                name="Hlt1MaterialVertexSeedsDownstreamz"),
+            prefilter=prefilters + [
+                material_interaction_velo_gec,
+                make_prescaler(0.005, "Hlt1MaterialVertexSeedsDownstreamz")
+            ]),
+        line_maker(
+            make_z_range_materialvertex_seed_line(
+                material_interaction_tracks,
+                min_z_materialvertex_seed=700,
+                max_z_materialvertex_seed=1000,
+                name="Hlt1MaterialVertexSeeds_DWFS"),
+            prefilter=prefilters + [
+                material_interaction_velo_gec,
+                make_prescaler(0.1, "Hlt1MaterialVertexSeeds_DWFS")
+            ]),
+    ]
+
+    return lines
 
 
 def setup_hlt1_node(withMCChecking=False,
@@ -600,9 +614,10 @@ def setup_hlt1_node(withMCChecking=False,
         ]
 
     # alignment lines within the GEC
-    with line_maker.bind(prefilter=(prefilter_upc if mini else prefilters)):
-        monitoring_lines += alignment_monitoring_lines(
-            reconstructed_objects, reco_particles, chi2_cuts, with_muon)
+    alignment_prefilters = prefilter_upc if mini else prefilters
+    monitoring_lines += alignment_monitoring_lines(
+        reconstructed_objects, reco_particles, chi2_cuts, with_muon,
+        alignment_prefilters)
 
     # velo microbias lines for Velo closing & alignment inside minimal activity filter
     with line_maker.bind(prefilter=odin_err_filter + [velo_open_event] + gec +
