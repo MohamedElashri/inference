@@ -108,10 +108,10 @@ histos:
         ID: d0_mass
         Title: '"m(D0)"'
         '#': '22'
-        Mean: '1849.9'
-        RMS: '55.250'
-        Skewness: '0.35789'
-        Kurtosis: '-0.87479'
+        Mean: '1849.7'
+        RMS: '55.515'
+        Skewness: '0.34528'
+        Kurtosis: '-0.88388'
       d0_pt:
         ID: d0_pt
         Title: '"pT(D0)"'
@@ -166,10 +166,10 @@ histos:
         ID: d0_mass
         Title: '"m(D0)"'
         '#': '7'
-        Mean: '1869.4'
-        RMS: '39.608'
-        Skewness: '0.098645'
-        Kurtosis: '-0.58712'
+        Mean: '1868.9'
+        RMS: '40.551'
+        Skewness: '0.016119'
+        Kurtosis: '-0.54606'
       d0_pt:
         ID: d0_pt
         Title: '"pT(D0)"'
@@ -267,19 +267,19 @@ histos:
       dielectron_mass_counts:
         ID: dielectron_mass_counts
         Title: '"dielectron masses"'
-        '#': '103'
-        Mean: '1068.3'
-        RMS: '481.31'
-        Skewness: '-1.1764'
-        Kurtosis: '-0.066295'
+        '#': '98'
+        Mean: '1106.9'
+        RMS: '438.87'
+        Skewness: '-1.2554'
+        Kurtosis: '0.14126'
       dielectron_mass_counts_brem:
         ID: dielectron_mass_counts_brem
         Title: '"dielectron masses with brem"'
-        '#': '88'
-        Mean: '1039.9'
-        RMS: '490.36'
-        Skewness: '-1.0507'
-        Kurtosis: '-0.35081'
+        '#': '83'
+        Mean: '1086.2'
+        RMS: '438.07'
+        Skewness: '-1.0883'
+        Kurtosis: '-0.30257'
     header:
       1D: 2
       2D: 0
@@ -293,19 +293,19 @@ histos:
       dielectron_mass_counts:
         ID: dielectron_mass_counts
         Title: '"dielectron masses"'
-        '#': '524'
-        Mean: '1221'
-        RMS: '365.14'
-        Skewness: '-2.1097'
-        Kurtosis: '3.6545'
+        '#': '521'
+        Mean: '1229.8'
+        RMS: '346.68'
+        Skewness: '-2.068'
+        Kurtosis: '3.4357'
       dielectron_mass_counts_brem:
         ID: dielectron_mass_counts_brem
         Title: '"dielectron masses with brem"'
-        '#': '436'
-        Mean: '1215.1'
-        RMS: '377.62'
-        Skewness: '-1.9865'
-        Kurtosis: '3.0329'
+        '#': '433'
+        Mean: '1227'
+        RMS: '352.39'
+        Skewness: '-1.9086'
+        Kurtosis: '2.6254'
     header:
       1D: 2
       2D: 0
@@ -319,19 +319,19 @@ histos:
       dielectron_mass_counts:
         ID: dielectron_mass_counts
         Title: '"dielectron masses"'
-        '#': '140'
-        Mean: '682.5'
-        RMS: '532.72'
-        Skewness: '0.32249'
-        Kurtosis: '-1.5677'
+        '#': '139'
+        Mean: '694.51'
+        RMS: '522.59'
+        Skewness: '0.35214'
+        Kurtosis: '-1.5969'
       dielectron_mass_counts_brem:
         ID: dielectron_mass_counts_brem
         Title: '"dielectron masses with brem"'
-        '#': '131'
-        Mean: '671.88'
-        RMS: '515.69'
-        Skewness: '0.38914'
-        Kurtosis: '-1.4455'
+        '#': '130'
+        Mean: '685.5'
+        RMS: '501.35'
+        Skewness: '0.458'
+        Kurtosis: '-1.4774'
     header:
       1D: 2
       2D: 0
@@ -345,19 +345,19 @@ histos:
       dielectron_mass_counts:
         ID: dielectron_mass_counts
         Title: '"dielectron masses"'
-        '#': '595'
-        Mean: '1029.6'
-        RMS: '499.23'
-        Skewness: '-0.9073'
-        Kurtosis: '-0.78245'
+        '#': '623'
+        Mean: '997.99'
+        RMS: '505.92'
+        Skewness: '-0.71918'
+        Kurtosis: '-1.1718'
       dielectron_mass_counts_brem:
         ID: dielectron_mass_counts_brem
         Title: '"dielectron masses with brem"'
-        '#': '538'
-        Mean: '1021.4'
-        RMS: '505.52'
-        Skewness: '-0.83086'
-        Kurtosis: '-0.9197'
+        '#': '566'
+        Mean: '989.54'
+        RMS: '507.96'
+        Skewness: '-0.62714'
+        Kurtosis: '-1.3102'
     header:
       1D: 2
       2D: 0
@@ -372,9 +372,9 @@ histos:
         ID: Jpsi_mass
         Title: '"m(J/Psi)"'
         '#': '3'
-        Mean: '3149.6'
-        RMS: '109.90'
-        Skewness: '-0.65863'
+        Mean: '3149.1'
+        RMS: '110.52'
+        Skewness: '-0.65917'
         Kurtosis: '-1.5'
     header:
       1D: 1
@@ -390,10 +390,10 @@ histos:
         ID: dimuon_q
         Title: '"dimuon q"'
         '#': '8'
-        Mean: '24757'
-        RMS: '5559.9'
-        Skewness: '-1.1329'
-        Kurtosis: '0.33217'
+        Mean: '24758'
+        RMS: '5560.2'
+        Skewness: '-1.133'
+        Kurtosis: '0.33202'
     header:
       1D: 1
       2D: 0
@@ -425,27 +425,27 @@ histos:
       d0_mass:
         ID: d0_mass
         Title: '"m(D0)"'
-        '#': '3'
-        Mean: '1805.3'
-        RMS: '38.793'
-        Skewness: '0.68462'
-        Kurtosis: '-1.5'
+        '#': '2'
+        Mean: '1817'
+        RMS: '43.000'
+        Skewness: '0'
+        Kurtosis: '-2'
       d0_pt:
         ID: d0_pt
         Title: '"pT(D0)"'
-        '#': '3'
-        Mean: '3350'
-        RMS: '2264.2'
-        Skewness: '0.70297'
-        Kurtosis: '-1.5'
+        '#': '2'
+        Mean: '4100'
+        RMS: '2450.0'
+        Skewness: '0'
+        Kurtosis: '-2'
       dst_dm:
         ID: dst_dm
         Title: '"m(D*)-m(D0)"'
-        '#': '3'
-        Mean: '147.04'
-        RMS: '2.2016'
-        Skewness: '0.64606'
-        Kurtosis: '-1.5'
+        '#': '2'
+        Mean: '145.62'
+        RMS: '0.50000'
+        Skewness: '0'
+        Kurtosis: '-2'
     header:
       1D: 3
       2D: 0
@@ -459,27 +459,27 @@ histos:
       d0_mass:
         ID: d0_mass
         Title: '"m(D0)"'
-        '#': '3'
-        Mean: '1805.3'
-        RMS: '38.793'
-        Skewness: '0.68462'
-        Kurtosis: '-1.5'
+        '#': '2'
+        Mean: '1817'
+        RMS: '43.000'
+        Skewness: '0'
+        Kurtosis: '-2'
       d0_pt:
         ID: d0_pt
         Title: '"pT(D0)"'
-        '#': '3'
-        Mean: '3350'
-        RMS: '2264.2'
-        Skewness: '0.70297'
-        Kurtosis: '-1.5'
+        '#': '2'
+        Mean: '4100'
+        RMS: '2450.0'
+        Skewness: '0'
+        Kurtosis: '-2'
       dst_dm:
         ID: dst_dm
         Title: '"m(D*)-m(D0)"'
-        '#': '3'
-        Mean: '147.04'
-        RMS: '2.2016'
-        Skewness: '0.64606'
-        Kurtosis: '-1.5'
+        '#': '2'
+        Mean: '145.62'
+        RMS: '0.50000'
+        Skewness: '0'
+        Kurtosis: '-2'
     header:
       1D: 3
       2D: 0
@@ -494,10 +494,10 @@ histos:
         ID: ks_mass
         Title: '"m(ks)"'
         '#': '828'
-        Mean: '492.97'
-        RMS: '19.424'
-        Skewness: '-2.5778'
-        Kurtosis: '8.4608'
+        Mean: '492.96'
+        RMS: '19.405'
+        Skewness: '-2.5874'
+        Kurtosis: '8.4811'
       ks_pt:
         ID: ks_pt
         Title: '"pT(ks)"'
@@ -511,17 +511,17 @@ histos:
         Title: '"track0 GhostProb"'
         '#': '828'
         Mean: '0.067899'
-        RMS: '0.087882'
-        Skewness: '2.258'
-        Kurtosis: '5.4159'
+        RMS: '0.087908'
+        Skewness: '2.2589'
+        Kurtosis: '5.4165'
       p1_ghost_prob:
         ID: p1_ghost_prob
         Title: '"track1 GhostProb"'
         '#': '828'
-        Mean: '0.085246'
-        RMS: '0.10581'
-        Skewness: '1.7826'
-        Kurtosis: '2.5224'
+        Mean: '0.085275'
+        RMS: '0.10584'
+        Skewness: '1.7827'
+        Kurtosis: '2.5235'
     header:
       1D: 4
       2D: 0
@@ -578,10 +578,10 @@ histos:
         ID: ip_y
         Title: '"IP_{y}"'
         '#': '107'
-        Mean: '-0.069252'
-        RMS: '0.33723'
-        Skewness: '-2.5262'
-        Kurtosis: '10.569'
+        Mean: '-0.068692'
+        RMS: '0.33755'
+        Skewness: '-2.5225'
+        Kurtosis: '10.536'
     header:
       1D: 3
       2D: 0
@@ -595,59 +595,59 @@ histos:
       d0_mass:
         ID: d0_mass
         Title: '"m(K#pi)"'
-        '#': '32'
-        Mean: '1875.6'
-        RMS: '56.392'
-        Skewness: '-0.32904'
-        Kurtosis: '-0.80116'
+        '#': '33'
+        Mean: '1878.1'
+        RMS: '56.908'
+        Skewness: '-0.3557'
+        Kurtosis: '-0.82553'
       p0_ghost_prob:
         ID: p0_ghost_prob
         Title: '"track0 GhostProb"'
-        '#': '409'
-        Mean: '0.033235'
-        RMS: '0.062914'
-        Skewness: '4.145'
-        Kurtosis: '20.231'
+        '#': '411'
+        Mean: '0.033117'
+        RMS: '0.062725'
+        Skewness: '4.1572'
+        Kurtosis: '20.375'
       p0_ip_x:
         ID: p0_ip_x
         Title: '"IP_{x}(p0)"'
-        '#': '368'
-        Mean: '0.024783'
-        RMS: '0.56810'
-        Skewness: '-0.26693'
-        Kurtosis: '8.0203'
+        '#': '370'
+        Mean: '0.016703'
+        RMS: '0.57788'
+        Skewness: '-0.33648'
+        Kurtosis: '7.645'
       p0_ip_y:
         ID: p0_ip_y
         Title: '"IP_{y}(p0)"'
-        '#': '365'
-        Mean: '0.056137'
-        RMS: '0.55608'
-        Skewness: '0.34476'
-        Kurtosis: '8.9108'
+        '#': '368'
+        Mean: '0.057554'
+        RMS: '0.55955'
+        Skewness: '0.3334'
+        Kurtosis: '8.5821'
       p1_ghost_prob:
         ID: p1_ghost_prob
         Title: '"track1 GhostProb"'
-        '#': '409'
-        Mean: '0.038765'
-        RMS: '0.065588'
-        Skewness: '3.4673'
-        Kurtosis: '14.427'
+        '#': '411'
+        Mean: '0.038825'
+        RMS: '0.065358'
+        Skewness: '3.4705'
+        Kurtosis: '14.511'
       p1_ip_x:
         ID: p1_ip_x
         Title: '"IP_{x}(p1)"'
-        '#': '357'
-        Mean: '-0.078908'
-        RMS: '0.60023'
-        Skewness: '-0.72418'
-        Kurtosis: '6.3787'
+        '#': '359'
+        Mean: '-0.077967'
+        RMS: '0.59876'
+        Skewness: '-0.72988'
+        Kurtosis: '6.4234'
       p1_ip_y:
         ID: p1_ip_y
         Title: '"IP_{y}(p1)"'
-        '#': '363'
-        Mean: '-0.053471'
-        RMS: '0.58014'
-        Skewness: '-1.2467'
-        Kurtosis: '8.2799'
+        '#': '366'
+        Mean: '-0.050328'
+        RMS: '0.58218'
+        Skewness: '-1.2206'
+        Kurtosis: '8.1094'
     header:
       1D: 7
       2D: 0
@@ -802,10 +802,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '35.235'
-        RMS: '42.206'
-        Skewness: '2.9286'
-        Kurtosis: '15.894'
+        Mean: '35.414'
+        RMS: '42.333'
+        Skewness: '2.9109'
+        Kurtosis: '15.676'
     header:
       1D: 1
       2D: 0
@@ -820,10 +820,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '3.1965'
-        RMS: '5.5949'
-        Skewness: '4.0705'
-        Kurtosis: '27.975'
+        Mean: '3.1984'
+        RMS: '5.5919'
+        Skewness: '4.0674'
+        Kurtosis: '27.978'
     header:
       1D: 1
       2D: 0
@@ -838,10 +838,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '15.778'
-        RMS: '31.270'
-        Skewness: '6.4552'
-        Kurtosis: '88.501'
+        Mean: '15.857'
+        RMS: '31.367'
+        Skewness: '6.4441'
+        Kurtosis: '88.334'
     header:
       1D: 1
       2D: 0
@@ -856,10 +856,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '24.549'
-        RMS: '45.719'
-        Skewness: '4.8424'
-        Kurtosis: '37.331'
+        Mean: '24.645'
+        RMS: '45.821'
+        Skewness: '4.8373'
+        Kurtosis: '37.261'
     header:
       1D: 1
       2D: 0
@@ -874,10 +874,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '16.451'
-        RMS: '21.430'
-        Skewness: '2.4922'
-        Kurtosis: '8.5839'
+        Mean: '16.455'
+        RMS: '21.433'
+        Skewness: '2.4919'
+        Kurtosis: '8.5851'
     header:
       1D: 1
       2D: 0
@@ -892,10 +892,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '0.8617'
-        RMS: '1.8939'
-        Skewness: '5.798'
-        Kurtosis: '74.381'
+        Mean: '0.8641'
+        RMS: '1.8967'
+        Skewness: '5.7854'
+        Kurtosis: '74.03'
     header:
       1D: 1
       2D: 0
@@ -909,19 +909,19 @@ histos:
       line_passes:
         ID: line_passes
         Title: '"line passes"'
-        '#': '17413'
-        Mean: '81.108'
-        RMS: '19.599'
-        Skewness: '-0.80149'
-        Kurtosis: '-0.42504'
+        '#': '17455'
+        Mean: '80.987'
+        RMS: '19.747'
+        Skewness: '-0.81132'
+        Kurtosis: '-0.3938'
       line_rates:
         ID: line_rates
         Title: '"line rates"'
         '#': '687'
-        Mean: '74.522'
-        RMS: '29.848'
-        Skewness: '-1.141'
-        Kurtosis: '-0.46801'
+        Mean: '74.739'
+        RMS: '29.719'
+        Skewness: '-1.1574'
+        Kurtosis: '-0.42951'
     header:
       1D: 2
       2D: 0
@@ -935,15 +935,15 @@ histos:
       n_muons:
         ID: n_muons
         Title: '"# muons"'
-        '#': '461097'
+        '#': '461091'
         Mean: '0.10964'
         RMS: '0.31244'
         Skewness: '2.4988'
-        Kurtosis: '4.2442'
+        Kurtosis: '4.2441'
       pv_x:
         ID: pv_x
         Title: '"pv_x"'
-        '#': '29987'
+        '#': '29988'
         Mean: '2'
         RMS: '0.0000'
         Skewness: '0'
@@ -953,9 +953,9 @@ histos:
         Title: '"pv_y"'
         '#': '50552'
         Mean: '502.24'
-        RMS: '337.18'
-        Skewness: '2.9637'
-        Kurtosis: '35.088'
+        RMS: '337.19'
+        Skewness: '2.9636'
+        Kurtosis: '35.087'
     header:
       1D: 3
       2D: 0
@@ -970,58 +970,58 @@ histos:
         ID: number_of_trks
         Title: '"NTrks"'
         '#': '10000'
-        Mean: '46.11'
-        RMS: '26.711'
-        Skewness: '0.73811'
-        Kurtosis: '0.468'
+        Mean: '46.109'
+        RMS: '26.713'
+        Skewness: '0.73876'
+        Kurtosis: '0.47049'
       trk_eta:
         ID: trk_eta
         Title: '"etaTrk"'
-        '#': '461097'
-        Mean: '3.6668'
+        '#': '461091'
+        Mean: '3.6667'
         RMS: '0.71862'
         Skewness: '-0.13999'
-        Kurtosis: '-0.8328'
+        Kurtosis: '-0.83281'
       trk_phi:
         ID: trk_phi
         Title: '"phiTrk"'
-        '#': '461097'
-        Mean: '-0.0040984'
+        '#': '461091'
+        Mean: '-0.0040601'
         RMS: '1.8038'
-        Skewness: '-0.00085944'
-        Kurtosis: '-1.2489'
+        Skewness: '-0.000868'
+        Kurtosis: '-1.2488'
       trk_pt:
         ID: trk_pt
         Title: '"ptTrk"'
-        '#': '461030'
-        Mean: '661.48'
+        '#': '461024'
+        Mean: '661.49'
         RMS: '586.07'
-        Skewness: '3.3614'
-        Kurtosis: '21.214'
+        Skewness: '3.3613'
+        Kurtosis: '21.213'
       trk_qop:
         ID: trk_qop
         Title: '"q/p"'
-        '#': '461097'
-        Mean: '1.326e-06'
+        '#': '461091'
+        Mean: '1.3289e-06'
         RMS: '0.00015144'
-        Skewness: '-0.0058843'
-        Kurtosis: '-0.82437'
+        Skewness: '-0.0058401'
+        Kurtosis: '-0.82443'
       trk_tx:
         ID: trk_tx
         Title: '"txTrk"'
-        '#': '461097'
-        Mean: '-0.00041769'
-        RMS: '0.061149'
-        Skewness: '0.0076484'
-        Kurtosis: '3.2954'
+        '#': '461091'
+        Mean: '-0.00041746'
+        RMS: '0.061150'
+        Skewness: '0.0076467'
+        Kurtosis: '3.2952'
       trk_ty:
         ID: trk_ty
         Title: '"tyTrk"'
-        '#': '461097'
-        Mean: '-7.2111e-05'
-        RMS: '0.057078'
-        Skewness: '-0.029812'
-        Kurtosis: '1.5126'
+        '#': '461091'
+        Mean: '-7.1496e-05'
+        RMS: '0.057079'
+        Skewness: '-0.029895'
+        Kurtosis: '1.5127'
     header:
       1D: 7
       2D: 0
@@ -1035,75 +1035,75 @@ histos:
       long_track_ghost_prob:
         ID: long_track_ghost_prob
         Title: '"GhostProb"'
-        '#': '461097'
-        Mean: '0.076534'
-        RMS: '0.10011'
-        Skewness: '2.0818'
-        Kurtosis: '4.0091'
+        '#': '461091'
+        Mean: '0.076539'
+        RMS: '0.10012'
+        Skewness: '2.0817'
+        Kurtosis: '4.008'
       long_track_matching_eta:
         ID: long_track_matching_eta
         Title: '"#eta"'
-        '#': '461097'
+        '#': '461091'
         Mean: '3.6662'
         RMS: '0.71833'
-        Skewness: '-0.13965'
+        Skewness: '-0.13964'
         Kurtosis: '-0.83227'
       long_track_matching_nhits:
         ID: long_track_matching_nhits
         Title: '"N. hits / track"'
-        '#': '461097'
+        '#': '461091'
         Mean: '25.145'
-        RMS: '3.2507'
-        Skewness: '0.027714'
-        Kurtosis: '-0.50394'
+        RMS: '3.2508'
+        Skewness: '0.027688'
+        Kurtosis: '-0.50378'
       long_track_matching_phi:
         ID: long_track_matching_phi
         Title: '"#phi"'
-        '#': '461097'
-        Mean: '-0.0041249'
+        '#': '461091'
+        Mean: '-0.0040992'
         RMS: '1.8038'
-        Skewness: '-0.00082194'
+        Skewness: '-0.00083003'
         Kurtosis: '-1.2488'
       long_track_matching_pt:
         ID: long_track_matching_pt
         Title: '"pt"'
-        '#': '461030'
-        Mean: '660.97'
+        '#': '461024'
+        Mean: '660.98'
         RMS: '585.85'
-        Skewness: '3.3623'
-        Kurtosis: '21.222'
+        Skewness: '3.3622'
+        Kurtosis: '21.221'
       long_track_matching_qop:
         ID: long_track_matching_qop
         Title: '"q/p"'
-        '#': '461097'
-        Mean: '1.3272e-06'
+        '#': '461091'
+        Mean: '1.3301e-06'
         RMS: '0.00015181'
-        Skewness: '-0.0058222'
-        Kurtosis: '-0.82083'
+        Skewness: '-0.0057794'
+        Kurtosis: '-0.82089'
       long_track_matching_tx:
         ID: long_track_matching_tx
         Title: '"tx"'
-        '#': '461097'
-        Mean: '-0.00042222'
-        RMS: '0.061160'
-        Skewness: '0.0076975'
-        Kurtosis: '3.2901'
+        '#': '461091'
+        Mean: '-0.00042199'
+        RMS: '0.061161'
+        Skewness: '0.0076934'
+        Kurtosis: '3.2899'
       long_track_matching_ty:
         ID: long_track_matching_ty
         Title: '"ty"'
-        '#': '461097'
-        Mean: '-7.1521e-05'
-        RMS: '0.057085'
-        Skewness: '-0.029684'
-        Kurtosis: '1.5111'
+        '#': '461091'
+        Mean: '-7.0923e-05'
+        RMS: '0.057086'
+        Skewness: '-0.029766'
+        Kurtosis: '1.5112'
       n_long_tracks_matching_event:
         ID: n_long_tracks_matching_event
         Title: '"n_long_tracks_matching_event"'
         '#': '10000'
-        Mean: '46.11'
-        RMS: '26.711'
-        Skewness: '0.73811'
-        Kurtosis: '0.468'
+        Mean: '46.109'
+        RMS: '26.713'
+        Skewness: '0.73876'
+        Kurtosis: '0.47049'
     header:
       1D: 9
       2D: 0
@@ -1119,13 +1119,13 @@ histos:
         Title: '"BremE/ ( BremE + P (track) )"'
         '#': '187525'
         Mean: '0.12085'
-        RMS: '0.14711'
-        Skewness: '1.99'
-        Kurtosis: '4.1118'
+        RMS: '0.14712'
+        Skewness: '1.9902'
+        Kurtosis: '4.1126'
       EoverP:
         ID: EoverP
         Title: '"E (Ecal) / P (track)"'
-        '#': '378271'
+        '#': '378268'
         Mean: '0.34705'
         RMS: '0.30048'
         Skewness: '1.3459'
@@ -1134,10 +1134,10 @@ histos:
         ID: EoverP_hasbrem
         Title: '"E (Ecal) / P (track) (with HasBrem)"'
         '#': '89844'
-        Mean: '0.40969'
-        RMS: '0.34332'
+        Mean: '0.4097'
+        RMS: '0.34333'
         Skewness: '1.1597'
-        Kurtosis: '1.3215'
+        Kurtosis: '1.3212'
     header:
       1D: 3
       2D: 0
@@ -1153,9 +1153,9 @@ histos:
         Title: '"n_pvs_event"'
         '#': '10000'
         Mean: '5.1728'
-        RMS: '2.1617'
-        Skewness: '0.35345'
-        Kurtosis: '0.10441'
+        RMS: '2.1616'
+        Skewness: '0.35389'
+        Kurtosis: '0.1102'
       n_smog2_PVs:
         ID: n_smog2_PVs
         Title: '"n_smog2_PVs"'
@@ -1168,42 +1168,42 @@ histos:
         ID: pv_x
         Title: '"pv_x"'
         '#': '51646'
-        Mean: '-0.00011982'
-        RMS: '0.030488'
-        Skewness: '-0.028993'
-        Kurtosis: '1.9904'
+        Mean: '-0.00011811'
+        RMS: '0.030515'
+        Skewness: '-0.035677'
+        Kurtosis: '2.1079'
       pv_y:
         ID: pv_y
         Title: '"pv_y"'
         '#': '51646'
-        Mean: '3.1058e-05'
+        Mean: '3.6169e-05'
         RMS: '0.030206'
-        Skewness: '-0.054324'
-        Kurtosis: '1.6699'
+        Skewness: '-0.06302'
+        Kurtosis: '1.7282'
       pv_z:
         ID: pv_z
         Title: '"pv_z"'
         '#': '51678'
-        Mean: '1.0058'
-        RMS: '63.432'
-        Skewness: '-0.036367'
-        Kurtosis: '-0.11778'
+        Mean: '1.0053'
+        RMS: '63.429'
+        Skewness: '-0.036318'
+        Kurtosis: '-0.11742'
       pv_z_only_pp:
         ID: pv_z_only_pp
         Title: '"pv_z_only_pp"'
         '#': '51646'
-        Mean: '1.1388'
-        RMS: '63.227'
-        Skewness: '-0.018796'
-        Kurtosis: '-0.16116'
+        Mean: '1.1383'
+        RMS: '63.224'
+        Skewness: '-0.018755'
+        Kurtosis: '-0.1608'
       pv_z_only_smog:
         ID: pv_z_only_smog
         Title: '"pv_z_only_smog"'
         '#': '32'
-        Mean: '-213.32'
-        RMS: '10.676'
-        Skewness: '-0.57156'
-        Kurtosis: '-0.99197'
+        Mean: '-213.31'
+        RMS: '10.675'
+        Skewness: '-0.57342'
+        Kurtosis: '-0.98998'
     header:
       1D: 7
       2D: 0
@@ -1221,11 +1221,11 @@ histos:
         Mean: '79.962'
         RMS: '51.756'
         Skewness: '1.5142'
-        Kurtosis: '4.3239'
+        Kurtosis: '4.3235'
       scifi_track_eta:
         ID: scifi_track_eta
         Title: '"#eta"'
-        '#': '799623'
+        '#': '799622'
         Mean: '2.6527'
         RMS: '0.73294'
         Skewness: '0.6465'
@@ -1233,26 +1233,26 @@ histos:
       scifi_track_nhits:
         ID: scifi_track_nhits
         Title: '"N. hits / track"'
-        '#': '799623'
+        '#': '799622'
         Mean: '11.441'
-        RMS: '0.73990'
+        RMS: '0.73991'
         Skewness: '-0.91089'
-        Kurtosis: '-0.61029'
+        Kurtosis: '-0.61031'
       scifi_track_phi:
         ID: scifi_track_phi
         Title: '"#phi"'
-        '#': '799623'
-        Mean: '-0.0064713'
+        '#': '799622'
+        Mean: '-0.0064496'
         RMS: '2.0443'
-        Skewness: '0.00432'
+        Skewness: '0.0043104'
         Kurtosis: '-1.0011'
       scifi_track_qop:
         ID: scifi_track_qop
         Title: '"q/p"'
-        '#': '799623'
-        Mean: '1.279e-06'
+        '#': '799622'
+        Mean: '1.2777e-06'
         RMS: '0.00016273'
-        Skewness: '-0.0053642'
+        Skewness: '-0.0053715'
         Kurtosis: '-0.86296'
     header:
       1D: 5
@@ -1270,8 +1270,8 @@ histos:
         '#': '9999'
         Mean: '250.12'
         RMS: '134.33'
-        Skewness: '0.77697'
-        Kurtosis: '0.89125'
+        Skewness: '0.77693'
+        Kurtosis: '0.89093'
     header:
       1D: 1
       2D: 0
@@ -1287,9 +1287,9 @@ histos:
         Title: '"#backward_eta"'
         '#': '935907'
         Mean: '-3.0143'
-        RMS: '0.80742'
-        Skewness: '0.011359'
-        Kurtosis: '-0.62884'
+        RMS: '0.80743'
+        Skewness: '0.011365'
+        Kurtosis: '-0.62887'
       velo_backward_track_nhits:
         ID: velo_backward_track_nhits
         Title: '"backward N. hits / track"'
@@ -1302,57 +1302,57 @@ histos:
         ID: velo_backward_track_phi
         Title: '"#backward_phi"'
         '#': '935908'
-        Mean: '-0.00020345'
+        Mean: '-0.00021729'
         RMS: '1.7949'
-        Skewness: '-0.01286'
+        Skewness: '-0.012852'
         Kurtosis: '-1.1698'
       velo_forward_track_eta:
         ID: velo_forward_track_eta
         Title: '"#forward_eta"'
-        '#': '1566014'
+        '#': '1566006'
         Mean: '3.2753'
         RMS: '1.0900'
-        Skewness: '0.11825'
-        Kurtosis: '-0.984'
+        Skewness: '0.11826'
+        Kurtosis: '-0.98396'
       velo_forward_track_nhits:
         ID: velo_forward_track_nhits
         Title: '"forward N. hits / track"'
-        '#': '1566014'
+        '#': '1566006'
         Mean: '7.3357'
         RMS: '3.4695'
-        Skewness: '0.58273'
-        Kurtosis: '-0.57484'
+        Skewness: '0.58274'
+        Kurtosis: '-0.57483'
       velo_forward_track_phi:
         ID: velo_forward_track_phi
         Title: '"#forward_phi"'
-        '#': '1566014'
-        Mean: '-0.003142'
+        '#': '1566006'
+        Mean: '-0.003104'
         RMS: '1.8200'
-        Skewness: '-0.0042865'
+        Skewness: '-0.004301'
         Kurtosis: '-1.2095'
       velo_total_track_eta:
         ID: velo_total_track_eta
         Title: '"#total_eta"'
-        '#': '2501921'
-        Mean: '0.92254'
+        '#': '2501913'
+        Mean: '0.92252'
         RMS: '3.2016'
         Skewness: '-0.37193'
         Kurtosis: '-1.4825'
       velo_total_track_nhits:
         ID: velo_total_track_nhits
         Title: '"total N. hits / track"'
-        '#': '2501922'
+        '#': '2501914'
         Mean: '6.3097'
         RMS: '3.1649'
         Skewness: '1.0962'
-        Kurtosis: '0.44518'
+        Kurtosis: '0.44521'
       velo_total_track_phi:
         ID: velo_total_track_phi
         Title: '"#total_phi"'
-        '#': '2501922'
-        Mean: '-0.0020428'
+        '#': '2501914'
+        Mean: '-0.0020242'
         RMS: '1.8107'
-        Skewness: '-0.0074425'
+        Skewness: '-0.0074483'
         Kurtosis: '-1.1949'
     header:
       1D: 9
@@ -1382,7 +1382,7 @@ counters:
       mean/eff^*: 49.474
   gather_selections:
     set: gather_selections
-    total_counters: 79
+    total_counters: 82
     Hlt1ConeJet100GeVPass:
       binomial: false
       name: Hlt1ConeJet100GeVPass
@@ -1418,11 +1418,11 @@ counters:
     Hlt1D2KshhPass:
       binomial: false
       name: Hlt1D2KshhPass
-      count: 9
+      count: 7
     Hlt1D2KshhRate:
       binomial: false
       name: Hlt1D2KshhRate
-      count: 9
+      count: 7
     Hlt1D2PiPiPass:
       binomial: false
       name: Hlt1D2PiPiPass
@@ -1442,35 +1442,39 @@ counters:
     Hlt1DiElectronDisplacedPass:
       binomial: false
       name: Hlt1DiElectronDisplacedPass
-      count: 25
+      count: 24
     Hlt1DiElectronDisplacedRate:
       binomial: false
       name: Hlt1DiElectronDisplacedRate
-      count: 25
+      count: 24
     Hlt1DiElectronLowMass_DisplacedPass:
       binomial: false
       name: Hlt1DiElectronLowMass_DisplacedPass
-      count: 7
+      count: 5
     Hlt1DiElectronLowMass_DisplacedRate:
       binomial: false
       name: Hlt1DiElectronLowMass_DisplacedRate
-      count: 7
+      count: 5
     Hlt1DiElectronLowMass_NoIPNormPass:
       binomial: false
       name: Hlt1DiElectronLowMass_NoIPNormPass
-      count: 49
+      count: 58
+    Hlt1DiElectronLowMass_NoIPNormRate:
+      binomial: false
+      name: Hlt1DiElectronLowMass_NoIPNormRate
+      count: 2
     Hlt1DiElectronLowMass_NoIPPass:
       binomial: false
       name: Hlt1DiElectronLowMass_NoIPPass
-      count: 16
+      count: 20
     Hlt1DiElectronLowMass_NoIPRate:
       binomial: false
       name: Hlt1DiElectronLowMass_NoIPRate
-      count: 16
+      count: 20
     Hlt1DiElectronLowMass_SS_DisplacedPass:
       binomial: false
       name: Hlt1DiElectronLowMass_SS_DisplacedPass
-      count: 19
+      count: 29
     Hlt1DiElectronLowMass_SS_DisplacedRate:
       binomial: false
       name: Hlt1DiElectronLowMass_SS_DisplacedRate
@@ -1478,19 +1482,19 @@ counters:
     Hlt1DiElectronLowMass_SS_NoIPNormPass:
       binomial: false
       name: Hlt1DiElectronLowMass_SS_NoIPNormPass
-      count: 135
+      count: 154
     Hlt1DiElectronLowMass_SS_NoIPNormRate:
       binomial: false
       name: Hlt1DiElectronLowMass_SS_NoIPNormRate
-      count: 4
+      count: 3
     Hlt1DiElectronLowMass_SS_NoIPPass:
       binomial: false
       name: Hlt1DiElectronLowMass_SS_NoIPPass
-      count: 69
+      count: 71
     Hlt1DiElectronLowMass_SS_NoIPRate:
       binomial: false
       name: Hlt1DiElectronLowMass_SS_NoIPRate
-      count: 2
+      count: 1
     Hlt1DiMuonDisplacedPass:
       binomial: false
       name: Hlt1DiMuonDisplacedPass
@@ -1546,19 +1550,19 @@ counters:
     Hlt1Dst2D0PiAlignmentPass:
       binomial: false
       name: Hlt1Dst2D0PiAlignmentPass
-      count: 3
+      count: 2
     Hlt1Dst2D0PiAlignmentRate:
       binomial: false
       name: Hlt1Dst2D0PiAlignmentRate
-      count: 3
+      count: 2
     Hlt1Dst2D0PiPass:
       binomial: false
       name: Hlt1Dst2D0PiPass
-      count: 3
+      count: 2
     Hlt1Dst2D0PiRate:
       binomial: false
       name: Hlt1Dst2D0PiRate
-      count: 3
+      count: 2
     Hlt1GECPassthroughPass:
       binomial: false
       name: Hlt1GECPassthroughPass
@@ -1599,10 +1603,18 @@ counters:
       binomial: false
       name: Hlt1LambdaLLDetachedTrackRate
       count: 1
+    Hlt1MaterialVertexSeeds_DWFSPass:
+      binomial: false
+      name: Hlt1MaterialVertexSeeds_DWFSPass
+      count: 1
+    Hlt1MaterialVertexSeeds_DWFSRate:
+      binomial: false
+      name: Hlt1MaterialVertexSeeds_DWFSRate
+      count: 1
     Hlt1OneMuonTrackLinePass:
       binomial: false
       name: Hlt1OneMuonTrackLinePass
-      count: 5724
+      count: 5726
     Hlt1RICH1AlignmentPass:
       binomial: false
       name: Hlt1RICH1AlignmentPass
@@ -1686,11 +1698,11 @@ counters:
     Hlt1TwoTrackMVAPass:
       binomial: false
       name: Hlt1TwoTrackMVAPass
-      count: 255
+      count: 257
     Hlt1TwoTrackMVARate:
       binomial: false
       name: Hlt1TwoTrackMVARate
-      count: 255
+      count: 257
     Hlt1VeloMicroBiasPass:
       binomial: false
       name: Hlt1VeloMicroBiasPass
@@ -1706,8 +1718,8 @@ counters:
       binomial: false
       name: n_long_tracks_matching
       count: 10000
-      sum: 461097.0
-      mean/eff^*: 46.11
+      sum: 461091.0
+      mean/eff^*: 46.109
   pv_beamline_cleanup:
     set: pv_beamline_cleanup
     total_counters: 1
@@ -1724,7 +1736,7 @@ counters:
       binomial: false
       name: n_seed_tracks
       count: 10000
-      sum: 799623.0
+      sum: 799622.0
       mean/eff^*: 79.962
   velo_consolidate_tracks:
     set: velo_consolidate_tracks
@@ -1733,6 +1745,6 @@ counters:
       binomial: false
       name: n_velo_tracks
       count: 10000
-      sum: 2501922.0
+      sum: 2501914.0
       mean/eff^*: 250.19
 stderr: ''
