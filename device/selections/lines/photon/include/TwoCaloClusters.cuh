@@ -82,10 +82,10 @@ namespace two_calo_clusters_line {
       DeviceProperties(const two_calo_clusters_line_t& algo, const Allen::Context& ctx) :
         minMass(algo.m_minMass), maxMass(algo.m_maxMass), minPt(algo.m_minPt), maxPt(algo.m_maxPt),
         minPtEta(algo.m_minPtEta), minEt_clusters(algo.m_minEt_clusters), minSumEt_clusters(algo.m_minSumEt_clusters),
-        minE19_clusters(algo.m_minE19_clusters), minAbsY_clusters(algo.m_minAbsY_clusters), eta_max(algo.m_eta_max),
-        max_velo_tracks(algo.m_max_velo_tracks), max_ecal_clusters(algo.m_max_ecal_clusters),
-        max_n_pvs(algo.m_max_n_pvs), veto_bm_clusters(algo.m_veto_bm_clusters),
-        histogram_diphoton_mass(algo.m_histogram_diphoton_mass.data(ctx)),
+        minE19_clusters(algo.m_minE19_clusters), maxE19_clusters(algo.m_maxE19_clusters),
+        minAbsY_clusters(algo.m_minAbsY_clusters), eta_max(algo.m_eta_max), max_velo_tracks(algo.m_max_velo_tracks),
+        max_ecal_clusters(algo.m_max_ecal_clusters), max_n_pvs(algo.m_max_n_pvs),
+        veto_bm_clusters(algo.m_veto_bm_clusters), histogram_diphoton_mass(algo.m_histogram_diphoton_mass.data(ctx)),
         histogram_diphoton_pt(algo.m_histogram_diphoton_pt.data(ctx))
       {}
     };
