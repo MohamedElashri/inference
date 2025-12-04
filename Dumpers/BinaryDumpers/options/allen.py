@@ -33,7 +33,7 @@ from DDDB.CheckDD4Hep import UseDD4Hep
 from threading import Thread
 from time import sleep
 import ctypes
-import argparse
+import argparse, textwrap
 from GaudiPython.Bindings import AppMgr, gbl
 
 # Load Allen entry point and helpers
@@ -68,7 +68,8 @@ def cast_service(return_type, svc):
 
 
 # Handle commandline arguments
-parser = argparse.ArgumentParser()
+# argparse.RawTextHelpFormatter lets us do the newlines ourselves
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument(
     "-g",
     dest="det_folder",
@@ -138,7 +139,17 @@ parser.add_argument(
     default=300,
     help="How long to run when reusing MEPs [s]",
 )
-parser.add_argument("--tags")
+parser.add_argument(
+    "--tags",
+    dest="tags",
+    type=str,
+    default="dddb-20171122,sim-20180530-vc-md100",
+    help=textwrap.dedent("""\
+    geometry and conditions tags to use
+    format for detdesc - [detdesc:]dddb-tag,sim-tag
+    format for dd4hep  - [dd4hep:]geom-tag,cond-tag
+    format for both    - detdesc:dddb-tag,sim-tag|dd4hep:geom-tag,cond-tag
+    """))
 parser.add_argument(
     "--real-data", dest="simulation", action="store_false", default=True)
 parser.add_argument(
@@ -213,20 +224,45 @@ else:
 
     if args.tags.find('|') != -1:
         # special case that allows giving tags for both DetDesc and DD4hep
+        valid_patterns = [
+            re.compile(
+                "^detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)\|dd4hep:.+,.+"
+            ),  #detdesc pattern first
+            re.compile(
+                "^dd4hep:.+,.+\|detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)"
+            )  #dd4hep pattern first
+        ]
+        if not any([pattern.match(args.tags) for pattern in valid_patterns]):
+            raise argparse.ArgumentTypeError("Bad tags given!")
         tags = {}
         for entry in args.tags.split('|'):
             build, t = entry.split(':')
             tags[build] = t.split(',')
-        dddb_tag, conddb_tag = tags['dd4hep' if UseDD4Hep else 'detdesc']
+        options.dddb_tag, options.conddb_tag = tags[
+            'dd4hep' if UseDD4Hep else 'detdesc']
+    elif args.tags.find(":") != -1:
+        # special case, the tags have been defined only for a certain build
+        #  - check that build matches what we're using and propagate accordingly
+        valid_patterns = [
+            re.compile(
+                "^detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)"
+            ),  #detdesc pattern
+            re.compile("^dd4hep:.+,.+")  #dd4hep pattern
+        ]
+        if not any([pattern.match(args.tags) for pattern in valid_patterns]):
+            raise argparse.ArgumentTypeError("Bad tags given!")
+        split_tag = args.tags.split(":")
+        if split_tag[0] == "detdesc":
+            if UseDD4Hep:
+                raise argparse.ArgumentTypeError(
+                    "Tried to give detdesc tags for a dd4hep build")
+        elif split_tag[0] == "dd4hep":
+            if not UseDD4Hep:
+                raise argparse.ArgumentTypeError(
+                    "Tried to give dd4hep tags for a detdesc build")
+        options.dddb_tag, options.conddb_tag = split_tag[1].split(',')
     else:
-        dddb_tag, conddb_tag = args.tags.split(',')
-
-    if UseDD4Hep:
-        options.geometry_version = dddb_tag
-        options.conditions_version = conddb_tag
-    else:
-        options.dddb_tag = dddb_tag
-        options.conddb_tag = conddb_tag
+        options.dddb_tag, options.conddb_tag = args.tags.split(',')
 
 if args.register_monitoring_counters and args.mon_filename:
     fn, ext = os.path.splitext(args.mon_filename)
