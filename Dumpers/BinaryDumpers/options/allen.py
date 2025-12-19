@@ -226,10 +226,10 @@ else:
         # special case that allows giving tags for both DetDesc and DD4hep
         valid_patterns = [
             re.compile(
-                "^detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)\|dd4hep:.+,.+"
+                "^detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)|dd4hep:.+,.+"
             ),  #detdesc pattern first
             re.compile(
-                "^dd4hep:.+,.+\|detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)"
+                "^dd4hep:.+,.+|detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)"
             )  #dd4hep pattern first
         ]
         if not any([pattern.match(args.tags) for pattern in valid_patterns]):
