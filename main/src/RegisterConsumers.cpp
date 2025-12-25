@@ -77,36 +77,42 @@ void register_consumers(
       BankTypes::MUON),
     std::make_tuple(
       Allen::NonEventData::RichPDMDBMapping {},
-      [&constants]() {
-        return std::make_unique<Consumers::HostDeviceGeometry>(
-          constants.host_rich_pdmdb_mapping, constants.dev_rich_pdmdb_mapping);
-      },
+      [&constants]() { return std::make_unique<Consumers::RichPDMDBDecodeMapping>(constants); },
       BankTypes::Rich1),
     std::make_tuple(
       Allen::NonEventData::RichCableMapping {},
-      [&constants]() {
-        return std::make_unique<Consumers::HostDeviceGeometry>(
-          constants.host_rich_cable_mapping, constants.dev_rich_cable_mapping);
-      },
+      [&constants]() { return std::make_unique<Consumers::RichTel40CableMapping>(constants); },
       BankTypes::Rich1),
     std::make_tuple(
       Allen::NonEventData::RichPDMDBMapping {},
-      [&constants]() {
-        return std::make_unique<Consumers::HostDeviceGeometry>(
-          constants.host_rich_pdmdb_mapping, constants.dev_rich_pdmdb_mapping);
-      },
+      [&constants]() { return std::make_unique<Consumers::RichPDMDBDecodeMapping>(constants); },
+      BankTypes::Rich1),
+    std::make_tuple(
+      Allen::NonEventData::Rich1Geometry {},
+      [&constants]() { return std::make_unique<Consumers::Rich1Geometry>(constants); },
+      BankTypes::Rich1),
+    std::make_tuple(
+      Allen::NonEventData::RichPDMDBMapping {},
+      [&constants]() { return std::make_unique<Consumers::RichPDMDBDecodeMapping>(constants); },
       BankTypes::Rich2),
     std::make_tuple(
       Allen::NonEventData::RichCableMapping {},
-      [&constants]() {
-        return std::make_unique<Consumers::HostDeviceGeometry>(
-          constants.host_rich_cable_mapping, constants.dev_rich_cable_mapping);
-      },
+      [&constants]() { return std::make_unique<Consumers::RichTel40CableMapping>(constants); },
+      BankTypes::Rich2),
+    std::make_tuple(
+      Allen::NonEventData::Rich2Geometry {},
+      [&constants]() { return std::make_unique<Consumers::Rich2Geometry>(constants); },
       BankTypes::Rich2));
 
-  const auto unconditional_consumers =
-    std::make_tuple(std::make_tuple(Allen::NonEventData::MagneticField {}, [&constants]() {
-      return std::make_unique<Consumers::MagneticField>(constants.dev_magnet_polarity, constants.host_magnet_polarity);
+  const auto unconditional_consumers = std::make_tuple(
+    std::make_tuple(
+      Allen::NonEventData::MagneticFieldPolarity {},
+      [&constants]() {
+        return std::make_unique<Consumers::MagneticFieldPolarity>(
+          constants.dev_magnet_polarity, constants.host_magnet_polarity);
+      }),
+    std::make_tuple(Allen::NonEventData::MagneticField {}, [&constants]() {
+      return std::make_unique<Consumers::MagneticField>(constants);
     }));
 
   for_each(consumers, [updater, requested_banks](const auto& c) {

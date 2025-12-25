@@ -24,7 +24,7 @@
 #ifdef __CUDACC__
 #pragma pop
 #endif
-#include <Event/RawBank.h>
+#include <Event/RawBankType.h>
 
 #include "Common.h"
 #include "BackendCommon.h"
@@ -70,7 +70,7 @@ namespace Allen {
     return reinterpret_cast<unsigned const*>(event_data)[0];
   }
 
-  static constexpr uint8_t LastBankType = static_cast<uint8_t>(to_integral(LHCb::RawBank::LastType));
+  static constexpr uint8_t LastBankType = static_cast<uint8_t>(LHCb::Event::Enum::RawBank::BankType::LastType);
 } // namespace Allen
 
 namespace MEP {

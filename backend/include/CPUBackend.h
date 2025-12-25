@@ -37,7 +37,7 @@ using std::signbit;
 #define __constant__
 #define __syncthreads()
 #define __threadfence()
-#define __syncwarp()
+#define __syncwarp(...)
 #define __launch_bounds__(_i)
 #define __popc __builtin_popcount
 #define __popcll __builtin_popcountll
@@ -65,6 +65,37 @@ inline uint32_t __brev(uint32_t x)
   return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
 }
 
+// Find the position of the n-th set to 1 bit in a 32-bit integer
+inline unsigned __fns(unsigned mask, unsigned base, int offset)
+{
+  // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#integer-arithmetic-instructions-fns
+  unsigned d = 0xffffffff;
+  if (offset == 0) {
+    if (mask & (1 << base)) {
+      d = base;
+    }
+  }
+  else {
+    int pos = base;
+    int count = std::abs(offset) - 1;
+    int inc = (offset > 0) ? 1 : -1;
+
+    while ((pos >= 0) && (pos < 32)) {
+      if (mask & (1 << pos)) {
+        if (count == 0) {
+          d = pos;
+          break;
+        }
+        else {
+          count--;
+        }
+      }
+      pos += inc;
+    }
+  }
+  return d;
+}
+
 unsigned inline __ballot_sync(unsigned mask, int predicate) { return predicate & mask; }
 
 // Support for dynamic shared memory buffers
@@ -72,86 +103,27 @@ unsigned inline __ballot_sync(unsigned mask, int predicate) { return predicate &
   auto _dynamic_shared_memory_buffer = std::vector<_type>(_config.dynamic_shared_memory_size() / sizeof(_type)); \
   auto _instance = _dynamic_shared_memory_buffer.data();
 
-struct alignas(unsigned long long int) uint2 {
-  unsigned int x;
-  unsigned int y;
-};
+#define struct1(type)                                   \
+  struct alignas(1 * sizeof(type)) type##1 { type x; }; \
+  inline type##1 make_##type##1(type x) { return {x}; }
+#define struct2(type)                                      \
+  struct alignas(2 * sizeof(type)) type##2 { type x, y; }; \
+  inline type##2 make_##type##2(type x, type y) { return {x, y}; }
+#define struct3(type)                                         \
+  struct alignas(1 * sizeof(type)) type##3 { type x, y, z; }; \
+  inline type##3 make_##type##3(type x, type y, type z) { return {x, y, z}; }
+#define struct4(type)                                            \
+  struct alignas(4 * sizeof(type)) type##4 { type x, y, z, w; }; \
+  inline type##4 make_##type##4(type x, type y, type z, type w) { return {x, y, z, w}; }
+#define vectype(type) struct1(type) struct2(type) struct3(type) struct4(type)
 
-inline uint2 make_uint2(unsigned int x, unsigned int y)
-{
-  uint2 out;
-  out.x = x;
-  out.y = y;
-  return out;
-}
+vectype(char) using uchar = unsigned char;
+vectype(uchar) vectype(short) vectype(ushort) vectype(int) vectype(uint) vectype(long) using ulong = unsigned long;
+vectype(ulong) using longlong = long long;
+vectype(longlong) using ulonglong = unsigned long long;
+vectype(ulonglong) vectype(float) vectype(double)
 
-struct int2 {
-  int x;
-  int y;
-};
-
-struct char2 {
-  char x;
-  char y;
-};
-
-struct uint4 {
-  unsigned int x;
-  unsigned int y;
-  unsigned int z;
-  unsigned int w;
-};
-
-struct alignas(unsigned int) ushort2 {
-  unsigned short x;
-  unsigned short y;
-};
-
-inline ushort2 make_ushort2(ushort x, ushort y)
-{
-  ushort2 out;
-  out.x = x;
-  out.y = y;
-  return out;
-}
-
-struct ushort4 {
-  unsigned short x;
-  unsigned short y;
-  unsigned short z;
-  unsigned short w;
-};
-
-struct short2 {
-  short x;
-  short y;
-};
-
-inline short2 make_short2(short x, short y)
-{
-  short2 out;
-  out.x = x;
-  out.y = y;
-  return out;
-}
-struct float3 {
-  float x;
-  float y;
-  float z;
-};
-
-struct float2 {
-  float x;
-  float y;
-};
-struct float4 {
-  float x;
-  float y;
-  float z;
-  float w;
-};
-
-struct dim3 {
+  struct dim3 {
   unsigned int x = 1;
   unsigned int y = 1;
   unsigned int z = 1;

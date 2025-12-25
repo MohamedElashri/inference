@@ -9,6 +9,7 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #pragma once
+#include <cstdint>
 
 #if defined(TARGET_DEVICE_CUDA)
 

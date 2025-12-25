@@ -66,7 +66,14 @@ namespace Allen {
       inline static std::string const id = "CrossingAngles";
     };
 
-    /** @class UTLookupTables
+    /** @class MagneticFieldPolarity
+     *  Identifier for the magnetic field non-event data for Allen
+     */
+    struct MagneticFieldPolarity : Identifier {
+      inline static std::string const id = "MagneticFieldPolarity";
+    };
+
+    /** @class MagneticField
      *  Identifier for the magnetic field non-event data for Allen
      */
     struct MagneticField : Identifier {
@@ -113,6 +120,20 @@ namespace Allen {
      */
     struct RichCableMapping : Identifier {
       inline static std::string const id = "RichCableMapping";
+    };
+
+    /** @class Rich1
+     *  Identifier for the RICH 1 objects for Allen
+     */
+    struct Rich1Geometry : Identifier {
+      inline static std::string const id = "Rich1Geometry";
+    };
+
+    /** @class Rich2
+     *  Identifier for the RICH 2 objects for Allen
+     */
+    struct Rich2Geometry : Identifier {
+      inline static std::string const id = "Rich2Geometry";
     };
 
   } // namespace NonEventData

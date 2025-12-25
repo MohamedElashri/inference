@@ -123,10 +123,10 @@ int main(int argc, char* argv[])
   std::array<unsigned int, NBankTypes> banks_count {};
 
   auto sd_from_bank_type = [bank_ids](LHCb::RawBank const* raw_bank) {
-    return static_cast<BankTypes>(bank_ids[raw_bank->type()]);
+    return static_cast<BankTypes>(bank_ids[(uint8_t) raw_bank->type()]);
   };
 
-  gsl::span<char const> bank_data {read_buffer.data(), event_offsets[1]};
+  std::span<char const> bank_data {read_buffer.data(), event_offsets[1]};
   auto is_mc = check_sourceIDs(bank_data);
   Allen::sd_from_raw_bank sd_from_raw;
   Allen::bank_sorter bank_sorter;

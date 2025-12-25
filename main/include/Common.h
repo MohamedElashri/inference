@@ -16,7 +16,8 @@
 #include <iostream>
 #include <utility>
 #include <functional>
-#include <gsl/gsl>
+#include <span>
+#include <memory>
 #include <cxxabi.h>
 #include "SystemOfUnits.h"
 
@@ -113,21 +114,11 @@ constexpr auto to_integral(ENUM e) -> typename std::underlying_type<ENUM>::type
   return static_cast<typename std::underlying_type<ENUM>::type>(e);
 }
 
-using events_span = gsl::span<char>;
-using offsets_span = gsl::span<unsigned int>;
-
-// Wrapper around span size to deal with changes between MS GSL 2.5 and 2.6
-template<typename T>
-struct span_size {
-#if defined(gsl_lite_VERSION) || (GSL_MAJOR_VERSION == 2 && GSL_MINON_VERSION < 6)
-  using type = typename gsl::span<T>::index_type;
-#else
-  using type = typename gsl::span<T>::size_type;
-#endif
-};
+using events_span = std::span<char>;
+using offsets_span = std::span<unsigned int>;
 
 template<typename T>
-using span_size_t = typename span_size<T>::type;
+using span_size_t = typename std::span<T>::size_type;
 
 using events_size = span_size_t<char>;
 using offsets_size = span_size_t<unsigned int>;

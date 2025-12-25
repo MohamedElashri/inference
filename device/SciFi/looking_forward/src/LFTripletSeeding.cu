@@ -8,6 +8,7 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+#include "BackendCommon.h"
 #include "LFTripletSeeding.cuh"
 #include "LookingForwardTools.cuh"
 #include "BinarySearch.cuh"
@@ -65,11 +66,7 @@ __device__ unsigned int binary_search_leftmost_unrolled(const T* array, const un
   unsigned int size = array_size;
 
   // Unroll 9 time to cover arrays of size max 512
-#if defined(__clang__) or defined(__NVCC__)
-#pragma unroll
-#elif defined(__GNUC__)
-#pragma GCC unroll 9
-#endif
+  UNROLL(9)
   for (unsigned int step = 0; step < 9; step++) {
     unsigned int half = size / 2;
     low += (array[low + half] < needle) * (size - half);

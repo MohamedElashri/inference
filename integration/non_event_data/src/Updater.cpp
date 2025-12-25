@@ -56,7 +56,8 @@ namespace Allen {
       tuple producers {tuple {NonEventData::VeloGeometry {}, std::string("velo_geometry.bin")},
                        tuple {NonEventData::UTBoards {}, std::string("ut_boards.bin")},
                        tuple {NonEventData::Beamline {}, std::string("beamline.bin")},
-                       tuple {NonEventData::MagneticField {}, std::string("polarity.bin")},
+                       tuple {NonEventData::MagneticFieldPolarity {}, std::string("polarity.bin")},
+                       tuple {NonEventData::MagneticField {}, std::string("magfield.bin")},
                        tuple {NonEventData::UTGeometry {}, std::string("ut_geometry.bin")},
                        tuple {NonEventData::UTLookupTables {}, std::string("ut_tables.bin")},
                        tuple {NonEventData::SciFiGeometry {}, std::string("scifi_geometry.bin")},
@@ -64,7 +65,9 @@ namespace Allen {
                        tuple {NonEventData::MuonGeometry {}, std::string("muon_geometry.bin")},
                        tuple {NonEventData::MuonLookupTables {}, std::string("muon_tables.bin")},
                        tuple {NonEventData::RichPDMDBMapping {}, std::string("rich_pdmdbmaps.bin")},
-                       tuple {NonEventData::RichCableMapping {}, std::string("rich_tel40maps.bin")}};
+                       tuple {NonEventData::RichCableMapping {}, std::string("rich_tel40maps.bin")},
+                       tuple {NonEventData::Rich1Geometry {}, std::string("rich_1_geometry.bin")},
+                       tuple {NonEventData::Rich2Geometry {}, std::string("rich_2_geometry.bin")}};
 
       for_each(producers, [this, &geometry_producer](const auto& p) {
         using id_t = typename std::remove_reference_t<decltype(std::get<0>(p))>;
@@ -101,7 +104,7 @@ namespace Allen {
       }
     }
 
-    void Updater::update(gsl::span<unsigned const>)
+    void Updater::update(std::span<unsigned const>)
     {
       for (auto const& entry : m_pairs) {
         auto const& name = std::get<0>(entry);

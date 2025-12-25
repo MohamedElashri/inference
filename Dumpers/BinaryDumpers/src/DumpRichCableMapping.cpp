@@ -33,13 +33,61 @@
 // Dumper
 #include "Dumper.h"
 #include <Dumpers/Utils.h>
+#include "RichTel40CableMapping.cuh"
 
 namespace {
   struct RichCableMapping {
     RichCableMapping() = default;
     RichCableMapping(std::vector<char>& data, const Rich::Future::DAQ::Tel40CableMapping& tel40Maps)
     {
-      Rich::Future::DAQ::Allen::Tel40CableMapping allenTel40Maps {tel40Maps};
+      Allen::Rich::Decoding::Tel40CableMapping allenTel40Maps;
+
+      allenTel40Maps.m_isInitialised = tel40Maps.isInitialised();
+      allenTel40Maps.m_mappingVer = tel40Maps.version();
+
+      if (tel40Maps.isInitialised()) {
+        for (unsigned int i = 0; i < tel40Maps.tel40ModuleData().size(); ++i) {
+          for (unsigned int j = 0; j < tel40Maps.tel40ModuleData()[i].size(); ++j) {
+            for (unsigned int k = 0; k < tel40Maps.tel40ModuleData()[i][j].size(); ++k) {
+              auto& allenData = allenTel40Maps.m_tel40ModuleData[i][j][k];
+              const auto& data = tel40Maps.tel40ModuleData()[i][j][k];
+
+              allenData.smartID = LHCb::RichSmartID::KeyType {data.smartID};
+              allenData.moduleNum = data.moduleNum.data();
+              allenData.sourceID = data.sourceID.data();
+              allenData.connector = data.connector.data();
+              allenData.pdmdbNum = data.pdmdbNum.data();
+              allenData.linkNum = data.linkNum.data();
+              allenData.isHType = data.isHType;
+              allenData.isActive = data.isActive;
+            }
+          }
+        }
+
+        for (unsigned int i = 0; i < tel40Maps.tel40ConnData().size(); ++i) {
+          for (unsigned int j = 0; j < tel40Maps.tel40ConnData()[i].size(); ++j) {
+            for (unsigned int k = 0; k < tel40Maps.tel40ConnData()[i][j].size(); ++k) {
+              const auto& link_data = tel40Maps.tel40ConnData()[i][j][k];
+              allenTel40Maps.m_tel40ConnMeta[i][j][k] = Allen::Rich::Decoding::Tel40CableMapping::Tel40MetaData {
+                static_cast<uint32_t>(link_data.nActiveLinks), link_data.hasInactiveLinks};
+              for (unsigned int l = 0; l < link_data.size(); ++l) {
+                auto& allenData = allenTel40Maps.m_tel40ConnData[i][j][k][l];
+                const auto& data = link_data[l];
+
+                allenData.smartID = LHCb::RichSmartID::KeyType {data.smartID};
+                allenData.moduleNum = data.moduleNum.data();
+                allenData.sourceID = data.sourceID.data();
+                allenData.connector = data.connector.data();
+                allenData.pdmdbNum = data.pdmdbNum.data();
+                allenData.linkNum = data.linkNum.data();
+                allenData.isHType = data.isHType;
+                allenData.isActive = data.isActive;
+              }
+            }
+          }
+        }
+      }
+
       DumpUtils::Writer output {};
       output.write(allenTel40Maps);
       data = output.buffer();

@@ -11,29 +11,29 @@
 #pragma once
 
 #include <unordered_map>
-#include <Event/RawBank.h>
+#include <Event/RawBankType.h>
 
 #include "sourceid.h"
 #include "BankTypes.h"
 
 namespace Allen {
-  const std::unordered_map<LHCb::RawBank::BankType, std::unordered_set<BankTypes>> bank_mapping = {
-    {LHCb::RawBank::VP, {BankTypes::VP}},
-    {LHCb::RawBank::VPRetinaCluster, {BankTypes::VP}},
-    {LHCb::RawBank::UT, {BankTypes::UT}},
-    {LHCb::RawBank::UTError, {BankTypes::UT}},
-    {LHCb::RawBank::FTCluster, {BankTypes::FT}},
-    {LHCb::RawBank::Muon, {BankTypes::MUON}},
-    {LHCb::RawBank::MuonError, {BankTypes::MUON}},
-    {LHCb::RawBank::ODIN, {BankTypes::ODIN}},
-    {LHCb::RawBank::HcalPacked, {BankTypes::HCal}},
-    {LHCb::RawBank::EcalPacked, {BankTypes::ECal}},
-    {LHCb::RawBank::Calo, {BankTypes::ECal, BankTypes::HCal}},
-    {LHCb::RawBank::Rich, {BankTypes::Rich1, BankTypes::Rich2}},
-    {LHCb::RawBank::OTError, {BankTypes::MCVertices}}, // used for PV MC info
-    {LHCb::RawBank::OTRaw, {BankTypes::MCTracks}},
-    {LHCb::RawBank::OTError, {BankTypes::Gen}},  // used for beam crossing angles Gen info
-    {LHCb::RawBank::Plume, {BankTypes::Plume}}}; // used for track MC info
+  const std::unordered_map<LHCb::Event::Enum::RawBank::BankType, std::unordered_set<BankTypes>> bank_mapping = {
+    {LHCb::Event::Enum::RawBank::BankType::VP, {BankTypes::VP}},
+    {LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster, {BankTypes::VP}},
+    {LHCb::Event::Enum::RawBank::BankType::UT, {BankTypes::UT}},
+    {LHCb::Event::Enum::RawBank::BankType::UTError, {BankTypes::UT}},
+    {LHCb::Event::Enum::RawBank::BankType::FTCluster, {BankTypes::FT}},
+    {LHCb::Event::Enum::RawBank::BankType::Muon, {BankTypes::MUON}},
+    {LHCb::Event::Enum::RawBank::BankType::MuonError, {BankTypes::MUON}},
+    {LHCb::Event::Enum::RawBank::BankType::ODIN, {BankTypes::ODIN}},
+    {LHCb::Event::Enum::RawBank::BankType::HcalPacked, {BankTypes::HCal}},
+    {LHCb::Event::Enum::RawBank::BankType::EcalPacked, {BankTypes::ECal}},
+    {LHCb::Event::Enum::RawBank::BankType::Calo, {BankTypes::ECal, BankTypes::HCal}},
+    {LHCb::Event::Enum::RawBank::BankType::Rich, {BankTypes::Rich1, BankTypes::Rich2}},
+    {LHCb::Event::Enum::RawBank::BankType::OTError, {BankTypes::MCVertices}}, // used for PV MC info
+    {LHCb::Event::Enum::RawBank::BankType::OTRaw, {BankTypes::MCTracks}},
+    {LHCb::Event::Enum::RawBank::BankType::OTError, {BankTypes::Gen}},  // used for beam crossing angles Gen info
+    {LHCb::Event::Enum::RawBank::BankType::Plume, {BankTypes::Plume}}}; // used for track MC info
 
   const std::unordered_map<SourceIdSys, BankTypes> subdetectors = {{SourceIdSys::SourceIdSys_ODIN, BankTypes::ODIN},
                                                                    {SourceIdSys::SourceIdSys_VELO_A, BankTypes::VP},

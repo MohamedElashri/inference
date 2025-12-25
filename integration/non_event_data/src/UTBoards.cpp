@@ -67,7 +67,7 @@ void Consumers::UTBoards::initialize(std::vector<char> const& data)
     using span_type = typename std::remove_reference_t<decltype(device_data)>::value_type;
     value_type* p = nullptr;
     Allen::malloc((void**) &p, host_data.size() * sizeof(value_type));
-    device_data = gsl::span {p, static_cast<span_size_t<span_type>>(host_data.size())};
+    device_data = std::span {p, static_cast<span_size_t<span_type>>(host_data.size())};
     Allen::memcpy(
       device_data.data(), host_data.data(), host_data.size() * sizeof(value_type), Allen::memcpyHostToDevice);
   };

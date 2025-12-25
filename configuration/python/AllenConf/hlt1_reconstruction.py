@@ -19,7 +19,7 @@ from AllenConf.primary_vertex_reconstruction import make_pvs
 from AllenConf.secondary_vertex_reconstruction import (
     make_kalman_velo_only, make_basic_particles, fit_secondary_vertices,
     make_sv_track_pairs, make_sv_pairs, make_generic_sv_pairs,
-    make_three_body_svs, make_kalman_long)
+    make_three_body_svs, make_kalman_long, make_extrapolated_states)
 from AllenConf.jet_reconstruction import make_cone_jets
 from AllenConf.validators import (
     velo_validation, veloUT_validation, seeding_validation,
@@ -32,6 +32,8 @@ from AllenConf.persistency import make_gather_selections, make_sel_report_writer
 from AllenConf.filters import make_gec
 from AllenConf.best_track_creator import best_track_creator
 from AllenConf.enum_types import TrackingType
+from AllenConf.secondary_vertex_reconstruction import make_kalman_long
+from AllenConf.rich_reconstruction import make_pixels
 
 
 def hlt1_reconstruction(algorithm_name='',
@@ -159,6 +161,14 @@ def hlt1_reconstruction(algorithm_name='',
         kalman_long_tracks = make_kalman_long(long_tracks, pvs, muonID)
         KF_long_track = kalman_long_tracks
         output.update({"kalman_long_track": kalman_long_tracks})
+
+        # Added for testing magfield extrapolation:
+        output.update({
+            "extrapolated_states":
+            make_extrapolated_states(
+                KF_long_track["dev_kalman_states_view"],
+                long_tracks["host_number_of_reconstructed_scifi_tracks"])
+        })
     else:
         kalman_velo_only = make_kalman_velo_only(long_tracks, pvs, muonID)
         output.update({"kalman_velo_only": kalman_velo_only})
@@ -489,8 +499,13 @@ def hlt1_reconstruction(algorithm_name='',
         })
 
     if with_rich:
-        from AllenConf.rich_reconstruction import decode_rich
-        output.update({"decoded_rich": decode_rich()})
+        rich1_pixels = make_pixels(rich=1)
+        rich2_pixels = make_pixels(rich=2)
+
+        output.update({
+            "rich1_pixels": rich1_pixels,
+            "rich2_pixels": rich2_pixels
+        })
 
     if with_AC_split:
         velo_tracks_A_side, velo_tracks_C_side = make_velo_tracks_ACsplit(

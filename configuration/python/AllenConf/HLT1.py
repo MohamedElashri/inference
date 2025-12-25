@@ -1569,15 +1569,26 @@ def setup_hlt1_node(enablePhysics=True,
             "AllenWithLumi", [hlt1_node, lumi_with_prefilter],
             NodeLogic.NONLAZY_AND,
             force_order=False)
+    """
+    if with_fullKF:
+        # Added for testing magnetic field
+        hlt1_node = CompositeNode(
+            "AllenExtrapolatedStates",
+            [hlt1_node, reconstructed_objects["extrapolated_states"]],
+            NodeLogic.NONLAZY_AND,
+            force_order=True)
+    """
 
     if with_rich:
         hlt1_node = CompositeNode(
             "AllenWithRich", [
-                hlt1_node,
-                reconstructed_objects["decoded_rich"]["dev_smart_ids"].producer
+                hlt1_node, reconstructed_objects["rich1_pixels"]
+                ["dev_rich_pixels"].producer,
+                reconstructed_objects["rich2_pixels"]["dev_rich_pixels"].
+                producer
             ],
             NodeLogic.NONLAZY_AND,
-            force_order=True)
+            force_order=False)
 
     if enableRateValidator:
         hlt1_node = CompositeNode(

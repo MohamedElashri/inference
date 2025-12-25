@@ -310,7 +310,7 @@ __global__ void make_selected_object_lists::calc_rb_sizes(
 {
   const auto event_number = blockIdx.x;
 
-  const HltDecReports dec_reports {parameters.dev_dec_reports, event_number};
+  const HltDecReports dec_reports {parameters.dev_dec_reports.get(), event_number};
 
   const unsigned* line_selected_object_offsets =
     parameters.dev_max_objects_offsets + dec_reports.number_of_lines() * event_number;

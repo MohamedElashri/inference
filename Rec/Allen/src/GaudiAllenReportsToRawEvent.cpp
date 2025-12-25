@@ -23,8 +23,7 @@ class GaudiAllenReportsToRawEvent
         const std::vector<unsigned>&,
         const std::vector<unsigned>&,
         const std::vector<unsigned>&,
-        const std::vector<unsigned>&),
-      LHCb::Algorithm::Traits::writeOnly<LHCb::RawEvent>> {
+        const std::vector<unsigned>&)> {
 public:
   // Standard constructor
   GaudiAllenReportsToRawEvent(const std::string& name, ISvcLocator* pSvcLocator) :
@@ -55,19 +54,21 @@ public:
     auto routing_bits = LHCb::span {allen_routing_bits}.first(RoutingBitsDefinition::n_words);
     raw_event.addBank(
       Hlt1::Constants::sourceID_sel_reports,
-      LHCb::RawBank::HltSelReports,
+      LHCb::RawBank::BankType::HltSelReports,
       Hlt1::Constants::version_sel_reports,
       sel_reports);
     raw_event.addBank(
-      Hlt1::Constants::sourceID, LHCb::RawBank::HltDecReports, dec_reports.version(), dec_reports.bank_data());
-    raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::HltRoutingBits, 0u, routing_bits);
+      Hlt1::Constants::sourceID,
+      LHCb::RawBank::BankType::HltDecReports,
+      dec_reports.version(),
+      dec_reports.bank_data());
+    raw_event.addBank(Hlt1::Constants::sourceID, LHCb::RawBank::BankType::HltRoutingBits, 0u, routing_bits);
 
-    auto dec_view = raw_event.banks(LHCb::RawBank::HltDecReports);
-    auto sel_view = raw_event.banks(LHCb::RawBank::HltSelReports);
-    auto rb_view = raw_event.banks(LHCb::RawBank::HltRoutingBits);
-    // without std::move here the RawEvent gets copied which would invalidate the view
-    // View creation must be after RawEvent is made
-    return {std::move(raw_event), std::move(dec_view), std::move(sel_view), std::move(rb_view)};
+    return viewsFromRawEvent(
+      std::move(raw_event),
+      std::array {LHCb::RawBank::BankType::HltDecReports,
+                  LHCb::RawBank::BankType::HltSelReports,
+                  LHCb::RawBank::BankType::HltRoutingBits});
   }
 };
 

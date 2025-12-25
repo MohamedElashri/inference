@@ -10,7 +10,7 @@
 \*****************************************************************************/
 #pragma once
 
-#include <gsl/gsl>
+#include <span>
 
 #include "Common.h"
 #include "AlgorithmTypes.cuh"

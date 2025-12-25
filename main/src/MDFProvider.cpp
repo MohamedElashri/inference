@@ -72,7 +72,7 @@ MDFProvider::MDFProvider(
       // Offsets are to the start of the event, which includes the header
       auto i_read = m_prefetched.front();
       auto& [n_filled, event_offsets, buffer, transpose_start] = m_buffers[i_read];
-      gsl::span<char> const event_span = {buffer.data(), event_offsets[1]};
+      std::span<char> const event_span = {buffer.data(), event_offsets[1]};
 
       // Check what type of file we have: old MC or (new MC or data)
       m_is_mc = check_sourceIDs(event_span);
@@ -194,10 +194,10 @@ BanksAndOffsets MDFProvider::banks(BankTypes bank_type, size_t slice_index) cons
     return bno;
   }
   else {
-    gsl::span<char const> b {banks[0].data(), offsets[offsets_size - 1]};
-    gsl::span<unsigned int const> s {slice.sizes.data(), slice.sizes.size()};
-    gsl::span<unsigned int const> o {offsets.data(), static_cast<::offsets_size>(offsets_size)};
-    gsl::span<unsigned int const> t {slice.types.data(), slice.types.size()};
+    std::span<char const> b {banks[0].data(), offsets[offsets_size - 1]};
+    std::span<unsigned int const> s {slice.sizes.data(), slice.sizes.size()};
+    std::span<unsigned int const> o {offsets.data(), static_cast<::offsets_size>(offsets_size)};
+    std::span<unsigned int const> t {slice.types.data(), slice.types.size()};
     return BanksAndOffsets {
       {std::move(b)}, std::move(o), offsets[offsets_size - 1], std::move(s), std::move(t), version};
   }
@@ -228,7 +228,7 @@ std::tuple<bool, bool, bool, size_t, size_t, std::any> MDFProvider::get_slice(st
       std::tie(slice_index, n_filled) = m_transposed.front();
       m_transposed.pop_front();
       if (n_filled > 0) {
-        odin = gsl::span<unsigned const> {m_odins[slice_index].data};
+        odin = std::span<unsigned const> {m_odins[slice_index].data};
       }
     }
   }
@@ -299,7 +299,7 @@ void MDFProvider::slice_free(size_t slice_index)
   }
 }
 
-gsl::span<char const>
+std::span<char const>
 MDFProvider::raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_start, size_t const event) const
 {
   auto const event_index = event + read_event_start;
@@ -316,7 +316,7 @@ MDFProvider::raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_
   // contains the MDF header as bank payload; it does not belong to
   // the original event and should be skipped
   auto const* daq_bank = reinterpret_cast<LHCb::RawBank const*>(event_buffer.data() + event_offset);
-  assert(daq_bank->type() == LHCb::RawBank::DAQ);
+  assert(daq_bank->type() == LHCb::RawBank::BankType::DAQ);
   auto const daq_bank_size = daq_bank->totalSize();
 
   auto const* banks_start = event_buffer.data() + event_offset + daq_bank_size;
@@ -325,7 +325,7 @@ MDFProvider::raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_
 
 void MDFProvider::event_sizes(
   size_t const slice_index,
-  gsl::span<unsigned int const> const selected_events,
+  std::span<unsigned int const> const selected_events,
   std::vector<size_t>& sizes) const
 {
   auto const stb = m_slice_to_buffer[slice_index];
@@ -339,7 +339,7 @@ void MDFProvider::event_sizes(
   }
 }
 
-void MDFProvider::copy_banks(size_t const slice_index, unsigned int const event, gsl::span<char> output_buffer) const
+void MDFProvider::copy_banks(size_t const slice_index, unsigned int const event, std::span<char> output_buffer) const
 {
   // The first bank in the read buffer is the DAQ bank, which
   // contains the MDF header as bank payload

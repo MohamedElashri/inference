@@ -39,7 +39,8 @@ gaudi_add_module(AllenWrapper
                    src/CompareRecAllenFTClusters.cpp
                    src/CompareRecAllenVPHits.cpp
                    src/TestVeloClusters.cpp
-                   src/TestAllenRichPixels.cpp
+                   src/CompareRecAllenRichSmartIDs.cpp
+                   src/CompareRecAllenRichPixels.cpp
                    src/IOMonitor.cpp
                  LINK
                    AllenLib
@@ -132,7 +133,7 @@ endif()
 
 gaudi_install(PYTHON)
 
-gaudi_add_tests(QMTest)
+gaudi_add_pytest(tests/pytest)
 
 gaudi_add_executable(test_mass_definitions
     SOURCES
@@ -147,11 +148,17 @@ gaudi_add_executable(test_mass_definitions
 
 if(BUILD_TESTING AND NOT USE_DD4HEP)
     # Disable test on data for detdesc builds
-    set_property(
-        TEST
-          Allen.mdf_input_2023_data
-          Allen.mdf_input_2024_data_tae
-        PROPERTY
-          DISABLED TRUE
+    list(APPEND tests_to_disable
+        Allen.pytest.test_mdf_input_2023_data
+        Allen.pytest.test_mdf_input_2024_data_tae
     )
+endif()
+
+
+if(tests_to_disable)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/disable_tests.cmake
+        "set_tests_properties(${tests_to_disable} PROPERTIES DISABLED TRUE)"
+    )
+    set_property(DIRECTORY APPEND PROPERTY
+        TEST_INCLUDE_FILES ${CMAKE_CURRENT_BINARY_DIR}/disable_tests.cmake)
 endif()

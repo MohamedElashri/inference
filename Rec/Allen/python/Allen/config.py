@@ -17,10 +17,11 @@ from PyConf import configurable
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.application import ApplicationOptions, configure_input, configure
 from PyConf.Algorithms import (
-    DumpBeamline, DumpCaloGeometry, DumpMagneticField, DumpVPGeometry,
-    DumpCrossingAngles, DumpFTGeometry, DumpUTGeometry, DumpUTLookupTables,
-    DumpMuonGeometry, DumpMuonTable, AllenODINProducer, DumpRichPDMDBMapping,
-    DumpRichCableMapping)
+    DumpBeamline, DumpCaloGeometry, DumpMagneticField,
+    DumpMagneticFieldPolarity, DumpVPGeometry, DumpCrossingAngles,
+    DumpFTGeometry, DumpUTGeometry, DumpUTLookupTables, DumpMuonGeometry,
+    DumpMuonTable, AllenODINProducer, DumpRichPDMDBMapping,
+    DumpRichCableMapping, DumpRichGeometry)
 from DDDB.CheckDD4Hep import UseDD4Hep
 from PyConf.reading import get_generator_BeamParameters
 from GaudiConf.LbExec import Options as DefaultOptions
@@ -109,8 +110,10 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
                     'ut_tables')],
             'ECal': [(DumpCaloGeometry, 'DeviceCaloGeometry', {},
                       'ecal_geometry')],
-            'Magnet': [(DumpMagneticField, 'DeviceMagneticField', {},
-                        'polarity')],
+            'Magnet':
+            [(DumpMagneticField, 'DeviceMagneticField', {}, 'magfield'),
+             (DumpMagneticFieldPolarity, 'DeviceMagneticFieldPolarity', {},
+              'polarity')],
             'FTCluster': [(DumpFTGeometry, 'DeviceFTGeometry', {},
                            'scifi_geometry')],
             'Muon': [(DumpMuonGeometry, 'DeviceMuonGeometry', {},
@@ -119,7 +122,9 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
             'Rich': [(DumpRichPDMDBMapping, 'DeviceRichPDMDBMapping', {},
                       'rich_pdmdbmaps'),
                      (DumpRichCableMapping, 'DeviceRichCableMapping', {},
-                      'rich_tel40maps')]
+                      'rich_tel40maps'),
+                     (DumpRichGeometry, 'DeviceRichGeometry', {},
+                      'rich_geometry')]
         }
     else:
         converter_types = {
@@ -132,8 +137,10 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
                     'ut_tables')],
             'ECal': [(DumpCaloGeometry, 'DeviceCaloGeometry', {},
                       'ecal_geometry')],
-            'Magnet': [(DumpMagneticField, 'DeviceMagneticField', {},
-                        'polarity')],
+            'Magnet':
+            [(DumpMagneticField, 'DeviceMagneticField', {}, 'magfield'),
+             (DumpMagneticFieldPolarity, 'DeviceMagneticFieldPolarity', {},
+              'polarity')],
             'FTCluster': [(DumpFTGeometry, 'DeviceFTGeometry', {},
                            'scifi_geometry')],
             'Muon': [(DumpMuonGeometry, 'DeviceMuonGeometry', {},
@@ -142,7 +149,9 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
             'Rich': [(DumpRichPDMDBMapping, 'DeviceRichPDMDBMapping', {},
                       'rich_pdmdbmaps'),
                      (DumpRichCableMapping, 'DeviceRichCableMapping', {},
-                      'rich_tel40maps')]
+                      'rich_tel40maps'),
+                     (DumpRichGeometry, 'DeviceRichGeometry', {},
+                      'rich_geometry')]
         }
 
     detector_names = {
