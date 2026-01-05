@@ -12,7 +12,6 @@
 #pragma once
 
 #include <iostream>
-#include <mutex>
 
 #include <Algorithm.cuh>
 
@@ -130,11 +129,8 @@ namespace Allen::Monitoring {
       m_stream_current_buffer[stream_id] = m_current_buffer;
     }
     void streamDone(unsigned stream_id) { m_stream_done[stream_id] = true; }
-    std::mutex& getMutex() { return m_mutex; }
 
   private:
-    std::mutex m_mutex; // used only for allen in gaudi (generated wrappers)
-
     char* m_dev_buffer_ptr[2] {nullptr, nullptr}; // double buffering
     char* m_host_buffer_ptr {nullptr};
     std::size_t m_buffer_size {0};
