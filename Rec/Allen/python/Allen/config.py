@@ -243,20 +243,12 @@ def run_allen_reconstruction(options, make_reconstruction, public_tools=[]):
                                               "node") else reconstruction.node
 
     non_event_data_node = setup_allen_non_event_data_service()
-    from PyConf.Algorithms import GaudiAllenMonitoringAlg
 
     allen_node = CompositeNode(
         'allen_reconstruction',
         combine_logic=NodeLogic.NONLAZY_OR,
         children=[non_event_data_node, reco_node],
         force_order=True)
-
-    allen_node = CompositeNode(
-        "WithMonitoring",
-        combine_logic=NodeLogic.NONLAZY_AND,
-        children=[allen_node, GaudiAllenMonitoringAlg()],
-        force_order=True,
-    )
 
     config.update(configure(options, allen_node, public_tools=public_tools))
     return config

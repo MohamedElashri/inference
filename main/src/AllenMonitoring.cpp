@@ -56,10 +56,15 @@ namespace Allen::Monitoring {
     m_registered_accumulators.clear(); // not needed anymore
 
     // * Allocate memory on the device and the host to store the accumulators
-    m_buffer_size = 0;
     for (auto& [key, acc] : m_accumulators) {
       acc.offset = m_buffer_size;
       m_buffer_size += acc.size * acc.element_size;
+    }
+    if (m_host_buffer_ptr != nullptr) {
+      Allen::free_host(m_host_buffer_ptr);
+    }
+    if (m_dev_buffer_ptr[0] != nullptr) {
+      Allen::free(m_dev_buffer_ptr[0]);
     }
     Allen::malloc_host((void**) &m_host_buffer_ptr, m_buffer_size);
     Allen::malloc((void**) &m_dev_buffer_ptr[0], m_buffer_size * 2);
