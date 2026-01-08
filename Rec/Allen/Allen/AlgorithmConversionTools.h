@@ -20,11 +20,15 @@
 #include <GaudiKernel/StatusCode.h>
 #include <Gaudi/Parsers/Factory.h>
 #include <GaudiKernel/StdArrayAsProperty.h>
+#include <Kernel/EventLocalAllocator.h>
 
 namespace Allen {
   // Shortcut for type used in input / outputs of Allen - Gaudi wrappers
   template<typename T>
-  using parameter_vector = std::vector<bool_as_char_t<std::remove_const_t<T>>>;
+  using param_vector_alloc = LHCb::Allocators::EventLocal<bool_as_char_t<std::remove_const_t<T>>>;
+
+  template<typename T>
+  using parameter_vector = std::vector<bool_as_char_t<std::remove_const_t<T>>, param_vector_alloc<T>>;
 
   /**
    * @brief A wrapper for Allen properties, which provides the syntax employed by Allen.

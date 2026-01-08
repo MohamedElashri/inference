@@ -16,14 +16,15 @@
 #include "HltDecReport.cuh"
 #include "HltConstants.cuh"
 #include <RoutingBitsDefinition.h>
+#include <Kernel/EventLocalAllocator.h>
 
 class GaudiAllenReportsToRawEvent
   : public LHCb::Algorithm::MultiTransformer<
       std::tuple<LHCb::RawEvent, LHCb::RawBank::View, LHCb::RawBank::View, LHCb::RawBank::View>(
-        const std::vector<unsigned>&,
-        const std::vector<unsigned>&,
-        const std::vector<unsigned>&,
-        const std::vector<unsigned>&)> {
+        const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+        const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+        const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+        const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&)> {
 public:
   // Standard constructor
   GaudiAllenReportsToRawEvent(const std::string& name, ISvcLocator* pSvcLocator) :
@@ -43,10 +44,10 @@ public:
 
   // Algorithm execution
   std::tuple<LHCb::RawEvent, LHCb::RawBank::View, LHCb::RawBank::View, LHCb::RawBank::View> operator()(
-    const std::vector<unsigned>& allen_dec_reports,
-    const std::vector<unsigned>& allen_selrep_offsets,
-    const std::vector<unsigned>& allen_sel_reports,
-    const std::vector<unsigned>& allen_routing_bits) const override
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_dec_reports,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_selrep_offsets,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_sel_reports,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_routing_bits) const override
   {
     LHCb::RawEvent raw_event;
     auto dec_reports = HltDecReports {allen_dec_reports, 0};

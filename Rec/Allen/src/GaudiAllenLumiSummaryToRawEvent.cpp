@@ -18,19 +18,21 @@
 // LHCb
 #include <LHCbAlgs/Transformer.h>
 #include "Kernel/STLExtensions.h"
+#include <Kernel/EventLocalAllocator.h>
 #include "Event/RawEvent.h"
 #include <HltConstants.cuh>
 
 struct GaudiAllenLumiSummaryToRawEvent final
-  : public LHCb::Algorithm::MultiTransformer<
-      std::tuple<LHCb::RawEvent, LHCb::RawBank::View>(const std::vector<unsigned>&, const std::vector<unsigned>&)> {
+  : public LHCb::Algorithm::MultiTransformer<std::tuple<LHCb::RawEvent, LHCb::RawBank::View>(
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&)> {
   // Standard constructor
   GaudiAllenLumiSummaryToRawEvent(const std::string& name, ISvcLocator* pSvcLocator);
 
   // Algorithm execution
   std::tuple<LHCb::RawEvent, LHCb::RawBank::View> operator()(
-    const std::vector<unsigned>& allen_lumi_summaries,
-    const std::vector<unsigned>& allen_lumi_summary_offsets) const override;
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_lumi_summaries,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_lumi_summary_offsets) const override;
 };
 
 DECLARE_COMPONENT(GaudiAllenLumiSummaryToRawEvent)
@@ -47,8 +49,8 @@ GaudiAllenLumiSummaryToRawEvent::GaudiAllenLumiSummaryToRawEvent(const std::stri
 {}
 
 std::tuple<LHCb::RawEvent, LHCb::RawBank::View> GaudiAllenLumiSummaryToRawEvent::operator()(
-  const std::vector<unsigned>& allen_lumi_summaries,
-  const std::vector<unsigned>& allen_lumi_summary_offsets) const
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_lumi_summaries,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_lumi_summary_offsets) const
 {
 
   LHCb::RawEvent raw_event;

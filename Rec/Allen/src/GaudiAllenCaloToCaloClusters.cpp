@@ -15,6 +15,7 @@
 
 // LHCb
 #include "Event/Track.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "Logger.h"
@@ -32,16 +33,17 @@
  */
 
 class GaudiAllenCaloToCaloClusters final
-  : public Gaudi::Functional::Transformer<
-      LHCb::Event::Calo::Clusters(const std::vector<unsigned>&, const std::vector<CaloCluster>&)> {
+  : public Gaudi::Functional::Transformer<LHCb::Event::Calo::Clusters(
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+      const std::vector<CaloCluster, LHCb::Allocators::EventLocal<CaloCluster>>&)> {
 public:
   /// Standard constructor
   GaudiAllenCaloToCaloClusters(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
   LHCb::Event::Calo::Clusters operator()(
-    const std::vector<unsigned>& allen_ecal_cluster_offsets,
-    const std::vector<CaloCluster>& allen_ecal_clusters) const override;
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_ecal_cluster_offsets,
+    const std::vector<CaloCluster, LHCb::Allocators::EventLocal<CaloCluster>>& allen_ecal_clusters) const override;
 
 private:
   Gaudi::Property<float> m_EtCalo {this, "EtCalo", 400 * Allen::Units::MeV, "Default ET for Calo Clusters"};
@@ -60,8 +62,8 @@ GaudiAllenCaloToCaloClusters::GaudiAllenCaloToCaloClusters(const std::string& na
 {}
 
 LHCb::Event::Calo::Clusters GaudiAllenCaloToCaloClusters::operator()(
-  const std::vector<unsigned>& host_ecal_cluster_offsets,
-  const std::vector<CaloCluster>& host_ecal_clusters) const
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& host_ecal_cluster_offsets,
+  const std::vector<CaloCluster, LHCb::Allocators::EventLocal<CaloCluster>>& host_ecal_clusters) const
 {
   LHCb::Event::Calo::Clusters EcalClusters;
   // Make the clusters

@@ -13,6 +13,7 @@
 
 // Gaudi
 #include "GaudiAlg/Consumer.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "CaloDigit.cuh"
@@ -23,17 +24,22 @@
 #include <Event/CaloDigits_v2.h>
 
 class CompareRecAllenCaloDigits final
-  : public Gaudi::Functional::Consumer<void(const std::vector<CaloDigit>&, LHCb::Event::Calo::Digits const&)> {
+  : public Gaudi::Functional::Consumer<
+      void(const std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>>&, LHCb::Event::Calo::Digits const&)> {
 
 public:
   /// Standard constructor
   CompareRecAllenCaloDigits(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
-  void operator()(const std::vector<CaloDigit>&, LHCb::Event::Calo::Digits const&) const override;
+  void operator()(
+    const std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>>&,
+    LHCb::Event::Calo::Digits const&) const override;
 
 private:
-  void compare(std::vector<CaloDigit> const& allenDigits, LHCb::Event::Calo::Digits const& lhcbDigits) const;
+  void compare(
+    std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>> const& allenDigits,
+    LHCb::Event::Calo::Digits const& lhcbDigits) const;
 };
 
 DECLARE_COMPONENT(CompareRecAllenCaloDigits)
@@ -47,7 +53,7 @@ CompareRecAllenCaloDigits::CompareRecAllenCaloDigits(const std::string& name, IS
 {}
 
 void CompareRecAllenCaloDigits::operator()(
-  const std::vector<CaloDigit>& ecal_digits,
+  const std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>>& ecal_digits,
   LHCb::Event::Calo::Digits const& ecalDigits) const
 {
   for (auto const& [allenDigits, lhcbDigits] : {std::forward_as_tuple(ecal_digits, ecalDigits)}) {
@@ -56,7 +62,7 @@ void CompareRecAllenCaloDigits::operator()(
 }
 
 void CompareRecAllenCaloDigits::compare(
-  std::vector<CaloDigit> const& allenDigits,
+  std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>> const& allenDigits,
   LHCb::Event::Calo::Digits const& lhcbDigits) const
 {
 

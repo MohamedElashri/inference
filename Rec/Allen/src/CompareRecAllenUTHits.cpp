@@ -16,6 +16,7 @@
 #include "Event/MCHit.h"
 #include "Kernel/LHCbID.h"
 #include "Event/PrHits.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "LHCbID.cuh"
