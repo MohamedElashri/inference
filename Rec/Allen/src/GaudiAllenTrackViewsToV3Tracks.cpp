@@ -656,14 +656,14 @@ namespace GaudiAllen::Converters::v3 {
   class GaudiAllenTrackViewsToV3Tracks final
     : public Gaudi::Functional::MultiTransformer<out_type_t<AllenTracks>(
         std::vector<AllenTracks, LHCb::Allocators::EventLocal<AllenTracks>> const&,
-        std::vector<in_type_t<AllenStates>> const&...,
+        std::vector<in_type_t<AllenStates>, LHCb::Allocators::EventLocal<in_type_t<AllenStates>>> const&...,
         const LHCb::UniqueIDGenerator&)> {
 
   public:
     using OutType = out_type_t<AllenTracks>;
     using base_class = Gaudi::Functional::MultiTransformer<OutType(
       std::vector<AllenTracks, LHCb::Allocators::EventLocal<AllenTracks>> const&,
-      std::vector<in_type_t<AllenStates>> const&...,
+      std::vector<in_type_t<AllenStates>, LHCb::Allocators::EventLocal<in_type_t<AllenStates>>> const&...,
       const LHCb::UniqueIDGenerator&)>;
     using KeyValue = typename base_class::KeyValue;
 
@@ -681,7 +681,9 @@ namespace GaudiAllen::Converters::v3 {
     /// Algorithm execution
     OutType operator()(
       std::vector<AllenTracks, LHCb::Allocators::EventLocal<AllenTracks>> const& allen_tracks_mec,
-      std::vector<in_type_t<AllenStates>> const&... allen_states_containers,
+      std::vector<
+        in_type_t<AllenStates>,
+        LHCb::Allocators::EventLocal<in_type_t<AllenStates>>> const&... allen_states_containers,
       const LHCb::UniqueIDGenerator& unique_id_gen) const override
     {
       const unsigned i_event = 0;
