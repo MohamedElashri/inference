@@ -148,3 +148,97 @@ def make_heavy_ion_event_line(velo_tracks,
         max_ecal_e=max_ecal_e,
         PbPb_SMOG_z_separation=PbPb_SMOG_z_separation,
         pre_scaler=pre_scaler)
+
+
+@configurable
+def make_smog_onetrack_event_line(
+        velo_tracks,
+        long_track_particles,
+        pvs,
+        decoded_calo,
+        pre_scaler_hash_string=None,
+        post_scaler_hash_string=None,
+        min_velo_tracks_SMOG=-1,
+        PbPb_SMOG_z_separation=__PbPb_SMOG_Z_SEPARATION,
+        name="Hlt1HeavyIonPbSMOGMBOneTrack_{hash}",
+        pre_scaler=.01):
+    velo_states = run_velo_kalman_filter(velo_tracks)
+    number_of_events = initialize_number_of_events()
+    host_number_of_events = number_of_events["host_number_of_events"]
+    dev_number_of_events = number_of_events["dev_number_of_events"]
+
+    return make_algorithm(
+        heavy_ion_event_line_t,
+        name=name,
+        host_number_of_events_t=host_number_of_events,
+        dev_number_of_events_t=dev_number_of_events,
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_velo_states_t=velo_states["dev_velo_kalman_beamline_states_view"],
+        dev_long_track_particle_container_t=long_track_particles[
+            "dev_multi_event_basic_particles"],
+        dev_total_ecal_e_t=decoded_calo["dev_total_ecal_e"],
+        dev_pvs_t=pvs["dev_multi_final_vertices"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        min_velo_tracks_PbPb=-1,
+        max_velo_tracks_PbPb=-1,
+        min_long_tracks=-1,
+        max_long_tracks=-1,
+        min_velo_tracks_SMOG=min_velo_tracks_SMOG,
+        max_velo_tracks_SMOG=-1,
+        min_pvs_PbPb=-1,
+        max_pvs_PbPb=-1,
+        min_pvs_SMOG=-1,
+        max_pvs_SMOG=-1,
+        min_ecal_e=0,
+        max_ecal_e=-1,
+        PbPb_SMOG_z_separation=PbPb_SMOG_z_separation,
+        pre_scaler=pre_scaler)
+
+
+@configurable
+def make_smog_microbias_event_line(
+        velo_tracks,
+        long_track_particles,
+        pvs,
+        decoded_calo,
+        pre_scaler_hash_string=None,
+        post_scaler_hash_string=None,
+        min_pvs_SMOG=-1.,
+        PbPb_SMOG_z_separation=__PbPb_SMOG_Z_SEPARATION,
+        name="Hlt1HeavyIonPbSMOGMicroBias_{hash}",
+        pre_scaler=0.01):
+    velo_states = run_velo_kalman_filter(velo_tracks)
+    number_of_events = initialize_number_of_events()
+    host_number_of_events = number_of_events["host_number_of_events"]
+    dev_number_of_events = number_of_events["dev_number_of_events"]
+
+    return make_algorithm(
+        heavy_ion_event_line_t,
+        name=name,
+        host_number_of_events_t=host_number_of_events,
+        dev_number_of_events_t=dev_number_of_events,
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_velo_states_t=velo_states["dev_velo_kalman_beamline_states_view"],
+        dev_long_track_particle_container_t=long_track_particles[
+            "dev_multi_event_basic_particles"],
+        dev_total_ecal_e_t=decoded_calo["dev_total_ecal_e"],
+        dev_pvs_t=pvs["dev_multi_final_vertices"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        min_velo_tracks_PbPb=-1,
+        max_velo_tracks_PbPb=-1,
+        min_long_tracks=-1,
+        max_long_tracks=-1,
+        min_velo_tracks_SMOG=-1,
+        max_velo_tracks_SMOG=-1,
+        min_pvs_PbPb=-1,
+        max_pvs_PbPb=-1,
+        min_pvs_SMOG=min_pvs_SMOG,
+        max_pvs_SMOG=-1,
+        min_ecal_e=0,
+        max_ecal_e=-1,
+        PbPb_SMOG_z_separation=PbPb_SMOG_z_separation,
+        pre_scaler=pre_scaler)
