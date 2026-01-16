@@ -838,10 +838,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '15.669'
-        RMS: '31.022'
-        Skewness: '6.4528'
-        Kurtosis: '89.457'
+        Mean: '15.677'
+        RMS: '31.047'
+        Skewness: '6.4494'
+        Kurtosis: '89.25'
     header:
       1D: 1
       2D: 0
@@ -856,10 +856,10 @@ histos:
         ID: number_of_svs
         Title: '"NSVs"'
         '#': '10000'
-        Mean: '24.417'
-        RMS: '45.375'
-        Skewness: '4.8053'
-        Kurtosis: '36.878'
+        Mean: '24.424'
+        RMS: '45.396'
+        Skewness: '4.8062'
+        Kurtosis: '36.863'
     header:
       1D: 1
       2D: 0
@@ -909,11 +909,11 @@ histos:
       line_passes:
         ID: line_passes
         Title: '"line passes"'
-        '#': '17407'
-        Mean: '81.069'
+        '#': '17398'
+        Mean: '81.079'
         RMS: '19.641'
-        Skewness: '-0.80247'
-        Kurtosis: '-0.42169'
+        Skewness: '-0.80392'
+        Kurtosis: '-0.41923'
       line_rates:
         ID: line_rates
         Title: '"line rates"'
@@ -936,14 +936,14 @@ histos:
         ID: n_muons
         Title: '"# muons"'
         '#': '458943'
-        Mean: '0.10949'
-        RMS: '0.31225'
-        Skewness: '2.5013'
-        Kurtosis: '4.2565'
+        Mean: '0.10951'
+        RMS: '0.31228'
+        Skewness: '2.5008'
+        Kurtosis: '4.2542'
       pv_x:
         ID: pv_x
         Title: '"pv_x"'
-        '#': '29757'
+        '#': '29763'
         Mean: '2'
         RMS: '0.0000'
         Skewness: '0'
@@ -951,11 +951,11 @@ histos:
       pv_y:
         ID: pv_y
         Title: '"pv_y"'
-        '#': '50247'
-        Mean: '498.36'
-        RMS: '332.14'
+        '#': '50260'
+        Mean: '498.37'
+        RMS: '332.17'
         Skewness: '2.9203'
-        Kurtosis: '35.512'
+        Kurtosis: '35.498'
     header:
       1D: 3
       2D: 0
@@ -1614,7 +1614,7 @@ counters:
     Hlt1OneMuonTrackLinePass:
       binomial: false
       name: Hlt1OneMuonTrackLinePass
-      count: 5726
+      count: 5717
     Hlt1RICH1AlignmentPass:
       binomial: false
       name: Hlt1RICH1AlignmentPass
