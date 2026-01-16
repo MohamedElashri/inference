@@ -15,10 +15,10 @@ As standalone project
 Requisites
 ----------------
 
-The following packages are required in order to be able to compile Allen. Package names listed here are CentOS 7 names, package names for other distributions may slightly change:
+The following packages are required in order to be able to compile Allen. Package names listed here are EL9 names, package names for other distributions may slightly change:
 
-* cmake version 3.18 or newer
-* boost-devel version 1.69 or newer
+* cmake version 3.19 or newer
+* boost-devel version 1.75 or newer
 * clang version 9 or newer
 * json-devel
 * zeromq-devel
@@ -35,8 +35,19 @@ The following python3 packages are also needed, which can be installed with pip,
 * cachetools
 * pydot
 * sympy
+* pyeda
 
 Further requirements depend on the device chosen as target. Allen supports targets CPU (default), CUDA and HIP. The CUDA target requires a CUDA installation, whereas the HIP target requires a ROCm installation.
+
+Apptainer containers
+--------------------
+
+There are also pre-built EL9 containers already containing the dependencies |container_gitlab|.
+Instructions for using those are in the corresponding README, which will produce a build of Allen equivialent to that in the :ref:`build-without-cvmfs` section.
+
+.. |container_gitlab| raw:: html
+
+   <a href="https://gitlab.cern.ch/lhcb-rta/allen-container-definitions" target="_blank">available on Gitlab</a>
 
 .. _build with cvmfs:
 
@@ -90,6 +101,7 @@ In order to run, use the generated wrapper::
 
     ./toolchain/wrapper ./Allen --sequence hlt1_pp_validation
 
+.. _build-without-cvmfs:
 
 Building without CVMFS
 ----------------------
