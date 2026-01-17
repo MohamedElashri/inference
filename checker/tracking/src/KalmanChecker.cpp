@@ -62,8 +62,8 @@ KalmanChecker::KalmanChecker(CheckerInvoker const* invoker, std::string const& r
 
 void KalmanChecker::accumulate(
   MCEvents const& mc_events,
-  gsl::span<const Checker::Tracks> tracks,
-  gsl::span<const mask_t> event_list)
+  std::span<const Checker::Tracks> tracks,
+  std::span<const mask_t> event_list)
 {
   auto guard = std::scoped_lock {m_mutex};
   for (size_t i = 0; i < event_list.size(); ++i) {

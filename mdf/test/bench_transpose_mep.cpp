@@ -19,8 +19,7 @@
 #include <vector>
 #include <cmath>
 
-#include <gsl/gsl>
-#include <Event/RawBank.h>
+#include <span>
 #include <read_mdf.hpp>
 #include <read_mep.hpp>
 #include <eb_header.hpp>
@@ -54,7 +53,7 @@ int main(int argc, char* argv[])
   }
 
   // Allocate read buffer space
-  vector<tuple<vector<char>, EB::Header, gsl::span<char const>, MEP::Blocks, MEP::SourceOffsets>> mep_buffers {
+  vector<tuple<vector<char>, EB::Header, std::span<char const>, MEP::Blocks, MEP::SourceOffsets>> mep_buffers {
     n_slices};
 
   // Bank ID translation

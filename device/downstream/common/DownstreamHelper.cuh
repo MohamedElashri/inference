@@ -27,9 +27,7 @@ namespace Downstream {
     __device__ inline float find_root(f_t const& f, fprime_t const& fprime, const float x0)
     {
       float x = x0;
-#if (defined(TARGET_DEVICE_CUDA) && defined(__CUDACC__))
-#pragma unroll
-#endif
+      UNROLL(5)
       for (unsigned i = 0; i < NumIteration; i++) {
         const auto h = f(x) / fprime(x);
         x -= h;

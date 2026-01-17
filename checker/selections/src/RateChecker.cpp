@@ -16,7 +16,7 @@ double binomial_error(int n, int k) { return 1. / n * std::sqrt(1. * k * (1. - 1
 
 void RateChecker::accumulate(
   const char* line_names,
-  gsl::span<const unsigned> dec_reports_data,
+  std::span<const unsigned> dec_reports_data,
   const unsigned number_of_events)
 {
   std::lock_guard<std::mutex> guard(m_mutex);

@@ -149,11 +149,7 @@ namespace Downstream::Helpers {
   {
     // Fetch sector idx
     unsigned sector_idx = 0;
-#if defined(__clang__) or defined(__NVCC__)
-#pragma unroll
-#elif defined(__GNUC__)
-#pragma GCC unroll 16
-#endif
+    UNROLL(16)
     for (unsigned i = 0; i < 16; i++) {
       sector_idx += (hit_idx >= selected_offsets[i]);
     }

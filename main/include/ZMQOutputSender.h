@@ -32,7 +32,7 @@ public:
   void handle() override;
 
 protected:
-  gsl::span<char> buffer(size_t, size_t buffer_size, size_t) override;
+  std::span<char> buffer(size_t, size_t buffer_size, size_t) override;
 
   virtual bool write_buffer(size_t) override;
 

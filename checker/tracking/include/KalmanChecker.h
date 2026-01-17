@@ -34,7 +34,7 @@ public:
   virtual ~KalmanChecker() = default;
 
   void
-  accumulate(MCEvents const& mc_events, gsl::span<const Checker::Tracks> tracks, gsl::span<const mask_t> event_list);
+  accumulate(MCEvents const& mc_events, std::span<const Checker::Tracks> tracks, std::span<const mask_t> event_list);
 
   void report(size_t n_events) const override;
 

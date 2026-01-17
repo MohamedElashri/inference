@@ -17,7 +17,7 @@ size_t Allen::add_raw_bank(
   unsigned char const type,
   unsigned char const version,
   short const sourceID,
-  gsl::span<char const> fragment,
+  std::span<char const> fragment,
   char* buffer)
 {
   auto* bank = reinterpret_cast<LHCb::RawBank*>(buffer);

@@ -51,7 +51,7 @@ void error_bank_filter::error_bank_filter_t::set_arguments_size(
   set_size<host_number_of_selected_events_t>(arguments, 1);
   set_size<dev_output_event_list_t>(arguments, n_events);
   set_size<host_output_event_list_t>(arguments, n_events);
-  set_size<host_temp_counts_t>(arguments, 5 * LHCb::RawBank::LastType + 256);
+  set_size<host_temp_counts_t>(arguments, 5 * LHCb::RawBank::types().size() + 256);
 }
 
 void error_bank_filter::error_bank_filter_t::init()
@@ -89,10 +89,10 @@ void error_bank_filter::error_bank_filter_t::init()
     std::vector<std::string> labels;
     labels.reserve(types.size());
     std::transform(types.begin(), types.end(), std::back_inserter(labels), [](auto bt) {
-      if (bt < LHCb::RawBank::LastType) {
-        return LHCb::RawBank::typeName(bt);
+      if ((uint8_t) bt < LHCb::RawBank::types().size()) {
+        return toString(bt);
       }
-      else if (bt == LHCb::RawBank::LastType) {
+      else if (bt == LHCb::RawBank::BankType::LastType) {
         return std::string {"LastType"};
       }
       else {
@@ -100,9 +100,9 @@ void error_bank_filter::error_bank_filter_t::init()
       }
     });
 
-    mapping.fill(static_cast<LHCb::RawBank::BankType>(256));
+    mapping.fill(256);
     for (size_t i = 0; i < types.size(); ++i) {
-      mapping[types[i]] = i;
+      mapping[(uint8_t) types[i]] = i;
     }
 
     auto* histo = new Gaudi::Accumulators::StaticHistogram<1> {
@@ -233,15 +233,16 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
   // Clear all temporary bin storage
   auto bin_storage = parameters.host_counts.get();
   std::memset(bin_storage.data(), 0, bin_storage.size_bytes());
-  auto data_counts = bin_storage.subspan(0, LHCb::RawBank::LastType);
-  auto other_counts = bin_storage.subspan(LHCb::RawBank::LastType, LHCb::RawBank::LastType);
-  auto error_counts = bin_storage.subspan(2 * LHCb::RawBank::LastType, LHCb::RawBank::LastType);
-  auto sd_counts = bin_storage.subspan(3 * LHCb::RawBank::LastType, LHCb::RawBank::LastType);
+  const auto spanSize = LHCb::RawBank::types().size();
+  auto data_counts = bin_storage.subspan(0, spanSize);
+  auto other_counts = bin_storage.subspan(spanSize, spanSize);
+  auto error_counts = bin_storage.subspan(2 * spanSize, spanSize);
+  auto sd_counts = bin_storage.subspan(3 * spanSize, spanSize);
   // Don't need this many counts, but let's stick with it
-  auto source_counts = bin_storage.subspan(4 * LHCb::RawBank::LastType, LHCb::RawBank::LastType);
-  auto unexpected_counts = bin_storage.subspan(5 * LHCb::RawBank::LastType, 256);
+  auto source_counts = bin_storage.subspan(4 * spanSize, spanSize);
+  auto unexpected_counts = bin_storage.subspan(5 * spanSize, 256);
 
-  auto add_counts = [](Gaudi::Accumulators::StaticHistogram<1>& histo, gsl::span<float> counts) {
+  auto add_counts = [](Gaudi::Accumulators::StaticHistogram<1>& histo, std::span<float> counts) {
     for (size_t i = 0; i < histo.nBins(0); ++i) {
       histo[i] += counts[i];
     }
@@ -279,7 +280,7 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
       auto const& other_bank_types = sd_info.other_bank_types;
       auto const& error_bank_types = sd_info.error_bank_types;
 
-      if (bank_type >= LHCb::RawBank::BankType::LastType) {
+      if (bank_type >= LHCb::RawBank::types().size()) {
         ++invalid_count;
         return false;
       }
@@ -366,37 +367,3 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
 
   parameters.host_number_of_selected_events[0] = selected_events.count();
 }
-
-#ifndef ALLEN_STANDALONE
-StatusCode Gaudi::Parsers::parse(error_bank_filter::bank_types_t& bt, const std::string& in)
-{
-  auto s = std::string_view {in};
-  if (!s.empty() && s.front() == s.back() && (s.front() == '\'' || s.front() == '\"')) {
-    s.remove_prefix(1);
-    s.remove_suffix(1);
-  }
-  std::map<std::string, std::vector<std::string>> tmp;
-  auto sc = parse(tmp, std::string {s});
-  if (sc.isFailure()) return sc;
-
-  try {
-    for_each(
-      std::tuple {std::tuple {std::string {"data_banks"}, std::ref(bt.data_types)},
-                  std::tuple {std::string {"other_banks"}, std::ref(bt.other_types)},
-                  std::tuple {std::string {"error_banks"}, std::ref(bt.error_types)}},
-      [&tmp](auto entry) {
-        auto const& k = std::get<0>(entry);
-        auto& m = std::get<1>(entry).get();
-        if (!tmp.count(k)) {
-          throw StrException {"missing key" + k};
-        }
-        else {
-          m = tmp[k];
-        }
-      });
-    return StatusCode::SUCCESS;
-  } catch (StrException const&) {
-    return StatusCode::FAILURE;
-  }
-}
-#endif

@@ -13,7 +13,7 @@
 #include <Constants.cuh>
 #include <Dumpers/IUpdater.h>
 #include <cassert>
-#include <gsl/gsl>
+#include <span>
 
 namespace Consumers {
 
@@ -30,12 +30,12 @@ namespace Consumers {
 
   struct BasicGeometry final : public Allen::NonEventData::Consumer {
   public:
-    BasicGeometry(gsl::span<char>& dev_geometry);
+    BasicGeometry(std::span<char>& dev_geometry);
 
     void consume(std::vector<char> const& data) override;
 
   private:
-    std::reference_wrapper<gsl::span<char>> m_dev_geometry;
+    std::reference_wrapper<std::span<char>> m_dev_geometry;
   };
 
   struct VPGeometry final : public Allen::NonEventData::Consumer {
@@ -43,6 +43,50 @@ namespace Consumers {
     VPGeometry(Constants& constants);
 
     void consume(std::vector<char> const& data) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct RichPDMDBDecodeMapping final : public Allen::NonEventData::Consumer {
+  public:
+    RichPDMDBDecodeMapping(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_pdmdb_mapping) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct RichTel40CableMapping final : public Allen::NonEventData::Consumer {
+  public:
+    RichTel40CableMapping(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_cable_mapping) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct Rich1Geometry final : public Allen::NonEventData::Consumer {
+  public:
+    Rich1Geometry(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_1_geometry) override;
+
+  private:
+    void initialize(const std::vector<char>& data);
+    std::reference_wrapper<Constants> m_constants;
+  };
+
+  struct Rich2Geometry final : public Allen::NonEventData::Consumer {
+  public:
+    Rich2Geometry(Constants& constants);
+
+    void consume(std::vector<char> const& dev_rich_2_geometry) override;
 
   private:
     void initialize(const std::vector<char>& data);
@@ -124,15 +168,27 @@ namespace Consumers {
   private:
     std::reference_wrapper<Constants> m_constants;
   };
-  struct MagneticField final : public Allen::NonEventData::Consumer {
+
+  struct MagneticFieldPolarity final : public Allen::NonEventData::Consumer {
   public:
-    MagneticField(gsl::span<float>&, std::vector<float>&);
+    MagneticFieldPolarity(std::span<float>&, std::vector<float>&);
 
     void consume(std::vector<char> const& data) override;
 
   private:
-    std::reference_wrapper<gsl::span<float>> m_dev_magnet_polarity;
+    std::reference_wrapper<std::span<float>>
+      m_dev_magnet_polarity; // FIXME: a reference wrapper around a span does not make sense!
     std::reference_wrapper<std::vector<float>> m_host_magnet_polarity;
+  };
+
+  struct MagneticField final : public Allen::NonEventData::Consumer {
+  public:
+    MagneticField(Constants& constants);
+
+    void consume(std::vector<char> const& data) override;
+
+  private:
+    std::reference_wrapper<Constants> m_constants;
   };
 
   struct MuonGeometry final : public Allen::NonEventData::Consumer {

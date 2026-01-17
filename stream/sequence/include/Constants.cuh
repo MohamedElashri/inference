@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <numeric>
-#include <gsl/gsl>
+#include <span>
 #include <chrono>
 #include "BackendCommon.h"
 #include "Logger.h"
@@ -43,14 +43,19 @@ namespace MatchUpstreamMuon {
 namespace TrackMatchingConsts {
   struct MagnetParametrization;
 }
-namespace Rich::Future::DAQ::Allen {
-  class PDMDBDecodeMapping;
-  class Tel40CableMapping;
-} // namespace Rich::Future::DAQ::Allen
-
+namespace Allen::Rich::Decoding {
+  struct PDMDBDecodeMapping;
+  struct Tel40CableMapping;
+} // namespace Allen::Rich::Decoding
+namespace Allen::Rich {
+  struct RichDetector;
+} // namespace Allen::Rich
 namespace UT::Constants {
   struct UTLayerGeometry;
 }
+namespace MagneticField {
+  struct Magfield;
+} // namespace MagneticField
 
 /**
  * @brief Struct intended as a singleton with constants defined on GPU.
@@ -73,11 +78,11 @@ struct Constants {
   std::vector<uint8_t> host_ut_board_to_sector_group_map;
   std::vector<unsigned> host_ut_sector_to_group_map;
 
-  gsl::span<char> dev_ut_geometry;
-  gsl::span<char> dev_ut_boards;
-  gsl::span<uint16_t> dev_ut_board_geometry_map;
-  gsl::span<uint8_t> dev_ut_board_to_sector_group_map;
-  gsl::span<unsigned> dev_ut_sector_to_group_map;
+  std::span<char> dev_ut_geometry;
+  std::span<char> dev_ut_boards;
+  std::span<uint16_t> dev_ut_board_geometry_map;
+  std::span<uint8_t> dev_ut_board_to_sector_group_map;
+  std::span<unsigned> dev_ut_sector_to_group_map;
 
   UTMagnetTool* dev_ut_magnet_tool = nullptr;
 
@@ -97,8 +102,11 @@ struct Constants {
   std::vector<float> host_gen_crossing_angles;
 
   // Magnet polarity
-  gsl::span<float> dev_magnet_polarity;
+  std::span<float> dev_magnet_polarity;
   std::vector<float> host_magnet_polarity;
+
+  // Magnetic field
+  MagneticField::Magfield* magnetic_field = nullptr;
 
   // Looking forward
   LookingForward::Constants* host_looking_forward_constants;
@@ -148,8 +156,13 @@ struct Constants {
   // Rich
   std::vector<char> host_rich_pdmdb_mapping;
   std::vector<char> host_rich_cable_mapping;
-  char* dev_rich_pdmdb_mapping;
-  char* dev_rich_cable_mapping;
+  std::vector<char> host_rich_1_geometry;
+  std::vector<char> host_rich_2_geometry;
+
+  Allen::Rich::Decoding::PDMDBDecodeMapping* dev_rich_pdmdb_mapping = nullptr;
+  Allen::Rich::Decoding::Tel40CableMapping* dev_rich_cable_mapping = nullptr;
+  Allen::Rich::RichDetector* dev_rich_1_geometry = nullptr;
+  Allen::Rich::RichDetector* dev_rich_2_geometry = nullptr;
 
   /**
    * @brief Reserves and initializes constants.

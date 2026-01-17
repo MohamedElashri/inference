@@ -1,0 +1,143 @@
+/*****************************************************************************\
+* (c) Copyright 2023 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "COPYING".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
+#pragma once
+
+#include <RichDefinitions.cuh>
+#include <RichTel40CableMapping.cuh>
+
+// STL
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <ostream>
+#include <set>
+#include <string>
+
+namespace Allen::Rich::Decoding {
+
+  /// Helper class for RICH PDMDB readout mapping
+  struct PDMDBDecodeMapping final {
+    // data types
+
+    /// The data for each anode
+    struct BitData final {
+      /// The EC number (0-3)
+      int8_t ec;
+      /// The PMT number in EC
+      int8_t pmtInEC;
+      /// The Anode index (0-63)
+      int8_t anode;
+
+      /// Default constructor
+      BitData() = default;
+      /// Constructor from values
+      __host__ __device__ BitData(
+        const int8_t _ec,  //
+        const int8_t _pmt, //
+        const int8_t _anode) :
+        ec(_ec),
+        pmtInEC(_pmt), anode(_anode)
+      {}
+    };
+
+    using FrameBitmask = std::array<uint8_t, 11>; // first half (6bytes) + second half (5bytes)
+
+    // defines
+
+    /// Max Number of frames per PDMDB
+    static constexpr const unsigned FramesPerPDMDB = 6;
+
+    /// Number of PDMDBs per module
+    static constexpr const unsigned PDMDBPerModule = 2;
+
+    ///  Max Number of frames per PDM
+    static constexpr const unsigned FramesPerPDM = PDMDBPerModule * FramesPerPDMDB;
+
+    /// Number of bits per data frame
+    static constexpr const unsigned BitsPerFrame = 86;
+
+    /// Array of Bit Data structs per frame
+    using FrameData = std::array<BitData, BitsPerFrame>;
+
+    /// Data for each PDMDB
+    using PDMDBData = std::array<FrameData, FramesPerPDMDB>;
+
+    /// Data for each PDM
+    using PDMData = std::array<PDMDBData, PDMDBPerModule>;
+
+    ///  R-Type Module data for each RICH
+    using RTypeRichData = std::array<PDMData, 2>;
+
+    // methods
+
+    /// Get the PDMDB data for given RICH, PDMDB and frame
+    __host__ __device__ inline const auto& getFrameData(
+      const int8_t rich,  //
+      const int8_t pdmdb, //
+      const int8_t link,  //
+      const bool isHType) const
+    {
+      // Note as this is called many times from the decoding, avoid runtime range checking
+      // in optimised builds, as once OK it should never be invalidated.
+      // This is though tested in the debug builds via the asserts.
+      if (!isHType) {
+        // R type PMT
+        return m_pdmDataR[rich][pdmdb][link];
+      }
+      else {
+        return m_pdmDataH[pdmdb][link];
+      }
+    }
+
+    /// mapping version
+    __host__ __device__ inline auto version() const { return m_mappingVer; }
+
+    /// Access the initialisation state
+    __host__ __device__ inline auto isInitialised() const { return m_isInitialised; }
+
+    /// Get PDMDB data for given Tel40 data
+    __host__ __device__ inline const auto& getFrameData(const Tel40CableMapping::Tel40LinkData& cData) const
+    {
+      const auto rich = cData.smartID.getData(SmartID::ShiftRich, SmartID::MaskRich);
+      return getFrameData(rich, cData.pdmdbNum, cData.linkNum, cData.isHType);
+    }
+
+    __host__ __device__ inline const auto& getFrameValidMask(const Tel40CableMapping::Tel40LinkData& cData) const
+    {
+      const auto rich = cData.smartID.getData(SmartID::ShiftRich, SmartID::MaskRich);
+      if (!cData.isHType) {
+        // R type PMT
+        return m_pdmMaskR[rich][cData.pdmdbNum][cData.linkNum];
+      }
+      else {
+        return m_pdmMaskH[cData.pdmdbNum][cData.linkNum];
+      }
+    }
+
+    // data
+
+    /// R type data
+    RTypeRichData m_pdmDataR; // std::array<PDMData, 2>
+
+    /// H type data
+    PDMData m_pdmDataH; // std::array<PDMDBData, 2>
+
+    /// Flag to indicate initialisation status
+    bool m_isInitialised {false};
+
+    /// Mapping version
+    int m_mappingVer {-1};
+
+    std::array<std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule>, 2> m_pdmMaskR {};
+    std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule> m_pdmMaskH {};
+  };
+
+} // namespace Allen::Rich::Decoding

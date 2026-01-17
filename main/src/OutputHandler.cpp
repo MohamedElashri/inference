@@ -23,6 +23,8 @@
 #include <mdf_header.hpp>
 #include <raw_helpers.hpp>
 
+#include <Event/RawBank.h>
+
 #include <HltDecReport.cuh>
 #include <InputProvider.h>
 #include <OutputHandler.h>
@@ -42,30 +44,30 @@ struct HLT1Outputs {
 
   HLT1Outputs(Allen::Store::PersistentStore const& store);
 
-  gsl::span<bool const> selected_events;
-  gsl::span<unsigned const> dec_reports;
-  gsl::span<unsigned const> lumi_summaries;
-  gsl::span<unsigned const> lumi_summary_offsets;
-  gsl::span<unsigned const> routing_bits;
-  gsl::span<unsigned const> sel_reports;
-  gsl::span<unsigned const> sel_reports_offsets;
-  gsl::span<TAE::TAEEvent const> tae_events;
+  std::span<bool const> selected_events;
+  std::span<unsigned const> dec_reports;
+  std::span<unsigned const> lumi_summaries;
+  std::span<unsigned const> lumi_summary_offsets;
+  std::span<unsigned const> routing_bits;
+  std::span<unsigned const> sel_reports;
+  std::span<unsigned const> sel_reports_offsets;
+  std::span<TAE::TAEEvent const> tae_events;
 };
 
 HLT1Outputs::HLT1Outputs(Allen::Store::PersistentStore const& store)
 {
-  selected_events = store.try_at<bool>("global_decision__host_global_decision_t").value_or(gsl::span<bool const> {});
-  dec_reports = store.try_at<unsigned>("dec_reporter__host_dec_reports_t").value_or(gsl::span<unsigned const> {});
+  selected_events = store.try_at<bool>("global_decision__host_global_decision_t").value_or(std::span<bool const> {});
+  dec_reports = store.try_at<unsigned>("dec_reporter__host_dec_reports_t").value_or(std::span<unsigned const> {});
   lumi_summaries =
-    store.try_at<unsigned>("make_lumi_summary__host_lumi_summaries_t").value_or(gsl::span<unsigned const> {});
+    store.try_at<unsigned>("make_lumi_summary__host_lumi_summaries_t").value_or(std::span<unsigned const> {});
   lumi_summary_offsets =
-    store.try_at<unsigned>("make_lumi_summary__host_lumi_summary_offsets_t").value_or(gsl::span<unsigned const> {});
+    store.try_at<unsigned>("make_lumi_summary__host_lumi_summary_offsets_t").value_or(std::span<unsigned const> {});
   routing_bits =
-    store.try_at<unsigned>("host_routingbits_writer__host_routingbits_t").value_or(gsl::span<unsigned const> {});
-  sel_reports = store.try_at<unsigned>("make_selreps__host_sel_reports_t").value_or(gsl::span<unsigned const> {});
+    store.try_at<unsigned>("host_routingbits_writer__host_routingbits_t").value_or(std::span<unsigned const> {});
+  sel_reports = store.try_at<unsigned>("make_selreps__host_sel_reports_t").value_or(std::span<unsigned const> {});
   sel_reports_offsets =
-    store.try_at<unsigned>("make_selreps__host_selrep_offsets_t").value_or(gsl::span<unsigned const> {});
-  tae_events = store.try_at<TAE::TAEEvent>("tae_filter__host_tae_events_t").value_or(gsl::span<TAE::TAEEvent const> {});
+    store.try_at<unsigned>("make_selreps__host_selrep_offsets_t").value_or(std::span<unsigned const> {});
+  tae_events = store.try_at<TAE::TAEEvent>("tae_filter__host_tae_events_t").value_or(std::span<TAE::TAEEvent const> {});
 
   if (selected_events.empty())
     throw StrException {
@@ -102,7 +104,7 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
 
   // If TAE events should to be output as batches, that's done
   // separately in output_tae_event, so skip them here
-  gsl::span<TAE::TAEEvent const> tae_events;
+  std::span<TAE::TAEEvent const> tae_events;
   bool output_tae = !outputs.tae_events.empty();
   if (output_tae) {
     tae_events = outputs.tae_events;
@@ -303,7 +305,7 @@ std::tuple<bool, size_t> OutputHandler::output_tae_events(
     // Build the header of the TAEHeader bank
     auto* tae_header = reinterpret_cast<LHCb::RawBank*>(&tae_span[0] + header_size);
     tae_header->setMagic();
-    tae_header->setType(LHCb::RawBank::TAEHeader);
+    tae_header->setType(LHCb::RawBank::BankType::TAEHeader);
     tae_header->setVersion(0);
     tae_header->setSourceID(0);
     tae_header->setSize(tae_bank_size(tae_event.half_window));
@@ -391,9 +393,9 @@ OutputSizes& OutputHandler::event_sizes(
 }
 
 LHCb::MDFHeader* OutputHandler::add_mdf_header(
-  gsl::span<char> event_span,
+  std::span<char> event_span,
   unsigned const run_number,
-  gsl::span<unsigned const> routing_bits)
+  std::span<unsigned const> routing_bits)
 {
 
   auto const header_size = LHCb::MDFHeader::sizeOf(Allen::mdf_header_version);
@@ -424,7 +426,7 @@ LHCb::MDFHeader* OutputHandler::add_mdf_header(
   return header;
 }
 
-void OutputHandler::add_checksum(LHCb::MDFHeader* header, gsl::span<char> event_span)
+void OutputHandler::add_checksum(LHCb::MDFHeader* header, std::span<char> event_span)
 {
   if (m_checksum) {
     auto const skip = 4 * sizeof(int);
@@ -443,7 +445,7 @@ size_t OutputHandler::add_banks(
   unsigned const start_event,
   unsigned const event_number,
   unsigned const input_size,
-  gsl::span<char> event_span)
+  std::span<char> event_span)
 {
 
   HLT1Outputs outputs {store};
@@ -476,24 +478,25 @@ size_t OutputHandler::add_banks(
       0 :
       (outputs.lumi_summary_offsets[event_number + 1] - lumi_summary_offset) * sizeof(uint32_t);
 
-  using output_bank = std::tuple<LHCb::RawBank::BankType, unsigned, unsigned, gsl::span<char const>>;
+  using output_bank = std::tuple<LHCb::RawBank::BankType, unsigned, unsigned, std::span<char const>>;
   auto hlt_banks = std::make_tuple(
     // HltDecReports
-    output_bank {LHCb::RawBank::HltDecReports, dec_reports.version(), dec_reports.source_id(), dec_reports.bank_data()},
+    output_bank {
+      LHCb::RawBank::BankType::HltDecReports, dec_reports.version(), dec_reports.source_id(), dec_reports.bank_data()},
     // HltRoutingBits
-    output_bank {LHCb::RawBank::HltRoutingBits,
+    output_bank {LHCb::RawBank::BankType::HltRoutingBits,
                  0u,
                  Hlt1::Constants::sourceID,
                  {reinterpret_cast<char const*>(outputs.routing_bits.data()) + routing_bits_size * event_number,
                   static_cast<events_size>(routing_bits_size)}},
     // HltSelReports
-    output_bank {LHCb::RawBank::HltSelReports,
+    output_bank {LHCb::RawBank::BankType::HltSelReports,
                  Hlt1::Constants::version_sel_reports,
                  Hlt1::Constants::sourceID_sel_reports,
                  {reinterpret_cast<char const*>(outputs.sel_reports.data()) + sel_report_offset * sizeof(uint32_t),
                   static_cast<events_size>(sel_report_size)}},
     // HltLumiSummary
-    output_bank {LHCb::RawBank::HltLumiSummary,
+    output_bank {LHCb::RawBank::BankType::HltLumiSummary,
                  2u,
                  Hlt1::Constants::sourceID,
                  {reinterpret_cast<char const*>(outputs.lumi_summaries.data()) + lumi_summary_offset * sizeof(uint32_t),
@@ -504,10 +507,10 @@ size_t OutputHandler::add_banks(
                         LHCb::RawBank::BankType bank_type,
                         unsigned version,
                         unsigned source_id,
-                        gsl::span<char const> data,
+                        std::span<char const> data,
                         char* output) -> size_t {
     // add the dec report
-    return data.empty() ? 0u : Allen::add_raw_bank(bank_type, version, source_id, data, output);
+    return data.empty() ? 0u : Allen::add_raw_bank((uint8_t) bank_type, version, source_id, data, output);
   };
 
   for_each(hlt_banks, [&output, &add_hlt_bank](auto b) {

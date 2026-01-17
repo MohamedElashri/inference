@@ -33,7 +33,7 @@
 #include <sourceid.h>
 #include <read_mdf.hpp>
 #include <write_mdf.hpp>
-#include <Event/RawBank.h>
+#include <Event/RawBankType.h>
 #include "BankMapping.h"
 
 #include <SliceUtils.h>
@@ -70,7 +70,7 @@ struct MDFProviderConfig {
 
   bool split_by_run = false;
 
-  std::unordered_set<LHCb::RawBank::BankType> skip_banks;
+  std::unordered_set<LHCb::Event::Enum::RawBank::BankType> skip_banks;
 };
 
 /**
@@ -159,15 +159,15 @@ public:
    */
   void slice_free(size_t slice_index) override;
 
-  gsl::span<char const> raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_start, size_t const event)
+  std::span<char const> raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_start, size_t const event)
     const;
 
   void event_sizes(
     size_t const slice_index,
-    gsl::span<unsigned int const> const selected_events,
+    std::span<unsigned int const> const selected_events,
     std::vector<size_t>& sizes) const override;
 
-  void copy_banks(size_t const slice_index, unsigned int const event, gsl::span<char> output_buffer) const override;
+  void copy_banks(size_t const slice_index, unsigned int const event, std::span<char> output_buffer) const override;
 
 private:
   size_t count_writable() const;

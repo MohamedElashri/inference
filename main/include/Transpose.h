@@ -66,7 +66,7 @@ BankTypes sd_from_sourceID(LHCb::RawBank const* raw_bank);
  * @return     true if any of the sourceIDs has a non-zero value in
  *             its 5 most-significant bits
  */
-bool check_sourceIDs(gsl::span<char const> bank_data);
+bool check_sourceIDs(std::span<char const> bank_data);
 
 /**
  * @brief      Use the bank type to source banks;
@@ -79,8 +79,8 @@ bool check_sourceIDs(gsl::span<char const> bank_data);
  */
 inline bool sort_by_bank_type(LHCb::RawBank const* a, LHCb::RawBank const* b)
 {
-  bool a_velo = a->type() == LHCb::RawBank::VP || a->type() == LHCb::RawBank::VPRetinaCluster;
-  bool b_velo = b->type() == LHCb::RawBank::VP || b->type() == LHCb::RawBank::VPRetinaCluster;
+  bool a_velo = a->type() == LHCb::RawBank::BankType::VP || a->type() == LHCb::RawBank::BankType::VPRetinaCluster;
+  bool b_velo = b->type() == LHCb::RawBank::BankType::VP || b->type() == LHCb::RawBank::BankType::VPRetinaCluster;
   if (a_velo != b_velo) {
     return a_velo;
   }
@@ -101,8 +101,8 @@ inline bool sort_by_sourceID(LHCb::RawBank const* a, LHCb::RawBank const* b)
 {
   // Special case to avoid mixing VP and VPRetinateCluster banks
   if (
-    (a->type() == LHCb::RawBank::VP || a->type() == LHCb::RawBank::VPRetinaCluster) &&
-    (b->type() == LHCb::RawBank::VP || b->type() == LHCb::RawBank::VPRetinaCluster)) {
+    (a->type() == LHCb::RawBank::BankType::VP || a->type() == LHCb::RawBank::BankType::VPRetinaCluster) &&
+    (b->type() == LHCb::RawBank::BankType::VP || b->type() == LHCb::RawBank::BankType::VPRetinaCluster)) {
     return sort_by_bank_type(a, b);
   }
   else {
@@ -144,7 +144,7 @@ std::tuple<bool, bool, size_t> read_events(
  * @return     (success, number of banks per bank type; 0 if the bank is not needed)
  */
 std::tuple<bool, std::array<unsigned int, NBankTypes>> fill_counts(
-  gsl::span<char const> bank_data,
+  std::span<char const> bank_data,
   Allen::sd_from_raw_bank sd_from_raw_bank,
   std::unordered_set<LHCb::RawBank::BankType> const& skip_banks);
 
@@ -171,7 +171,7 @@ std::tuple<bool, bool, bool> transpose_event(
   std::array<int, NBankTypes>& banks_version,
   EventIDs& event_ids,
   std::vector<char>& event_mask,
-  const gsl::span<char const> bank_data,
+  const std::span<char const> bank_data,
   std::vector<LHCb::RawBank* const>& sorted_banks,
   bool split_by_run);
 

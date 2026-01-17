@@ -55,7 +55,7 @@ namespace {
   }
 
   // mix some 'extra' entropy into 'state' and return result
-  __host__ __device__ inline uint32_t mix4(uint32_t s, gsl::span<const char> a)
+  __host__ __device__ inline uint32_t mix4(uint32_t s, std::span<const char> a)
   {
     // FIXME: this _might_ do something different on big endian vs. small endian machines...
     return mix32(s, uint32_t(a[0]) | uint32_t(a[1]) << 8 | uint32_t(a[2]) << 16 | uint32_t(a[3]) << 24);
@@ -73,7 +73,7 @@ namespace {
       extra.remove_prefix(rem);
     }
     for (; !extra.empty(); extra.remove_prefix(4))
-      state = mix4(state, gsl::span<const char> {extra.substr(0, 4)});
+      state = mix4(state, std::span<const char> {extra.substr(0, 4)});
     return state;
   }
 
