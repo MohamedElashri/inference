@@ -12,6 +12,8 @@
 #include "HltDecReport.cuh"
 #include "SelectionsEventModel.cuh"
 #include <PrefixSum.cuh>
+#include <string>
+#include <sstream>
 
 INSTANTIATE_ALGORITHM(dec_reporter::dec_reporter_t)
 
@@ -44,6 +46,40 @@ void dec_reporter::dec_reporter_t::operator()(
   Allen::copy_async<host_dec_reports_t, dev_dec_reports_t>(arguments, context);
 
   PrefixSum::prefix_sum<dev_max_objects_offsets_t, host_max_objects_t>(*this, arguments, context);
+
+  // Only perform the memcpy if the number of selected objects exceeds the warning limit
+  unsigned number_of_events = first<host_number_of_events_t>(arguments);
+  unsigned total_warn_limit = m_warn_mean_event_limit * number_of_events;
+  if (first<host_max_objects_t>(arguments) > total_warn_limit) {
+    warning_cout << "Warning: Maximum number of objects in slice exceeded averaged limit of " << m_warn_mean_event_limit
+                 << std::endl;
+    unsigned number_of_lines = first<host_number_of_active_lines_t>(arguments);
+
+    // Get the names of the active lines in a std::string vector
+    std::vector<std::string> line_names;
+    auto char_begin = data<host_names_of_active_lines_t>(arguments);
+    auto char_end = char_begin + size<host_names_of_active_lines_t>(arguments);
+    std::string strdata(char_begin, char_end);
+    std::stringstream data(strdata);
+    std::string line_name;
+    while (std::getline(data, line_name, ',')) {
+      line_names.push_back(line_name);
+    }
+
+    auto host_max_objects_offsets = make_host_buffer<dev_max_objects_offsets_t>(arguments, context);
+
+    for (unsigned event = 0; event < number_of_events; ++event) {
+      for (unsigned line_index = 0; line_index < number_of_lines; ++line_index) {
+        unsigned index = event * number_of_lines + line_index;
+        unsigned number_of_candidates = host_max_objects_offsets[index + 1] - host_max_objects_offsets[index];
+        // Trigger line limit warning when it exceeds N-candidates in a single event
+        if (number_of_candidates > m_warn_line_limit) {
+          warning_cout << "  Warning: Event " << event << ", Line " << line_names[line_index] << ": "
+                       << number_of_candidates << " objects selected." << std::endl;
+        }
+      }
+    }
+  }
 }
 
 __global__ void

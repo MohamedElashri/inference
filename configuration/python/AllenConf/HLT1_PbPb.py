@@ -60,22 +60,20 @@ def default_physics_lines(reconstructed_objects, prescale, reco_particles,
             decoded_calo=decoded_calo,
             min_velo_tracks_PbPb=1,
             pre_scaler=0.01),
-        make_heavy_ion_event_line(
+        make_smog_microbias_event_line(
             name="Hlt1HeavyIonPbSMOGMicroBias",
             velo_tracks=velo_tracks,
             long_track_particles=long_track_particles,
             pvs=pvs,
             decoded_calo=decoded_calo,
-            min_pvs_SMOG=1,
-            pre_scaler=0.01 if prescale else 1),
-        make_heavy_ion_event_line(
+            min_pvs_SMOG=1),
+        make_smog_onetrack_event_line(
             name="Hlt1HeavyIonPbSMOGMBOneTrack",
             velo_tracks=velo_tracks,
             long_track_particles=long_track_particles,
             pvs=pvs,
             decoded_calo=decoded_calo,
-            min_velo_tracks_SMOG=1,
-            pre_scaler=0.01 if prescale else 1),
+            min_velo_tracks_SMOG=1),
         make_heavy_ion_event_line(
             name="Hlt1HeavyIonPbPbHadronic",
             velo_tracks=velo_tracks,
@@ -98,11 +96,19 @@ def default_physics_lines(reconstructed_objects, prescale, reco_particles,
             long_track_particles=long_track_particles,
             pvs=pvs,
             decoded_calo=decoded_calo,
-            max_ecal_e=94000,
             max_velo_tracks_SMOG=0,
+            max_velo_tracks_PbPb=10,
             min_long_tracks=1,
-            min_velo_tracks_PbPb=2,
-            pre_scaler=0.8 if prescale else 1),
+            min_velo_tracks_PbPb=1),
+        make_heavy_ion_event_line(
+            name="Hlt1HeavyIonUPCMB",
+            velo_tracks=velo_tracks,
+            long_track_particles=long_track_particles,
+            pvs=pvs,
+            decoded_calo=decoded_calo,
+            max_velo_tracks_SMOG=8,
+            max_velo_tracks_PbPb=8,
+            min_long_tracks=1),
         make_heavy_ion_event_line(
             name="Hlt1HeavyIonPbSMOGUPCMB",
             velo_tracks=velo_tracks,
@@ -151,7 +157,7 @@ def default_physics_lines(reconstructed_objects, prescale, reco_particles,
     return [line_maker(line) for line in lines]
 
 
-def upc_physics_lines(reconstructed_objects):
+def upc_physics_lines(reconstructed_objects, highEt_prescaler=0.1):
 
     pvs = reconstructed_objects["pvs"]
     velo_tracks = reconstructed_objects["velo_tracks"]
@@ -196,7 +202,7 @@ def upc_physics_lines(reconstructed_objects):
             calo=ecal_clusters,
             minEt=800,
             max_ecal_clusters=10,
-            pre_scaler=0.1)
+            pre_scaler=highEt_prescaler)
     ]
     return [line_maker(line) for line in lines]
 
@@ -262,7 +268,8 @@ def odin_monitoring_lines(lumiline_name, lumilinefull_name, with_gec,
 def alignment_monitoring_lines(reconstructed_objects,
                                reco_particles,
                                chi2_cuts,
-                               with_muon=True):
+                               with_muon=True,
+                               prefilters=[]):
 
     velo_tracks = reconstructed_objects["velo_tracks"]
     material_interaction_tracks = reconstructed_objects[
@@ -286,18 +293,6 @@ def alignment_monitoring_lines(reconstructed_objects,
             long_track_particles,
             maxTrChi2=chi2_cuts.Hlt1RICH2Alignment_maxTrChi2,
             name="Hlt1RICH2Alignment"),
-        make_z_range_materialvertex_seed_line(
-            material_interaction_tracks,
-            min_z_materialvertex_seed=300,
-            max_z_materialvertex_seed=1000,
-            name="Hlt1MaterialVertexSeedsDownstreamz",
-            pre_scaler=0.005),
-        make_z_range_materialvertex_seed_line(
-            material_interaction_tracks,
-            min_z_materialvertex_seed=700,
-            max_z_materialvertex_seed=1000,
-            name="Hlt1MaterialVertexSeeds_DWFS",
-            pre_scaler=0.1)
     ]
 
     if reco_particles:
@@ -344,7 +339,32 @@ def alignment_monitoring_lines(reconstructed_objects,
                     enable_tupling=False)
             ]
 
-    return [line_maker(line) for line in lines]
+    lines = [line_maker(line, prefilter=prefilters) for line in lines]
+    material_interaction_velo_gec = velo_gec("material_velo_gec", 0, 35000)
+    lines += [
+        line_maker(
+            make_z_range_materialvertex_seed_line(
+                material_interaction_tracks,
+                min_z_materialvertex_seed=300,
+                max_z_materialvertex_seed=1000,
+                name="Hlt1MaterialVertexSeedsDownstreamz"),
+            prefilter=prefilters + [
+                material_interaction_velo_gec,
+                make_prescaler(0.005, "Hlt1MaterialVertexSeedsDownstreamz")
+            ]),
+        line_maker(
+            make_z_range_materialvertex_seed_line(
+                material_interaction_tracks,
+                min_z_materialvertex_seed=700,
+                max_z_materialvertex_seed=1000,
+                name="Hlt1MaterialVertexSeeds_DWFS"),
+            prefilter=prefilters + [
+                material_interaction_velo_gec,
+                make_prescaler(0.1, "Hlt1MaterialVertexSeeds_DWFS")
+            ]),
+    ]
+
+    return lines
 
 
 def setup_hlt1_node(withMCChecking=False,
@@ -370,11 +390,13 @@ def setup_hlt1_node(withMCChecking=False,
                     tae_activity=True,
                     minimal_activity_type=ActivityType.VELO_CLUSTERS,
                     ActivityForClosing=ActivityType.VELO_CLUSTERS,
-                    DisableLinesDuringVPClosing=False,
+                    DisableLinesDuringVPClosing=True,
                     mini=False,
                     with_fullKF=False,
                     enabled_lines=[r'.*?'],
-                    disabled_lines=[]):
+                    disabled_lines=[],
+                    veloMicroBias_prescaler=0.15,
+                    highEt_prescaler=0.1):
 
     if with_fullKF:
         from AllenConf.secondary_vertex_reconstruction import ParKF_cuts as chi2_cuts
@@ -429,7 +451,7 @@ def setup_hlt1_node(withMCChecking=False,
         make_gec(
             count_ut=False,
             count_velo=True,
-            max_scifi_clusters=30000,
+            max_scifi_clusters=40000,
             max_velo_clusters=60000)
     ] if EnableGEC else []
     odin_err_filter = [odin_error_filter("odin_error_filter")
@@ -466,7 +488,7 @@ def setup_hlt1_node(withMCChecking=False,
             count_scifi=False,
             count_ut=False,
             min_velo_clusters=200,
-            max_velo_clusters=30000)
+            max_velo_clusters=5000)
     ]
 
     if ActivityForClosing == ActivityType.VELO_CLUSTERS:
@@ -557,7 +579,8 @@ def setup_hlt1_node(withMCChecking=False,
                                                   prescale, reco_particles,
                                                   with_muon, chi2_cuts)
         with line_maker.bind(prefilter=prefilter_photon_velo_upc):
-            physics_lines += upc_physics_lines(reconstructed_objects)
+            physics_lines += upc_physics_lines(reconstructed_objects,
+                                               highEt_prescaler)
 
             if EnableGEC:
                 physics_lines += [
@@ -591,9 +614,10 @@ def setup_hlt1_node(withMCChecking=False,
         ]
 
     # alignment lines within the GEC
-    with line_maker.bind(prefilter=(prefilter_upc if mini else prefilters)):
-        monitoring_lines += alignment_monitoring_lines(
-            reconstructed_objects, reco_particles, chi2_cuts, with_muon)
+    alignment_prefilters = prefilter_upc if mini else prefilters
+    monitoring_lines += alignment_monitoring_lines(
+        reconstructed_objects, reco_particles, chi2_cuts, with_muon,
+        alignment_prefilters)
 
     # velo microbias lines for Velo closing & alignment inside minimal activity filter
     with line_maker.bind(prefilter=odin_err_filter + [velo_open_event] + gec +
@@ -604,7 +628,7 @@ def setup_hlt1_node(withMCChecking=False,
                     reconstructed_objects["velo_tracks"],
                     name="Hlt1VeloMicroBiasVeloClosing",
                     pre_scaler=1.,
-                    post_scaler=1.))
+                    post_scaler=.5))
         ]
     with line_maker.bind(prefilter=prefilter_veloMicroBias):
         monitoring_lines += [
@@ -612,7 +636,7 @@ def setup_hlt1_node(withMCChecking=False,
                 make_velo_micro_bias_line(
                     reconstructed_objects["velo_tracks"],
                     name="Hlt1VeloMicroBias",
-                    pre_scaler=0.15,
+                    pre_scaler=veloMicroBias_prescaler,
                     post_scaler=1.,
                     min_velo_tracks=3))
         ]
@@ -657,7 +681,7 @@ def setup_hlt1_node(withMCChecking=False,
             reconstructed_objects["pvs"],
             reconstructed_objects["velo_states"],
             prefilter=(prefilter_upc_bgi if mini else prefilters_bgi),
-            enableBGI_full=False,
+            enableBGI_full=True,
             PbPb_collision=True)
 
     with line_maker.bind(prefilter=[sd_error_filter()]):

@@ -128,7 +128,7 @@ rb_map_PbPb = {
     'Hlt1(VeloMicroBias|BeamGas|HeavyIonPbPbMBOneTrack|HeavyIonPbPbMicroBias)':
     2,
     # RB 3 Tracker alignment
-    'Hlt1D2KPiAlignment|Hlt1HeavyIonPbPbUPCMB': 3,
+    'Hlt1(D2KPiAlignment|HeavyIonPbPbUPCMB)': 3,
     # RB 4 Muon alignment
     'Hlt1DiMuonJpsiMassAlignment': 4,
     # RB 5 RICH1 alignment
@@ -251,6 +251,8 @@ def make_dec_reporter(lines, TCK=0, encoding_key=None):
         tck=TCK,
         encoding_key=encoding_key,
         host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_names_of_active_lines_t=gather_selections.
+        host_names_of_active_lines_t,
         host_number_of_active_lines_t=gather_selections.
         host_number_of_active_lines_t,
         dev_number_of_active_lines_t=gather_selections.
