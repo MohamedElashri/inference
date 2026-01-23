@@ -10,22 +10,26 @@
 \*****************************************************************************/
 // Gaudi
 #include "GaudiAlg/Consumer.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "VeloEventModel.cuh"
 #include "Logger.h"
 
-class TestVeloClusters final
-  : public Gaudi::Functional::Consumer<
-      void(const std::vector<unsigned>&, const std::vector<unsigned>&, const std::vector<Velo::Clusters>&)> {
+class TestVeloClusters final : public Gaudi::Functional::Consumer<void(
+                                 const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+                                 const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+                                 const std::vector<Velo::Clusters, LHCb::Allocators::EventLocal<Velo::Clusters>>&)> {
 
 public:
   /// Standard constructor
   TestVeloClusters(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
-  void operator()(const std::vector<unsigned>&, const std::vector<unsigned>&, const std::vector<Velo::Clusters>&)
-    const override;
+  void operator()(
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<Velo::Clusters, LHCb::Allocators::EventLocal<Velo::Clusters>>&) const override;
 };
 
 DECLARE_COMPONENT(TestVeloClusters)
@@ -39,9 +43,9 @@ TestVeloClusters::TestVeloClusters(const std::string& name, ISvcLocator* pSvcLoc
 {}
 
 void TestVeloClusters::operator()(
-  const std::vector<unsigned>& offsets,
-  const std::vector<unsigned>& module_clusters_num,
-  const std::vector<Velo::Clusters>& velo_cluster_container_vector) const
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& offsets,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& module_clusters_num,
+  const std::vector<Velo::Clusters, LHCb::Allocators::EventLocal<Velo::Clusters>>& velo_cluster_container_vector) const
 {
   // Single event, but offsets are stored per module pair
   const auto& velo_cluster_container = velo_cluster_container_vector[0];

@@ -12,6 +12,7 @@
 // Gaudi
 #include "GaudiAlg/Consumer.h"
 #include "Gaudi/Accumulators.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Rec
 #include "RichFutureRecEvent/RichRecSIMDPixels.h"
@@ -57,10 +58,11 @@ void printPixelAttributes(
 
 // This test verifies that all valid HLT2 pixels exist in Allen, and all valid Allen pixels exist in HLT2
 // Having the same number of m_allen_found_in_hlt2, and m_hlt2_found_in_allen means success.
-class CompareRecAllenRichPixels final : public Gaudi::Functional::Consumer<void(
-                                          const std::vector<AllenRichPixel>&,
-                                          const std::vector<AllenRichPixel>&,
-                                          const Rich::Future::Rec::SIMDPixelSummaries&)> {
+class CompareRecAllenRichPixels final
+  : public Gaudi::Functional::Consumer<void(
+      const std::vector<AllenRichPixel, LHCb::Allocators::EventLocal<AllenRichPixel>>&,
+      const std::vector<AllenRichPixel, LHCb::Allocators::EventLocal<AllenRichPixel>>&,
+      const Rich::Future::Rec::SIMDPixelSummaries&)> {
 
 public:
   /// Standard constructor
@@ -68,8 +70,8 @@ public:
 
   /// Algorithm execution
   void operator()(
-    const std::vector<AllenRichPixel>&,
-    const std::vector<AllenRichPixel>&,
+    const std::vector<AllenRichPixel, LHCb::Allocators::EventLocal<AllenRichPixel>>&,
+    const std::vector<AllenRichPixel, LHCb::Allocators::EventLocal<AllenRichPixel>>&,
     const Rich::Future::Rec::SIMDPixelSummaries&) const override;
 
   /// Compare the attributes of an Allen Pixel and a Rec Pixel
@@ -120,8 +122,8 @@ CompareRecAllenRichPixels::CompareRecAllenRichPixels(const std::string& name, IS
 // When reading this code, keep in mind that recPixelSummaries contain multiple pixels, while allenRichPixels contain
 // individual pixels
 void CompareRecAllenRichPixels::operator()(
-  const std::vector<AllenRichPixel>& allenRich1Pixels,
-  const std::vector<AllenRichPixel>& allenRich2Pixels,
+  const std::vector<AllenRichPixel, LHCb::Allocators::EventLocal<AllenRichPixel>>& allenRich1Pixels,
+  const std::vector<AllenRichPixel, LHCb::Allocators::EventLocal<AllenRichPixel>>& allenRich2Pixels,
   const Rich::Future::Rec::SIMDPixelSummaries& recPixelSummaries) const
 {
   // Concatenate Allen Pixel vectors

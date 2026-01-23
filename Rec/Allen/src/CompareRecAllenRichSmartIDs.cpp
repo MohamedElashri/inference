@@ -14,6 +14,7 @@
 // LHCb
 #include "Event/PrHits.h"
 #include "RichFutureUtils/RichDecodedData.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "RichDecoding.cuh"
@@ -21,10 +22,11 @@
 
 using AllenRichSmartID = Allen::Rich::Decoding::SmartID;
 
-class CompareRecAllenRichSmartIDs final : public Gaudi::Functional::Consumer<void(
-                                            const std::vector<AllenRichSmartID>&,
-                                            const std::vector<AllenRichSmartID>&,
-                                            const Rich::Future::DAQ::DecodedData&)> {
+class CompareRecAllenRichSmartIDs final
+  : public Gaudi::Functional::Consumer<void(
+      const std::vector<AllenRichSmartID, LHCb::Allocators::EventLocal<AllenRichSmartID>>&,
+      const std::vector<AllenRichSmartID, LHCb::Allocators::EventLocal<AllenRichSmartID>>&,
+      const Rich::Future::DAQ::DecodedData&)> {
 
 public:
   /// Standard constructor
@@ -32,8 +34,8 @@ public:
 
   /// Algorithm execution
   void operator()(
-    const std::vector<AllenRichSmartID>&,
-    const std::vector<AllenRichSmartID>&,
+    const std::vector<AllenRichSmartID, LHCb::Allocators::EventLocal<AllenRichSmartID>>&,
+    const std::vector<AllenRichSmartID, LHCb::Allocators::EventLocal<AllenRichSmartID>>&,
     const Rich::Future::DAQ::DecodedData&) const override;
 };
 
@@ -49,8 +51,8 @@ CompareRecAllenRichSmartIDs::CompareRecAllenRichSmartIDs(const std::string& name
 {}
 
 void CompareRecAllenRichSmartIDs::operator()(
-  const std::vector<AllenRichSmartID>& allen_rich1_smart_ids,
-  const std::vector<AllenRichSmartID>& allen_rich2_smart_ids,
+  const std::vector<AllenRichSmartID, LHCb::Allocators::EventLocal<AllenRichSmartID>>& allen_rich1_smart_ids,
+  const std::vector<AllenRichSmartID, LHCb::Allocators::EventLocal<AllenRichSmartID>>& allen_rich2_smart_ids,
   const Rich::Future::DAQ::DecodedData& rec_rich_pixels) const
 {
   auto allen_rich1_ids = allen_rich1_smart_ids;

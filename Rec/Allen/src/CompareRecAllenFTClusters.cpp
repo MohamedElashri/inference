@@ -19,22 +19,26 @@
 #include "Event/FTLiteCluster.h"
 #include "FTDAQ/FTInfo.h"
 #include "Kernel/LHCbID.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "SciFiEventModel.cuh"
 #include "Logger.h"
 
-class CompareRecAllenFTClusters final
-  : public Gaudi::Functional::Consumer<
-      void(const std::vector<unsigned>&, const std::vector<char>&, const LHCb::FTLiteCluster::FTLiteClusters&)> {
+class CompareRecAllenFTClusters final : public Gaudi::Functional::Consumer<void(
+                                          const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+                                          const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
+                                          const LHCb::FTLiteCluster::FTLiteClusters&)> {
 
 public:
   /// Standard constructor
   CompareRecAllenFTClusters(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
-  void operator()(const std::vector<unsigned>&, const std::vector<char>&, const LHCb::FTLiteCluster::FTLiteClusters&)
-    const override;
+  void operator()(
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
+    const LHCb::FTLiteCluster::FTLiteClusters&) const override;
 
 private:
   mutable Gaudi::Accumulators::Counter<> m_lonelyAllen {this, "onlyAllen hits"};
@@ -54,8 +58,8 @@ CompareRecAllenFTClusters::CompareRecAllenFTClusters(const std::string& name, IS
 {}
 
 void CompareRecAllenFTClusters::operator()(
-  const std::vector<unsigned>& scifi_offsets,
-  const std::vector<char>& scifi_hits,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& scifi_offsets,
+  const std::vector<char, LHCb::Allocators::EventLocal<char>>& scifi_hits,
   LHCb::FTLiteCluster::FTLiteClusters const& ft_lite_clusters) const
 {
 

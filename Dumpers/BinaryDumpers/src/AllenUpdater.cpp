@@ -91,19 +91,17 @@ void AllenUpdater::registerProducer(string const& id, Allen::NonEventData::Produ
 
 void AllenUpdater::update(std::span<unsigned const> odin_data)
 {
-  {
-    std::scoped_lock lock {m_odinMutex};
-    LHCb::ODIN odin {odin_data};
-    if (m_odin && m_odin->runNumber() == odin.runNumber()) {
-      return;
-    }
-    else if (msgLevel(MSG::DEBUG)) {
-      debug() << "Running Update " << odin.runNumber() << endmsg;
-    }
-
-    // Store ODIN so it can be retrieved and then inserted into the event store
-    m_odin = odin;
+  std::scoped_lock lock {m_odinMutex};
+  LHCb::ODIN odin {odin_data};
+  if (m_odin && m_odin->runNumber() == odin.runNumber()) {
+    return;
   }
+  else if (msgLevel(MSG::DEBUG)) {
+    debug() << "Running Update " << odin.runNumber() << endmsg;
+  }
+
+  // Store ODIN so it can be retrieved and then inserted into the event store
+  m_odin = odin;
 
   // Check if all consumers have a producer
   for (auto const& entry : m_pairs) {

@@ -17,15 +17,18 @@
 // LHCb
 #include <Event/PrHits.h>
 #include <Event/ODIN.h>
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include <MuonEventModel.cuh>
 #include <MuonDefinitions.cuh>
 #include <Logger.h>
 
-class CompareRecAllenMuonHits final
-  : public Gaudi::Functional::Consumer<
-      void(const LHCb::ODIN& odin, const std::vector<unsigned>&, const std::vector<char>&, const MuonHitContainer&)> {
+class CompareRecAllenMuonHits final : public Gaudi::Functional::Consumer<void(
+                                        const LHCb::ODIN& odin,
+                                        const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+                                        const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
+                                        const MuonHitContainer&)> {
 
 public:
   /// Standard constructor
@@ -34,8 +37,8 @@ public:
   /// Algorithm execution
   void operator()(
     const LHCb::ODIN& odin,
-    const std::vector<unsigned>&,
-    const std::vector<char>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
     const MuonHitContainer&) const override;
 
 private:
@@ -57,8 +60,8 @@ CompareRecAllenMuonHits::CompareRecAllenMuonHits(const std::string& name, ISvcLo
 
 void CompareRecAllenMuonHits::operator()(
   const LHCb::ODIN& odin,
-  const std::vector<unsigned>& muon_hit_offsets,
-  const std::vector<char>& muon_hits,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& muon_hit_offsets,
+  const std::vector<char, LHCb::Allocators::EventLocal<char>>& muon_hits,
   const MuonHitContainer& muon_hit_container) const
 {
 

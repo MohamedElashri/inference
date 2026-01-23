@@ -12,17 +12,20 @@
 #include "GaudiAlg/FilterPredicate.h"
 #include "Gaudi/Accumulators.h"
 
+// LHCb
+#include <Kernel/EventLocalAllocator.h>
+
 // Standard
 #include <vector>
 #include <algorithm>
 
 struct GaudiAllenFilterEventsLineDecisions final
-  : public Gaudi::Functional::FilterPredicate<bool(const std::vector<char>&)> {
+  : public Gaudi::Functional::FilterPredicate<bool(const std::vector<char, LHCb::Allocators::EventLocal<char>>&)> {
   GaudiAllenFilterEventsLineDecisions(const std::string& name, ISvcLocator* pSvcLocator) :
     FilterPredicate(name, pSvcLocator, {KeyValue {"allen_global_decision", ""}})
   {}
 
-  bool operator()(const std::vector<char>& allen_global_decision) const override
+  bool operator()(const std::vector<char, LHCb::Allocators::EventLocal<char>>& allen_global_decision) const override
   {
     assert(allen_global_decision.size() == 1);
 

@@ -9,6 +9,7 @@
 // Gaudi
 #include "GaudiAlg/Consumer.h"
 #include "Gaudi/Accumulators.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "Plume.cuh"
@@ -16,18 +17,22 @@
 // PLUME
 #include <Event/PlumeAdc.h>
 
-class CompareRecAllenPlume final : public Gaudi::Functional::Consumer<
-                                     void(std::vector<Plume_, std::allocator<Plume_>> const&, LHCb::PlumeAdcs const&)> {
+class CompareRecAllenPlume final
+  : public Gaudi::Functional::Consumer<
+      void(std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const&, LHCb::PlumeAdcs const&)> {
 
 public:
   /// Standard constructor
   CompareRecAllenPlume(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
-  void operator()(std::vector<Plume_, std::allocator<Plume_>> const&, LHCb::PlumeAdcs const&) const override;
+  void operator()(std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const&, LHCb::PlumeAdcs const&)
+    const override;
 
 private:
-  void compare(std::vector<Plume_, std::allocator<Plume_>> const& allenDigits, LHCb::PlumeAdcs const& lhcbDigits) const;
+  void compare(
+    std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const& allenDigits,
+    LHCb::PlumeAdcs const& lhcbDigits) const;
 
   Gaudi::Property<int> m_pedestalOffset {this, "PedestalOffset", 256, "Offset to subtract from raw ADC counts."};
   std::map<unsigned int, unsigned int> m_map_reversed;
@@ -72,7 +77,7 @@ CompareRecAllenPlume::CompareRecAllenPlume(const std::string& name, ISvcLocator*
 }
 
 void CompareRecAllenPlume::operator()(
-  std::vector<Plume_, std::allocator<Plume_>> const& plume_digits_Allen,
+  std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const& plume_digits_Allen,
   LHCb::PlumeAdcs const& plume_digits_Moore) const
 {
   for (auto const& [allenDigits, lhcbDigits] : {std::forward_as_tuple(plume_digits_Allen, plume_digits_Moore)}) {
@@ -81,7 +86,7 @@ void CompareRecAllenPlume::operator()(
 }
 
 void CompareRecAllenPlume::compare(
-  std::vector<Plume_, std::allocator<Plume_>> const& allenDigits,
+  std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const& allenDigits,
   LHCb::PlumeAdcs const& lhcbDigits) const
 {
 

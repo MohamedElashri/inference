@@ -17,6 +17,7 @@
 #include "Kernel/LHCbID.h"
 #include "LHCbMath/SIMDWrapper.h"
 #include "Event/VPLightCluster.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "VeloEventModel.cuh"
@@ -25,9 +26,9 @@
 using simd = SIMDWrapper::best::types;
 
 class CompareRecAllenVPHits final : public Gaudi::Functional::Consumer<void(
-                                      const std::vector<unsigned>&,
-                                      const std::vector<unsigned>&,
-                                      const std::vector<char>&,
+                                      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+                                      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+                                      const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
                                       const LHCb::VPLightClusters&)> {
 
 public:
@@ -36,9 +37,9 @@ public:
 
   /// Algorithm execution
   void operator()(
-    const std::vector<unsigned>&,
-    const std::vector<unsigned>&,
-    const std::vector<char>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
     const LHCb::VPLightClusters&) const override;
 };
 
@@ -55,9 +56,9 @@ CompareRecAllenVPHits::CompareRecAllenVPHits(const std::string& name, ISvcLocato
 {}
 
 void CompareRecAllenVPHits::operator()(
-  const std::vector<unsigned>& vp_hits_num,
-  const std::vector<unsigned>& vp_hit_offsets,
-  const std::vector<char>& vp_hits,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& vp_hits_num,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& vp_hit_offsets,
+  const std::vector<char, LHCb::Allocators::EventLocal<char>>& vp_hits,
   LHCb::VPLightClusters const& hit_handler) const
 {
 

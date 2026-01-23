@@ -24,6 +24,7 @@
 // LHCb
 #include "Event/Track_v2.h"
 #include "Event/RecVertex_v2.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "Logger.h"
@@ -35,11 +36,12 @@
  *
  */
 
-class GaudiAllenSVsToRecVertexV2 final : public Gaudi::Functional::Transformer<LHCb::Event::v2::RecVertices(
-                                           const std::vector<unsigned>&,
-                                           const std::vector<unsigned>&,
-                                           const std::vector<VertexFit::TrackMVAVertex>&,
-                                           const std::vector<LHCb::Event::v2::Track>&)> {
+class GaudiAllenSVsToRecVertexV2 final
+  : public Gaudi::Functional::Transformer<LHCb::Event::v2::RecVertices(
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+      const std::vector<VertexFit::TrackMVAVertex, LHCb::Allocators::EventLocal<VertexFit::TrackMVAVertex>>&,
+      const std::vector<LHCb::Event::v2::Track>&)> {
 public:
   // Standard constructor
   GaudiAllenSVsToRecVertexV2(const std::string& name, ISvcLocator* pSvcLocator);
@@ -49,9 +51,9 @@ public:
 
   // Algorithm execution
   LHCb::Event::v2::RecVertices operator()(
-    const std::vector<unsigned>&,
-    const std::vector<unsigned>&,
-    const std::vector<VertexFit::TrackMVAVertex>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<VertexFit::TrackMVAVertex, LHCb::Allocators::EventLocal<VertexFit::TrackMVAVertex>>&,
     const std::vector<LHCb::Event::v2::Track>&) const override;
 };
 
@@ -77,9 +79,10 @@ StatusCode GaudiAllenSVsToRecVertexV2::initialize()
 }
 
 LHCb::Event::v2::RecVertices GaudiAllenSVsToRecVertexV2::operator()(
-  const std::vector<unsigned>& allen_atomics_scifi,
-  const std::vector<unsigned>& allen_sv_offsets,
-  const std::vector<VertexFit::TrackMVAVertex>& allen_secondary_vertices,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_atomics_scifi,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_sv_offsets,
+  const std::vector<VertexFit::TrackMVAVertex, LHCb::Allocators::EventLocal<VertexFit::TrackMVAVertex>>&
+    allen_secondary_vertices,
   const std::vector<LHCb::Event::v2::Track>& tracks) const
 {
   // Check number of tracks

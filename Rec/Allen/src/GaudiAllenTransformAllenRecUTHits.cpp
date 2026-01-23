@@ -27,6 +27,7 @@
 #include "Kernel/LHCbID.h"
 #include "LHCbMath/SIMDWrapper.h"
 #include "Event/PrHits.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "LHCbID.cuh"
@@ -38,8 +39,8 @@ using simd = SIMDWrapper::best::types;
 
 class GaudiAllenTransformAllenRecUTHits final
   : public Gaudi::Functional::MultiTransformer<std::tuple<std::vector<UT::Hit>, std::vector<UT::Hit>>(
-      const std::vector<unsigned>&,
-      const std::vector<char>&,
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+      const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
       LHCb::Pr::UT::Hits const& hit_handler,
       const Constants* const&)> {
 public:
@@ -48,8 +49,8 @@ public:
 
   // Algorithm execution
   std::tuple<std::vector<UT::Hit>, std::vector<UT::Hit>> operator()(
-    const std::vector<unsigned>&,
-    const std::vector<char>&,
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
     LHCb::Pr::UT::Hits const&,
     const Constants* const&) const override;
 };
@@ -72,8 +73,8 @@ GaudiAllenTransformAllenRecUTHits::GaudiAllenTransformAllenRecUTHits(
 {}
 
 std::tuple<std::vector<UT::Hit>, std::vector<UT::Hit>> GaudiAllenTransformAllenRecUTHits::operator()(
-  const std::vector<unsigned>& ut_hit_offsets,
-  const std::vector<char>& ut_hits,
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& ut_hit_offsets,
+  const std::vector<char, LHCb::Allocators::EventLocal<char>>& ut_hits,
   LHCb::Pr::UT::Hits const& hit_handler,
   const Constants* const&) const
 {

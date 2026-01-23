@@ -22,6 +22,7 @@
 
 // LHCb
 #include "Event/PrimaryVertices.h"
+#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "Logger.h"
@@ -31,7 +32,9 @@
 using Vertices = LHCb::Event::PV::PrimaryVertexContainer;
 
 class GaudiAllenPVsToPrimaryVertexContainer final
-  : public Gaudi::Functional::Transformer<Vertices(const std::vector<unsigned>&, const std::vector<PV::Vertex>&)> {
+  : public Gaudi::Functional::Transformer<Vertices(
+      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+      const std::vector<PV::Vertex, LHCb::Allocators::EventLocal<PV::Vertex>>&)> {
 public:
   /// Standard constructor
   GaudiAllenPVsToPrimaryVertexContainer(const std::string& name, ISvcLocator* pSvcLocator);
@@ -40,7 +43,9 @@ public:
   StatusCode initialize() override;
 
   /// Algorithm execution
-  Vertices operator()(const std::vector<unsigned>&, const std::vector<PV::Vertex>&) const override;
+  Vertices operator()(
+    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
+    const std::vector<PV::Vertex, LHCb::Allocators::EventLocal<PV::Vertex>>&) const override;
 
 private:
   mutable Gaudi::Accumulators::SummingCounter<unsigned int> m_nbPVsCounter {this, "Nb PVs"};
@@ -67,8 +72,8 @@ StatusCode GaudiAllenPVsToPrimaryVertexContainer::initialize()
 }
 
 Vertices GaudiAllenPVsToPrimaryVertexContainer::operator()(
-  const std::vector<unsigned>& number_of_multivertex,
-  const std::vector<PV::Vertex>& reconstructed_multi_pvs) const
+  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& number_of_multivertex,
+  const std::vector<PV::Vertex, LHCb::Allocators::EventLocal<PV::Vertex>>& reconstructed_multi_pvs) const
 {
 
   const unsigned i_event = 0;

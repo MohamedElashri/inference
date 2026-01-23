@@ -299,6 +299,18 @@ class AllenCore():
             "    m_algorithm.set_name(this->name());",
             "    return sc;",
             "}",
+            "StatusCode start() override {",
+            "    const StatusCode sc = Algorithm::start();",
+            "    if ( sc.isFailure() ) return sc;",
+            "    Allen::Monitoring::AccumulatorManager::get()->initAccumulators(1);",
+            "    return sc;",
+            "}",
+            "StatusCode stop() override {",
+            "  Allen::Monitoring::AccumulatorManager::get()->mergeAndReset(true);",
+            "  const StatusCode sc = Algorithm::stop();",
+            "  if ( sc.isFailure() ) return sc;",
+            "  return sc;",
+            "}",
             "",
             "private:",
             f"{algorithm.namespace}::{algorithm.name} m_algorithm{{}};\n",
@@ -310,9 +322,10 @@ class AllenCore():
         code += "mutable std::optional<unsigned> m_runNumber;\n"
         code += "mutable std::mutex m_mut;\n"
 
-        code += "\n" + "\n".join(
-            ("public:",
-             "StatusCode execute( const EventContext& ) const override {"))
+        code += "\n" + "\n".join((
+            "public:",
+            "StatusCode execute( [[maybe_unused]] const EventContext& evtCtx ) const override {"
+        ))
 
         # loop over inputs to get them
         # required
@@ -343,7 +356,7 @@ class AllenCore():
         code += "  }\n}\n"
 
         code += "\n".join((
-            f"std::vector<{typ}> empty_vector_tes_wrappers_{agg.typename} {{}};\n"
+            f"std::vector<{typ}, LHCb::Allocators::EventLocal<{typ}>> empty_vector_tes_wrappers_{agg.typename} {{ LHCb::getMemResource( evtCtx ) }};\n"
             +
             f"std::vector<Allen::TESWrapperInput<{typ}>> tes_wrappers_{agg.typename};\n"
             +
@@ -402,23 +415,25 @@ class AllenCore():
             tes_wrappers_reference_initialization_list)
         tes_wrappers_reference = f"std::array<std::reference_wrapper<Allen::Store::BaseArgument>, {len(parameters_non_aggregate)}> tes_wrappers_references {{{tes_wrappers_reference_initialization}}};"
 
+        output_alloc = [
+            f"Allen::parameter_vector<{algorithm.namespace}::Parameters::{p.typename}::type>{{Allen::param_vector_alloc<{algorithm.namespace}::Parameters::{p.typename}::type>{{ LHCb::getMemResource( evtCtx ) }}}}"
+            for p in outputs
+        ]
+
         # lets call m_algorithm with our newly defined inputs
         # make teswrappers
         code += "\n".join((
-            "// Output container",
-            "std::tuple<" + ",".join(output_types) + "> output_container {};",
+            "// Output container", "std::tuple<" + ",".join(output_types) +
+            f"> output_container{{{','.join(output_alloc)}}};"
             "// TES wrappers", f"{tes_wrappers}",
             "// Inputs to set_arguments_size and operator()",
             f"{tes_wrappers_reference}", f"Allen::Context context{{}};",
-            "{ std::scoped_lock lock{Allen::Monitoring::AccumulatorManager::get()->getMutex()};",
-            f"Allen::Monitoring::AccumulatorManager::get()->initAccumulators(1);",
             f"const auto argument_references = ArgumentReferences<{algorithm.namespace}::Parameters>{{tes_wrappers_references, input_aggregates_tuple}};",
             f"// set arguments size invocation",
             f"m_algorithm.set_arguments_size(argument_references, runtime_options, *constants);",
             f"// algorithm operator() invocation",
-            f"m_algorithm(argument_references, runtime_options, *constants, context);",
-            f"Allen::Monitoring::AccumulatorManager::get()->mergeAndReset(true);",
-            "}"))
+            f"m_algorithm(argument_references, runtime_options, *constants, context);"
+        ))
 
         is_filter = "mask_t" in [out.typedef for out in outputs]
         if is_filter:
@@ -483,6 +498,10 @@ class AllenCore():
                 f"Allen::parameter_vector<{algorithm.namespace}::Parameters::{p.typename}::type>"
                 for p in outputs
             ]
+            output_alloc = [
+                f"Allen::parameter_vector<{algorithm.namespace}::Parameters::{p.typename}::type>{{Allen::param_vector_alloc<{algorithm.namespace}::Parameters::{p.typename}::type>{{ LHCb::getMemResource( evtCtx ) }}}}"
+                for p in outputs
+            ]
 
             # If there is a mask_t among the types of the outputs,
             # then classify this algorithm as a filter
@@ -492,7 +511,7 @@ class AllenCore():
                 output_type = "std::tuple<" + ",".join(output_types) + ">"
                 operator_output_type = "std::tuple<bool, " + \
                     ",".join(output_types) + ">"
-                output_container = "output_t output_container{};"
+                output_container = f"output_t output_container{{{','.join(output_alloc)}}};"
                 index_of_mask_t = [out.typedef
                                    for out in outputs].index("mask_t")
                 return_statement = f"return std::tuple_cat(std::tuple<bool>{{std::get<{index_of_mask_t}>(output_container).size()}}, output_container);"
@@ -500,7 +519,7 @@ class AllenCore():
                 base_type = "MultiTransformer"
                 output_type = "std::tuple<" + ",".join(output_types) + ">"
                 operator_output_type = output_type
-                output_container = "output_t output_container{};"
+                output_container = f"output_t output_container{{{','.join(output_alloc)}}};"
                 return_statement = "return output_container;"
 
         base_type_namespace = "Gaudi::Functional::"
@@ -595,11 +614,24 @@ class AllenCore():
             f"    m_algorithm.set_name(this->name());",
             f"    return sc;",
             f"}}",
+            "StatusCode start() override {",
+            "    const StatusCode sc = base_class_t::start();",
+            "    if ( sc.isFailure() ) return sc;",
+            "    Allen::Monitoring::AccumulatorManager::get()->initAccumulators(1);",
+            "    Allen::MVAModels::MVAModelsManager::get()->loadData((m_cached_root + \"/data\").c_str());",
+            "    return sc;",
+            "}",
+            "StatusCode stop() override {",
+            "  Allen::Monitoring::AccumulatorManager::get()->mergeAndReset(true);",
+            "  const StatusCode sc = base_class_t::stop();",
+            "  if ( sc.isFailure() ) return sc;",
+            "  return sc;",
+            "}",
             f"// wrapped algorithm body",
             f"{algorithm.name}( std::string const& name, ISvcLocator* pSvc )",
             f"  : {base_type}( name, pSvc, {input_and_output_keyvals} ) {{}}",
             f"// operator()",
-            f"{operator_output_type} operator()(EventContext const&, LHCb::ODIN const& odin, {operator_inputs}) const override {{",
+            f"{operator_output_type} operator()([[maybe_unused]] EventContext const& evtCtx, LHCb::ODIN const& odin, {operator_inputs}) const override {{",
             output_container,
             "// TES wrappers",
             f"{tes_wrappers}",
@@ -607,19 +639,15 @@ class AllenCore():
             f"{tes_wrappers_reference}",
             f"Allen::Context context{{}};",
             "// Call algorithm update method on first event or if run number changes.",
-            "{ std::scoped_lock lock{m_mut};",
+            "if ( !m_runNumber || *m_runNumber != odin.runNumber() ) {",
+            "std::scoped_lock lock{m_mut};",
             "if ( !m_runNumber || *m_runNumber != odin.runNumber() ) {",
             "  m_algorithm.update(*constants); m_runNumber = odin.runNumber();"
             "}}",
-            "{ std::scoped_lock lock{Allen::Monitoring::AccumulatorManager::get()->getMutex()};",
-            f"Allen::Monitoring::AccumulatorManager::get()->initAccumulators(1);",
             f"// set arguments size invocation",
             f"m_algorithm.set_arguments_size(tes_wrappers_references, runtime_options, *constants);",
-            f"Allen::MVAModels::MVAModelsManager::get()->loadData((m_cached_root + \"/data\").c_str());",
             f"// algorithm operator() invocation",
             f"m_algorithm(tes_wrappers_references, runtime_options, *constants, context);",
-            f"Allen::Monitoring::AccumulatorManager::get()->mergeAndReset(true);",
-            "}",
             return_statement,
             f"}}",
             "private:",
