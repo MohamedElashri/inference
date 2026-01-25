@@ -86,7 +86,12 @@ BankTypes sd_from_bank_type(LHCb::RawBank const* raw_bank)
   auto const bid = bank_ids[(uint8_t) raw_bank->type()];
   auto const bt = bid == -1 ? BankTypes::Unknown : static_cast<BankTypes>(bid);
   if (bt == BankTypes::Rich1) { // Some banks can only be distinguished by sourceID
-    return sd_from_sourceID(raw_bank);
+    const auto nbt = sd_from_sourceID(raw_bank);
+    // For very old MC samples, the subdetector type cannot always be resolved
+    // from the raw bank information. In such cases we fall back to the old
+    // behavior. This should be fine, as RICH is not expected to be used with
+    // such old data (for example 2018 MC).
+    return (nbt == BankTypes::Rich1 || nbt == BankTypes::Rich2) ? nbt : bt;
   }
   return bt;
 }

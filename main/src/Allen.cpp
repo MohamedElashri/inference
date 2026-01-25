@@ -767,8 +767,12 @@ int allen(
           try {
             updater->update(next_odin->data);
             sched_seq.update_algorithms(constants);
+          } catch (const std::exception& e) {
+            error_cout << "Non-event data update failed: " << e.what() << "\n";
+            ++error_count;
+            goto loop_error;
           } catch (...) {
-            error_cout << "Non-event data update failed\n";
+            error_cout << "Non-event data update failed: unknown exception\n";
             ++error_count;
             goto loop_error;
           }
