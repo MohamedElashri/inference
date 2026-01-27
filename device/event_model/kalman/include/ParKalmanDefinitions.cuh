@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -16,17 +16,13 @@
 
 namespace ParKalmanFilter {
 
+  typedef Vector<10> Vector10;
   typedef Vector<5> Vector5;
+  typedef Vector<2> Vector2;
   typedef SquareMatrix<true, 5> SymMatrix5x5;
+  typedef SquareMatrix<true, 4> SymMatrix4x4;
+  typedef SquareMatrix<true, 2> SymMatrix2x2;
   typedef SquareMatrix<false, 5> Matrix5x5;
-
-  // Set a 5x5 diagonal matrix for later use (F)
-  [[maybe_unused]] __constant__ static KalmanFloat F_diag[25] = {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1,
-                                                                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1};
-  // Set a 5x5 sym zero matrix for later use (Q)
-  [[maybe_unused]] __constant__ static KalmanFloat Q_sym_zero[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  // 26 VELO + 4 UT + 12 SciFi.
-  constexpr int nMaxMeasurements = 42;
 
   // Max number of bins for the UT <-> SciFi extrapolation.
   constexpr int nBinXMax = 60;
@@ -37,7 +33,6 @@ namespace ParKalmanFilter {
   constexpr int DEGx2 = 9;
   constexpr int DEGy1 = 5;
   constexpr int DEGy2 = 7;
-  constexpr int nSC = 80; // 2 * Degx2 + 4 * Degx1 + 2 * Degy2 + 4 * Degy1
 
   // Number of velo parameters.
   constexpr int nParsV = 10;
@@ -75,12 +70,20 @@ namespace ParKalmanFilter {
   constexpr int nParsUTLayer = 4;
   constexpr int nSetsUTLayer = 1;
 
-  // Some options.
-  constexpr bool m_UseForwardMomEstimate = true;
-  constexpr bool m_UseForwardChi2Estimate = true;
-  constexpr int nMaxOutliers = 2;
-
   // SciFi Geo constants
   constexpr float Approx_dy = 2424.0f;         // TODO simplified SCIFI GEO
   constexpr float Approx_BeamHole_dy = 116.5f; // TODO simplified SCIFI GEO
+
+  // Parameters for beamline propagation and VELO-only Kalman Filter.
+  static constexpr float rffoilscatter = 0.6;
+
+  static constexpr float scatterSensorParameter_VPHit2VPHit_cms = 1.48;
+  static constexpr float scatterSensorParameter_VPHit2VPHit_etaxx = 0.643;
+  static constexpr float scatterSensorParameter_VPHit2VPHit_etaxtx = 0.526;
+  static constexpr float scatterSensorParameter_VPHit2VPHit_Eloss = 0.592;
+
+  static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_cms = 2.91;
+  static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_etaxx = 0.808;
+  static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_etaxtx = 0.793;
+  static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_Eloss = 1.29;
 } // namespace ParKalmanFilter

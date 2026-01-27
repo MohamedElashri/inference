@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -51,7 +51,6 @@ namespace ParKalmanFilter {
     const KalmanFloat init_qop,
     const KalmanParametrizations* kalman_params,
     FittedTrack& track,
-    const SciFi::SciFiGeometry scifi_geometry,
     const float* dev_UT_lay,
     const float* dev_T_lay,
     const float* dev_V_pars,

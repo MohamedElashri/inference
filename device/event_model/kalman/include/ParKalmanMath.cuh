@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -11,6 +11,7 @@
 #pragma once
 
 #include "BackendCommon.h"
+#include <algorithm>
 
 #ifdef KALMAN_DOUBLE_PRECISION
 using KalmanFloat = double;
@@ -22,154 +23,201 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Template declaration
-  template<bool _sym, int _size>
+  template<bool SYM, int SIZE>
   struct SquareMatrix;
 
   //----------------------------------------------------------------------
   // Non-symmetric, square matrix.
-  template<int _size>
-  struct SquareMatrix<false, _size> {
-    int size;
-    KalmanFloat vals[_size * _size];
+  template<int SIZE>
+  struct SquareMatrix<false, SIZE> {
+    KalmanFloat vals[SIZE * SIZE];
     __host__ __device__ SquareMatrix()
     {
-      size = _size;
-      for (int i = 0; i < _size * _size; i++)
+      for (int i = 0; i < SIZE * SIZE; i++)
         vals[i] = 0.;
     }
-    __host__ __device__ SquareMatrix(const KalmanFloat init_vals[_size * _size])
+    __host__ __device__ SquareMatrix(const KalmanFloat init_vals[SIZE * SIZE])
     {
-      size = _size;
-      for (int i = 0; i < _size * _size; i++)
+      for (int i = 0; i < SIZE * SIZE; i++)
         vals[i] = init_vals[i];
     }
-    __host__ __device__ void SetElements(const KalmanFloat init_vals[_size * _size])
+    __host__ __device__ void SetElements(const KalmanFloat init_vals[SIZE * SIZE])
     {
-      for (int i = 0; i < size * size; i++)
+      for (int i = 0; i < SIZE * SIZE; i++)
         vals[i] = init_vals[i];
     }
-    __host__ __device__ KalmanFloat& operator()(int i, int j) { return vals[i * _size + j]; }
-    __host__ __device__ const KalmanFloat& operator()(int i, int j) const { return vals[i * _size + j]; }
+    __host__ __device__ KalmanFloat& operator()(int i, int j) { return vals[i * SIZE + j]; }
+    __host__ __device__ const KalmanFloat& operator()(int i, int j) const { return vals[i * SIZE + j]; }
     __host__ __device__ KalmanFloat& operator[](int i) { return vals[i]; }
     __host__ __device__ const KalmanFloat& operator[](int i) const { return vals[i]; }
-    __host__ __device__ SquareMatrix<false, _size> T()
+    __host__ __device__ SquareMatrix<false, SIZE> T()
     {
-      SquareMatrix<false, _size> ret;
-      for (int i = 0; i < _size; i++)
-        for (int j = 0; j < _size; j++)
-          ret(i, j) = vals[j * _size + i];
+      SquareMatrix<false, SIZE> ret;
+      for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+          ret(i, j) = vals[j * SIZE + i];
       return ret;
     }
-    __host__ __device__ SquareMatrix<false, _size> T() const
+    __host__ __device__ SquareMatrix<false, SIZE> T() const
     {
-      SquareMatrix<false, _size> ret;
-      for (int i = 0; i < _size; i++)
-        for (int j = 0; j < _size; j++)
-          ret(i, j) = vals[j * _size + i];
+      SquareMatrix<false, SIZE> ret;
+      for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+          ret(i, j) = vals[j * SIZE + i];
       return ret;
+    }
+    __host__ __device__ void SetZero()
+    {
+      for (int i = 0; i < SIZE * SIZE; i++)
+        vals[i] = ((KalmanFloat) 0.0);
+    }
+    __host__ __device__ void SetDiag()
+    {
+      for (int i = 0; i < SIZE * SIZE; i++)
+        vals[i] = 0.0;
+      for (int i = 0; i < SIZE; ++i)
+        vals[i * SIZE + i] = 1.0;
+    }
+    __host__ __device__ void operator+=(const SquareMatrix<false, SIZE>& B)
+    {
+      for (int i = 0; i < SIZE * SIZE; i++) {
+        vals[i] += B.vals[i];
+      }
+    }
+    __host__ __device__ void operator-=(const SquareMatrix<false, SIZE>& B)
+    {
+      for (int i = 0; i < SIZE * SIZE; i++) {
+        vals[i] -= B.vals[i];
+      }
     }
   };
 
   //----------------------------------------------------------------------
   // Symmetric matrix.
-  template<int _size>
-  struct SquareMatrix<true, _size> {
-    KalmanFloat vals[((_size * (_size + 1)) >> 1)];
+  template<int SIZE>
+  struct SquareMatrix<true, SIZE> {
+    KalmanFloat vals[((SIZE * (SIZE + 1)) >> 1)];
     __host__ __device__ SquareMatrix()
     {
-      for (int i = 0; i < ((_size * (_size + 1)) >> 1); i++)
+      for (int i = 0; i < ((SIZE * (SIZE + 1)) >> 1); i++)
         vals[i] = 0;
     }
-    __host__ __device__ SquareMatrix(KalmanFloat init_vals[((_size * (_size + 1)) >> 1)])
+    __host__ __device__ SquareMatrix(KalmanFloat init_vals[((SIZE * (SIZE + 1)) >> 1)])
     {
-      for (int i = 0; i < ((_size * (_size + 1)) >> 1); i++)
+      for (int i = 0; i < ((SIZE * (SIZE + 1)) >> 1); i++)
         vals[i] = init_vals[i];
     }
-    __host__ __device__ void SetElements(KalmanFloat init_vals[((_size * (_size + 1)) >> 1)])
+    __host__ __device__ void SetElements(KalmanFloat init_vals[((SIZE * (SIZE + 1)) >> 1)])
     {
-      for (int i = 0; i < ((_size * (_size + 1)) >> 1); i++)
+      for (int i = 0; i < ((SIZE * (SIZE + 1)) >> 1); i++)
         vals[i] = init_vals[i];
     }
     __host__ __device__ KalmanFloat& operator()(int i, int j)
     {
-      if (i > j) {
-        int tmp = i;
-        i = j;
-        j = tmp;
-      }
-      int idx = i;
-      while (j > 0) {
-        idx += j;
-        j -= 1;
-      }
-      return vals[idx];
+      int row = std::max(i, j);
+      int col = std::min(i, j);
+      return vals[col + ((row * (row + 1)) >> 1)];
     }
     __host__ __device__ const KalmanFloat& operator()(int i, int j) const
     {
-      if (i > j) {
-        int tmp = i;
-        i = j;
-        j = tmp;
-      }
-      int idx = i;
-      while (j > 0) {
-        idx += j;
-        j -= 1;
-      }
-      return vals[idx];
+      int row = std::max(i, j);
+      int col = std::min(i, j);
+      return vals[col + ((row * (row + 1)) >> 1)];
     }
     __host__ __device__ KalmanFloat& operator[](int i) { return vals[i]; }
     __host__ __device__ const KalmanFloat& operator[](int i) const { return vals[i]; }
+    __host__ __device__ void SetZero()
+    {
+      for (int i = 0; i < ((SIZE * (SIZE + 1)) >> 1); i++)
+        vals[i] = 0.0;
+    }
+    __host__ __device__ void SetDiag()
+    {
+      for (int i = 0; i < ((SIZE * (SIZE + 1)) >> 1); i++)
+        vals[i] = 0.0;
+      for (int i = 0; i < SIZE; ++i)
+        vals[i + ((i * (i + 1)) >> 1)] = 1.0;
+    }
+    // same size +=/-=
+    __host__ __device__ void operator+=(const SquareMatrix<true, SIZE>& B)
+    {
+      for (int i = 0; i < (((SIZE * (SIZE + 1)) >> 1)); i++) {
+        vals[i] += B.vals[i];
+      }
+    }
+    __host__ __device__ void operator-=(const SquareMatrix<true, SIZE>& B)
+    {
+      for (int i = 0; i < (((SIZE * (SIZE + 1)) >> 1)); i++) {
+        vals[i] -= B.vals[i];
+      }
+    }
+    // SIZEB < SIZE partial +=/-=
+    template<int SIZEB>
+    __host__ __device__ void operator+=(const SquareMatrix<true, SIZEB>& B)
+    {
+      static_assert(SIZEB < SIZE);
+      for (int i = 0; i < (((SIZEB * (SIZEB + 1)) >> 1)); i++) {
+        vals[i] += B.vals[i];
+      }
+    }
+    template<int SIZEB>
+    __host__ __device__ void operator-=(const SquareMatrix<true, SIZEB>& B)
+    {
+      static_assert(SIZEB < SIZE);
+      for (int i = 0; i < (((SIZEB * (SIZEB + 1)) >> 1)); i++) {
+        vals[i] -= B.vals[i];
+      }
+    }
   };
 
   //----------------------------------------------------------------------
   // Vector.
-  template<int _size>
+  template<int SIZE>
   struct Vector {
-    KalmanFloat vals[_size];
+    KalmanFloat vals[SIZE];
 
     __host__ __device__ Vector();
-    __host__ __device__ Vector(KalmanFloat init_vals[_size]);
+    __host__ __device__ Vector(KalmanFloat init_vals[SIZE]);
     __host__ __device__ KalmanFloat& operator()(int i) { return vals[i]; }
     __host__ __device__ const KalmanFloat& operator()(int i) const { return vals[i]; }
     __host__ __device__ KalmanFloat& operator[](int i) { return vals[i]; }
     __host__ __device__ const KalmanFloat& operator[](int i) const { return vals[i]; }
   };
 
-  template<int _size>
-  __host__ __device__ Vector<_size>::Vector()
+  template<int SIZE>
+  __host__ __device__ Vector<SIZE>::Vector()
   {
-    for (int i = 0; i < _size; i++)
+    for (int i = 0; i < SIZE; i++)
       vals[i] = 0;
   }
 
-  template<int _size>
-  __host__ __device__ Vector<_size>::Vector(KalmanFloat init_vals[_size])
+  template<int SIZE>
+  __host__ __device__ Vector<SIZE>::Vector(KalmanFloat init_vals[SIZE])
   {
-    for (int i = 0; i < _size; i++)
+    for (int i = 0; i < SIZE; i++)
       vals[i] = init_vals[i];
   }
 
   //----------------------------------------------------------------------
   // Invert a square matrix
-  template<bool _sym, int _size>
-  __host__ __device__ SquareMatrix<_sym, _size> inverse(const SquareMatrix<_sym, _size>& A)
+  template<bool SYM, int SIZE>
+  __host__ __device__ SquareMatrix<SYM, SIZE> inverse(const SquareMatrix<SYM, SIZE>& A)
   {
-    SquareMatrix<_sym, _size> Ainv;
-    SquareMatrix<false, _size> ut;
-    SquareMatrix<false, _size> lt;
+    SquareMatrix<SYM, SIZE> Ainv;
+    SquareMatrix<false, SIZE> ut;
+    SquareMatrix<false, SIZE> lt;
 
     // Decompose
-    for (int i = 0; i < _size; i++) {
+    for (int i = 0; i < SIZE; i++) {
       // Upper triangular
-      for (int k = i; k < _size; k++) {
+      for (int k = i; k < SIZE; k++) {
         KalmanFloat sum = 0;
         for (int j = 0; j < i; j++)
           sum += lt(i, j) * ut(j, k);
         ut(i, k) = A(i, k) - sum;
       }
       // Lower triangular
-      for (int k = i; k < _size; k++) {
+      for (int k = i; k < SIZE; k++) {
         if (i == k)
           lt(i, i) = 1;
         else {
@@ -182,17 +230,17 @@ namespace ParKalmanFilter {
     }
 
     // Invert triangular matrices.
-    SquareMatrix<false, _size> utinv;
-    SquareMatrix<false, _size> ltinv;
+    SquareMatrix<false, SIZE> utinv;
+    SquareMatrix<false, SIZE> ltinv;
     // Set diagonals.
-    for (int i = 0; i < _size; i++) {
+    for (int i = 0; i < SIZE; i++) {
       utinv(i, i) = 1.f / ut(i, i);
       ltinv(i, i) = 1.f / lt(i, i);
     }
     // Off-diagonal.
-    for (int i = 0; i < _size; i++) {
+    for (int i = 0; i < SIZE; i++) {
       // Upper.
-      for (int off = 1; off < _size - i; off++) {
+      for (int off = 1; off < SIZE - i; off++) {
         int j = i + off;
         KalmanFloat utval = 0;
         KalmanFloat ltval = 0;
@@ -214,16 +262,16 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Multiply two square matrices. C=AxB.
-  template<bool _symA, bool _symB, bool _symC, int _size>
+  template<bool SYMA, bool SYMB, bool SYMC, int SIZE>
   __device__ __host__ void multiplySquareBySquare(
-    const SquareMatrix<_symA, _size>& A,
-    const SquareMatrix<_symB, _size>& B,
-    SquareMatrix<_symC, _size>& C)
+    const SquareMatrix<SYMA, SIZE>& A,
+    const SquareMatrix<SYMB, SIZE>& B,
+    SquareMatrix<SYMC, SIZE>& C)
   {
-    for (int i = 0; i < _size; i++) {
-      for (int j = 0; j < _size; j++) {
+    for (int i = 0; i < SIZE; i++) {
+      for (int j = 0; j < SIZE; j++) {
         KalmanFloat sum = 0;
-        for (int k = 0; k < _size; k++)
+        for (int k = 0; k < SIZE; k++)
           sum += A(i, k) * B(k, j);
         C(i, j) = sum;
       }
@@ -232,16 +280,16 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Operator * Multiply two square matrices. C=A*B.
-  template<bool _symA, bool _symB, int _size>
-  __host__ __device__ SquareMatrix<false, _size> operator*(
-    const SquareMatrix<_symA, _size>& A,
-    const SquareMatrix<_symB, _size>& B)
+  template<bool SYMA, bool SYMB, int SIZE>
+  __host__ __device__ SquareMatrix<false, SIZE> operator*(
+    const SquareMatrix<SYMA, SIZE>& A,
+    const SquareMatrix<SYMB, SIZE>& B)
   {
-    SquareMatrix<false, _size> C;
-    for (int i = 0; i < _size; i++) {
-      for (int j = 0; j < _size; j++) {
+    SquareMatrix<false, SIZE> C;
+    for (int i = 0; i < SIZE; i++) {
+      for (int j = 0; j < SIZE; j++) {
         KalmanFloat sum = 0;
-        for (int k = 0; k < _size; k++)
+        for (int k = 0; k < SIZE; k++)
           sum += A(i, k) * B(k, j);
         C(i, j) = sum;
       }
@@ -251,107 +299,67 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Operator + Add two square matrices. C=A+B.
-  template<bool _symA, bool _symB, int _size>
-  __host__ __device__ SquareMatrix<false, _size> operator+(
-    const SquareMatrix<_symA, _size>& A,
-    const SquareMatrix<_symB, _size>& B)
+  template<bool SYMA, bool SYMB, int SIZE>
+  __host__ __device__ SquareMatrix<false, SIZE> operator+(
+    const SquareMatrix<SYMA, SIZE>& A,
+    const SquareMatrix<SYMB, SIZE>& B)
   {
-    SquareMatrix<false, _size> C;
-    for (int i = 0; i < _size; i++) {
-      for (int j = 0; j < _size; j++) {
+    SquareMatrix<false, SIZE> C;
+    for (int i = 0; i < SIZE; i++) {
+      for (int j = 0; j < SIZE; j++) {
         C(i, j) = A(i, j) + B(i, j);
       }
     }
     return C;
   }
 
-  template<int _size>
-  __host__ __device__ SquareMatrix<true, _size> operator+(
-    const SquareMatrix<true, _size>& A,
-    const SquareMatrix<true, _size>& B)
+  template<int SIZE>
+  __host__ __device__ SquareMatrix<true, SIZE> operator+(
+    const SquareMatrix<true, SIZE>& A,
+    const SquareMatrix<true, SIZE>& B)
   {
-    KalmanFloat res_vals[((_size * (_size + 1)) >> 1)];
-    for (int i = 0; i < (((_size * (_size + 1)) >> 1)); i++) {
+    KalmanFloat res_vals[((SIZE * (SIZE + 1)) >> 1)];
+    for (int i = 0; i < (((SIZE * (SIZE + 1)) >> 1)); i++) {
       res_vals[i] = A.vals[i] + B.vals[i];
     }
-    return SquareMatrix<true, _size>(res_vals);
-  }
-
-  //----------------------------------------------------------------------
-  // Add two square matrices A+=B in place.
-  template<bool _symA, bool _symB, int _size>
-  __host__ __device__ void AeApB(SquareMatrix<_symA, _size>& A, const SquareMatrix<_symB, _size>& B)
-  {
-    for (int i = 0; i < _size; i++) {
-      for (int j = 0; j < _size; j++) {
-        A(i, j) += B(i, j);
-      }
-    }
-  }
-
-  template<int _size>
-  __host__ __device__ void AeApB(SquareMatrix<true, _size>& A, const SquareMatrix<true, _size>& B)
-  {
-    for (int i = 0; i < (((_size * (_size + 1)) >> 1)); i++) {
-      A.vals[i] += B.vals[i];
-    }
-  }
-
-  //----------------------------------------------------------------------
-  // Subtract two square matrices A-=B in place.
-  template<bool _symA, bool _symB, int _size>
-  __host__ __device__ void AeAmB(SquareMatrix<_symA, _size>& A, const SquareMatrix<_symB, _size>& B)
-  {
-    for (int i = 0; i < _size; i++) {
-      for (int j = 0; j < _size; j++) {
-        A(i, j) -= B(i, j);
-      }
-    }
-  }
-
-  template<int _size>
-  __host__ __device__ void AeAmB(SquareMatrix<true, _size>& A, const SquareMatrix<true, _size>& B)
-  {
-    for (int i = 0; i < (((_size * (_size + 1)) >> 1)); i++) {
-      A.vals[i] -= B.vals[i];
-    }
+    return SquareMatrix<true, SIZE>(res_vals);
   }
 
   //----------------------------------------------------------------------
   // Operator - Subtract a square matrix from another. C=A-B.
-  template<bool _symA, bool _symB, int _size>
-  __host__ __device__ SquareMatrix<false, _size> operator-(
-    const SquareMatrix<_symA, _size>& A,
-    const SquareMatrix<_symB, _size>& B)
+  template<bool SYMA, bool SYMB, int SIZE>
+  __host__ __device__ SquareMatrix<false, SIZE> operator-(
+    const SquareMatrix<SYMA, SIZE>& A,
+    const SquareMatrix<SYMB, SIZE>& B)
   {
-    SquareMatrix<false, _size> C;
-    for (int i = 0; i < _size; i++) {
-      for (int j = 0; j < _size; j++) {
+    SquareMatrix<false, SIZE> C;
+    for (int i = 0; i < SIZE; i++) {
+      for (int j = 0; j < SIZE; j++) {
         C(i, j) = A(i, j) - B(i, j);
       }
     }
     return C;
   }
 
-  template<int _size>
-  __host__ __device__ SquareMatrix<true, _size> operator-(
-    const SquareMatrix<true, _size>& A,
-    const SquareMatrix<true, _size>& B)
+  template<int SIZE>
+  __host__ __device__ SquareMatrix<true, SIZE> operator-(
+    const SquareMatrix<true, SIZE>& A,
+    const SquareMatrix<true, SIZE>& B)
   {
-    KalmanFloat res_vals[((_size * (_size + 1)) >> 1)];
-    for (int i = 0; i < (((_size * (_size + 1)) >> 1)); i++) {
+    KalmanFloat res_vals[((SIZE * (SIZE + 1)) >> 1)];
+    for (int i = 0; i < (((SIZE * (SIZE + 1)) >> 1)); i++) {
       res_vals[i] = A.vals[i] - B.vals[i];
     }
-    return SquareMatrix<true, _size>(res_vals);
+    return SquareMatrix<true, SIZE>(res_vals);
   }
 
   //----------------------------------------------------------------------
   // Operator + Add two vectors. C=A+B.
-  template<int _size>
-  __host__ __device__ Vector<_size> operator+(const Vector<_size>& A, const Vector<_size>& B)
+  template<int SIZE>
+  __host__ __device__ Vector<SIZE> operator+(const Vector<SIZE>& A, const Vector<SIZE>& B)
   {
-    Vector<_size> C;
-    for (int i = 0; i < _size; i++) {
+    Vector<SIZE> C;
+    for (int i = 0; i < SIZE; i++) {
       C(i) = A(i) + B(i);
     }
     return C;
@@ -359,11 +367,11 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Operator - Subtract a vector from another. C=A-B.
-  template<int _size>
-  __host__ __device__ Vector<_size> operator-(const Vector<_size>& A, const Vector<_size>& B)
+  template<int SIZE>
+  __host__ __device__ Vector<SIZE> operator-(const Vector<SIZE>& A, const Vector<SIZE>& B)
   {
-    Vector<_size> C;
-    for (int i = 0; i < _size; i++) {
+    Vector<SIZE> C;
+    for (int i = 0; i < SIZE; i++) {
       C(i) = A(i) - B(i);
     }
     return C;
@@ -371,13 +379,13 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Operator * Multiply square matrix by vector. C=A*B.
-  template<bool _symA, int _size>
-  __host__ __device__ Vector<_size> operator*(const SquareMatrix<_symA, _size>& A, const Vector<_size>& B)
+  template<bool SYMA, int SIZE>
+  __host__ __device__ Vector<SIZE> operator*(const SquareMatrix<SYMA, SIZE>& A, const Vector<SIZE>& B)
   {
-    Vector<_size> C;
-    for (int i = 0; i < _size; i++) {
+    Vector<SIZE> C;
+    for (int i = 0; i < SIZE; i++) {
       KalmanFloat sum = 0;
-      for (int j = 0; j < _size; j++)
+      for (int j = 0; j < SIZE; j++)
         sum += A(i, j) * B(j);
       C(i) = sum;
     }
@@ -386,56 +394,56 @@ namespace ParKalmanFilter {
 
   //----------------------------------------------------------------------
   // Operator for scalar multiplication of vectors.
-  template<int _size>
-  __host__ __device__ Vector<_size> operator*(const KalmanFloat& a, const Vector<_size> v)
+  template<int SIZE>
+  __host__ __device__ Vector<SIZE> operator*(const KalmanFloat& a, const Vector<SIZE> v)
   {
-    Vector<_size> u;
-    for (int i = 0; i < _size; i++)
+    Vector<SIZE> u;
+    for (int i = 0; i < SIZE; i++)
       u(i) = v(i) * a;
     return u;
   }
 
   //----------------------------------------------------------------------
   // Operator for scalar multiplication of square matrices.
-  template<bool _sym, int _size>
-  __host__ __device__ SquareMatrix<_sym, _size> operator*(const KalmanFloat& a, const SquareMatrix<_sym, _size> M)
+  template<bool SYM, int SIZE>
+  __host__ __device__ SquareMatrix<SYM, SIZE> operator*(const KalmanFloat& a, const SquareMatrix<SYM, SIZE> M)
   {
-    SquareMatrix<_sym, _size> aM;
-    for (int i = 0; i < _size; i++)
-      for (int j = 0; j < _size; j++)
+    SquareMatrix<SYM, SIZE> aM;
+    for (int i = 0; i < SIZE; i++)
+      for (int j = 0; j < SIZE; j++)
         aM(i, j) = M(i, j) * a;
     return aM;
   }
 
   //----------------------------------------------------------------------
   // Operator for scalar division of vectors.
-  template<int _size>
-  __host__ __device__ Vector<_size> operator/(const Vector<_size> v, const KalmanFloat& a)
+  template<int SIZE>
+  __host__ __device__ Vector<SIZE> operator/(const Vector<SIZE> v, const KalmanFloat& a)
   {
-    Vector<_size> u;
-    for (int i = 0; i < _size; i++)
+    Vector<SIZE> u;
+    for (int i = 0; i < SIZE; i++)
       u(i) = v(i) / a;
     return u;
   }
 
   //----------------------------------------------------------------------
   // Operator for scalar multiplication of square matrices.
-  template<bool _sym, int _size>
-  __host__ __device__ SquareMatrix<_sym, _size> operator/(const SquareMatrix<_sym, _size> M, const KalmanFloat& a)
+  template<bool SYM, int SIZE>
+  __host__ __device__ SquareMatrix<SYM, SIZE> operator/(const SquareMatrix<SYM, SIZE> M, const KalmanFloat& a)
   {
-    SquareMatrix<_sym, _size> Moa;
-    for (int i = 0; i < _size; i++)
-      for (int j = 0; j < _size; j++)
+    SquareMatrix<SYM, SIZE> Moa;
+    for (int i = 0; i < SIZE; i++)
+      for (int j = 0; j < SIZE; j++)
         Moa(i, j) = M(i, j) / a;
     return Moa;
   }
 
-  template<int _size>
-  __host__ __device__ SquareMatrix<true, _size> AssignSymmetric(const SquareMatrix<false, _size>& A)
+  template<int SIZE>
+  __host__ __device__ SquareMatrix<true, SIZE> AssignSymmetric(const SquareMatrix<false, SIZE>& A)
   {
-    SquareMatrix<true, _size> B;
-    for (int i = 0; i < _size; i++) {
-      for (int j = i; j < _size; j++) {
+    SquareMatrix<true, SIZE> B;
+    for (int i = 0; i < SIZE; i++) {
+      for (int j = i; j < SIZE; j++) {
         B(i, j) = A(i, j);
       }
     }
