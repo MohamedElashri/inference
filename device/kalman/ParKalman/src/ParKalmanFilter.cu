@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -162,16 +162,7 @@ namespace ParKalmanFilter {
 
     // Get Velo Hits
     const unsigned n_velo_hits = velo_track.number_of_hits();
-    // get length of the Velo loop
-#ifdef TARGET_DEVICE_CUDA // IF CUDA: Use the max in the WARP
-    const unsigned int FULL_MASK = 0xffffffff;
-    unsigned max_velo_WARP = n_velo_hits;
-    for (int mask = warpSize / 2; mask > 0; mask /= 2) {
-      max_velo_WARP = max(__shfl_xor_sync(FULL_MASK, max_velo_WARP, mask), max_velo_WARP);
-    }
-#else // If not CUDA: Just the number of velo hits in each thread
-    unsigned max_velo_WARP = n_velo_hits;
-#endif
+
     // Get UT Hits
     const unsigned n_ut_hits = ut_track.number_of_ut_hits();
     unsigned n_ut_layers = 0;
@@ -199,14 +190,10 @@ namespace ParKalmanFilter {
     // Update on the first hit
     UpdateStateV(velo_track, 1, n_velo_hits - 1, x, C, tI);
     // have to iterate down from `n_velo_hits - 1` to `0`
-    for (unsigned i_hit = 1; i_hit < max_velo_WARP; i_hit++) {
-      if (n_velo_hits - 1 < i_hit) {
-        break;
-      }
+    for (unsigned i_hit = 1; i_hit < n_velo_hits; i_hit++) {
       PredictStateV(velo_track, dev_V_pars, n_velo_hits - 1 - i_hit, x, C, tI);
       UpdateStateV(velo_track, 1, n_velo_hits - 1 - i_hit, x, C, tI);
     }
-    __syncthreads();
 
     KalmanFloat endVeloZ = tI.m_Lastz; // z position if the last Velo hit
 
@@ -229,7 +216,6 @@ namespace ParKalmanFilter {
     hit_counter = (hit_map0 & 0xf); // Checks for hit in first layer
     PredictStateVUT(ut_track, dev_UT_lay, dev_VUT_pars, x, C, tI, hit_counter);
     // m_RefStateForwardV was saved at the last Velo hit.
-    __syncthreads();
 
     //  and update the first ut layer if there is a hit.
     if (hit_counter != 0xf) {
@@ -237,7 +223,6 @@ namespace ParKalmanFilter {
     }
 
     // iterater over the remaining UT layers
-    __syncthreads();
     for (layer = 1; layer < 4; layer++) {
       hit_counter = ((hit_map0 >> (layer * 4)) & 0xf);
       PredictStateUT(ut_track, dev_UT_lay, dev_UT_pars, x, C, tI, layer, hit_counter);
@@ -245,11 +230,9 @@ namespace ParKalmanFilter {
         UpdateStateUT(ut_track, x, C, tI, hit_counter);
       }
     }
-    __syncthreads();
+
     layer = 3; // needed because `PredictStateUTT` calls `ExtrapolateInUT` again
     PredictStateUTT(dev_UT_pars, dev_TFT_pars, dev_UTTF_pars, dev_UTT_META, dev_T_lay, kalman_params, x, C, tI, layer);
-
-    __syncthreads();
 
     // make T hitmaps: See UT above but now with two seperate maps for the first and last 6 T layers
     hit_map0 = 0xffffff;          // [1111 1111 1111 1111 1111 1111]
@@ -288,7 +271,6 @@ namespace ParKalmanFilter {
         UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer);
       }
     }
-    __syncthreads();
     //------------------------------ End forward fit.
 
     // Set state and covariance for VELO-only backward fit
@@ -304,26 +286,13 @@ namespace ParKalmanFilter {
     tI.m_Lastz = endVeloZ;
 
     //------------------------------ Start backward fit.
-#ifdef TARGET_DEVICE_CUDA // see VELO forward fit
-    const unsigned int FULL_MASK2 = 0xffffffff;
-    unsigned max_velo_WARP2 = n_velo_hits2;
-    for (int mask = warpSize / 2; mask > 0; mask /= 2) {
-      max_velo_WARP2 = max(__shfl_xor_sync(FULL_MASK2, max_velo_WARP2, mask), max_velo_WARP2);
-    }
-#else
-    unsigned max_velo_WARP2 = n_velo_hits2;
-#endif
     // Velo loop.
     // Update again on the hit in the last layer
     UpdateStateV(velo_track, -1, 0, x, C, tI);
-    for (unsigned i_hit = 1; i_hit < max_velo_WARP2; i_hit++) { // Velo hits are sorted from large z to small z
-      if (i_hit > n_velo_hits2 - 1) {
-        break;
-      }
+    for (unsigned i_hit = 1; i_hit < n_velo_hits; i_hit++) { // Velo hits are sorted from large z to small z
       PredictStateV(velo_track, dev_V_pars, i_hit, x, C, tI);
       UpdateStateV(velo_track, -1, i_hit, x, C, tI);
     }
-    __syncthreads();
     //------------------------------ End backward fit.
 
     MakeTrack(init_qop, x, C, tI, track, n_velo_hits2, n_ut_layers, n_scifi_layers);

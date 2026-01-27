@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -48,24 +48,6 @@ namespace ParKalmanFilter {
 
 using namespace ParKalmanFilter;
 
-using Vector10 = Vector<10>;
-using Vector2 = Vector<2>;
-using SymMatrix2x2 = SquareMatrix<true, 2>;
-using Matrix5x5 = SquareMatrix<false, 5>;
-
-// Parameters for beamline propagation and VELO-only Kalman Filter.
-static constexpr float rffoilscatter = 0.6;
-
-static constexpr float scatterSensorParameter_VPHit2VPHit_cms = 1.48;
-static constexpr float scatterSensorParameter_VPHit2VPHit_etaxx = 0.643;
-static constexpr float scatterSensorParameter_VPHit2VPHit_etaxtx = 0.526;
-static constexpr float scatterSensorParameter_VPHit2VPHit_Eloss = 0.592;
-
-static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_cms = 2.91;
-static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_etaxx = 0.808;
-static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_etaxtx = 0.793;
-static constexpr float scatterSensorParameter_VPHit2ClosestToBeam_Eloss = 1.29;
-
 ////////////////////////////////////////////////////////////////////////
 // Functions related to SciFi hits and their geometry
 __device__ inline float SciFi_yMin(const Allen::Views::SciFi::Consolidated::Track& track, unsigned& hit_counter)
@@ -95,7 +77,7 @@ __device__ inline float SciFi_dy(const Allen::Views::SciFi::Consolidated::Track&
 ////////////////////////////////////////////////////////////////////////
 // Functions for doing the extrapolation.
 __device__ inline void
-ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F, SymMatrix5x5& Q, trackInfo& tI)
+ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F, SymMatrix4x4& Q, trackInfo& tI)
 {
   // step size in z
   KalmanFloat dz = zTo - tI.m_Lastz;
@@ -141,7 +123,7 @@ ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 }
 
 __device__ inline void
-ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F, SymMatrix5x5& Q, trackInfo& tI)
+ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F, SymMatrix4x4& Q, trackInfo& tI)
 {
 
   // cache the old state
@@ -159,8 +141,8 @@ ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 
   // calculate jacobian
   // ty
-  F(3, 2) = par * x[4];
-  F(3, 4) = par * tx_old;
+  F(3, 2) = par * std::copysign((KalmanFloat) 1.0, x[1]) * x[4];
+  F(3, 4) = par * std::copysign((KalmanFloat) 1.0, x[1]) * tx_old;
   // y
   par = dev_pars[3];
   x[1] += (par * ty_old + (((KalmanFloat) 1.0) - par) * x[3]) * dz;
@@ -240,7 +222,7 @@ __device__ inline void ExtrapolateInUT(
   KalmanFloat zTo,
   Vector5& x,
   Matrix5x5& F,
-  SymMatrix5x5& Q,
+  SymMatrix4x4& Q,
   trackInfo& tI,
   unsigned& layer)
 {
@@ -276,8 +258,8 @@ __device__ inline void ExtrapolateInUT(
   F(0, 2) = dz;
   F(0, 4) = dz * (((KalmanFloat) 1.0) - par) * F(2, 4);
 
-  F(3, 2) = par1 * x[4] * std::copysign((KalmanFloat) 1.0, x[1]);
-  F(3, 4) = par1 * x[2] * std::copysign((KalmanFloat) 1.0, x[1]);
+  F(3, 2) = par1 * x[4] * std::copysign((KalmanFloat) 1.0, old_y);
+  F(3, 4) = par1 * x[2] * std::copysign((KalmanFloat) 1.0, old_y);
 
   par = dev_pars[offset + 2];
   F(1, 2) = dz * (((KalmanFloat) 1.0) - par) * F(3, 2);
@@ -381,83 +363,106 @@ __device__ inline void extrapUTT(
     gy += (KalmanFloat) 1.;
   }
 
-  int rx, ry, sx, sy;
-  rx = (gx >= 0);
-  sx = 2 * rx - 1;
-  ry = (gy >= 0);
-  sy = 2 * ry - 1;
-  StandardCoefs c;
-  StandardCoefs c_buff;
-
-  setZero(c);
-  c_buff = kalman_params->C[ix][iy];
-  // aPEbxp := a += b * c
-  aPEbxp(c, c_buff, ((KalmanFloat) 1) - (gx * gx + gy * gy) + sx * sy * gx * gy);
-  c_buff = kalman_params->C[ix + 1][iy];
-  aPEbxp(c, c_buff, (gx * gx + gx) * ((KalmanFloat) 0.5) - rx * sy * gx * gy);
-  c_buff = kalman_params->C[ix][iy + 1];
-  aPEbxp(c, c_buff, (gy * gy + gy) * ((KalmanFloat) 0.5) - ry * sx * gx * gy);
-  c_buff = kalman_params->C[ix][iy - 1];
-  aPEbxp(c, c_buff, (gy * gy - gy) * ((KalmanFloat) 0.5) + (!ry) * sx * gx * gy);
-  c_buff = kalman_params->C[ix - 1][iy];
-  aPEbxp(c, c_buff, (gx * gx - gx) * ((KalmanFloat) 0.5) + (!rx) * sy * gx * gy);
-  c_buff = kalman_params->C[ix + sx][iy + sy];
-  aPEbxp(c, c_buff, sx * sy * gx * gy);
+  const int rx = (gx >= 0);
+  const int sx = 2 * rx - 1;
+  const int ry = (gy >= 0);
+  const int sy = 2 * ry - 1;
 
   x = x + tx * (zf - zi);
   y = y + ty * (zf - zi);
 
+  // Initialize derivative accumulators
   for (int k = 0; k < 4; k++)
     der_tx[k] = der_ty[k] = der_qop[k] = 0;
+
   // corrections to straight line -------------------------
-  KalmanFloat fq = qop * dev_UTT_META[2];
-  // x and tx ---------
-  KalmanFloat ff = 1;
-  KalmanFloat term1, term2;
-  for (int deg = 0; deg < DEGx1; deg++) {
-    term1 = c.x00(deg) + c.x10(deg) * ux + c.x01(deg) * uy;
-    term2 = c.tx00(deg) + c.tx10(deg) * ux + c.tx01(deg) * uy;
-    der_qop[0] += (deg + 1) * term1 * ff;
-    der_qop[2] += (deg + 1) * term2 * ff;
-    ff *= fq;
-    x += term1 * ff;
-    tx += term2 * ff;
-    der_tx[0] += c.x10(deg) * ff;
-    der_ty[0] += c.x01(deg) * ff;
-    der_tx[2] += c.tx10(deg) * ff;
-    der_ty[2] += c.tx01(deg) * ff;
-  }
+  const KalmanFloat fq = qop * dev_UTT_META[2];
 
-  for (int deg = DEGx1; deg < DEGx2; deg++) {
-    der_qop[0] += (deg + 1) * c.x00(deg) * ff;
-    der_qop[2] += (deg + 1) * c.tx00(deg) * ff;
-    ff *= fq;
-    x += c.x00(deg) * ff;
-    tx += c.tx00(deg) * ff;
-  }
+  // Manually unrolled: 4 independent state variable updates
+  // State 0: x position
+  kalman_params->compute_state<DEGx2, DEGx1>(
+    kalman_params->x00,
+    kalman_params->x10,
+    kalman_params->x01,
+    ix,
+    iy,
+    gx,
+    gy,
+    sx,
+    sy,
+    rx,
+    ry,
+    ux,
+    uy,
+    fq,
+    x,
+    der_qop[0],
+    der_tx[0],
+    der_ty[0]);
 
-  // y and ty ---------
-  ff = 1;
-  for (int deg = 0; deg < DEGy1; deg++) {
-    term1 = c.y00(deg) + c.y10(deg) * ux + c.y01(deg) * uy;
-    term2 = c.ty00(deg) + c.ty10(deg) * ux + c.ty01(deg) * uy;
-    der_qop[1] += (deg + 1) * term1 * ff;
-    der_qop[3] += (deg + 1) * term2 * ff;
-    ff *= fq;
-    y += term1 * ff;
-    ty += term2 * ff;
-    der_tx[1] += c.y10(deg) * ff;
-    der_ty[1] += c.y01(deg) * ff;
-    der_tx[3] += c.ty10(deg) * ff;
-    der_ty[3] += c.ty01(deg) * ff;
-  }
-  for (int deg = DEGy1; deg < DEGy2; deg++) {
-    der_qop[1] += (deg + 1) * c.y00(deg) * ff;
-    der_qop[3] += (deg + 1) * c.ty00(deg) * ff;
-    ff *= fq;
-    y += c.y00(deg) * ff;
-    ty += c.ty00(deg) * ff;
-  }
+  // State 2: tx slope
+  kalman_params->compute_state<DEGx2, DEGx1>(
+    kalman_params->tx00,
+    kalman_params->tx10,
+    kalman_params->tx01,
+    ix,
+    iy,
+    gx,
+    gy,
+    sx,
+    sy,
+    rx,
+    ry,
+    ux,
+    uy,
+    fq,
+    tx,
+    der_qop[2],
+    der_tx[2],
+    der_ty[2]);
+
+  // State 1: y position
+  kalman_params->compute_state<DEGy2, DEGy1>(
+    kalman_params->y00,
+    kalman_params->y10,
+    kalman_params->y01,
+    ix,
+    iy,
+    gx,
+    gy,
+    sx,
+    sy,
+    rx,
+    ry,
+    ux,
+    uy,
+    fq,
+    y,
+    der_qop[1],
+    der_tx[1],
+    der_ty[1]);
+
+  // State 3: ty slope
+  kalman_params->compute_state<DEGy2, DEGy1>(
+    kalman_params->ty00,
+    kalman_params->ty10,
+    kalman_params->ty01,
+    ix,
+    iy,
+    gx,
+    gy,
+    sx,
+    sy,
+    rx,
+    ry,
+    ux,
+    uy,
+    fq,
+    ty,
+    der_qop[3],
+    der_tx[3],
+    der_ty[3]);
+
   for (int k = 0; k < 4; k++) {
     der_qop[k] *= dev_UTT_META[2];
     der_tx[k] *= DtxyInv;
@@ -481,7 +486,7 @@ __device__ inline void ExtrapolateUTT(
   const KalmanParametrizations* kalman_params,
   Vector5& x,
   Matrix5x5& F,
-  SymMatrix5x5& Q,
+  SymMatrix4x4& Q,
   trackInfo& tI)
 {
   // extrapolating from last UT layer (z=2642.5) to fixed z in T (z=7855)
@@ -530,14 +535,12 @@ __device__ inline void ExtrapolateUTT(
   F(0, 4) += ((KalmanFloat) 2.0) * fabsf(x[4]) * par;
 
   par = dev_pars[0] * tI.m_polarity;
-  F(3, 4) += par + ((KalmanFloat) 2.0) * dev_pars[1] * x[4] * ((KalmanFloat) 1e5) +
-             ((KalmanFloat) 3.0) * dev_pars[2] * tI.m_polarity * x[4] * x[4] * ((KalmanFloat) 1e8);
+  F(3, 4) += par;
   x[3] += par * x[4];
 
-  par = dev_pars[3] * tI.m_polarity;
-  F(1, 4) += par * ((KalmanFloat) 1e2) + ((KalmanFloat) 2.0) * dev_pars[4] * x[4] * ((KalmanFloat) 1e5) +
-             ((KalmanFloat) 3.0) * dev_pars[5] * tI.m_polarity * x[4] * x[4] * ((KalmanFloat) 1e8);
-  x[1] += par * x[4] * ((KalmanFloat) 1e2);
+  par = dev_pars[3] * tI.m_polarity * ((KalmanFloat) 1e2);
+  F(1, 4) += par;
+  x[1] += par * x[4];
 
   par = dev_pars[6] * tI.m_polarity;
   F(2, 4) += par;
@@ -585,7 +588,7 @@ __device__ inline void ExtrapolateInT(
   KalmanFloat DzDty,
   Vector5& x,
   Matrix5x5& F,
-  SymMatrix5x5& Q,
+  SymMatrix4x4& Q,
   trackInfo& tI,
   unsigned& layer)
 {
@@ -615,11 +618,13 @@ __device__ inline void ExtrapolateInT(
   // ty
   float par = dev_pars[offset + 7] * x[4];
   x[3] += par * x[4] * x[1];
-  F(3, 4) = ((KalmanFloat) 2.0) * par;
+  F(3, 1) = par * x[4];
+  F(3, 4) = ((KalmanFloat) 2.0) * par * x[1];
 
   // y
   par = dev_pars[offset + 2];
   x[1] += dz * (par * old_x3 + (((KalmanFloat) 1.0) - par) * x[3]);
+  F(1, 1) += dz * (((KalmanFloat) 1.0) - par) * F(3, 1);
   F(1, 4) = dz * (((KalmanFloat) 1.0) - par) * F(3, 4);
 
   // calculate jacobian
@@ -774,17 +779,16 @@ __device__ inline void PredictStateV(
 
   // Transportation and noise.
   Matrix5x5 F;
-  F.SetElements(F_diag);
-  SymMatrix5x5 Q;
-  Q.SetElements(Q_sym_zero);
+  F.SetDiag();
+  SymMatrix4x4 Q;
+  Q.SetZero();
   ExtrapolateInV(dev_pars, (KalmanFloat) track.hit(nHit).z(), x, F, Q, tI);
 
   // Transport the covariance matrix.
   C = similarity_5_5(F, C);
 
   // Add noise.
-  // C = C + Q;
-  AeApB(C, Q);
+  C += Q;
 
   // Set current z position.
   // In Velo each layer has a hit, thus this update could be skiped and only change in UpdateStateV.
@@ -805,11 +809,11 @@ __device__ inline void PredictStateVUT(
   // Predicted z position.
   KalmanFloat zTo = dev_lays[0];
   // Noise.
-  SymMatrix5x5 Q;
-  Q.SetElements(Q_sym_zero);
+  SymMatrix4x4 Q;
+  Q.SetZero();
   // Jacobian.
   Matrix5x5 F;
-  F.SetElements(F_diag);
+  F.SetDiag();
 
   // Prediction.
   tI.m_RefStateForwardV[0] = x[0];
@@ -830,8 +834,7 @@ __device__ inline void PredictStateVUT(
   C = similarity_5_5(F, C);
 
   // Add noise.
-  // C = C + Q;
-  AeApB(C, Q);
+  C += Q;
 
   // Set current z position.
   tI.m_Lastz = zTo;
@@ -851,9 +854,9 @@ __device__ inline void PredictStateUT(
 {
   KalmanFloat zTo = dev_lays[layer];
   Matrix5x5 F;
-  F.SetElements(F_diag);
-  SymMatrix5x5 Q;
-  Q.SetElements(Q_sym_zero);
+  F.SetDiag();
+  SymMatrix4x4 Q;
+  Q.SetZero();
 
   // Check if there's a hit in this layer and extrapolate to it.
   if (hit_counter != 0xf) {
@@ -863,8 +866,7 @@ __device__ inline void PredictStateUT(
   ExtrapolateInUT(dev_pars, zTo, x, F, Q, tI, layer);
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
   C = similarity_5_5(F, C);
-  // C = C + Q;
-  AeApB(C, Q);
+  C += Q;
   // tI.m_Lastz = zTo; // is set in the ExtrapolateInUT function
 }
 
@@ -902,9 +904,9 @@ __device__ inline void PredictStateUTT(
   // Extrapolate the state to the beginning of the UT->T Paramterisation.
   KalmanFloat zBegin = dev_UTT_META[0];
   Matrix5x5 F;
-  F.SetElements(F_diag);
-  SymMatrix5x5 Q;
-  Q.SetElements(Q_sym_zero);
+  F.SetDiag();
+  SymMatrix4x4 Q;
+  Q.SetZero();
 
   // Extrapolate to the beginning of the UT -> T extrapolation
   ExtrapolateInUT(dev_pars, zBegin, x, F, Q, tI, layer);
@@ -916,8 +918,8 @@ __device__ inline void PredictStateUTT(
 
   // Calculate the extrapolation for a reference state that uses
   // the initial forward momentum estimate.
-  F.SetElements(F_diag);
-  Q.SetElements(Q_sym_zero);
+  F.SetDiag();
+  Q.SetZero();
   Vector5 xref = x;
   // Switch out for the best momentum measurement.
   xref[4] = tI.m_BestMomEst;
@@ -933,10 +935,9 @@ __device__ inline void PredictStateUTT(
   // Transport covariance matrix.
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
   C = similarity_5_5(F, C);
-  // C = C + Q;
-  AeApB(C, Q);
+  C += Q;
 
-  F.SetElements(F_diag);
+  F.SetDiag();
 
   // When going backwards: predict to the last VELO measurement.
   // Go from generic T position to the first T layer
@@ -956,9 +957,9 @@ __device__ inline void PredictStateT(
   unsigned& hit_counter)
 {
   Matrix5x5 F;
-  F.SetElements(F_diag);
-  SymMatrix5x5 Q;
-  Q.SetElements(Q_sym_zero);
+  F.SetDiag();
+  SymMatrix4x4 Q;
+  Q.SetZero();
 
   // set default values to variables
   KalmanFloat z0 = dev_lays[layer];
@@ -980,8 +981,7 @@ __device__ inline void PredictStateT(
   // Transport matrix
   tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
   C = similarity_5_5(F, C);
-  // C = C + Q;
-  AeApB(C, Q);
+  C += Q;
   // tI.m_Lastz = zTo; Done in extrapolate
 }
 
@@ -1017,9 +1017,7 @@ __device__ inline void UpdateStateV(
   x = x + K * res;
   SymMatrix5x5 KCrKt;
   similarity_5x2_2x2(K, CRes, KCrKt);
-
-  // C = C - KCrKt;
-  AeAmB(C, KCrKt);
+  C -= KCrKt;
 
   // Update the chi2.
   KalmanFloat chi2Tmp = similarity_2x1_2x2(res, CResInv);
@@ -1060,7 +1058,7 @@ __device__ inline void UpdateStateUT(
   KalmanFloat err2 = ((KalmanFloat) 1.) / (KalmanFloat) track.hit(nHit).weight();
   CRes += err2;
 
-  // K = P*H
+  // K = C*H
   Vector5 K;
   multiply_S5x5_2x1(C, H, K);
 
@@ -1072,9 +1070,8 @@ __device__ inline void UpdateStateUT(
   SymMatrix5x5 KCResKt;
   tensorProduct(sqrtf(CRes) * K, sqrtf(CRes) * K, KCResKt);
 
-  // P -= KSK(T)
-  // C = C - KCResKt;
-  AeAmB(C, KCResKt);
+  // C -= KSK(T)
+  C -= KCResKt;
 
   // Update chi2.
   tI.m_chi2UT += res * res / CRes;
@@ -1116,7 +1113,7 @@ __device__ inline void UpdateStateT(
   KalmanFloat err2 = dev_lays[36 + track.hit(nHit).pseudoSize()]; // TODO: Get slopes from simplified geometry.
   CRes += err2;
 
-  // K = P*H
+  // K = C*H
   Vector5 K;
   multiply_S5x5_2x1(C, H, K);
 
@@ -1128,9 +1125,8 @@ __device__ inline void UpdateStateT(
   SymMatrix5x5 KCResKt;
   tensorProduct(sqrtf(CRes) * K, sqrtf(CRes) * K, KCResKt);
 
-  // P -= KSK
-  // C = C - KCResKt;
-  AeAmB(C, KCResKt);
+  // C -= KSK
+  C -= KCResKt;
 
   // Update the chi2.
   tI.m_chi2T += res * res / CRes;
@@ -1148,7 +1144,7 @@ __device__ inline void add_noise_2d(
   const KalmanFloat tx,
   const KalmanFloat ty,
   KalmanFloat& qop,
-  SymMatrix5x5& Q,
+  SymMatrix4x4& Q,
   const KalmanFloat Cms,
   const KalmanFloat etaxx,
   const KalmanFloat etaxtx,
@@ -1287,7 +1283,7 @@ __device__ inline void propagate_to_beamline(
   tx = track.state[2];
   ty = track.state[3];
 
-  SymMatrix5x5 Q;
+  SymMatrix4x4 Q;
   // add noise
   // Note: for VPhit2BeamLine propagation the rf-foil is included in the parameters,
   // so infoil has to be set to false.
