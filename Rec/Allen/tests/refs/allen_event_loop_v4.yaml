@@ -22,6 +22,7 @@ stdout: |-
   dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
   Starting timer for throughput measurement
   Input complete
+  Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_v4_hist_counts.json
   error_bank_filter                      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   gather_selections                      INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   pv_beamline_cleanup                    INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -46,153 +47,79 @@ stdout: |-
   ApplicationMgr                         INFO Application Manager Terminated successfully
 histos:
   error_bank_filter:
-    1D:
-      ODIN_banks:
-        ID: ODIN_banks
-        Title: '"ODIN_banks"'
-        '#': '10000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      Plume_banks:
-        ID: Plume_banks
-        Title: '"Plume_banks"'
-        '#': '40000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      n_data_banks:
-        ID: n_data_banks
-        Title: '"n_data_banks"'
-        '#': '50000'
-        Mean: '7.6'
-        RMS: '2.8000'
-        Skewness: '-1.5'
-        Kurtosis: '0.25'
-    header:
-      1D: 3
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 3
+    ODIN_banks:
+      nEntries: 10000
+      title: ODIN_banks
+      sum: 10000
+      meanX: 0.0
+      stdDevX: 0.0
+    Plume_banks:
+      nEntries: 40000
+      title: Plume_banks
+      sum: 40000
+      meanX: 0.0
+      stdDevX: 0.0
+    n_data_banks:
+      nEntries: 50000
+      title: n_data_banks
+      sum: 50000
+      meanX: 7.6
+      stdDevX: 2.8
   gather_selections:
-    1D:
-      line_passes:
-        ID: line_passes
-        Title: '"line passes"'
-        '#': '10001'
-        Mean: '58.5'
-        RMS: '0.039996'
-        Skewness: '99.99'
-        Kurtosis: '9996'
-      line_rates:
-        ID: line_rates
-        Title: '"line rates"'
-        '#': '10001'
-        Mean: '58.5'
-        RMS: '0.039996'
-        Skewness: '99.99'
-        Kurtosis: '9996'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    line_passes:
+      nEntries: 10001.0
+      title: line passes
+      sum: 10001
+      meanX: 58.5004
+      stdDevX: 0.039996
+    line_rates:
+      nEntries: 10001.0
+      title: line rates
+      sum: 10001
+      meanX: 58.5004
+      stdDevX: 0.039996
   pv_beamline_cleanup:
-    1D:
-      n_pvs_event:
-        ID: n_pvs_event
-        Title: '"n_pvs_event"'
-        '#': '10000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      n_smog2_PVs:
-        ID: n_smog2_PVs
-        Title: '"n_smog2_PVs"'
-        '#': '10000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    n_pvs_event:
+      nEntries: 10000.0
+      title: n_pvs_event
+      sum: 10000
+      meanX: 0.0
+      stdDevX: 0.0
+    n_smog2_PVs:
+      nEntries: 10000.0
+      title: n_smog2_PVs
+      sum: 10000
+      meanX: 0.0
+      stdDevX: 0.0
   velo_consolidate_tracks:
-    1D:
-      n_velo_tracks_event:
-        ID: n_velo_tracks_event
-        Title: '"n_velo_tracks_event"'
-        '#': '10000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    n_velo_tracks_event:
+      nEntries: 10000.0
+      title: n_velo_tracks_event
+      sum: 10000
+      meanX: 0.0
+      stdDevX: 0.0
 ttrees: {}
 counters:
   HLTControlFlowMgr:
-    set: HLTControlFlowMgr
-    total_counters: 1
     Processed events:
-      binomial: false
-      name: Processed events
-      count: 1
+      nEntries: 1
   gather_selections:
-    set: gather_selections
-    total_counters: 4
     Hlt1ODINCalibPass:
-      binomial: false
-      name: Hlt1ODINCalibPass
-      count: 10000
+      nEntries: 10000.0
     Hlt1ODINCalibRate:
-      binomial: false
-      name: Hlt1ODINCalibRate
-      count: 10000
+      nEntries: 10000.0
     Hlt1PassthroughPass:
-      binomial: false
-      name: Hlt1PassthroughPass
-      count: 1
+      nEntries: 1.0
     Hlt1PassthroughRate:
-      binomial: false
-      name: Hlt1PassthroughRate
-      count: 1
+      nEntries: 1.0
   pv_beamline_cleanup:
-    set: pv_beamline_cleanup
-    total_counters: 1
     n_PVs:
-      binomial: false
-      name: n_PVs
-      count: 10000
+      mean: 0.0
+      nEntries: 10000.0
       sum: 0.0
-      mean/eff^*: 0.0
   velo_consolidate_tracks:
-    set: velo_consolidate_tracks
-    total_counters: 1
     n_velo_tracks:
-      binomial: false
-      name: n_velo_tracks
-      count: 10000
+      mean: 0.0
+      nEntries: 10000.0
       sum: 0.0
-      mean/eff^*: 0.0
 stderr: ''

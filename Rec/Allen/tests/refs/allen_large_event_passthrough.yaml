@@ -37,6 +37,7 @@ stdout: |-
   Max memory required: 0.000000 MB
   Insufficient memory to process slice - will sub-divide and retry.
   Input complete
+  Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_large_event_passthrough_hist_counts.json
   ApplicationMgr                         INFO Application Manager Stopped successfully
   HLTControlFlowMgr                      INFO
   HLTControlFlowMgr                      INFO StateTree: CFNode   #executed  #passed
@@ -60,21 +61,11 @@ histos: {}
 ttrees: {}
 counters:
   EventLoop:
-    set: EventLoop
-    total_counters: 2
     NPassthrough:
-      binomial: false
-      name: NPassthrough
-      count: 2
+      nEntries: 2
     NSplit:
-      binomial: false
-      name: NSplit
-      count: 1
+      nEntries: 1
   HLTControlFlowMgr:
-    set: HLTControlFlowMgr
-    total_counters: 1
     Processed events:
-      binomial: false
-      name: Processed events
-      count: 1
+      nEntries: 1
 stderr: ''
