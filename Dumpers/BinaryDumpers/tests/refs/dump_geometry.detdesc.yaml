@@ -11,6 +11,7 @@ stdout: |-
   HLTControlFlowMgr                      INFO Starting loop on events
   DeviceFTGeometry                       INFO Conditions DB is compatible with FT bank version 7 and 8.
   RootIOAlg                           SUCCESS Reading Event record 1 within root://eoslhcb.cern.ch//eos/lhcb/wg/rta/samples/mc/Jira_LHCBGAUSS-2635/Minbias_MagDown_Boole_lhcbhead3379_dddb-20220705_sim-20220705-vc-md100_lumi0.xdigi, 1 overall
+  Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_dump_geometry_hist_counts.json
   ApplicationMgr                         INFO Application Manager Stopped successfully
   HLTControlFlowMgr                      INFO
   HLTControlFlowMgr                      INFO StateTree: CFNode   #executed  #passed
@@ -39,108 +40,48 @@ histos: {}
 ttrees: {}
 counters:
   DeviceBeamline:
-    set: DeviceBeamline
-    total_counters: 1
     BytesWritten_Beamline:
-      binomial: false
-      name: BytesWritten_Beamline
-      count: 48
+      nEntries: 48
   DeviceCaloGeometry:
-    set: DeviceCaloGeometry
-    total_counters: 1
     BytesWritten_EcalGeometry:
-      binomial: false
-      name: BytesWritten_EcalGeometry
-      count: 227104
+      nEntries: 227104
   DeviceFTGeometry:
-    set: DeviceFTGeometry
-    total_counters: 1
     BytesWritten_SciFiGeometry:
-      binomial: false
-      name: BytesWritten_SciFiGeometry
-      count: 3249928
+      nEntries: 3249928
   DeviceMagneticField:
-    set: DeviceMagneticField
-    total_counters: 1
     BytesWritten_MagneticField:
-      binomial: false
-      name: BytesWritten_MagneticField
-      count: 15326544
+      nEntries: 15326544
   DeviceMagneticFieldPolarity:
-    set: DeviceMagneticFieldPolarity
-    total_counters: 1
     BytesWritten_MagneticFieldPolarity:
-      binomial: false
-      name: BytesWritten_MagneticFieldPolarity
-      count: 4
+      nEntries: 4
   DeviceMuonGeometry:
-    set: DeviceMuonGeometry
-    total_counters: 1
     BytesWritten_MuonGeometry:
-      binomial: false
-      name: BytesWritten_MuonGeometry
-      count: 211468
+      nEntries: 211468
   DeviceMuonTable:
-    set: DeviceMuonTable
-    total_counters: 1
     BytesWritten_MuonLookupTables:
-      binomial: false
-      name: BytesWritten_MuonLookupTables
-      count: 1052980
+      nEntries: 1052980
   DeviceRichCableMapping:
-    set: DeviceRichCableMapping
-    total_counters: 1
     BytesWritten_RichCableMapping:
-      binomial: false
-      name: BytesWritten_RichCableMapping
-      count: 462600
+      nEntries: 462600
   DeviceRichGeometry:
-    set: DeviceRichGeometry
-    total_counters: 2
     BytesWritten_Rich1Geometry:
-      binomial: false
-      name: BytesWritten_Rich1Geometry
-      count: 306312
+      nEntries: 306312
     BytesWritten_Rich2Geometry:
-      binomial: false
-      name: BytesWritten_Rich2Geometry
-      count: 612624
+      nEntries: 612624
   DeviceRichPDMDBMapping:
-    set: DeviceRichPDMDBMapping
-    total_counters: 1
     BytesWritten_RichPDMDBMapping:
-      binomial: false
-      name: BytesWritten_RichPDMDBMapping
-      count: 9692
+      nEntries: 9692
   DeviceUTGeometry:
-    set: DeviceUTGeometry
-    total_counters: 2
     BytesWritten_UTBoards:
-      binomial: false
-      name: BytesWritten_UTBoards
-      count: 84688
+      nEntries: 84688
     BytesWritten_UTGeometry:
-      binomial: false
-      name: BytesWritten_UTGeometry
-      count: 46116
+      nEntries: 46116
   DeviceUTLookupTables:
-    set: DeviceUTLookupTables
-    total_counters: 1
     BytesWritten_UTLookupTables:
-      binomial: false
-      name: BytesWritten_UTLookupTables
-      count: 15544
+      nEntries: 15544
   DeviceVPGeometry:
-    set: DeviceVPGeometry
-    total_counters: 1
     BytesWritten_VeloGeometry:
-      binomial: false
-      name: BytesWritten_VeloGeometry
-      count: 16376
+      nEntries: 16376
   HLTControlFlowMgr:
-    set: HLTControlFlowMgr
-    total_counters: 1
     Processed events:
-      binomial: false
-      name: Processed events
-      count: 1
+      nEntries: 1

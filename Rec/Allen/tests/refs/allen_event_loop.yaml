@@ -22,6 +22,7 @@ stdout: |-
   dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
   Starting timer for throughput measurement
   Input complete
+  Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_hist_counts.json
   Hlt1D2KK                               INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1D2KPi                              INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1D2KPiAlignment                     INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -77,1674 +78,935 @@ stdout: |-
   ApplicationMgr                         INFO Application Manager Terminated successfully
 histos:
   Hlt1D2KK:
-    1D:
-      d02kk_mass:
-        ID: d02kk_mass
-        Title: '"m(D0)"'
-        '#': '15'
-        Mean: '1857.2'
-        RMS: '50.905'
-        Skewness: '-0.12698'
-        Kurtosis: '-1.3045'
-      d02kk_pt:
-        ID: d02kk_pt
-        Title: '"pT(D0)"'
-        '#': '15'
-        Mean: '3268.7'
-        RMS: '1109.4'
-        Skewness: '0.51074'
-        Kurtosis: '-1.1442'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    d02kk_mass:
+      nEntries: 15.0
+      title: m(D0)
+      sum: 15
+      meanX: 1857.2
+      stdDevX: 50.905402
+    d02kk_pt:
+      nEntries: 15.0
+      title: pT(D0)
+      sum: 15
+      meanX: 3268.666667
+      stdDevX: 1109.438457
   Hlt1D2KPi:
-    1D:
-      d0_mass:
-        ID: d0_mass
-        Title: '"m(D0)"'
-        '#': '22'
-        Mean: '1849.5'
-        RMS: '55.619'
-        Skewness: '0.34917'
-        Kurtosis: '-0.88967'
-      d0_pt:
-        ID: d0_pt
-        Title: '"pT(D0)"'
-        '#': '16'
-        Mean: '3790'
-        RMS: '1584.5'
-        Skewness: '0.5713'
-        Kurtosis: '-0.84028'
-      p0_ipx:
-        ID: p0_ipx
-        Title: '"IP_{x}(p0)"'
-        '#': '15'
-        Mean: '0.142'
-        RMS: '0.34423'
-        Skewness: '2.7824'
-        Kurtosis: '7.1987'
-      p0_ipy:
-        ID: p0_ipy
-        Title: '"IP_{y}(p0)"'
-        '#': '14'
-        Mean: '-0.14571'
-        RMS: '0.41288'
-        Skewness: '-2.2524'
-        Kurtosis: '4.6895'
-      p1_ipx:
-        ID: p1_ipx
-        Title: '"IP_{x}(p1)"'
-        '#': '14'
-        Mean: '-0.094286'
-        RMS: '0.18901'
-        Skewness: '-1.0173'
-        Kurtosis: '-0.061234'
-      p1_ipy:
-        ID: p1_ipy
-        Title: '"IP_{y}(p1)"'
-        '#': '15'
-        Mean: '-0.09'
-        RMS: '0.36856'
-        Skewness: '-1.6222'
-        Kurtosis: '2.5149'
-    header:
-      1D: 6
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 6
+    d0_mass:
+      nEntries: 22.0
+      title: m(D0)
+      sum: 22
+      meanX: 1849.545455
+      stdDevX: 55.61861
+    d0_pt:
+      nEntries: 16.0
+      title: pT(D0)
+      sum: 16
+      meanX: 3790.0
+      stdDevX: 1584.498028
+    p0_ipx:
+      nEntries: 15.0
+      title: IP_{x}(p0)
+      sum: 15
+      meanX: 0.142
+      stdDevX: 0.344232
+    p0_ipy:
+      nEntries: 14.0
+      title: IP_{y}(p0)
+      sum: 14
+      meanX: -0.145714
+      stdDevX: 0.412877
+    p1_ipx:
+      nEntries: 14.0
+      title: IP_{x}(p1)
+      sum: 14
+      meanX: -0.094286
+      stdDevX: 0.189009
+    p1_ipy:
+      nEntries: 15.0
+      title: IP_{y}(p1)
+      sum: 15
+      meanX: -0.09
+      stdDevX: 0.368565
   Hlt1D2KPiAlignment:
-    1D:
-      d0_mass:
-        ID: d0_mass
-        Title: '"m(D0)"'
-        '#': '7'
-        Mean: '1868.6'
-        RMS: '41.053'
-        Skewness: '-0.022897'
-        Kurtosis: '-0.52639'
-      d0_pt:
-        ID: d0_pt
-        Title: '"pT(D0)"'
-        '#': '4'
-        Mean: '5653'
-        RMS: '1184.2'
-        Skewness: '-0.16155'
-        Kurtosis: '-1.6552'
-      p0_ipx:
-        ID: p0_ipx
-        Title: '"IP_{x}(p0)"'
-        '#': '4'
-        Mean: '0.12'
-        RMS: '0.13077'
-        Skewness: '0.65202'
-        Kurtosis: '-0.90305'
-      p0_ipy:
-        ID: p0_ipy
-        Title: '"IP_{y}(p0)"'
-        '#': '4'
-        Mean: '-0.21'
-        RMS: '0.25100'
-        Skewness: '0.92203'
-        Kurtosis: '-0.81714'
-      p1_ipx:
-        ID: p1_ipx
-        Title: '"IP_{x}(p1)"'
-        '#': '4'
-        Mean: '-0.045'
-        RMS: '0.10712'
-        Skewness: '-0.41185'
-        Kurtosis: '-0.96194'
-      p1_ipy:
-        ID: p1_ipy
-        Title: '"IP_{y}(p1)"'
-        '#': '4'
-        Mean: '0.165'
-        RMS: '0.18187'
-        Skewness: '-0.18516'
-        Kurtosis: '-1.413'
-    header:
-      1D: 6
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 6
+    d0_mass:
+      nEntries: 7.0
+      title: m(D0)
+      sum: 7
+      meanX: 1868.571429
+      stdDevX: 41.053474
+    d0_pt:
+      nEntries: 4.0
+      title: pT(D0)
+      sum: 4
+      meanX: 5653.0
+      stdDevX: 1184.220841
+    p0_ipx:
+      nEntries: 4.0
+      title: IP_{x}(p0)
+      sum: 4
+      meanX: 0.12
+      stdDevX: 0.130767
+    p0_ipy:
+      nEntries: 4.0
+      title: IP_{y}(p0)
+      sum: 4
+      meanX: -0.21
+      stdDevX: 0.250998
+    p1_ipx:
+      nEntries: 4.0
+      title: IP_{x}(p1)
+      sum: 4
+      meanX: -0.045
+      stdDevX: 0.107121
+    p1_ipy:
+      nEntries: 4.0
+      title: IP_{y}(p1)
+      sum: 4
+      meanX: 0.165
+      stdDevX: 0.181865
   Hlt1D2PiPi:
-    1D:
-      d02pipi_mass:
-        ID: d02pipi_mass
-        Title: '"m(D0)"'
-        '#': '4'
-        Mean: '1850'
-        RMS: '65.605'
-        Skewness: '0.35903'
-        Kurtosis: '-0.97823'
-      d02pipi_pt:
-        ID: d02pipi_pt
-        Title: '"pT(D0)"'
-        '#': '4'
-        Mean: '4664'
-        RMS: '1427.5'
-        Skewness: '0.064048'
-        Kurtosis: '-1.5569'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    d02pipi_mass:
+      nEntries: 4.0
+      title: m(D0)
+      sum: 4
+      meanX: 1850.0
+      stdDevX: 65.604878
+    d02pipi_pt:
+      nEntries: 4.0
+      title: pT(D0)
+      sum: 4
+      meanX: 4664.0
+      stdDevX: 1427.4831
   Hlt1DetJpsiToMuMuNegTagLine:
-    1D:
-      histogram_det_jpsitomumu_tap_mass:
-        ID: histogram_det_jpsitomumu_tap_mass
-        Title: '"m(jpsi)"'
-        '#': '1'
-        Mean: '3092.5'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    histogram_det_jpsitomumu_tap_mass:
+      nEntries: 1.0
+      title: m(jpsi)
+      sum: 1
+      meanX: 3092.5
+      stdDevX: 0.0
   Hlt1DiElectronLowMass_NoIP:
-    1D:
-      dielectron_mass_counts:
-        ID: dielectron_mass_counts
-        Title: '"dielectron masses"'
-        '#': '94'
-        Mean: '1143.3'
-        RMS: '405.39'
-        Skewness: '-1.4389'
-        Kurtosis: '0.82848'
-      dielectron_mass_counts_brem:
-        ID: dielectron_mass_counts_brem
-        Title: '"dielectron masses with brem"'
-        '#': '79'
-        Mean: '1121.6'
-        RMS: '413.18'
-        Skewness: '-1.2804'
-        Kurtosis: '0.27767'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    dielectron_mass_counts:
+      nEntries: 94.0
+      title: dielectron masses
+      sum: 94
+      meanX: 1143.271277
+      stdDevX: 405.389601
+    dielectron_mass_counts_brem:
+      nEntries: 79.0
+      title: dielectron masses with brem
+      sum: 79
+      meanX: 1121.629747
+      stdDevX: 413.180219
   Hlt1DiElectronLowMass_NoIPNorm:
-    1D:
-      dielectron_mass_counts:
-        ID: dielectron_mass_counts
-        Title: '"dielectron masses"'
-        '#': '519'
-        Mean: '1224.7'
-        RMS: '347.31'
-        Skewness: '-1.968'
-        Kurtosis: '2.9742'
-      dielectron_mass_counts_brem:
-        ID: dielectron_mass_counts_brem
-        Title: '"dielectron masses with brem"'
-        '#': '434'
-        Mean: '1223.2'
-        RMS: '352.33'
-        Skewness: '-1.8225'
-        Kurtosis: '2.2495'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    dielectron_mass_counts:
+      nEntries: 519.0
+      title: dielectron masses
+      sum: 519
+      meanX: 1224.660405
+      stdDevX: 347.313287
+    dielectron_mass_counts_brem:
+      nEntries: 434.0
+      title: dielectron masses with brem
+      sum: 434
+      meanX: 1223.156682
+      stdDevX: 352.333248
   Hlt1DiElectronLowMass_SS_NoIP:
-    1D:
-      dielectron_mass_counts:
-        ID: dielectron_mass_counts
-        Title: '"dielectron masses"'
-        '#': '139'
-        Mean: '693.43'
-        RMS: '528.12'
-        Skewness: '0.34412'
-        Kurtosis: '-1.6405'
-      dielectron_mass_counts_brem:
-        ID: dielectron_mass_counts_brem
-        Title: '"dielectron masses with brem"'
-        '#': '130'
-        Mean: '684.92'
-        RMS: '506.53'
-        Skewness: '0.46046'
-        Kurtosis: '-1.5364'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    dielectron_mass_counts:
+      nEntries: 139.0
+      title: dielectron masses
+      sum: 139
+      meanX: 693.426259
+      stdDevX: 528.119359
+    dielectron_mass_counts_brem:
+      nEntries: 130.0
+      title: dielectron masses with brem
+      sum: 130
+      meanX: 684.923077
+      stdDevX: 506.526177
   Hlt1DiElectronLowMass_SS_NoIPNorm:
-    1D:
-      dielectron_mass_counts:
-        ID: dielectron_mass_counts
-        Title: '"dielectron masses"'
-        '#': '617'
-        Mean: '1002.5'
-        RMS: '505.98'
-        Skewness: '-0.73782'
-        Kurtosis: '-1.1494'
-      dielectron_mass_counts_brem:
-        ID: dielectron_mass_counts_brem
-        Title: '"dielectron masses with brem"'
-        '#': '560'
-        Mean: '994.69'
-        RMS: '507.63'
-        Skewness: '-0.64644'
-        Kurtosis: '-1.2907'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    dielectron_mass_counts:
+      nEntries: 617.0
+      title: dielectron masses
+      sum: 617
+      meanX: 1002.502026
+      stdDevX: 505.975259
+    dielectron_mass_counts_brem:
+      nEntries: 560.0
+      title: dielectron masses with brem
+      sum: 560
+      meanX: 994.6875
+      stdDevX: 507.633947
   Hlt1DiMuonHighMass:
-    1D:
-      Jpsi_mass:
-        ID: Jpsi_mass
-        Title: '"m(J/Psi)"'
-        '#': '2'
-        Mean: '3102'
-        RMS: '108.00'
-        Skewness: '0'
-        Kurtosis: '-2'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    Jpsi_mass:
+      nEntries: 2.0
+      title: m(J/Psi)
+      sum: 2
+      meanX: 3102.0
+      stdDevX: 108.0
   Hlt1DiMuonNoIP:
-    1D:
-      dimuon_q:
-        ID: dimuon_q
-        Title: '"dimuon q"'
-        '#': '7'
-        Mean: '23953'
-        RMS: '5491.5'
-        Skewness: '-1.0555'
-        Kurtosis: '0.096755'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    dimuon_q:
+      nEntries: 7.0
+      title: dimuon q
+      sum: 7
+      meanX: 23953.3205
+      stdDevX: 5491.496539
   Hlt1DiMuonNoIP_SS:
-    1D:
-      dimuon_q:
-        ID: dimuon_q
-        Title: '"dimuon q"'
-        '#': '6'
-        Mean: '26718'
-        RMS: '3038.3'
-        Skewness: '-0.26236'
-        Kurtosis: '-1.6033'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    dimuon_q:
+      nEntries: 6.0
+      title: dimuon q
+      sum: 6
+      meanX: 26717.677254
+      stdDevX: 3038.345226
   Hlt1Dst2D0Pi:
-    1D:
-      d0_mass:
-        ID: d0_mass
-        Title: '"m(D0)"'
-        '#': '2'
-        Mean: '1817'
-        RMS: '43.000'
-        Skewness: '0'
-        Kurtosis: '-2'
-      d0_pt:
-        ID: d0_pt
-        Title: '"pT(D0)"'
-        '#': '2'
-        Mean: '4100'
-        RMS: '2450.0'
-        Skewness: '0'
-        Kurtosis: '-2'
-      dst_dm:
-        ID: dst_dm
-        Title: '"m(D*)-m(D0)"'
-        '#': '2'
-        Mean: '145.5'
-        RMS: '0.37500'
-        Skewness: '0'
-        Kurtosis: '-2'
-    header:
-      1D: 3
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 3
+    d0_mass:
+      nEntries: 2.0
+      title: m(D0)
+      sum: 2
+      meanX: 1817.0
+      stdDevX: 43.0
+    d0_pt:
+      nEntries: 2.0
+      title: pT(D0)
+      sum: 2
+      meanX: 4100.0
+      stdDevX: 2450.0
+    dst_dm:
+      nEntries: 2.0
+      title: m(D*)-m(D0)
+      sum: 2
+      meanX: 145.5
+      stdDevX: 0.375
   Hlt1Dst2D0PiAlignment:
-    1D:
-      d0_mass:
-        ID: d0_mass
-        Title: '"m(D0)"'
-        '#': '2'
-        Mean: '1817'
-        RMS: '43.000'
-        Skewness: '0'
-        Kurtosis: '-2'
-      d0_pt:
-        ID: d0_pt
-        Title: '"pT(D0)"'
-        '#': '2'
-        Mean: '4100'
-        RMS: '2450.0'
-        Skewness: '0'
-        Kurtosis: '-2'
-      dst_dm:
-        ID: dst_dm
-        Title: '"m(D*)-m(D0)"'
-        '#': '2'
-        Mean: '145.5'
-        RMS: '0.37500'
-        Skewness: '0'
-        Kurtosis: '-2'
-    header:
-      1D: 3
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 3
+    d0_mass:
+      nEntries: 2.0
+      title: m(D0)
+      sum: 2
+      meanX: 1817.0
+      stdDevX: 43.0
+    d0_pt:
+      nEntries: 2.0
+      title: pT(D0)
+      sum: 2
+      meanX: 4100.0
+      stdDevX: 2450.0
+    dst_dm:
+      nEntries: 2.0
+      title: m(D*)-m(D0)
+      sum: 2
+      meanX: 145.5
+      stdDevX: 0.375
   Hlt1KsToPiPi:
-    1D:
-      ks_mass:
-        ID: ks_mass
-        Title: '"m(ks)"'
-        '#': '828'
-        Mean: '493.02'
-        RMS: '19.389'
-        Skewness: '-2.5955'
-        Kurtosis: '8.551'
-      ks_pt:
-        ID: ks_pt
-        Title: '"pT(ks)"'
-        '#': '828'
-        Mean: '1205.4'
-        RMS: '602.86'
-        Skewness: '1.7526'
-        Kurtosis: '3.907'
-      p0_ghost_prob:
-        ID: p0_ghost_prob
-        Title: '"track0 GhostProb"'
-        '#': '828'
-        Mean: '0.066384'
-        RMS: '0.087457'
-        Skewness: '2.3145'
-        Kurtosis: '5.6748'
-      p1_ghost_prob:
-        ID: p1_ghost_prob
-        Title: '"track1 GhostProb"'
-        '#': '828'
-        Mean: '0.087906'
-        RMS: '0.10852'
-        Skewness: '1.7816'
-        Kurtosis: '2.5527'
-    header:
-      1D: 4
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 4
+    ks_mass:
+      nEntries: 828.0
+      title: m(ks)
+      sum: 828
+      meanX: 493.024155
+      stdDevX: 19.38921
+    ks_pt:
+      nEntries: 828.0
+      title: pT(ks)
+      sum: 828
+      meanX: 1205.434783
+      stdDevX: 602.85707
+    p0_ghost_prob:
+      nEntries: 828.0
+      title: track0 GhostProb
+      sum: 828
+      meanX: 0.066384
+      stdDevX: 0.087457
+    p1_ghost_prob:
+      nEntries: 828.0
+      title: track1 GhostProb
+      sum: 828
+      meanX: 0.087906
+      stdDevX: 0.108521
   Hlt1LambdaLLDetachedTrack:
-    1D:
-      LambdaTrack_mass:
-        ID: LambdaTrack_mass
-        Title: '"m(#Lambda#pi^{+}) [MeV]"'
-        '#': '1'
-        Mean: '2087.5'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      Lambda_mass_LambdaLLDetachedTrack:
-        ID: Lambda_mass_LambdaLLDetachedTrack
-        Title: '"m(p#pi^{#minus}) [MeV]"'
-        '#': '1'
-        Mean: '1118.8'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    LambdaTrack_mass:
+      nEntries: 1.0
+      title: m(#Lambda#pi^{+}) [MeV]
+      sum: 1
+      meanX: 2087.5
+      stdDevX: 0.0
+    Lambda_mass_LambdaLLDetachedTrack:
+      nEntries: 1.0
+      title: m(p#pi^{#minus}) [MeV]
+      sum: 1
+      meanX: 1118.75
+      stdDevX: 0.0
   Hlt1TrackMVA:
-    1D:
-      ghost_prob:
-        ID: ghost_prob
-        Title: '"track GhostProb"'
-        '#': '105'
-        Mean: '0.022886'
-        RMS: '0.042267'
-        Skewness: '3.2584'
-        Kurtosis: '10.325'
-      ip_x:
-        ID: ip_x
-        Title: '"IP_{x}"'
-        '#': '103'
-        Mean: '-0.059126'
-        RMS: '0.56060'
-        Skewness: '-1.1866'
-        Kurtosis: '8.3997'
-      ip_y:
-        ID: ip_y
-        Title: '"IP_{y}"'
-        '#': '100'
-        Mean: '-0.078'
-        RMS: '0.34686'
-        Skewness: '-2.4155'
-        Kurtosis: '9.7214'
-    header:
-      1D: 3
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 3
+    ghost_prob:
+      nEntries: 105.0
+      title: track GhostProb
+      sum: 105
+      meanX: 0.022886
+      stdDevX: 0.042267
+    ip_x:
+      nEntries: 103.0
+      title: IP_{x}
+      sum: 103
+      meanX: -0.059126
+      stdDevX: 0.560601
+    ip_y:
+      nEntries: 100.0
+      title: IP_{y}
+      sum: 100
+      meanX: -0.078
+      stdDevX: 0.34686
   Hlt1TwoTrackMVA:
-    1D:
-      d0_mass:
-        ID: d0_mass
-        Title: '"m(K#pi)"'
-        '#': '31'
-        Mean: '1877.9'
-        RMS: '57.088'
-        Skewness: '-0.23999'
-        Kurtosis: '-1.0142'
-      p0_ghost_prob:
-        ID: p0_ghost_prob
-        Title: '"track0 GhostProb"'
-        '#': '388'
-        Mean: '0.033'
-        RMS: '0.061766'
-        Skewness: '4.1264'
-        Kurtosis: '20.38'
-      p0_ip_x:
-        ID: p0_ip_x
-        Title: '"IP_{x}(p0)"'
-        '#': '350'
-        Mean: '0.0085714'
-        RMS: '0.60122'
-        Skewness: '-0.75347'
-        Kurtosis: '7.9689'
-      p0_ip_y:
-        ID: p0_ip_y
-        Title: '"IP_{y}(p0)"'
-        '#': '349'
-        Mean: '0.051662'
-        RMS: '0.56207'
-        Skewness: '0.07802'
-        Kurtosis: '8.65'
-      p1_ghost_prob:
-        ID: p1_ghost_prob
-        Title: '"track1 GhostProb"'
-        '#': '388'
-        Mean: '0.038784'
-        RMS: '0.066423'
-        Skewness: '3.4386'
-        Kurtosis: '13.912'
-      p1_ip_x:
-        ID: p1_ip_x
-        Title: '"IP_{x}(p1)"'
-        '#': '343'
-        Mean: '-0.06516'
-        RMS: '0.57108'
-        Skewness: '-0.27216'
-        Kurtosis: '6.615'
-      p1_ip_y:
-        ID: p1_ip_y
-        Title: '"IP_{y}(p1)"'
-        '#': '344'
-        Mean: '-0.047267'
-        RMS: '0.57884'
-        Skewness: '-1.0848'
-        Kurtosis: '8.9295'
-    header:
-      1D: 7
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 7
+    d0_mass:
+      nEntries: 31.0
+      title: m(K#pi)
+      sum: 31
+      meanX: 1877.870968
+      stdDevX: 57.088354
+    p0_ghost_prob:
+      nEntries: 388.0
+      title: track0 GhostProb
+      sum: 388
+      meanX: 0.033
+      stdDevX: 0.061766
+    p0_ip_x:
+      nEntries: 350.0
+      title: IP_{x}(p0)
+      sum: 350
+      meanX: 0.008571
+      stdDevX: 0.601219
+    p0_ip_y:
+      nEntries: 349.0
+      title: IP_{y}(p0)
+      sum: 349
+      meanX: 0.051662
+      stdDevX: 0.562066
+    p1_ghost_prob:
+      nEntries: 388.0
+      title: track1 GhostProb
+      sum: 388
+      meanX: 0.038784
+      stdDevX: 0.066423
+    p1_ip_x:
+      nEntries: 343.0
+      title: IP_{x}(p1)
+      sum: 343
+      meanX: -0.06516
+      stdDevX: 0.57108
+    p1_ip_y:
+      nEntries: 344.0
+      title: IP_{y}(p1)
+      sum: 344
+      meanX: -0.047267
+      stdDevX: 0.578841
   calo_find_clusters:
-    1D:
-      ecal_cluster_e:
-        ID: ecal_cluster_e
-        Title: '"EcalClusterE"'
-        '#': '490569'
-        Mean: '8008'
-        RMS: '7518.3'
-        Skewness: '2.3012'
-        Kurtosis: '6.1944'
-      ecal_cluster_et:
-        ID: ecal_cluster_et
-        Title: '"EcalClusterEt"'
-        '#': '494433'
-        Mean: '806.19'
-        RMS: '458.05'
-        Skewness: '2.2547'
-        Kurtosis: '8.6268'
-      ecal_cluster_x:
-        ID: ecal_cluster_x
-        Title: '"EcalClusterX"'
-        '#': '494739'
-        Mean: '0.48119'
-        RMS: '1894.5'
-        Skewness: '0.011245'
-        Kurtosis: '-0.73997'
-      ecal_cluster_y:
-        ID: ecal_cluster_y
-        Title: '"EcalClusterY"'
-        '#': '494739'
-        Mean: '-1.0884'
-        RMS: '1037.3'
-        Skewness: '0.0058091'
-        Kurtosis: '1.087'
-      ecal_digit_e:
-        ID: ecal_digit_e
-        Title: '"EcalDigitE"'
-        '#': '1073948'
-        Mean: '1545'
-        RMS: '1469.6'
-        Skewness: '2.2933'
-        Kurtosis: '6.4136'
-      n_ecal_clusters:
-        ID: n_ecal_clusters
-        Title: '"NClusters"'
-        '#': '10000'
-        Mean: '49.474'
-        RMS: '28.662'
-        Skewness: '0.75757'
-        Kurtosis: '0.68816'
-    header:
-      1D: 6
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 6
+    ecal_cluster_e:
+      nEntries: 490569.0
+      title: EcalClusterE
+      sum: 490569
+      meanX: 8007.987225
+      stdDevX: 7518.320062
+    ecal_cluster_et:
+      nEntries: 494433.0
+      title: EcalClusterEt
+      sum: 494433
+      meanX: 806.191142
+      stdDevX: 458.053501
+    ecal_cluster_x:
+      nEntries: 494739.0
+      title: EcalClusterX
+      sum: 494739
+      meanX: 0.481193
+      stdDevX: 1894.452305
+    ecal_cluster_y:
+      nEntries: 494739.0
+      title: EcalClusterY
+      sum: 494739
+      meanX: -1.088362
+      stdDevX: 1037.321076
+    ecal_digit_e:
+      nEntries: 1073948.0
+      title: EcalDigitE
+      sum: 1073948
+      meanX: 1544.971637
+      stdDevX: 1469.595358
+    n_ecal_clusters:
+      nEntries: 10000.0
+      title: NClusters
+      sum: 10000
+      meanX: 49.4739
+      stdDevX: 28.661754
   error_bank_filter:
-    1D:
-      ECal_banks:
-        ID: ECal_banks
-        Title: '"ECal_banks"'
-        '#': '920000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      FTCluster_banks:
-        ID: FTCluster_banks
-        Title: '"FTCluster_banks"'
-        '#': '2400000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      Muon_banks:
-        ID: Muon_banks
-        Title: '"Muon_banks"'
-        '#': '440000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      ODIN_banks:
-        ID: ODIN_banks
-        Title: '"ODIN_banks"'
-        '#': '10000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      Rich1_banks:
-        ID: Rich1_banks
-        Title: '"Rich1_banks"'
-        '#': '20000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      Rich2_banks:
-        ID: Rich2_banks
-        Title: '"Rich2_banks"'
-        '#': '20000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      UT_banks:
-        ID: UT_banks
-        Title: '"UT_banks"'
-        '#': '2160000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      VP_banks:
-        ID: VP_banks
-        Title: '"VP_banks"'
-        '#': '1040000'
-        Mean: '2'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      n_data_banks:
-        ID: n_data_banks
-        Title: '"n_data_banks"'
-        '#': '7010000'
-        Mean: '5.7147'
-        RMS: '1.6528'
-        Skewness: '-1.3184'
-        Kurtosis: '2.5541'
-    header:
-      1D: 9
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 9
+    ECal_banks:
+      nEntries: 920000
+      title: ECal_banks
+      sum: 920000
+      meanX: 0.0
+      stdDevX: 0.0
+    FTCluster_banks:
+      nEntries: 2400000
+      title: FTCluster_banks
+      sum: 2400000
+      meanX: 0.0
+      stdDevX: 0.0
+    Muon_banks:
+      nEntries: 440000
+      title: Muon_banks
+      sum: 440000
+      meanX: 0.0
+      stdDevX: 0.0
+    ODIN_banks:
+      nEntries: 10000
+      title: ODIN_banks
+      sum: 10000
+      meanX: 0.0
+      stdDevX: 0.0
+    Rich1_banks:
+      nEntries: 20000
+      title: Rich1_banks
+      sum: 20000
+      meanX: 0.0
+      stdDevX: 0.0
+    Rich2_banks:
+      nEntries: 20000
+      title: Rich2_banks
+      sum: 20000
+      meanX: 0.0
+      stdDevX: 0.0
+    UT_banks:
+      nEntries: 2160000
+      title: UT_banks
+      sum: 2160000
+      meanX: 0.0
+      stdDevX: 0.0
+    VP_banks:
+      nEntries: 1040000
+      title: VP_banks
+      sum: 1040000
+      meanX: 2.0
+      stdDevX: 0.0
+    n_data_banks:
+      nEntries: 7010000
+      title: n_data_banks
+      sum: 7010000
+      meanX: 5.714693
+      stdDevX: 1.652793
   fit_dihadron_secondary_vertices:
-    1D:
-      number_of_svs:
-        ID: number_of_svs
-        Title: '"NSVs"'
-        '#': '10000'
-        Mean: '35.248'
-        RMS: '42.007'
-        Skewness: '2.9009'
-        Kurtosis: '15.886'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    number_of_svs:
+      nEntries: 10000.0
+      title: NSVs
+      sum: 10000
+      meanX: 35.2485
+      stdDevX: 42.007139
   fit_dihadrons_noipcut_secondary_vertices:
-    1D:
-      number_of_svs:
-        ID: number_of_svs
-        Title: '"NSVs"'
-        '#': '10000'
-        Mean: '3.1516'
-        RMS: '5.5065'
-        Skewness: '4.0771'
-        Kurtosis: '28.703'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    number_of_svs:
+      nEntries: 10000.0
+      title: NSVs
+      sum: 10000
+      meanX: 3.1516
+      stdDevX: 5.506452
   fit_dilepton_secondary_vertices:
-    1D:
-      number_of_svs:
-        ID: number_of_svs
-        Title: '"NSVs"'
-        '#': '10000'
-        Mean: '15.677'
-        RMS: '31.047'
-        Skewness: '6.4494'
-        Kurtosis: '89.25'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    number_of_svs:
+      nEntries: 10000.0
+      title: NSVs
+      sum: 10000
+      meanX: 15.677
+      stdDevX: 31.046714
   fit_dilepton_secondary_vertices_nopt:
-    1D:
-      number_of_svs:
-        ID: number_of_svs
-        Title: '"NSVs"'
-        '#': '10000'
-        Mean: '24.424'
-        RMS: '45.396'
-        Skewness: '4.8062'
-        Kurtosis: '36.863'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    number_of_svs:
+      nEntries: 10000.0
+      title: NSVs
+      sum: 10000
+      meanX: 24.4243
+      stdDevX: 45.395831
   fit_prompt_dihadron_secondary_vertices:
-    1D:
-      number_of_svs:
-        ID: number_of_svs
-        Title: '"NSVs"'
-        '#': '10000'
-        Mean: '15.894'
-        RMS: '20.747'
-        Skewness: '2.4913'
-        Kurtosis: '8.5634'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    number_of_svs:
+      nEntries: 10000.0
+      title: NSVs
+      sum: 10000
+      meanX: 15.8944
+      stdDevX: 20.74703
   fit_v0_secondary_vertices:
-    1D:
-      number_of_svs:
-        ID: number_of_svs
-        Title: '"NSVs"'
-        '#': '10000'
-        Mean: '0.8564'
-        RMS: '1.8808'
-        Skewness: '5.8182'
-        Kurtosis: '75.747'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    number_of_svs:
+      nEntries: 10000.0
+      title: NSVs
+      sum: 10000
+      meanX: 0.8564
+      stdDevX: 1.880792
   gather_selections:
-    1D:
-      line_passes:
-        ID: line_passes
-        Title: '"line passes"'
-        '#': '17398'
-        Mean: '81.079'
-        RMS: '19.641'
-        Skewness: '-0.80392'
-        Kurtosis: '-0.41923'
-      line_rates:
-        ID: line_rates
-        Title: '"line rates"'
-        '#': '663'
-        Mean: '74.756'
-        RMS: '29.710'
-        Skewness: '-1.1606'
-        Kurtosis: '-0.41771'
-    header:
-      1D: 2
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 2
+    line_passes:
+      nEntries: 17398.0
+      title: line passes
+      sum: 17398
+      meanX: 81.079032
+      stdDevX: 19.641266
+    line_rates:
+      nEntries: 663.0
+      title: line rates
+      sum: 663
+      meanX: 74.75641
+      stdDevX: 29.709514
   is_muon:
-    1D:
-      n_muons:
-        ID: n_muons
-        Title: '"# muons"'
-        '#': '458943'
-        Mean: '0.10951'
-        RMS: '0.31228'
-        Skewness: '2.5008'
-        Kurtosis: '4.2542'
-      pv_x:
-        ID: pv_x
-        Title: '"pv_x"'
-        '#': '29763'
-        Mean: '2'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      pv_y:
-        ID: pv_y
-        Title: '"pv_y"'
-        '#': '50260'
-        Mean: '498.37'
-        RMS: '332.17'
-        Skewness: '2.9203'
-        Kurtosis: '35.498'
-    header:
-      1D: 3
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 3
+    n_muons:
+      nEntries: 458943.0
+      title: '# muons'
+      sum: 458943
+      meanX: 0.109515
+      stdDevX: 0.312284
+    pv_x:
+      nEntries: 29763.0
+      title: pv_x
+      sum: 29763
+      meanX: 2.0
+      stdDevX: 0.0
+    pv_y:
+      nEntries: 50260.0
+      title: pv_y
+      sum: 50260
+      meanX: 498.371866
+      stdDevX: 332.166647
   make_long_track_particles:
-    1D:
-      number_of_trks:
-        ID: number_of_trks
-        Title: '"NTrks"'
-        '#': '10000'
-        Mean: '45.894'
-        RMS: '26.588'
-        Skewness: '0.7376'
-        Kurtosis: '0.46006'
-      trk_eta:
-        ID: trk_eta
-        Title: '"etaTrk"'
-        '#': '458943'
-        Mean: '3.6722'
-        RMS: '0.71516'
-        Skewness: '-0.13625'
-        Kurtosis: '-0.83739'
-      trk_phi:
-        ID: trk_phi
-        Title: '"phiTrk"'
-        '#': '458943'
-        Mean: '-0.0067018'
-        RMS: '1.8032'
-        Skewness: '-0.0012616'
-        Kurtosis: '-1.2508'
-      trk_pt:
-        ID: trk_pt
-        Title: '"ptTrk"'
-        '#': '458884'
-        Mean: '657.05'
-        RMS: '580.31'
-        Skewness: '3.3709'
-        Kurtosis: '21.426'
-      trk_qop:
-        ID: trk_qop
-        Title: '"q/p"'
-        '#': '458943'
-        Mean: '1.3029e-06'
-        RMS: '0.00015145'
-        Skewness: '-0.0058426'
-        Kurtosis: '-0.82363'
-      trk_tx:
-        ID: trk_tx
-        Title: '"txTrk"'
-        '#': '458943'
-        Mean: '-0.00044072'
-        RMS: '0.060079'
-        Skewness: '0.013011'
-        Kurtosis: '3.1992'
-      trk_ty:
-        ID: trk_ty
-        Title: '"tyTrk"'
-        '#': '458943'
-        Mean: '-2.7189e-05'
-        RMS: '0.056887'
-        Skewness: '-0.028941'
-        Kurtosis: '1.514'
-    header:
-      1D: 7
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 7
+    number_of_trks:
+      nEntries: 10000.0
+      title: NTrks
+      sum: 10000
+      meanX: 45.8943
+      stdDevX: 26.587616
+    trk_eta:
+      nEntries: 458943.0
+      title: etaTrk
+      sum: 458943
+      meanX: 3.672209
+      stdDevX: 0.715157
+    trk_phi:
+      nEntries: 458943.0
+      title: phiTrk
+      sum: 458943
+      meanX: -0.006702
+      stdDevX: 1.803186
+    trk_pt:
+      nEntries: 458884.0
+      title: ptTrk
+      sum: 458884
+      meanX: 657.053286
+      stdDevX: 580.308416
+    trk_qop:
+      nEntries: 458943.0
+      title: q/p
+      sum: 458943
+      meanX: 1.0e-06
+      stdDevX: 0.000151
+    trk_tx:
+      nEntries: 458943.0
+      title: txTrk
+      sum: 458943
+      meanX: -0.000441
+      stdDevX: 0.060079
+    trk_ty:
+      nEntries: 458943.0
+      title: tyTrk
+      sum: 458943
+      meanX: -2.7e-05
+      stdDevX: 0.056887
   matching_consolidate_tracks_matching:
-    1D:
-      long_track_ghost_prob:
-        ID: long_track_ghost_prob
-        Title: '"GhostProb"'
-        '#': '458943'
-        Mean: '0.076797'
-        RMS: '0.10029'
-        Skewness: '2.0764'
-        Kurtosis: '3.981'
-      long_track_matching_eta:
-        ID: long_track_matching_eta
-        Title: '"#eta"'
-        '#': '458943'
-        Mean: '3.6717'
-        RMS: '0.71487'
-        Skewness: '-0.13587'
-        Kurtosis: '-0.83685'
-      long_track_matching_nhits:
-        ID: long_track_matching_nhits
-        Title: '"N. hits / track"'
-        '#': '458943'
-        Mean: '24.956'
-        RMS: '3.3259'
-        Skewness: '-0.00053488'
-        Kurtosis: '-0.52704'
-      long_track_matching_phi:
-        ID: long_track_matching_phi
-        Title: '"#phi"'
-        '#': '458943'
-        Mean: '-0.0067936'
-        RMS: '1.8032'
-        Skewness: '-0.0012206'
-        Kurtosis: '-1.2508'
-      long_track_matching_pt:
-        ID: long_track_matching_pt
-        Title: '"pt"'
-        '#': '458884'
-        Mean: '656.54'
-        RMS: '580.11'
-        Skewness: '3.3724'
-        Kurtosis: '21.445'
-      long_track_matching_qop:
-        ID: long_track_matching_qop
-        Title: '"q/p"'
-        '#': '458943'
-        Mean: '1.304e-06'
-        RMS: '0.00015181'
-        Skewness: '-0.005771'
-        Kurtosis: '-0.82008'
-      long_track_matching_tx:
-        ID: long_track_matching_tx
-        Title: '"tx"'
-        '#': '458943'
-        Mean: '-0.00044545'
-        RMS: '0.060091'
-        Skewness: '0.012878'
-        Kurtosis: '3.1944'
-      long_track_matching_ty:
-        ID: long_track_matching_ty
-        Title: '"ty"'
-        '#': '458943'
-        Mean: '-2.6361e-05'
-        RMS: '0.056894'
-        Skewness: '-0.028816'
-        Kurtosis: '1.5124'
-      n_long_tracks_matching_event:
-        ID: n_long_tracks_matching_event
-        Title: '"n_long_tracks_matching_event"'
-        '#': '10000'
-        Mean: '45.894'
-        RMS: '26.588'
-        Skewness: '0.7376'
-        Kurtosis: '0.46006'
-    header:
-      1D: 9
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 9
+    long_track_ghost_prob:
+      nEntries: 458943.0
+      title: GhostProb
+      sum: 458943
+      meanX: 0.076797
+      stdDevX: 0.100291
+    long_track_matching_eta:
+      nEntries: 458943.0
+      title: '#eta'
+      sum: 458943
+      meanX: 3.671696
+      stdDevX: 0.714873
+    long_track_matching_nhits:
+      nEntries: 458943.0
+      title: N. hits / track
+      sum: 458943
+      meanX: 24.956424
+      stdDevX: 3.325857
+    long_track_matching_phi:
+      nEntries: 458943.0
+      title: '#phi'
+      sum: 458943
+      meanX: -0.006794
+      stdDevX: 1.80317
+    long_track_matching_pt:
+      nEntries: 458884.0
+      title: pt
+      sum: 458884
+      meanX: 656.543004
+      stdDevX: 580.110455
+    long_track_matching_qop:
+      nEntries: 458943.0
+      title: q/p
+      sum: 458943
+      meanX: 1.0e-06
+      stdDevX: 0.000152
+    long_track_matching_tx:
+      nEntries: 458943.0
+      title: tx
+      sum: 458943
+      meanX: -0.000445
+      stdDevX: 0.060091
+    long_track_matching_ty:
+      nEntries: 458943.0
+      title: ty
+      sum: 458943
+      meanX: -2.6e-05
+      stdDevX: 0.056894
+    n_long_tracks_matching_event:
+      nEntries: 10000.0
+      title: n_long_tracks_matching_event
+      sum: 10000
+      meanX: 45.8943
+      stdDevX: 26.587616
   momentum_brem_correction_2d722be7:
-    1D:
-      BremEoverP:
-        ID: BremEoverP
-        Title: '"BremE/ ( BremE + P (track) )"'
-        '#': '186514'
-        Mean: '0.12112'
-        RMS: '0.14721'
-        Skewness: '1.9867'
-        Kurtosis: '4.0951'
-      EoverP:
-        ID: EoverP
-        Title: '"E (Ecal) / P (track)"'
-        '#': '376576'
-        Mean: '0.34707'
-        RMS: '0.30049'
-        Skewness: '1.3463'
-        Kurtosis: '2.2542'
-      EoverP_hasbrem:
-        ID: EoverP_hasbrem
-        Title: '"E (Ecal) / P (track) (with HasBrem)"'
-        '#': '89613'
-        Mean: '0.40968'
-        RMS: '0.34322'
-        Skewness: '1.1584'
-        Kurtosis: '1.3153'
-    header:
-      1D: 3
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 3
+    BremEoverP:
+      nEntries: 186514.0
+      title: BremE/ ( BremE + P (track) )
+      sum: 186514
+      meanX: 0.121121
+      stdDevX: 0.147209
+    EoverP:
+      nEntries: 376576.0
+      title: E (Ecal) / P (track)
+      sum: 376576
+      meanX: 0.347065
+      stdDevX: 0.300488
+    EoverP_hasbrem:
+      nEntries: 89613.0
+      title: E (Ecal) / P (track) (with HasBrem)
+      sum: 89613
+      meanX: 0.409679
+      stdDevX: 0.343224
   pv_beamline_cleanup:
-    1D:
-      n_pvs_event:
-        ID: n_pvs_event
-        Title: '"n_pvs_event"'
-        '#': '10000'
-        Mean: '5.1728'
-        RMS: '2.1616'
-        Skewness: '0.35389'
-        Kurtosis: '0.1102'
-      n_smog2_PVs:
-        ID: n_smog2_PVs
-        Title: '"n_smog2_PVs"'
-        '#': '10000'
-        Mean: '0'
-        RMS: '0.0000'
-        Skewness: '0'
-        Kurtosis: '0'
-      pv_x:
-        ID: pv_x
-        Title: '"pv_x"'
-        '#': '51646'
-        Mean: '-0.00011811'
-        RMS: '0.030515'
-        Skewness: '-0.035677'
-        Kurtosis: '2.1079'
-      pv_y:
-        ID: pv_y
-        Title: '"pv_y"'
-        '#': '51646'
-        Mean: '3.6169e-05'
-        RMS: '0.030206'
-        Skewness: '-0.06302'
-        Kurtosis: '1.7282'
-      pv_z:
-        ID: pv_z
-        Title: '"pv_z"'
-        '#': '51678'
-        Mean: '1.0053'
-        RMS: '63.429'
-        Skewness: '-0.036318'
-        Kurtosis: '-0.11742'
-      pv_z_only_pp:
-        ID: pv_z_only_pp
-        Title: '"pv_z_only_pp"'
-        '#': '51646'
-        Mean: '1.1383'
-        RMS: '63.224'
-        Skewness: '-0.018755'
-        Kurtosis: '-0.1608'
-      pv_z_only_smog:
-        ID: pv_z_only_smog
-        Title: '"pv_z_only_smog"'
-        '#': '32'
-        Mean: '-213.31'
-        RMS: '10.675'
-        Skewness: '-0.57342'
-        Kurtosis: '-0.98998'
-    header:
-      1D: 7
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 7
+    n_pvs_event:
+      nEntries: 10000.0
+      title: n_pvs_event
+      sum: 10000
+      meanX: 5.1728
+      stdDevX: 2.161606
+    n_smog2_PVs:
+      nEntries: 10000.0
+      title: n_smog2_PVs
+      sum: 10000
+      meanX: 0.0
+      stdDevX: 0.0
+    pv_x:
+      nEntries: 51646.0
+      title: pv_x
+      sum: 51646
+      meanX: -0.000118
+      stdDevX: 0.030515
+    pv_y:
+      nEntries: 51646.0
+      title: pv_y
+      sum: 51646
+      meanX: 3.6e-05
+      stdDevX: 0.030206
+    pv_z:
+      nEntries: 51678.0
+      title: pv_z
+      sum: 51678
+      meanX: 1.005287
+      stdDevX: 63.429186
+    pv_z_only_pp:
+      nEntries: 51646.0
+      title: pv_z_only_pp
+      sum: 51646
+      meanX: 1.138315
+      stdDevX: 63.22367
+    pv_z_only_smog:
+      nEntries: 32.0
+      title: pv_z_only_smog
+      sum: 32
+      meanX: -213.3125
+      stdDevX: 10.675081
   scifi_consolidate_seeds_matching:
-    1D:
-      n_scifi_seeds_event:
-        ID: n_scifi_seeds_event
-        Title: '"n_scifi_seeds_event"'
-        '#': '10000'
-        Mean: '79.956'
-        RMS: '51.739'
-        Skewness: '1.514'
-        Kurtosis: '4.33'
-      scifi_track_eta:
-        ID: scifi_track_eta
-        Title: '"#eta"'
-        '#': '799556'
-        Mean: '2.6527'
-        RMS: '0.73297'
-        Skewness: '0.64541'
-        Kurtosis: '0.31571'
-      scifi_track_nhits:
-        ID: scifi_track_nhits
-        Title: '"N. hits / track"'
-        '#': '799557'
-        Mean: '11.44'
-        RMS: '0.73978'
-        Skewness: '-0.90936'
-        Kurtosis: '-0.61196'
-      scifi_track_phi:
-        ID: scifi_track_phi
-        Title: '"#phi"'
-        '#': '799557'
-        Mean: '-0.0062694'
-        RMS: '2.0444'
-        Skewness: '0.0038921'
-        Kurtosis: '-1.0012'
-      scifi_track_qop:
-        ID: scifi_track_qop
-        Title: '"q/p"'
-        '#': '799557'
-        Mean: '1.2459e-06'
-        RMS: '0.00016273'
-        Skewness: '-0.0054089'
-        Kurtosis: '-0.86296'
-    header:
-      1D: 5
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 5
+    n_scifi_seeds_event:
+      nEntries: 10000.0
+      title: n_scifi_seeds_event
+      sum: 10000
+      meanX: 79.9557
+      stdDevX: 51.739193
+    scifi_track_eta:
+      nEntries: 799556.0
+      title: '#eta'
+      sum: 799556
+      meanX: 2.652721
+      stdDevX: 0.732966
+    scifi_track_nhits:
+      nEntries: 799557.0
+      title: N. hits / track
+      sum: 799557
+      meanX: 11.440475
+      stdDevX: 0.739776
+    scifi_track_phi:
+      nEntries: 799557.0
+      title: '#phi'
+      sum: 799557
+      meanX: -0.006269
+      stdDevX: 2.044383
+    scifi_track_qop:
+      nEntries: 799557.0
+      title: q/p
+      sum: 799557
+      meanX: 1.0e-06
+      stdDevX: 0.000163
   velo_consolidate_tracks:
-    1D:
-      n_velo_tracks_event:
-        ID: n_velo_tracks_event
-        Title: '"n_velo_tracks_event"'
-        '#': '9999'
-        Mean: '250.12'
-        RMS: '134.33'
-        Skewness: '0.77693'
-        Kurtosis: '0.89093'
-    header:
-      1D: 1
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 1
+    n_velo_tracks_event:
+      nEntries: 9999.0
+      title: n_velo_tracks_event
+      sum: 9999
+      meanX: 250.115012
+      stdDevX: 134.328012
   velo_kalman_filter:
-    1D:
-      velo_backward_track_eta:
-        ID: velo_backward_track_eta
-        Title: '"#backward_eta"'
-        '#': '935907'
-        Mean: '-3.0143'
-        RMS: '0.80743'
-        Skewness: '0.011365'
-        Kurtosis: '-0.62887'
-      velo_backward_track_nhits:
-        ID: velo_backward_track_nhits
-        Title: '"backward N. hits / track"'
-        '#': '935908'
-        Mean: '4.5929'
-        RMS: '1.3876'
-        Skewness: '1.2513'
-        Kurtosis: '2.3966'
-      velo_backward_track_phi:
-        ID: velo_backward_track_phi
-        Title: '"#backward_phi"'
-        '#': '935908'
-        Mean: '-0.00021729'
-        RMS: '1.7949'
-        Skewness: '-0.012852'
-        Kurtosis: '-1.1698'
-      velo_forward_track_eta:
-        ID: velo_forward_track_eta
-        Title: '"#forward_eta"'
-        '#': '1566006'
-        Mean: '3.2753'
-        RMS: '1.0900'
-        Skewness: '0.11826'
-        Kurtosis: '-0.98396'
-      velo_forward_track_nhits:
-        ID: velo_forward_track_nhits
-        Title: '"forward N. hits / track"'
-        '#': '1566006'
-        Mean: '7.3357'
-        RMS: '3.4695'
-        Skewness: '0.58274'
-        Kurtosis: '-0.57483'
-      velo_forward_track_phi:
-        ID: velo_forward_track_phi
-        Title: '"#forward_phi"'
-        '#': '1566006'
-        Mean: '-0.003104'
-        RMS: '1.8200'
-        Skewness: '-0.004301'
-        Kurtosis: '-1.2095'
-      velo_total_track_eta:
-        ID: velo_total_track_eta
-        Title: '"#total_eta"'
-        '#': '2501913'
-        Mean: '0.92252'
-        RMS: '3.2016'
-        Skewness: '-0.37193'
-        Kurtosis: '-1.4825'
-      velo_total_track_nhits:
-        ID: velo_total_track_nhits
-        Title: '"total N. hits / track"'
-        '#': '2501914'
-        Mean: '6.3097'
-        RMS: '3.1649'
-        Skewness: '1.0962'
-        Kurtosis: '0.44521'
-      velo_total_track_phi:
-        ID: velo_total_track_phi
-        Title: '"#total_phi"'
-        '#': '2501914'
-        Mean: '-0.0020242'
-        RMS: '1.8107'
-        Skewness: '-0.0074483'
-        Kurtosis: '-1.1949'
-    header:
-      1D: 9
-      2D: 0
-      3D: 0
-      1DProf: 0
-      2DProf: 0
-      3DProf: 0
-      Total: 9
+    velo_backward_track_eta:
+      nEntries: 935907.0
+      title: '#backward_eta'
+      sum: 935907
+      meanX: -3.014304
+      stdDevX: 0.807425
+    velo_backward_track_nhits:
+      nEntries: 935908.0
+      title: backward N. hits / track
+      sum: 935908
+      meanX: 4.592924
+      stdDevX: 1.387636
+    velo_backward_track_phi:
+      nEntries: 935908.0
+      title: '#backward_phi'
+      sum: 935908
+      meanX: -0.000217
+      stdDevX: 1.794931
+    velo_forward_track_eta:
+      nEntries: 1566006.0
+      title: '#forward_eta'
+      sum: 1566006
+      meanX: 3.275327
+      stdDevX: 1.089989
+    velo_forward_track_nhits:
+      nEntries: 1566006.0
+      title: forward N. hits / track
+      sum: 1566006
+      meanX: 7.335696
+      stdDevX: 3.469541
+    velo_forward_track_phi:
+      nEntries: 1566006.0
+      title: '#forward_phi'
+      sum: 1566006
+      meanX: -0.003104
+      stdDevX: 1.819988
+    velo_total_track_eta:
+      nEntries: 2501913.0
+      title: '#total_eta'
+      sum: 2501913
+      meanX: 0.922523
+      stdDevX: 3.201577
+    velo_total_track_nhits:
+      nEntries: 2501914.0
+      title: total N. hits / track
+      sum: 2501914
+      meanX: 6.309689
+      stdDevX: 3.164869
+    velo_total_track_phi:
+      nEntries: 2501914.0
+      title: '#total_phi'
+      sum: 2501914
+      meanX: -0.002024
+      stdDevX: 1.810656
 ttrees: {}
 counters:
   HLTControlFlowMgr:
-    set: HLTControlFlowMgr
-    total_counters: 1
     Processed events:
-      binomial: false
-      name: Processed events
-      count: 1
+      nEntries: 1
   calo_filter_clusters_b3e43409:
-    set: calo_filter_clusters_b3e43409
-    total_counters: 1
     n_calo_clusters:
-      binomial: false
-      name: n_calo_clusters
-      count: 10000
+      mean: 49.4739
+      nEntries: 10000.0
       sum: 494739.0
-      mean/eff^*: 49.474
   gather_selections:
-    set: gather_selections
-    total_counters: 82
     Hlt1ConeJet100GeVPass:
-      binomial: false
-      name: Hlt1ConeJet100GeVPass
-      count: 1
+      nEntries: 1.0
     Hlt1ConeJet100GeVRate:
-      binomial: false
-      name: Hlt1ConeJet100GeVRate
-      count: 1
+      nEntries: 1.0
     Hlt1D2KKPass:
-      binomial: false
-      name: Hlt1D2KKPass
-      count: 15
+      nEntries: 15.0
     Hlt1D2KKRate:
-      binomial: false
-      name: Hlt1D2KKRate
-      count: 15
+      nEntries: 15.0
     Hlt1D2KPiAlignmentPass:
-      binomial: false
-      name: Hlt1D2KPiAlignmentPass
-      count: 4
+      nEntries: 4.0
     Hlt1D2KPiAlignmentRate:
-      binomial: false
-      name: Hlt1D2KPiAlignmentRate
-      count: 4
+      nEntries: 4.0
     Hlt1D2KPiPass:
-      binomial: false
-      name: Hlt1D2KPiPass
-      count: 16
+      nEntries: 16.0
     Hlt1D2KPiRate:
-      binomial: false
-      name: Hlt1D2KPiRate
-      count: 16
+      nEntries: 16.0
     Hlt1D2KshhPass:
-      binomial: false
-      name: Hlt1D2KshhPass
-      count: 7
+      nEntries: 7.0
     Hlt1D2KshhRate:
-      binomial: false
-      name: Hlt1D2KshhRate
-      count: 7
+      nEntries: 7.0
     Hlt1D2PiPiPass:
-      binomial: false
-      name: Hlt1D2PiPiPass
-      count: 4
+      nEntries: 4.0
     Hlt1D2PiPiRate:
-      binomial: false
-      name: Hlt1D2PiPiRate
-      count: 4
+      nEntries: 4.0
     Hlt1DetJpsiToMuMuNegTagLinePass:
-      binomial: false
-      name: Hlt1DetJpsiToMuMuNegTagLinePass
-      count: 1
+      nEntries: 1.0
     Hlt1DetJpsiToMuMuNegTagLineRate:
-      binomial: false
-      name: Hlt1DetJpsiToMuMuNegTagLineRate
-      count: 1
+      nEntries: 1.0
     Hlt1DiElectronDisplacedPass:
-      binomial: false
-      name: Hlt1DiElectronDisplacedPass
-      count: 24
+      nEntries: 24.0
     Hlt1DiElectronDisplacedRate:
-      binomial: false
-      name: Hlt1DiElectronDisplacedRate
-      count: 24
+      nEntries: 24.0
     Hlt1DiElectronLowMass_DisplacedPass:
-      binomial: false
-      name: Hlt1DiElectronLowMass_DisplacedPass
-      count: 6
+      nEntries: 6.0
     Hlt1DiElectronLowMass_DisplacedRate:
-      binomial: false
-      name: Hlt1DiElectronLowMass_DisplacedRate
-      count: 6
+      nEntries: 6.0
     Hlt1DiElectronLowMass_NoIPNormPass:
-      binomial: false
-      name: Hlt1DiElectronLowMass_NoIPNormPass
-      count: 60
+      nEntries: 60.0
     Hlt1DiElectronLowMass_NoIPNormRate:
-      binomial: false
-      name: Hlt1DiElectronLowMass_NoIPNormRate
-      count: 3
+      nEntries: 3.0
     Hlt1DiElectronLowMass_NoIPPass:
-      binomial: false
-      name: Hlt1DiElectronLowMass_NoIPPass
-      count: 15
+      nEntries: 15.0
     Hlt1DiElectronLowMass_NoIPRate:
-      binomial: false
-      name: Hlt1DiElectronLowMass_NoIPRate
-      count: 15
+      nEntries: 15.0
     Hlt1DiElectronLowMass_SS_DisplacedPass:
-      binomial: false
-      name: Hlt1DiElectronLowMass_SS_DisplacedPass
-      count: 24
+      nEntries: 24.0
     Hlt1DiElectronLowMass_SS_DisplacedRate:
-      binomial: false
-      name: Hlt1DiElectronLowMass_SS_DisplacedRate
-      count: 1
+      nEntries: 1.0
     Hlt1DiElectronLowMass_SS_NoIPNormPass:
-      binomial: false
-      name: Hlt1DiElectronLowMass_SS_NoIPNormPass
-      count: 141
+      nEntries: 141.0
     Hlt1DiElectronLowMass_SS_NoIPNormRate:
-      binomial: false
-      name: Hlt1DiElectronLowMass_SS_NoIPNormRate
-      count: 2
+      nEntries: 2.0
     Hlt1DiElectronLowMass_SS_NoIPPass:
-      binomial: false
-      name: Hlt1DiElectronLowMass_SS_NoIPPass
-      count: 65
+      nEntries: 65.0
     Hlt1DiElectronLowMass_SS_NoIPRate:
-      binomial: false
-      name: Hlt1DiElectronLowMass_SS_NoIPRate
-      count: 1
+      nEntries: 1.0
     Hlt1DiMuonDisplacedPass:
-      binomial: false
-      name: Hlt1DiMuonDisplacedPass
-      count: 4
+      nEntries: 4.0
     Hlt1DiMuonDisplacedRate:
-      binomial: false
-      name: Hlt1DiMuonDisplacedRate
-      count: 4
+      nEntries: 4.0
     Hlt1DiMuonDisplacedSoftPTPass:
-      binomial: false
-      name: Hlt1DiMuonDisplacedSoftPTPass
-      count: 5
+      nEntries: 5.0
     Hlt1DiMuonDisplacedSoftPTRate:
-      binomial: false
-      name: Hlt1DiMuonDisplacedSoftPTRate
-      count: 5
+      nEntries: 5.0
     Hlt1DiMuonHighMassPass:
-      binomial: false
-      name: Hlt1DiMuonHighMassPass
-      count: 7
+      nEntries: 7.0
     Hlt1DiMuonHighMassRate:
-      binomial: false
-      name: Hlt1DiMuonHighMassRate
-      count: 7
+      nEntries: 7.0
     Hlt1DiMuonNoIPPass:
-      binomial: false
-      name: Hlt1DiMuonNoIPPass
-      count: 8
+      nEntries: 8.0
     Hlt1DiMuonNoIPRate:
-      binomial: false
-      name: Hlt1DiMuonNoIPRate
-      count: 8
+      nEntries: 8.0
     Hlt1DiMuonNoIP_SSPass:
-      binomial: false
-      name: Hlt1DiMuonNoIP_SSPass
-      count: 7
+      nEntries: 7.0
     Hlt1DiMuonSoftPass:
-      binomial: false
-      name: Hlt1DiMuonSoftPass
-      count: 11
+      nEntries: 11.0
     Hlt1DiMuonSoftRate:
-      binomial: false
-      name: Hlt1DiMuonSoftRate
-      count: 11
+      nEntries: 11.0
     Hlt1DiPhotonHighMassPass:
-      binomial: false
-      name: Hlt1DiPhotonHighMassPass
-      count: 32
+      nEntries: 32.0
     Hlt1DiPhotonHighMassRate:
-      binomial: false
-      name: Hlt1DiPhotonHighMassRate
-      count: 32
+      nEntries: 32.0
     Hlt1Dst2D0PiAlignmentPass:
-      binomial: false
-      name: Hlt1Dst2D0PiAlignmentPass
-      count: 2
+      nEntries: 2.0
     Hlt1Dst2D0PiAlignmentRate:
-      binomial: false
-      name: Hlt1Dst2D0PiAlignmentRate
-      count: 2
+      nEntries: 2.0
     Hlt1Dst2D0PiPass:
-      binomial: false
-      name: Hlt1Dst2D0PiPass
-      count: 2
+      nEntries: 2.0
     Hlt1Dst2D0PiRate:
-      binomial: false
-      name: Hlt1Dst2D0PiRate
-      count: 2
+      nEntries: 2.0
     Hlt1GECPassthroughPass:
-      binomial: false
-      name: Hlt1GECPassthroughPass
-      count: 2
+      nEntries: 2.0
     Hlt1GECPassthroughRate:
-      binomial: false
-      name: Hlt1GECPassthroughRate
-      count: 2
+      nEntries: 2.0
     Hlt1Kplus2PiEEPass:
-      binomial: false
-      name: Hlt1Kplus2PiEEPass
-      count: 1
+      nEntries: 1.0
     Hlt1Kplus2PiEERate:
-      binomial: false
-      name: Hlt1Kplus2PiEERate
-      count: 1
+      nEntries: 1.0
     Hlt1Kplus2PiMuMuPass:
-      binomial: false
-      name: Hlt1Kplus2PiMuMuPass
-      count: 1
+      nEntries: 1.0
     Hlt1Kplus2PiMuMuRate:
-      binomial: false
-      name: Hlt1Kplus2PiMuMuRate
-      count: 1
+      nEntries: 1.0
     Hlt1KsToPiPiPass:
-      binomial: false
-      name: Hlt1KsToPiPiPass
-      count: 742
+      nEntries: 742.0
     Hlt1KsToPiPiRate:
-      binomial: false
-      name: Hlt1KsToPiPiRate
-      count: 2
+      nEntries: 2.0
     Hlt1LambdaLLDetachedTrackPass:
-      binomial: false
-      name: Hlt1LambdaLLDetachedTrackPass
-      count: 1
+      nEntries: 1.0
     Hlt1LambdaLLDetachedTrackRate:
-      binomial: false
-      name: Hlt1LambdaLLDetachedTrackRate
-      count: 1
+      nEntries: 1.0
     Hlt1MaterialVertexSeeds_DWFSPass:
-      binomial: false
-      name: Hlt1MaterialVertexSeeds_DWFSPass
-      count: 1
+      nEntries: 1.0
     Hlt1MaterialVertexSeeds_DWFSRate:
-      binomial: false
-      name: Hlt1MaterialVertexSeeds_DWFSRate
-      count: 1
+      nEntries: 1.0
     Hlt1OneMuonTrackLinePass:
-      binomial: false
-      name: Hlt1OneMuonTrackLinePass
-      count: 5717
+      nEntries: 5717.0
     Hlt1RICH1AlignmentPass:
-      binomial: false
-      name: Hlt1RICH1AlignmentPass
-      count: 4
+      nEntries: 4.0
     Hlt1RICH1AlignmentRate:
-      binomial: false
-      name: Hlt1RICH1AlignmentRate
-      count: 4
+      nEntries: 4.0
     Hlt1SMOG2PassThroughLowMult5Pass:
-      binomial: false
-      name: Hlt1SMOG2PassThroughLowMult5Pass
-      count: 3
+      nEntries: 3.0
     Hlt1SMOG2PassThroughLowMult5Rate:
-      binomial: false
-      name: Hlt1SMOG2PassThroughLowMult5Rate
-      count: 3
+      nEntries: 3.0
     Hlt1SingleHighPtElectronPass:
-      binomial: false
-      name: Hlt1SingleHighPtElectronPass
-      count: 11
+      nEntries: 11.0
     Hlt1SingleHighPtElectronRate:
-      binomial: false
-      name: Hlt1SingleHighPtElectronRate
-      count: 11
+      nEntries: 11.0
     Hlt1SingleHighPtMuonNoMuIDPass:
-      binomial: false
-      name: Hlt1SingleHighPtMuonNoMuIDPass
-      count: 8
+      nEntries: 8.0
     Hlt1SingleHighPtMuonNoMuIDRate:
-      binomial: false
-      name: Hlt1SingleHighPtMuonNoMuIDRate
-      count: 8
+      nEntries: 8.0
     Hlt1SingleHighPtMuonPass:
-      binomial: false
-      name: Hlt1SingleHighPtMuonPass
-      count: 5
+      nEntries: 5.0
     Hlt1SingleHighPtMuonRate:
-      binomial: false
-      name: Hlt1SingleHighPtMuonRate
-      count: 5
+      nEntries: 5.0
     Hlt1TrackElectronMVAPass:
-      binomial: false
-      name: Hlt1TrackElectronMVAPass
-      count: 50
+      nEntries: 50.0
     Hlt1TrackElectronMVARate:
-      binomial: false
-      name: Hlt1TrackElectronMVARate
-      count: 50
+      nEntries: 50.0
     Hlt1TrackMVAPass:
-      binomial: false
-      name: Hlt1TrackMVAPass
-      count: 99
+      nEntries: 99.0
     Hlt1TrackMVARate:
-      binomial: false
-      name: Hlt1TrackMVARate
-      count: 99
+      nEntries: 99.0
     Hlt1TrackMuonMVAPass:
-      binomial: false
-      name: Hlt1TrackMuonMVAPass
-      count: 10
+      nEntries: 10.0
     Hlt1TrackMuonMVARate:
-      binomial: false
-      name: Hlt1TrackMuonMVARate
-      count: 10
+      nEntries: 10.0
     Hlt1TwoKsPass:
-      binomial: false
-      name: Hlt1TwoKsPass
-      count: 8
+      nEntries: 8.0
     Hlt1TwoKsRate:
-      binomial: false
-      name: Hlt1TwoKsRate
-      count: 8
+      nEntries: 8.0
     Hlt1TwoTrackKsPass:
-      binomial: false
-      name: Hlt1TwoTrackKsPass
-      count: 30
+      nEntries: 30.0
     Hlt1TwoTrackKsRate:
-      binomial: false
-      name: Hlt1TwoTrackKsRate
-      count: 30
+      nEntries: 30.0
     Hlt1TwoTrackMVAPass:
-      binomial: false
-      name: Hlt1TwoTrackMVAPass
-      count: 247
+      nEntries: 247.0
     Hlt1TwoTrackMVARate:
-      binomial: false
-      name: Hlt1TwoTrackMVARate
-      count: 247
+      nEntries: 247.0
     Hlt1VeloMicroBiasPass:
-      binomial: false
-      name: Hlt1VeloMicroBiasPass
-      count: 9997
+      nEntries: 9997.0
     Hlt1VeloMicroBiasRate:
-      binomial: false
-      name: Hlt1VeloMicroBiasRate
-      count: 9
-  matching_consolidate_tracks_matc...:
-    set: matching_consolidate_tracks_matc...
-    total_counters: 1
+      nEntries: 9.0
+  matching_consolidate_tracks_matching:
     n_long_tracks_matching:
-      binomial: false
-      name: n_long_tracks_matching
-      count: 10000
+      mean: 45.8943
+      nEntries: 10000.0
       sum: 458943.0
-      mean/eff^*: 45.894
   pv_beamline_cleanup:
-    set: pv_beamline_cleanup
-    total_counters: 1
     n_PVs:
-      binomial: false
-      name: n_PVs
-      count: 10000
+      mean: 5.1728
+      nEntries: 10000.0
       sum: 51728.0
-      mean/eff^*: 5.1728
   scifi_consolidate_seeds_matching:
-    set: scifi_consolidate_seeds_matching
-    total_counters: 1
     n_seed_tracks:
-      binomial: false
-      name: n_seed_tracks
-      count: 10000
+      mean: 79.9557
+      nEntries: 10000.0
       sum: 799557.0
-      mean/eff^*: 79.956
   velo_consolidate_tracks:
-    set: velo_consolidate_tracks
-    total_counters: 1
     n_velo_tracks:
-      binomial: false
-      name: n_velo_tracks
-      count: 10000
+      mean: 250.1914
+      nEntries: 10000.0
       sum: 2501914.0
-      mean/eff^*: 250.19
 stderr: ''
