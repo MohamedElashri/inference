@@ -15,6 +15,7 @@ stdout: |-
   ApplicationMgr                         INFO Application Manager Started successfully
   HLTControlFlowMgr                      INFO Will measure time between events 0 and 0 (stop might be some events later)
   HLTControlFlowMgr                      INFO Starting loop on events
+  HLTControlFlowMgr                   SUCCESS Processing event 0 in slot 0
   DeviceFTGeometry                       INFO Conditions DB is compatible with FT bank version 7 and 8.
   Loading magfield grid, nbins x,y,z : (81, 81, 146)
   dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
