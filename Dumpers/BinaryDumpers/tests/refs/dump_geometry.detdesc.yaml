@@ -9,6 +9,7 @@ stdout: |-
   ApplicationMgr                         INFO Application Manager Started successfully
   HLTControlFlowMgr                      INFO Will measure time between events 0 and 0 (stop might be some events later)
   HLTControlFlowMgr                      INFO Starting loop on events
+  HLTControlFlowMgr                   SUCCESS Processing event 0 in slot 0
   DeviceFTGeometry                       INFO Conditions DB is compatible with FT bank version 7 and 8.
   RootIOAlg                           SUCCESS Reading Event record 1 within root://eoslhcb.cern.ch//eos/lhcb/wg/rta/samples/mc/Jira_LHCBGAUSS-2635/Minbias_MagDown_Boole_lhcbhead3379_dddb-20220705_sim-20220705-vc-md100_lumi0.xdigi, 1 overall
   Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_dump_geometry_hist_counts.json
