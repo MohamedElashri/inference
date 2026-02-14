@@ -165,14 +165,12 @@ In its current implementation, the following steps are performed:
 - An initial state is created from the first and last Velo hit at the position of the first hit.
 - The parKF runs over the remaining Velo hits in the forward direction. A state is saved at the position of the last hit.
 - Extrapolation V -> UT, start at this point we create a transport matrix F by multiplying up the Jacobians of each extrapolation.
-- Extrapolation in UT, updates at every state, if there is a hit. In a no_ut configuration, the algorithm still stops at every
-  UT layer and adds noise.
+- Extrapolation in UT, updates at every state, if there is a hit. In a no_ut configuration, the algorithm still stops at every UT layer and adds noise.
 - UT -> T extrapolation through the magnetic field using a large parametrisation.
 - Extrapolation in T, updates at every state, if there is a hit.
 - At the last hit we invert the transport matrix F and use F^-1 to transport the covariance matrix C back to the state at the end of VELO.
 - We revert to the state saved at this point in the forward pass but substitute the improved qop estimate.
-- We let the filter run backward over all velo hits. The state produced at the lowest z will be used as the state closest
-  to the beamline for calculating the impact parameter and creating secondary vertices.
+- We let the filter run backward over all velo hits. The state produced at the lowest z will be used as the state closest to the beamline for calculating the impact parameter and creating secondary vertices.
 TODO: add links to repo with parametrisation creation
 
 Muon ID
