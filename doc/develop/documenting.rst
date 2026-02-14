@@ -14,7 +14,7 @@ It is enough to run the following command to get the documentation in ``Allen/do
   lb-run --nightly lhcb-head/latest Allen/HEAD make -C doc html
   lb-run --nightly lhcb-head/latest Allen/HEAD make -C doc linkcheck
 
-.. _reStructuredText: https://docutils.sourceforge.io/rst.html
+.. _reStructuredText: https://en.wikipedia.org/wiki/ReStructuredText
 .. _Sphinx: https://www.sphinx-doc.org/en/master/
 .. _doc: https://gitlab.cern.ch/lhcb/Allen/-/tree/master/doc
 .. _example: https://www.sphinx-doc.org/en/master/usage/extensions/example_google.html#example-google
