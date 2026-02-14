@@ -89,7 +89,7 @@ namespace {
         }
       }
       else {
-        // else, use version 4 (big endian) or 5 (little endian) : New encoding
+        // else, use version 4 (big endian), 5 (little endian) or version 6 (little endian, without LLT) : New encoding
         // for run 3
 
         int32_t source_id = raw_bank.source_id;
@@ -119,10 +119,12 @@ namespace {
         uint32_t fibMask3 = 0xfff000;
 
         for (int ifeb = 0; ifeb < 3; ifeb++) {
-          // First, remove 3 LLTs
-          if (ifeb == 0) {
-            raw_bank_data_u32 += 3;
-            raw_bank_fiberCheck_data_u32 += 3;
+          if constexpr (decoding_version < 6) {
+            // First, remove 3 LLTs
+            if (ifeb == 0) {
+              raw_bank_data_u32 += 3;
+              raw_bank_fiberCheck_data_u32 += 3;
+            }
           }
           lastData = get_data(raw_bank_data_u32);
 
@@ -270,7 +272,7 @@ void calo_decode::calo_decode_t::operator()(
   if (bank_version < 0) return; // no Calo banks present in data
 
   // Ensure the bank version is supported
-  if (bank_version > 5) {
+  if (bank_version > 6) {
     throw StrException("Calo bank version not supported (" + std::to_string(bank_version) + ")");
   }
 
@@ -279,6 +281,9 @@ void calo_decode::calo_decode_t::operator()(
       return true;
     }
     else if ((bank_version == 4 || bank_version == 5) && (geom_version == 4 || geom_version == 5)) {
+      return true;
+    }
+    else if (bank_version == 6 && (geom_version == 4 || geom_version == 5)) {
       return true;
     }
     return false;
@@ -291,12 +296,24 @@ void calo_decode::calo_decode_t::operator()(
       ", calo geometry version " + std::to_string(geom_version) + ")");
   }
 
-  auto fn =
-    runtime_options.mep_layout ?
-      (bank_version == 4 ? calo_decode_dispatch<true, 4> :
-                           (bank_version == 5 ? calo_decode_dispatch<true, 5> : calo_decode_dispatch<true, 3>) ) :
-      (bank_version == 4 ? calo_decode_dispatch<false, 4> :
-                           (bank_version == 5 ? calo_decode_dispatch<false, 5> : calo_decode_dispatch<false, 3>) );
+  auto fn = [&]() -> decltype(&calo_decode_dispatch<true, 4>) {
+    if (runtime_options.mep_layout) {
+      switch (bank_version) {
+      case 4: return calo_decode_dispatch<true, 4>;
+      case 5: return calo_decode_dispatch<true, 5>;
+      case 6: return calo_decode_dispatch<true, 6>;
+      default: return calo_decode_dispatch<true, 3>;
+      }
+    }
+    else {
+      switch (bank_version) {
+      case 4: return calo_decode_dispatch<false, 4>;
+      case 5: return calo_decode_dispatch<false, 5>;
+      case 6: return calo_decode_dispatch<false, 6>;
+      default: return calo_decode_dispatch<false, 3>;
+      }
+    }
+  }();
 
   global_function(fn)(dim3(size<dev_event_list_t>(arguments)), dim3(m_block_dim_x), context)(
     arguments,
