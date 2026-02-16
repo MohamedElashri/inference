@@ -112,7 +112,7 @@ __global__ void ut_decoding_decode_clusters::ut_decoding_decode_clusters(
       const uint16_t stripID = (word & UT::Decoding::v5::strip_mask) >> UT::Decoding::v5::strip_offset;
 
       // we need to know whether or not a "stripflip" canges the numbering
-      numstrips = p0Z < 0 ? UT::Decoding::v5::strips_per_hybrid - mean_strip : mean_strip;
+      numstrips = p0Z < 0 ? UT::Decoding::v5::strips_per_hybrid - 1 - mean_strip : mean_strip;
 
       // compute LHCb ID
       LHCbID = lhcb_id::set_detector_type_id(lhcb_id::LHCbIDType::UT, (fullSectorID + stripID));
