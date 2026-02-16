@@ -80,54 +80,54 @@ stdout: |-
 histos:
   Hlt1D2KK:
     d02kk_mass:
-      nEntries: 15.0
+      nEntries: 14.0
       title: m(D0)
-      sum: 15
-      meanX: 1857.2
-      stdDevX: 50.905402
+      sum: 14
+      meanX: 1852.142857
+      stdDevX: 48.91663
     d02kk_pt:
-      nEntries: 15.0
+      nEntries: 14.0
       title: pT(D0)
-      sum: 15
-      meanX: 3268.666667
-      stdDevX: 1109.438457
+      sum: 14
+      meanX: 3297.142857
+      stdDevX: 1143.06973
   Hlt1D2KPi:
     d0_mass:
-      nEntries: 22.0
+      nEntries: 21.0
       title: m(D0)
-      sum: 22
-      meanX: 1849.727273
-      stdDevX: 55.406909
+      sum: 21
+      meanX: 1849.904762
+      stdDevX: 56.704669
     d0_pt:
-      nEntries: 16.0
+      nEntries: 15.0
       title: pT(D0)
-      sum: 16
-      meanX: 3790.0
-      stdDevX: 1584.498028
+      sum: 15
+      meanX: 3851.333333
+      stdDevX: 1617.968218
     p0_ipx:
-      nEntries: 15.0
+      nEntries: 14.0
       title: IP_{x}(p0)
-      sum: 15
-      meanX: 0.142
-      stdDevX: 0.344232
+      sum: 14
+      meanX: 0.141429
+      stdDevX: 0.356308
     p0_ipy:
-      nEntries: 14.0
+      nEntries: 13.0
       title: IP_{y}(p0)
-      sum: 14
-      meanX: -0.145714
-      stdDevX: 0.412877
+      sum: 13
+      meanX: -0.159231
+      stdDevX: 0.425467
     p1_ipx:
-      nEntries: 14.0
+      nEntries: 13.0
       title: IP_{x}(p1)
-      sum: 14
-      meanX: -0.094286
-      stdDevX: 0.189009
+      sum: 13
+      meanX: -0.103846
+      stdDevX: 0.192855
     p1_ipy:
-      nEntries: 15.0
+      nEntries: 14.0
       title: IP_{y}(p1)
-      sum: 15
-      meanX: -0.09
-      stdDevX: 0.368565
+      sum: 14
+      meanX: -0.085714
+      stdDevX: 0.38114
   Hlt1D2KPiAlignment:
     d0_mass:
       nEntries: 7.0
@@ -298,29 +298,29 @@ histos:
       stdDevX: 2.201641
   Hlt1KsToPiPi:
     ks_mass:
-      nEntries: 828.0
+      nEntries: 827.0
       title: m(ks)
-      sum: 828
-      meanX: 493.021739
-      stdDevX: 19.422695
+      sum: 827
+      meanX: 493.01451
+      stdDevX: 19.43357
     ks_pt:
-      nEntries: 828.0
+      nEntries: 827.0
       title: pT(ks)
-      sum: 828
-      meanX: 1205.434783
-      stdDevX: 602.85707
+      sum: 827
+      meanX: 1206.831923
+      stdDevX: 607.758086
     p0_ghost_prob:
-      nEntries: 828.0
+      nEntries: 827.0
       title: track0 GhostProb
-      sum: 828
-      meanX: 0.066362
-      stdDevX: 0.087445
+      sum: 827
+      meanX: 0.066127
+      stdDevX: 0.087568
     p1_ghost_prob:
-      nEntries: 828.0
+      nEntries: 827.0
       title: track1 GhostProb
-      sum: 828
-      meanX: 0.087877
-      stdDevX: 0.108477
+      sum: 827
+      meanX: 0.088161
+      stdDevX: 0.108405
   Hlt1LambdaLLDetachedTrack:
     LambdaTrack_mass:
       nEntries: 1.0
@@ -336,66 +336,66 @@ histos:
       stdDevX: 0.0
   Hlt1TrackMVA:
     ghost_prob:
-      nEntries: 105.0
+      nEntries: 104.0
       title: track GhostProb
-      sum: 105
-      meanX: 0.022943
-      stdDevX: 0.042543
+      sum: 104
+      meanX: 0.022904
+      stdDevX: 0.042746
     ip_x:
-      nEntries: 103.0
+      nEntries: 102.0
       title: IP_{x}
-      sum: 103
-      meanX: -0.059126
-      stdDevX: 0.560601
+      sum: 102
+      meanX: -0.060588
+      stdDevX: 0.563147
     ip_y:
-      nEntries: 100.0
+      nEntries: 99.0
       title: IP_{y}
-      sum: 100
-      meanX: -0.0786
-      stdDevX: 0.346517
+      sum: 99
+      meanX: -0.076667
+      stdDevX: 0.347726
   Hlt1TwoTrackMVA:
     d0_mass:
       nEntries: 30.0
       title: m(K#pi)
       sum: 30
-      meanX: 1875.333333
-      stdDevX: 56.380454
+      meanX: 1874.466667
+      stdDevX: 59.128523
     p0_ghost_prob:
-      nEntries: 389.0
+      nEntries: 384.0
       title: track0 GhostProb
-      sum: 389
-      meanX: 0.032969
-      stdDevX: 0.061759
+      sum: 384
+      meanX: 0.034344
+      stdDevX: 0.064253
     p0_ip_x:
-      nEntries: 350.0
+      nEntries: 346.0
       title: IP_{x}(p0)
-      sum: 350
-      meanX: 0.005143
-      stdDevX: 0.609245
+      sum: 346
+      meanX: 0.016301
+      stdDevX: 0.617662
     p0_ip_y:
-      nEntries: 349.0
-      title: IP_{y}(p0)
-      sum: 349
-      meanX: 0.047536
-      stdDevX: 0.563804
-    p1_ghost_prob:
-      nEntries: 389.0
-      title: track1 GhostProb
-      sum: 389
-      meanX: 0.038661
-      stdDevX: 0.0664
-    p1_ip_x:
-      nEntries: 343.0
-      title: IP_{x}(p1)
-      sum: 343
-      meanX: -0.064111
-      stdDevX: 0.571383
-    p1_ip_y:
       nEntries: 344.0
-      title: IP_{y}(p1)
+      title: IP_{y}(p0)
       sum: 344
-      meanX: -0.044651
-      stdDevX: 0.57847
+      meanX: 0.05564
+      stdDevX: 0.57002
+    p1_ghost_prob:
+      nEntries: 384.0
+      title: track1 GhostProb
+      sum: 384
+      meanX: 0.037813
+      stdDevX: 0.064792
+    p1_ip_x:
+      nEntries: 337.0
+      title: IP_{x}(p1)
+      sum: 337
+      meanX: -0.075579
+      stdDevX: 0.56491
+    p1_ip_y:
+      nEntries: 339.0
+      title: IP_{y}(p1)
+      sum: 339
+      meanX: -0.052832
+      stdDevX: 0.578205
   calo_find_clusters:
     ecal_cluster_e:
       nEntries: 490569.0
@@ -493,192 +493,192 @@ histos:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 35.0706
-      stdDevX: 41.880537
+      meanX: 35.0626
+      stdDevX: 41.88734
   fit_dihadrons_noipcut_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 3.1507
-      stdDevX: 5.510117
+      meanX: 3.147
+      stdDevX: 5.507013
   fit_dilepton_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 15.5989
-      stdDevX: 30.955394
+      meanX: 15.6021
+      stdDevX: 30.952056
   fit_dilepton_secondary_vertices_nopt:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 24.3301
-      stdDevX: 45.305692
+      meanX: 24.3347
+      stdDevX: 45.303255
   fit_prompt_dihadron_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 15.8917
-      stdDevX: 20.749226
+      meanX: 15.8672
+      stdDevX: 20.727155
   fit_v0_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 0.8542
-      stdDevX: 1.878708
+      meanX: 0.8534
+      stdDevX: 1.877208
   gather_selections:
     line_passes:
-      nEntries: 17359.0
+      nEntries: 17354.0
       title: line passes
-      sum: 17359
-      meanX: 81.202748
-      stdDevX: 19.489951
+      sum: 17354
+      meanX: 81.211075
+      stdDevX: 19.476861
     line_rates:
-      nEntries: 659.0
+      nEntries: 655.0
       title: line rates
-      sum: 659
-      meanX: 75.19044
-      stdDevX: 29.441613
+      sum: 655
+      meanX: 75.329008
+      stdDevX: 29.307083
   is_muon:
     n_muons:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: '# muons'
-      sum: 458955
-      meanX: 0.10951
-      stdDevX: 0.312278
+      sum: 458860
+      meanX: 0.109541
+      stdDevX: 0.312317
     pv_x:
-      nEntries: 29760.0
+      nEntries: 29762.0
       title: pv_x
-      sum: 29760
+      sum: 29762
       meanX: 2.0
       stdDevX: 0.0
     pv_y:
-      nEntries: 50259.0
+      nEntries: 50263.0
       title: pv_y
-      sum: 50259
-      meanX: 498.358801
-      stdDevX: 332.17566
+      sum: 50263
+      meanX: 498.409466
+      stdDevX: 332.067982
   make_long_track_particles:
     number_of_trks:
       nEntries: 10000.0
       title: NTrks
       sum: 10000
-      meanX: 45.8955
-      stdDevX: 26.587918
+      meanX: 45.886
+      stdDevX: 26.583991
     trk_eta:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: etaTrk
-      sum: 458955
-      meanX: 3.67223
-      stdDevX: 0.715173
+      sum: 458860
+      meanX: 3.672266
+      stdDevX: 0.71516
     trk_phi:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: phiTrk
-      sum: 458955
-      meanX: -0.006698
-      stdDevX: 1.803179
+      sum: 458860
+      meanX: -0.00662
+      stdDevX: 1.802867
     trk_pt:
-      nEntries: 458895.0
+      nEntries: 458802.0
       title: ptTrk
-      sum: 458895
-      meanX: 657.041654
-      stdDevX: 580.290653
+      sum: 458802
+      meanX: 656.817625
+      stdDevX: 579.86747
     trk_qop:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: q/p
-      sum: 458955
+      sum: 458860
       meanX: 1.0e-06
       stdDevX: 0.000151
     trk_tx:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: txTrk
-      sum: 458955
-      meanX: -0.000439
-      stdDevX: 0.060079
+      sum: 458860
+      meanX: -0.00043
+      stdDevX: 0.060066
     trk_ty:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: tyTrk
-      sum: 458955
-      meanX: -2.7e-05
-      stdDevX: 0.056887
+      sum: 458860
+      meanX: -2.8e-05
+      stdDevX: 0.056884
   matching_consolidate_tracks_matching:
     long_track_ghost_prob:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: GhostProb
-      sum: 458955
-      meanX: 0.076802
-      stdDevX: 0.100304
+      sum: 458860
+      meanX: 0.076811
+      stdDevX: 0.10031
     long_track_matching_eta:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: '#eta'
-      sum: 458955
-      meanX: 3.671715
-      stdDevX: 0.714886
+      sum: 458860
+      meanX: 3.671751
+      stdDevX: 0.714874
     long_track_matching_nhits:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: N. hits / track
-      sum: 458955
-      meanX: 24.95636
-      stdDevX: 3.325835
+      sum: 458860
+      meanX: 24.95771
+      stdDevX: 3.327059
     long_track_matching_phi:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: '#phi'
-      sum: 458955
-      meanX: -0.006778
-      stdDevX: 1.803164
+      sum: 458860
+      meanX: -0.006699
+      stdDevX: 1.802852
     long_track_matching_pt:
-      nEntries: 458895.0
+      nEntries: 458802.0
       title: pt
-      sum: 458895
-      meanX: 656.532475
-      stdDevX: 580.09282
+      sum: 458802
+      meanX: 656.307165
+      stdDevX: 579.669291
     long_track_matching_qop:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: q/p
-      sum: 458955
+      sum: 458860
       meanX: 1.0e-06
       stdDevX: 0.000152
     long_track_matching_tx:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: tx
-      sum: 458955
-      meanX: -0.000444
-      stdDevX: 0.060092
+      sum: 458860
+      meanX: -0.000435
+      stdDevX: 0.060079
     long_track_matching_ty:
-      nEntries: 458955.0
+      nEntries: 458860.0
       title: ty
-      sum: 458955
-      meanX: -2.6e-05
-      stdDevX: 0.056894
+      sum: 458860
+      meanX: -2.7e-05
+      stdDevX: 0.05689
     n_long_tracks_matching_event:
       nEntries: 10000.0
       title: n_long_tracks_matching_event
       sum: 10000
-      meanX: 45.8955
-      stdDevX: 26.587918
+      meanX: 45.886
+      stdDevX: 26.583991
   momentum_brem_correction_2d722be7:
     BremEoverP:
-      nEntries: 186515.0
+      nEntries: 186448.0
       title: BremE/ ( BremE + P (track) )
-      sum: 186515
-      meanX: 0.121125
-      stdDevX: 0.147215
+      sum: 186448
+      meanX: 0.121156
+      stdDevX: 0.147244
     EoverP:
-      nEntries: 376590.0
+      nEntries: 376519.0
       title: E (Ecal) / P (track)
-      sum: 376590
-      meanX: 0.347067
-      stdDevX: 0.30049
+      sum: 376519
+      meanX: 0.347115
+      stdDevX: 0.300509
     EoverP_hasbrem:
-      nEntries: 89613.0
+      nEntries: 89593.0
       title: E (Ecal) / P (track) (with HasBrem)
-      sum: 89613
-      meanX: 0.409668
-      stdDevX: 0.343208
+      sum: 89593
+      meanX: 0.409768
+      stdDevX: 0.343263
   pv_beamline_cleanup:
     n_pvs_event:
       nEntries: 10000.0
@@ -831,17 +831,17 @@ counters:
     Hlt1ConeJet100GeVRate:
       nEntries: 1.0
     Hlt1D2KKPass:
-      nEntries: 15.0
+      nEntries: 14.0
     Hlt1D2KKRate:
-      nEntries: 15.0
+      nEntries: 14.0
     Hlt1D2KPiAlignmentPass:
       nEntries: 4.0
     Hlt1D2KPiAlignmentRate:
       nEntries: 4.0
     Hlt1D2KPiPass:
-      nEntries: 16.0
+      nEntries: 15.0
     Hlt1D2KPiRate:
-      nEntries: 16.0
+      nEntries: 15.0
     Hlt1D2KshhPass:
       nEntries: 7.0
     Hlt1D2KshhRate:
@@ -927,7 +927,7 @@ counters:
     Hlt1Kplus2PiMuMuRate:
       nEntries: 1.0
     Hlt1KsToPiPiPass:
-      nEntries: 742.0
+      nEntries: 741.0
     Hlt1KsToPiPiRate:
       nEntries: 2.0
     Hlt1LambdaLLDetachedTrackPass:
@@ -961,9 +961,9 @@ counters:
     Hlt1TrackElectronMVARate:
       nEntries: 50.0
     Hlt1TrackMVAPass:
-      nEntries: 99.0
+      nEntries: 98.0
     Hlt1TrackMVARate:
-      nEntries: 99.0
+      nEntries: 98.0
     Hlt1TrackMuonMVAPass:
       nEntries: 10.0
     Hlt1TrackMuonMVARate:
@@ -973,22 +973,22 @@ counters:
     Hlt1TwoKsRate:
       nEntries: 8.0
     Hlt1TwoTrackKsPass:
-      nEntries: 30.0
+      nEntries: 31.0
     Hlt1TwoTrackKsRate:
-      nEntries: 30.0
+      nEntries: 31.0
     Hlt1TwoTrackMVAPass:
-      nEntries: 248.0
+      nEntries: 246.0
     Hlt1TwoTrackMVARate:
-      nEntries: 248.0
+      nEntries: 246.0
     Hlt1VeloMicroBiasPass:
       nEntries: 9997.0
     Hlt1VeloMicroBiasRate:
       nEntries: 9.0
   matching_consolidate_tracks_matching:
     n_long_tracks_matching:
-      mean: 45.8955
+      mean: 45.886
       nEntries: 10000.0
-      sum: 458955.0
+      sum: 458860.0
   pv_beamline_cleanup:
     n_PVs:
       mean: 5.1728
