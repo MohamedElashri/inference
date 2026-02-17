@@ -329,6 +329,18 @@ def hlt1_reconstruction(algorithm_name='',
         sv_bpvvdrho_min=2,
         sv_bpvvdz_min=12,
         sv_bpvip_min=0.0)
+    ks_track_from_c = make_sv_track_pairs(
+        v0s,
+        long_track_particles,
+        pvs,
+        min_track_ipchi2=12,
+        min_track_ip=0.08,
+        min_track_pt=700,
+        sv_track_doca_max=0.1,
+        sv_bpvdira_min=0.9999,
+        sv_bpvvdrho_min=2,
+        sv_bpvvdz_min=12,
+        sv_bpvip_min=0.0)
 
     v0_twotrack_pairs = make_sv_track_pairs(
         v0_track_pairs,
@@ -414,6 +426,7 @@ def hlt1_reconstruction(algorithm_name='',
         "dilepton_secondary_vertices_nopt": dileptons_nopt,
         "v0_secondary_vertices": v0s,
         "lambda_track_from_c": lambda_track_from_c,
+        "ks_track_from_c": ks_track_from_c,
         "v0_sv_twotrack_pairs": v0_twotrack_pairs,
         "dstars": dstars,
         "v0_pairs": v0_pairs,

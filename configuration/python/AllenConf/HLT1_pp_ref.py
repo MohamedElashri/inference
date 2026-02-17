@@ -74,6 +74,7 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
     dileptons = reconstructed_objects["dilepton_secondary_vertices"]
     v0s = reconstructed_objects["v0_secondary_vertices"]
     lambda_track_from_c = reconstructed_objects["lambda_track_from_c"]
+    ks_track_from_c = reconstructed_objects["ks_track_from_c"]
     v0_twotrack_pairs = reconstructed_objects["v0_sv_twotrack_pairs"]
     dstars = reconstructed_objects["dstars"]
     v0_pairs = reconstructed_objects["v0_pairs"]
@@ -118,6 +119,10 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
             make_lambda_ll_detached_track_line(
                 lambda_track_from_c,
                 name="Hlt1LambdaLLDetachedTrack",
+                enable_tupling=enable_tupling),
+            make_ks_ll_detached_track_line(
+                ks_track_from_c,
+                name="Hlt1KsLLDetachedTrack",
                 enable_tupling=enable_tupling),
             make_detached_xi_omega_lll_line(
                 v0_twotrack_pairs,
