@@ -230,13 +230,13 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
         ]
         if 'downstream_sv_pairs' in reconstructed_objects:
             lines += [
-                # make_d02ksks_DDDD_line(
-                #     reconstructed_objects['downstream_tracks'],
-                #     reconstructed_objects['downstream_sv_pairs'],
-                #     name='Hlt1D02KsKsDDDD',
-                #     minTrackPt_piKs=450.0,
-                #     minComboPt_Ks=1200.0,
-                #     enable_tupling=enable_tupling),
+                make_d02ksks_DDDD_line(
+                    reconstructed_objects['downstream_tracks'],
+                    reconstructed_objects['downstream_sv_pairs'],
+                    name='Hlt1D02KsKsDDDD',
+                    minTrackPt_piKs=450.0,
+                    minComboPt_Ks=1200.0,
+                    enable_tupling=enable_tupling),
                 make_BuSca_line(  # BuSca HLT1 HH with PiPi mass hypo. with same sign reconstuction / Trigger disabled
                     reconstructed_objects[
                         'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
