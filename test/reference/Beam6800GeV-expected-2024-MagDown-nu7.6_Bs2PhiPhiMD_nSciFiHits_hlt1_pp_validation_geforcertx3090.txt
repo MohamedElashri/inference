@@ -118,6 +118,7 @@ Hlt1ConeJet100GeV:                                     0/   500, (    0.00 +/-  
 Hlt1ConeJet15GeV:                                      0/   500, (    0.00 +/-     0.00) kHz
 Hlt1ConeJet30GeV:                                      0/   500, (    0.00 +/-     0.00) kHz
 Hlt1ConeJet50GeV:                                      0/   500, (    0.00 +/-     0.00) kHz
+Hlt1D02KsKsDDDD:                                       0/   500, (    0.00 +/-     0.00) kHz
 Hlt1D2KK:                                             13/   500, (  780.00 +/-   213.50) kHz
 Hlt1D2KPi:                                            26/   500, ( 1560.00 +/-   297.88) kHz
 Hlt1D2KPiAlignment:                                    7/   500, (  420.00 +/-   157.63) kHz
@@ -351,6 +352,7 @@ Hlt1ConeJet100GeV:                                     0           0
 Hlt1ConeJet15GeV:                                      0           0
 Hlt1ConeJet30GeV:                                      0           0
 Hlt1ConeJet50GeV:                                      0           0
+Hlt1D02KsKsDDDD:                                       0           0
 Hlt1D2KK:                                             13          14
 Hlt1D2KPi:                                            26          27
 Hlt1D2KPiAlignment:                                    7           7
