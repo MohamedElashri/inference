@@ -93,6 +93,7 @@ Hlt1Dst2D0PiAlignment:                   1/  1000, (   30.00 +/-    29.98) kHz
 Hlt1ErrorBank:                           0/  1000, (    0.00 +/-     0.00) kHz
 Hlt1GECPassthrough:                      0/  1000, (    0.00 +/-     0.00) kHz
 Hlt1HighPtPhoton:                        3/  1000, (   90.00 +/-    51.88) kHz
+Hlt1KsLLDetachedTrack:                   0/  1000, (    0.00 +/-     0.00) kHz
 Hlt1KsToPiPi:                            0/  1000, (    0.00 +/-     0.00) kHz
 Hlt1KsToPiPiDoubleMuonMisID:             0/  1000, (    0.00 +/-     0.00) kHz
 Hlt1LambdaLLDetachedTrack:               0/  1000, (    0.00 +/-     0.00) kHz
@@ -255,6 +256,7 @@ Hlt1Dst2D0PiAlignment:                   1           2
 Hlt1ErrorBank:                           0           0
 Hlt1GECPassthrough:                      0           0
 Hlt1HighPtPhoton:                        3           3
+Hlt1KsLLDetachedTrack:                   0           0
 Hlt1KsToPiPi:                            0           0
 Hlt1KsToPiPiDoubleMuonMisID:             0           0
 Hlt1LambdaLLDetachedTrack:               0           0
