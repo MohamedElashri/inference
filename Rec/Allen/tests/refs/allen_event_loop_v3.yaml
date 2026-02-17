@@ -71,13 +71,13 @@ histos:
       nEntries: 1000.0
       title: line passes
       sum: 1000
-      meanX: 58.5
+      meanX: 59.5
       stdDevX: 0.0
     line_rates:
       nEntries: 1000.0
       title: line rates
       sum: 1000
-      meanX: 58.5
+      meanX: 59.5
       stdDevX: 0.0
   pv_beamline_cleanup:
     n_pvs_event:

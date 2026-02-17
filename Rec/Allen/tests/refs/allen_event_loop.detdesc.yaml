@@ -38,6 +38,7 @@ stdout: |-
   Hlt1DiMuonNoIP_SS                      INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1Dst2D0Pi                           INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1Dst2D0PiAlignment                  INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1KsLLDetachedTrack                  INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1KsToPiPi                           INFO Booked 4 Histogram(s) : 1D=4 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1LambdaLLDetachedTrack              INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1TrackMVA                           INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -296,6 +297,19 @@ histos:
       sum: 2
       meanX: 145.625
       stdDevX: 0.5
+  Hlt1KsLLDetachedTrack:
+    KsTrack_mass_KsLLDetachedTrack:
+      nEntries: 1.0
+      title: m(Ks#pi^{+}) [MeV]
+      sum: 1
+      meanX: 1644.946809
+      stdDevX: 0.0
+    Ks_mass_KsLLDetachedTrack:
+      nEntries: 1.0
+      title: m(#pi^{+}#pi^{#minus}) [MeV]
+      sum: 1
+      meanX: 517.0
+      stdDevX: 0.0
   Hlt1KsToPiPi:
     ks_mass:
       nEntries: 828.0
@@ -532,17 +546,17 @@ histos:
       stdDevX: 1.895994
   gather_selections:
     line_passes:
-      nEntries: 17455.0
+      nEntries: 17456.0
       title: line passes
-      sum: 17455
-      meanX: 80.986623
-      stdDevX: 19.747046
+      sum: 17456
+      meanX: 81.956634
+      stdDevX: 19.826737
     line_rates:
-      nEntries: 687.0
+      nEntries: 688.0
       title: line rates
-      sum: 687
-      meanX: 74.738719
-      stdDevX: 29.719231
+      sum: 688
+      meanX: 75.440407
+      stdDevX: 30.137007
   is_muon:
     n_muons:
       nEntries: 461097.0
@@ -927,6 +941,10 @@ counters:
     Hlt1Kplus2PiMuMuPass:
       nEntries: 1.0
     Hlt1Kplus2PiMuMuRate:
+      nEntries: 1.0
+    Hlt1KsLLDetachedTrackPass:
+      nEntries: 1.0
+    Hlt1KsLLDetachedTrackRate:
       nEntries: 1.0
     Hlt1KsToPiPiPass:
       nEntries: 744.0
