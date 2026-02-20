@@ -8,6 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
+import re
 from AllenCore.generator import make_algorithm, initialize_event_lists
 from AllenCore.algorithms import (
     host_data_provider_t, host_scifi_gec_t, velo_clusters_gec_t, host_ut_gec_t,
@@ -415,6 +416,18 @@ def checkEcalEnergy(ecal_energy,
         dev_total_ecal_e_t=ecal_energy,
         ecalCut=ecalCut,
         cutHigh=cutHigh)
+
+
+def regex_filter_lines(line_algorithms, enabled_lines, disabled_lines):
+    line_algorithms = [
+        line for line in line_algorithms if any(
+            re.match(r, line.name) for r in enabled_lines)
+    ]
+    line_algorithms = [
+        line for line in line_algorithms
+        if not any(re.match(r, line.name) for r in disabled_lines)
+    ]
+    return line_algorithms
 
 
 def sd_error_filter():

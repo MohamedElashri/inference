@@ -26,6 +26,7 @@ from AllenConf.primary_vertex_reconstruction import make_pvs
 from AllenConf.muon_reconstruction import decode_muon
 from AllenConf.velo_reconstruction import decode_velo, make_velo_tracks
 from AllenConf.calo_reconstruction import decode_calo, make_ecal_clusters
+import json
 
 
 def mc_data_provider():
@@ -272,10 +273,27 @@ def pv_validation(pvs, name="pv_validator"):
         pp_minNumTracksPerVertex=pvs["pp_minNumTracksPerVertex"])
 
 
-def rate_validation(lines, name="rate_validator"):
+def rate_validation(lines, groups={}, name="rate_validator"):
     number_of_events = initialize_number_of_events()
     dec_reporter = make_dec_reporter(lines)
     gather_selections = make_gather_selections(lines)
+
+    # Check for configuration error of physics and technical lines
+    names_of_active_lines = [line.name for line in lines]
+    grouped_line_names = {
+        key: [line.name for line in lines]
+        for key, lines in groups.items()
+    }
+    for key, list_of_names in grouped_line_names.items():
+        for line_name in list_of_names:
+            if line_name not in names_of_active_lines:
+                raise ValueError(
+                    f"rate_validator: {key} line with name <{line_name}> is not in the full list of HLT1 lines!"
+                )
+
+    # Prefix with json: so that the string don't get parse outside of algorithm
+    json_payload = json.dumps(grouped_line_names)
+    json_string = f"json:{json_payload}"
 
     return make_algorithm(
         host_rate_validator_t,
@@ -284,7 +302,8 @@ def rate_validation(lines, name="rate_validator"):
         host_names_of_lines_t=gather_selections.host_names_of_active_lines_t,
         host_number_of_active_lines_t=gather_selections.
         host_number_of_active_lines_t,
-        host_dec_reports_t=dec_reporter.host_dec_reports_t)
+        host_dec_reports_t=dec_reporter.host_dec_reports_t,
+        json_string=json_string)
 
 
 def routingbits_validation(lines, name="routingbits_validator"):

@@ -31,7 +31,7 @@ from PyConf.tonic import configurable
 from AllenConf.lumi_reconstruction import lumi_reconstruction
 from AllenConf.enum_types import TrackingType, includes_matching
 from AllenConf.get_thresholds import get_thresholds
-import re
+import itertools
 
 
 @configurable
@@ -835,6 +835,8 @@ def setup_hlt1_node(enablePhysics=True,
     prefilters = odin_err_filter + beam_beam_filter + gec + velo_closed
 
     physics_lines = []
+    smog2_lines = []
+    technical_lines = []
     if enablePhysics:
         with line_maker.bind(prefilter=prefilters):
             physics_lines += default_physics_lines(
@@ -844,11 +846,11 @@ def setup_hlt1_node(enablePhysics=True,
     lumiline_name = "Hlt1ODINLumi"
     lumilinefull_name = "Hlt1ODIN1kHzLumi"
 
-    monitoring_lines = odin_monitoring_lines(
+    technical_lines += odin_monitoring_lines(
         with_lumi, lumiline_name, lumilinefull_name, odin_err_filter)
 
     with line_maker.bind(prefilter=odin_err_filter):
-        physics_lines += [line_maker(make_passthrough_line())]
+        technical_lines += [line_maker(make_passthrough_line())]
 
     if tae_passthrough:
         if tae_activity:
@@ -866,46 +868,46 @@ def setup_hlt1_node(enablePhysics=True,
             tae_filters = tae_filter()
 
         with line_maker.bind(prefilter=odin_err_filter + [tae_filters]):
-            physics_lines += [
+            technical_lines += [
                 line_maker(
                     make_passthrough_line(
                         name="Hlt1TAEPassthrough", pre_scaler=1))
             ]
 
     with line_maker.bind(prefilter=[sd_error_filter()]):
-        monitoring_lines += [
+        technical_lines += [
             line_maker(
                 make_passthrough_line(name="Hlt1ErrorBank", pre_scaler=0.0001))
         ]
     # Defines the VeloMicroBias and VeloMicroBiasVeloClosing lines
     # 1st arguments are for the VeloMicroBias and 2nd arguments for the VeloMicroBiasVeloClosing
-    monitoring_lines += velo_micro_bas_lines(
+    technical_lines += velo_micro_bas_lines(
         reconstructed_objects["velo_tracks"],
         prefilters=[odin_err_filter, odin_err_filter + [velo_open_event]])
 
     if EnableGEC:
         with line_maker.bind(prefilter=odin_err_filter + gec):
-            physics_lines += [
+            technical_lines += [
                 line_maker(make_passthrough_line(name="Hlt1GECPassthrough"))
             ]
 
     if enableBGI:
         bgi_prefilters = odin_err_filter + gec + velo_closed
-        physics_lines += default_bgi_activity_lines(
+        technical_lines += default_bgi_activity_lines(
             reconstructed_objects["pvs"],
             reconstructed_objects["velo_states"],
             decode_velo(),
             decode_calo(),
             prefilter=bgi_prefilters)
 
-    monitoring_lines += alignment_monitoring_lines(reconstructed_objects,
-                                                   prefilters, odin_err_filter,
-                                                   chi2_cuts, with_muon)
+    technical_lines += alignment_monitoring_lines(reconstructed_objects,
+                                                  prefilters, odin_err_filter,
+                                                  chi2_cuts, with_muon)
 
     bx_BE = make_bxtype(bx_type=1)
     with line_maker.bind(
             prefilter=odin_err_filter + gec + [bx_BE] + velo_closed):
-        monitoring_lines += [
+        technical_lines += [
             line_maker(
                 make_beam_gas_line(
                     reconstructed_objects["velo_tracks"],
@@ -914,19 +916,12 @@ def setup_hlt1_node(enablePhysics=True,
                     name="Hlt1BeamGas")),
         ]
 
-    # list of line algorithms, required for the gather selection and DecReport algorithms
-    line_algorithms = [tup[0] for tup in physics_lines
-                       ] + [tup[0] for tup in monitoring_lines]
-    # lost of line nodes, required to set up the CompositeNode
-    line_nodes = [tup[1] for tup in physics_lines
-                  ] + [tup[1] for tup in monitoring_lines]
-
     if withSMOG2:
-        SMOG2_prefilters, SMOG2_lines = [], []
+        SMOG2_prefilters = []
         SMOG2_prefilters += velo_closed
         with line_maker.bind(
                 prefilter=odin_err_filter + velo_closed + [bx_BE]):
-            SMOG2_lines += [
+            smog2_lines += [
                 line_maker(
                     make_passthrough_line(
                         name="Hlt1SMOG2BENoBias", pre_scaler=0.001))
@@ -941,7 +936,7 @@ def setup_hlt1_node(enablePhysics=True,
                 maxTracks=5)
             with line_maker.bind(
                     prefilter=odin_err_filter + velo_closed + [lowMult_5]):
-                SMOG2_lines += [
+                smog2_lines += [
                     line_maker(
                         make_passthrough_line(
                             name="Hlt1SMOG2PassThroughLowMult5",
@@ -958,7 +953,7 @@ def setup_hlt1_node(enablePhysics=True,
                 max_ecal_clusters=10)
             with line_maker.bind(prefilter=odin_err_filter + velo_closed +
                                  [bx_BE, lowMultElectrons]):
-                SMOG2_lines += [
+                smog2_lines += [
                     line_maker(
                         make_passthrough_line(
                             name="Hlt1SMOG2BELowMultElectrons",
@@ -969,7 +964,7 @@ def setup_hlt1_node(enablePhysics=True,
             SMOG2_prefilters += gec
 
         with line_maker.bind(prefilter=odin_err_filter + SMOG2_prefilters):
-            SMOG2_lines += [
+            smog2_lines += [
                 line_maker(
                     make_SMOG2_minimum_bias_line(
                         reconstructed_objects["velo_tracks"],
@@ -982,33 +977,39 @@ def setup_hlt1_node(enablePhysics=True,
         ]
 
         with line_maker.bind(prefilter=odin_err_filter + SMOG2_prefilters):
-            SMOG2_lines += [
+            technical_lines += [
                 line_maker(
                     make_passthrough_line(
                         name="Hlt1PassthroughPVinSMOG2", pre_scaler=0.00006))
             ]
 
-            SMOG2_lines += default_SMOG2_lines(
+            smog2_lines += default_SMOG2_lines(
                 reconstructed_objects,
                 chi2_cuts,
                 with_muon,
                 with_v0s,
                 enable_tupling=enableTupling)
 
-        line_algorithms += [tup[0] for tup in SMOG2_lines]
-        line_nodes += [tup[1] for tup in SMOG2_lines]
+    grouped_lines = dict(
+        Physics=physics_lines,
+        SMOG2=smog2_lines,
+        Technical=technical_lines,
+    )
+    grouped_line_algs = {
+        key: [tup[0] for tup in lines]
+        for key, lines in grouped_lines.items()
+    }
+    grouped_line_algs = {
+        key: regex_filter_lines(line_algs, enabled_lines, disabled_lines)
+        for key, line_algs in grouped_line_algs.items()
+    }
+    line_algorithms = [
+        alg for alg in itertools.chain(*grouped_line_algs.values())
+    ]
 
+    line_nodes = [tup[1] for tup in itertools.chain(*grouped_lines.values())]
     lines = CompositeNode(
         "SetupAllLines", line_nodes, NodeLogic.NONLAZY_OR, force_order=False)
-
-    line_algorithms = [
-        line for line in line_algorithms if any(
-            re.match(r, line.name) for r in enabled_lines)
-    ]
-    line_algorithms = [
-        line for line in line_algorithms
-        if not any(re.match(r, line.name) for r in disabled_lines)
-    ]
 
     persistency_node, persistency_algorithms = make_persistency(
         line_algorithms)
@@ -1063,7 +1064,8 @@ def setup_hlt1_node(enablePhysics=True,
         hlt1_node = CompositeNode(
             "AllenRateValidation", [
                 hlt1_node,
-                rate_validation(lines=line_algorithms),
+                rate_validation(
+                    lines=line_algorithms, groups=grouped_line_algs),
             ],
             NodeLogic.NONLAZY_AND,
             force_order=True)

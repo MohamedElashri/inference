@@ -151,6 +151,9 @@ Hlt1UpsilonAlignment:                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1VeloMicroBias:                       1/   500, (   60.00 +/-    59.94) kHz
 Hlt1VeloMicroBiasVeloClosing:            0/   500, (    0.00 +/-     0.00) kHz
 Hlt1XiOmegaLLL:                          0/   500, (    0.00 +/-     0.00) kHz
+Physics:                               290/   500, (17400.00 +/-   662.18) kHz
+SMOG2:                                   0/   500, (    0.00 +/-     0.00) kHz
+Technical:                               3/   500, (  180.00 +/-   103.61) kHz
 Inclusive:                             290/   500, (17400.00 +/-   662.18) kHz
 
 

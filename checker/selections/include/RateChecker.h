@@ -16,29 +16,42 @@
 #include "BackendCommon.h"
 #include <mutex>
 
-void checkHlt1Rate(
-  const bool* decisions,
-  const unsigned* decisions_atomics,
-  const unsigned* track_offsets,
-  const unsigned* sv_offsets,
-  const unsigned selected_events,
-  const unsigned requested_events);
-
 double binomial_error(int n, int k);
+void print_rate(const size_t number_of_pass, const size_t requested_events, const double in_rate);
 
 class RateChecker : public Checker::BaseChecker {
 
 private:
   // Event counters.
-  std::vector<unsigned> m_counters;
+  std::vector<unsigned> m_line_counters;
   std::vector<std::string> m_line_names;
-  unsigned m_tot;
+  std::vector<std::string> m_group_names;
+  std::vector<unsigned> m_group_counters;
+  std::vector<std::vector<char>> m_group_masks;
+  std::vector<char> m_fired_lines;
+  std::vector<char> m_fired_masks;
+  unsigned m_total;
+
   std::mutex m_mutex;
 
-public:
-  RateChecker(CheckerInvoker const*, std::string const&, std::string const&) { m_tot = 0; }
+  std::vector<char> get_masks_for_lines(
+    const std::vector<std::string>& line_names,
+    const std::vector<std::string>& lines_to_mask) const;
 
-  void accumulate(const char* names_of_lines, std::span<const unsigned> dec_reports, const unsigned number_of_events);
+  void print_rate(
+    const std::string line_name,
+    unsigned longest_string,
+    const size_t number_of_pass,
+    const size_t requested_events,
+    const double in_rate) const;
+
+public:
+  RateChecker(CheckerInvoker const*, std::string const&, std::string const&) { m_total = 0; }
+  void accumulate(
+    const char* names_of_lines,
+    const std::string& json_string,
+    std::span<const unsigned> dec_reports,
+    const unsigned number_of_events);
 
   void report(const size_t requested_events) const override;
 };
