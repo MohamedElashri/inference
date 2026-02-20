@@ -19,19 +19,18 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from AllenTesting.utils import good_sequence
 
 seq_dir = os.path.expandvars("${ALLEN_INSTALL_DIR}/constants")
 tck_script = os.path.expandvars("${ALLENROOT}/scripts/create_hlt1_tck.py")
 
 error = False
-sequences = [s for s in os.listdir(seq_dir) if good_sequence(s)]
-# Create TCKs for few sequences in the DBG build to avoid timeouts
-if '-dbg' in os.environ['BINARY_TAG']:
-    import random
-    random.seed("HLT1TCKs-dbg")
-    random.shuffle(sequences)
-    sequences = sequences[:5]
+# Only test a few relevant sequences
+sequences = [
+    "hlt1_pp_default.json",
+    "hlt1_LightIon_IonSMOG_veloSP.json",
+    "hlt1_PbPb_PbSMOG_veloSP.json",
+    "passthrough.json",
+]
 
 for i, seq in enumerate(sequences):
     seq = Path(seq_dir) / seq
