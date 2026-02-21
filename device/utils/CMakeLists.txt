@@ -14,6 +14,7 @@ file(GLOB nn_propagation "nn_propagation/src/*cu")
 file(GLOB sorting "sorting/src/*cu")
 file(GLOB mva_models "mva_models/src/*cu")
 file(GLOB reduction "reduction/src/*cu")
+file(GLOB track_trajectory "track_trajectory/src/*cu")
 
 add_library(UtilsHeaders INTERFACE)
 
@@ -41,6 +42,7 @@ allen_add_device_library(Utils STATIC
   ${sorting}
   ${mva_models}
   ${reduction}
+  ${track_trajectory}
 )
 
 target_link_libraries(Utils
@@ -55,7 +57,8 @@ target_include_directories(Utils PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prefix_sum/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/nn_propagation/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/get_type_id/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/track_trajectory/include>)
 
 allen_add_executable(prefix_sum_test prefix_sum/test/prefix_sum_test.cu)
 target_link_libraries(prefix_sum_test PRIVATE AllenLib Utils)

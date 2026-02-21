@@ -41,6 +41,8 @@ struct MiniState {
   __host__ __device__ float xAt(float z) const { return m_x + m_tx * (z - m_z); }
   __host__ __device__ float yAt(float z) const { return m_y + m_ty * (z - m_z); }
 
+  __host__ __device__ MiniState stateAt(float z) const { return {xAt(z), yAt(z), z, tx(), ty()}; }
+
   float m_x, m_y, m_z, m_tx, m_ty;
 };
 
@@ -127,110 +129,198 @@ struct ProjectionState {
 namespace Allen {
   namespace Views {
     namespace Physics {
-      struct KalmanState {
+
+      template<typename T>
+      concept FloatElement = std::same_as<T, float> || std::same_as<T, const float>;
+
+      template<typename T>
+      concept MutableView = not std::is_const_v<T>;
+
+      template<FloatElement T>
+      struct KalmanStateT {
       private:
         // 6 elements to define the state: x, y, z, tx, ty, qop
         constexpr static unsigned nb_elements_state = 6;
         // Assume (x, tx) and (y, ty) are uncorrelated for 6 elements + chi2 and ndf
         constexpr static unsigned nb_elements_cov = 8;
 
-        const float* m_base_pointer = nullptr;
+        T* m_base_pointer = nullptr;
         unsigned m_index = 0;
         unsigned m_total_number_of_tracks = 0;
 
       public:
-        KalmanState() = default;
+        KalmanStateT() = default;
 
         __host__ __device__
-        KalmanState(const char* base_pointer, const unsigned index, const unsigned total_number_of_tracks) :
-          m_base_pointer(reinterpret_cast<const float*>(base_pointer)),
+        KalmanStateT(char* base_pointer, const unsigned index, const unsigned total_number_of_tracks) :
+          m_base_pointer(reinterpret_cast<T*>(base_pointer)),
           m_index(index), m_total_number_of_tracks(total_number_of_tracks)
         {}
 
-        __host__ __device__ float x() const { return m_base_pointer[nb_elements_state * m_index]; }
+        __host__ __device__
+        KalmanStateT(const char* base_pointer, const unsigned index, const unsigned total_number_of_tracks) :
+          m_base_pointer(reinterpret_cast<T*>(base_pointer)),
+          m_index(index), m_total_number_of_tracks(total_number_of_tracks)
+        {}
 
-        __host__ __device__ float y() const { return m_base_pointer[nb_elements_state * m_index + 1]; }
+        __host__ __device__ inline T& x() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_index];
+        }
+        __host__ __device__ inline T x() const { return m_base_pointer[nb_elements_state * m_index]; }
 
-        __host__ __device__ float z() const { return m_base_pointer[nb_elements_state * m_index + 2]; }
+        __host__ __device__ inline T& y() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_index + 1];
+        }
+        __host__ __device__ inline T y() const { return m_base_pointer[nb_elements_state * m_index + 1]; }
 
-        __host__ __device__ float tx() const { return m_base_pointer[nb_elements_state * m_index + 3]; }
+        __host__ __device__ inline T& z() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_index + 2];
+        }
+        __host__ __device__ inline T z() const { return m_base_pointer[nb_elements_state * m_index + 2]; }
 
-        __host__ __device__ float ty() const { return m_base_pointer[nb_elements_state * m_index + 4]; }
+        __host__ __device__ inline T& tx() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_index + 3];
+        }
+        __host__ __device__ inline T tx() const { return m_base_pointer[nb_elements_state * m_index + 3]; }
 
-        __host__ __device__ float qop() const { return m_base_pointer[nb_elements_state * m_index + 5]; }
+        __host__ __device__ inline T& ty() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_index + 4];
+        }
+        __host__ __device__ inline T ty() const { return m_base_pointer[nb_elements_state * m_index + 4]; }
 
-        __host__ __device__ int charge() const { return qop() > 0 ? +1 : -1; }
+        __host__ __device__ inline T& qop() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_index + 5];
+        }
+        __host__ __device__ inline T qop() const { return m_base_pointer[nb_elements_state * m_index + 5]; }
 
-        __host__ __device__ float c00() const
+        __host__ __device__ inline int charge() const { return qop() > 0 ? +1 : -1; }
+
+        __host__ __device__ inline T& c00() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index];
+        }
+        __host__ __device__ inline T c00() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index];
         }
 
-        __host__ __device__ float c20() const
+        __host__ __device__ inline T& c20() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 1];
+        }
+        __host__ __device__ inline T c20() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 1];
         }
 
-        __host__ __device__ float c22() const
+        __host__ __device__ inline T& c22() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 2];
+        }
+        __host__ __device__ inline T c22() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 2];
         }
 
-        __host__ __device__ float c11() const
+        __host__ __device__ inline T& c11() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 3];
+        }
+        __host__ __device__ inline T c11() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 3];
         }
 
-        __host__ __device__ float c31() const
+        __host__ __device__ inline T& c31() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 4];
+        }
+        __host__ __device__ inline T c31() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 4];
         }
 
-        __host__ __device__ float c33() const
+        __host__ __device__ inline T& c33() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 5];
+        }
+        __host__ __device__ inline T c33() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 5];
         }
 
-        __host__ __device__ float chi2() const
+        __host__ __device__ inline T& chi2() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 6];
+        }
+        __host__ __device__ inline T chi2() const
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 6];
         }
 
-        __host__ __device__ unsigned ndof() const
+        __host__ __device__ inline unsigned& ndof() requires MutableView<T>
+        {
+          return reinterpret_cast<unsigned*>(
+            m_base_pointer)[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 7];
+        }
+        __host__ __device__ inline unsigned ndof() const
         {
           return reinterpret_cast<const unsigned*>(
             m_base_pointer)[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 7];
         }
 
-        __host__ __device__ float px() const { return (tx() / fabsf(qop())) / sqrtf(1.0f + tx() * tx() + ty() * ty()); }
+        __host__ __device__ inline float px() const
+        {
+          return (tx() / fabsf(qop())) / sqrtf(1.0f + tx() * tx() + ty() * ty());
+        }
 
-        __host__ __device__ float py() const { return (ty() / fabsf(qop())) / sqrtf(1.0f + tx() * tx() + ty() * ty()); }
+        __host__ __device__ inline float py() const
+        {
+          return (ty() / fabsf(qop())) / sqrtf(1.0f + tx() * tx() + ty() * ty());
+        }
 
-        __host__ __device__ float pz() const { return (1.0f / fabsf(qop())) / sqrtf(1.0f + tx() * tx() + ty() * ty()); }
+        __host__ __device__ inline float pz() const
+        {
+          return (1.0f / fabsf(qop())) / sqrtf(1.0f + tx() * tx() + ty() * ty());
+        }
 
-        __host__ __device__ float pt() const
+        __host__ __device__ inline float pt() const
         {
           const float sumt2 = tx() * tx() + ty() * ty();
           return (sqrtf(sumt2) / fabsf(qop())) / sqrtf(1.0f + sumt2);
         }
 
-        __host__ __device__ float p() const { return 1.0f / fabsf(qop()); }
+        __host__ __device__ inline float p() const { return 1.0f / fabsf(qop()); }
 
-        __host__ __device__ float e(const float mass) const { return sqrtf(p() * p() + mass * mass); }
+        __host__ __device__ inline float e(const float mass) const { return sqrtf(p() * p() + mass * mass); }
 
-        __host__ __device__ float eta() const { return atanhf(pz() / p()); }
+        __host__ __device__ inline float eta() const { return atanhf(pz() / p()); }
 
-        __host__ __device__ float rho() const { return sqrtf(tx() * tx() + ty() * ty()); }
+        __host__ __device__ inline float rho() const { return sqrtf(tx() * tx() + ty() * ty()); }
 
-        __host__ __device__ float phi() const { return tx() == 0.f && ty() == 0.f ? 0.f : atan2f(tx(), ty()); }
+        __host__ __device__ inline float phi() const { return tx() == 0.f && ty() == 0.f ? 0.f : atan2f(tx(), ty()); }
 
-        __host__ __device__ operator MiniState() const { return MiniState {x(), y(), z(), tx(), ty()}; }
+        __host__ __device__ inline operator MiniState() const { return MiniState {x(), y(), z(), tx(), ty()}; }
 
-        __host__ __device__ operator KalmanVeloState() const
+        __host__ __device__ inline operator KalmanVeloState() const
         {
           return KalmanVeloState {x(), y(), z(), tx(), ty(), c00(), c20(), c22(), c11(), c31(), c33()};
         }
+
+        __host__ __device__ consteval unsigned static size()
+        {
+          return sizeof(float) * (nb_elements_state + nb_elements_cov);
+        }
       };
+
+      using KalmanState = KalmanStateT<const float>;
+      using KalmanStateMutable = KalmanStateT<float>;
 
       struct KalmanStates {
       private:
@@ -265,108 +355,208 @@ namespace Allen {
         __host__ __device__ unsigned total_number_of_states() const { return m_total_number_of_tracks; }
       };
 
-      struct SecondaryVertex {
+      template<FloatElement T>
+      struct SecondaryVertexT {
         // 3 elements for position + 3 elements for momentum
         constexpr static unsigned nb_elements_vrt = 6;
         // Just the 3x3 position covariance + chi2 + ndof?
         constexpr static unsigned nb_elements_cov = 8;
 
       private:
-        const float* m_base_pointer = nullptr;
+        T* m_base_pointer = nullptr;
         unsigned m_index = 0;
         unsigned m_total_number_of_vrts = 0;
 
       public:
         __host__ __device__
-        SecondaryVertex(const char* base_pointer, const unsigned index, const unsigned total_number_of_vrts) :
-          m_base_pointer(reinterpret_cast<const float*>(base_pointer)),
+        SecondaryVertexT(char* base_pointer, const unsigned index, const unsigned total_number_of_vrts) :
+          m_base_pointer(reinterpret_cast<T*>(base_pointer)),
           m_index(index), m_total_number_of_vrts(total_number_of_vrts)
         {}
 
-        __host__ __device__ float x() const { return m_base_pointer[nb_elements_vrt * m_index]; }
+        __host__ __device__
+        SecondaryVertexT(const char* base_pointer, const unsigned index, const unsigned total_number_of_vrts) :
+          m_base_pointer(reinterpret_cast<T*>(base_pointer)),
+          m_index(index), m_total_number_of_vrts(total_number_of_vrts)
+        {}
 
-        __host__ __device__ float y() const { return m_base_pointer[nb_elements_vrt * m_index + 1]; }
+        __host__ __device__ inline T& x() requires MutableView<T> { return m_base_pointer[nb_elements_vrt * m_index]; }
+        __host__ __device__ inline T x() const { return m_base_pointer[nb_elements_vrt * m_index]; }
 
-        __host__ __device__ float z() const { return m_base_pointer[nb_elements_vrt * m_index + 2]; }
+        __host__ __device__ inline T& y() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_index + 1];
+        }
+        __host__ __device__ inline T y() const { return m_base_pointer[nb_elements_vrt * m_index + 1]; }
 
-        __host__ __device__ float px() const { return m_base_pointer[nb_elements_vrt * m_index + 3]; }
+        __host__ __device__ inline T& z() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_index + 2];
+        }
+        __host__ __device__ inline T z() const { return m_base_pointer[nb_elements_vrt * m_index + 2]; }
 
-        __host__ __device__ float py() const { return m_base_pointer[nb_elements_vrt * m_index + 4]; }
+        __host__ __device__ inline T& px() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_index + 3];
+        }
+        __host__ __device__ inline T px() const { return m_base_pointer[nb_elements_vrt * m_index + 3]; }
 
-        __host__ __device__ float pz() const { return m_base_pointer[nb_elements_vrt * m_index + 5]; }
+        __host__ __device__ inline T& py() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_index + 4];
+        }
+        __host__ __device__ inline T py() const { return m_base_pointer[nb_elements_vrt * m_index + 4]; }
 
-        __host__ __device__ float c00() const
+        __host__ __device__ inline T& pz() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_index + 5];
+        }
+        __host__ __device__ inline T pz() const { return m_base_pointer[nb_elements_vrt * m_index + 5]; }
+
+        __host__ __device__ inline T& c00() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index];
+        }
+        __host__ __device__ inline T c00() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index];
         }
 
-        __host__ __device__ float c11() const
+        __host__ __device__ inline T& c11() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 1];
+        }
+        __host__ __device__ inline T c11() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 1];
         }
 
-        __host__ __device__ float c10() const
+        __host__ __device__ inline T& c10() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 2];
+        }
+        __host__ __device__ inline T c10() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 2];
         }
 
-        __host__ __device__ float c22() const
+        __host__ __device__ inline T& c22() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 3];
+        }
+        __host__ __device__ inline T c22() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 3];
         }
 
-        __host__ __device__ float c21() const
+        __host__ __device__ inline T& c21() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 4];
+        }
+        __host__ __device__ inline T c21() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 4];
         }
 
-        __host__ __device__ float c20() const
+        __host__ __device__ inline T& c20() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 5];
+        }
+        __host__ __device__ inline T c20() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 5];
         }
 
-        __host__ __device__ float chi2() const
+        __host__ __device__ inline T& chi2() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 6];
+        }
+        __host__ __device__ inline T chi2() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 6];
         }
 
-        __host__ __device__ unsigned ndof() const
+        __host__ __device__ inline unsigned& ndof() requires MutableView<T>
+        {
+          return reinterpret_cast<unsigned*>(
+            m_base_pointer)[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 7];
+        }
+        __host__ __device__ inline unsigned ndof() const
         {
           return reinterpret_cast<const unsigned*>(
             m_base_pointer)[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 7];
         }
 
-        __host__ __device__ float pt2() const { return px() * px() + py() * py(); }
+        __host__ __device__ inline float pt2() const { return px() * px() + py() * py(); }
 
-        __host__ __device__ float pt() const { return sqrtf(pt2()); }
+        __host__ __device__ inline float pt() const { return sqrtf(pt2()); }
 
-        __host__ __device__ float p2() const { return pt2() + pz() * pz(); }
+        __host__ __device__ inline float p2() const { return pt2() + pz() * pz(); }
 
-        __host__ __device__ float p() const { return sqrtf(p2()); }
+        __host__ __device__ inline float p() const { return sqrtf(p2()); }
 
         // The downstream composite model does not account for errors.
         // Therefore, we repurpose some of the memory originally allocated for error storage to hold other information
-        __host__ __device__ float downstream_doca() const
+        __host__ __device__ inline float downstream_doca() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 0];
         }
-        __host__ __device__ float downstream_quality() const
+        __host__ __device__ inline float downstream_quality() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 1];
         }
-        __host__ __device__ float downstream_armentero_podolanski_x() const
+        __host__ __device__ inline float downstream_armentero_podolanski_x() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 2];
         }
-        __host__ __device__ float downstream_armentero_podolanski_y() const
+        __host__ __device__ inline float downstream_armentero_podolanski_y() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 3];
         }
-        __host__ __device__ float downstream_helicity() const
+        __host__ __device__ inline float downstream_helicity() const
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 4];
         }
+
+        // The same holds also for T-Tracks.
+        __host__ __device__ inline float& ttracks_doca() requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 0];
+        }
+        __host__ __device__ inline float ttracks_doca() const
+        {
+          return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 0];
+        }
+
+        // IP^2 with respect to (0, 0, 0), since the T-Track resolution is not good enough to make use of the primary
+        // vertex position.
+        __host__ __device__ inline float ttracks_ip2() const
+        {
+          const auto tx = px() / pz();
+          const auto ty = py() / pz();
+          return (y() - ty * z()) * (y() - ty * z()) + (tx * z() - x()) * (tx * z() - x()) +
+                 (x() * ty - y() * tx) * (x() * ty - y() * tx);
+        }
+
+        // DIRA with respect to (0, 0, 0), since the T-Track resolution is not good enough to make use of the primary
+        // vertex position.
+        __host__ __device__ inline float ttracks_dira() const
+        {
+          const auto tx = px() / pz();
+          const auto ty = py() / pz();
+          if (fabsf(x()) + fabsf(y()) + fabsf(z()) == 0.f) return -1.f;
+          return (x() * tx + y() * ty + z()) /
+                 (sqrtf(x() * x() + y() * y() + z() * z()) * sqrtf(tx * tx + ty * ty + 1.f));
+        }
+
+        __host__ __device__ consteval static unsigned size()
+        {
+          return sizeof(float) * (nb_elements_vrt + nb_elements_cov);
+        }
       };
+
+      using SecondaryVertex = SecondaryVertexT<const float>;
+      using SecondaryVertexMutable = SecondaryVertexT<float>;
 
       struct SecondaryVertices {
       private:

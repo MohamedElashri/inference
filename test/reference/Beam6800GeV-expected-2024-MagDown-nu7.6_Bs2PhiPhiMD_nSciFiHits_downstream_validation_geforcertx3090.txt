@@ -106,6 +106,9 @@ for P>3GeV,Pt>0.5GeV                              :         0/        0   -nan% 
 36_long_nSciFiHits_gt_5000_AND_lt_7000            :     12042/    16105  74.77% ( 74.92%),       179 (  1.46%) clones, pur  99.28%, hit eff  97.50%
 37_long_nSciFiHits_gt_7000_AND_lt_10000           :      6651/     9149  72.70% ( 72.85%),       127 (  1.87%) clones, pur  99.05%, hit eff  96.85%
 38_long_nSciFiHits_gt_10000                       :       186/      449  41.43% ( 41.42%),         2 (  1.06%) clones, pur  98.93%, hit eff  96.10%
+39_TTrack_fromSignal                              :        76/      428  17.76% ( 19.83%),         2 (  2.56%) clones, pur  97.65%, hit eff  92.39%
+40_TTrack_fromSignal_P>3GeV                       :        75/      174  43.10% ( 42.84%),         2 (  2.60%) clones, pur  97.62%, hit eff  92.29%
+41_TTrack_fromSignal_P>5GeV                       :        58/      101  57.43% ( 57.15%),         1 (  1.69%) clones, pur  98.04%, hit eff  92.54%
 
 
 unmached_seed_validator validation:
@@ -160,4 +163,7 @@ for P>3GeV,Pt>0.5GeV                              :         0/        0   -nan% 
 36_long_nSciFiHits_gt_5000_AND_lt_7000            :      1764/    16105  10.95% ( 10.90%),        29 (  1.62%) clones, pur  97.76%, hit eff  94.78%
 37_long_nSciFiHits_gt_7000_AND_lt_10000           :      1062/     9149  11.61% ( 11.56%),        14 (  1.30%) clones, pur  97.43%, hit eff  93.91%
 38_long_nSciFiHits_gt_10000                       :        26/      449   5.79% (  5.80%),         0 (  0.00%) clones, pur  96.61%, hit eff  91.12%
+39_TTrack_fromSignal                              :        70/      428  16.36% ( 17.44%),         2 (  2.78%) clones, pur  97.46%, hit eff  91.88%
+40_TTrack_fromSignal_P>3GeV                       :        69/      174  39.66% ( 38.09%),         2 (  2.82%) clones, pur  97.42%, hit eff  91.76%
+41_TTrack_fromSignal_P>5GeV                       :        53/      101  52.48% ( 51.80%),         1 (  1.85%) clones, pur  97.86%, hit eff  92.01%
 

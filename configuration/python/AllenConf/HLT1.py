@@ -19,6 +19,7 @@ from AllenConf.hlt1_calibration_lines import *
 from AllenConf.hlt1_muon_lines import *
 from AllenConf.hlt1_electron_lines import *
 from AllenConf.hlt1_monitoring_lines import *
+from AllenConf.hlt1_ttrack_lines import *
 from AllenConf.hlt1_smog2_lines import *
 from AllenConf.hlt1_downstream_lines import *
 from AllenConf.filters import *
@@ -309,6 +310,35 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                     histogram_ks_mass_nbins=50,
                     enable_trigger=False)
             ]
+
+    if "ttrack_vertices" in reconstructed_objects:
+        lines += [
+            make_ttrack_highmass_dimuon_displaced_line(
+                reconstructed_objects["ttrack_vertices"],
+                name="Hlt1TTrackHighMassDiMuonDisplaced",
+                enable_tupling=enable_tupling),
+            make_ttrack_lowmass_dimuon_displaced_line(
+                reconstructed_objects["ttrack_vertices"],
+                name="Hlt1TTrackLowMassDiMuonDisplaced",
+                enable_tupling=enable_tupling),
+            make_ttrack_highmass_dimuon_displaced_samesign_line(
+                reconstructed_objects["ttrack_vertices"],
+                name="Hlt1TTrackHighMassDiMuonDisplacedSameSign",
+                enable_tupling=enable_tupling),
+            make_ttrack_lowmass_dimuon_displaced_samesign_line(
+                reconstructed_objects["ttrack_vertices"],
+                name="Hlt1TTrackLowMassDiMuonDisplacedSameSign",
+                enable_tupling=enable_tupling),
+            make_ttrack_lambda2ppi_line(
+                reconstructed_objects["ttrack_vertices"],
+                name="Hlt1TTrackLambda2PPi",
+                enable_tupling=enable_tupling),
+            make_ttrack_ks2pipi_line(
+                reconstructed_objects["ttrack_vertices"],
+                name="Hlt1TTrackKs2PiPi",
+                enable_tupling=enable_tupling),
+        ]
+
     if 'v0dd_hh_pairs' in reconstructed_objects:
         lines += [
             make_d2kshh_line(
@@ -1299,6 +1329,7 @@ def setup_hlt1_node(enablePhysics=True,
                     enableTupling=False,
                     data_quality=False,
                     with_fullKF=False,
+                    with_ttracks=False,
                     passthrough_pre_scaler=0.0001,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[],
@@ -1321,6 +1352,7 @@ def setup_hlt1_node(enablePhysics=True,
         with_AC_split=with_AC_split,
         with_rich=with_rich,
         with_fullKF=with_fullKF,
+        with_ttracks=with_ttracks,
         track_max_chi2ndof=chi2_cuts.SV_track_max_chi2ndof)
 
     hlt1_config['reconstruction'] = reconstructed_objects
