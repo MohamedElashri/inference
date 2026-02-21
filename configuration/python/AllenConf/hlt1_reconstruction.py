@@ -16,6 +16,7 @@ from AllenConf.downstream_reconstruction import make_downstream, fit_downstream_
 from AllenConf.muon_reconstruction import decode_muon, chi2muon, is_muon, fake_muon_id, make_muon_stubs, muonid_nn
 from AllenConf.calo_reconstruction import decode_calo, make_track_matching, make_ecal_clusters, make_electronid_nn
 from AllenConf.primary_vertex_reconstruction import make_pvs
+from AllenConf.ttrack_vertex_reconstruction import make_ttrack_vertices
 from AllenConf.secondary_vertex_reconstruction import (
     make_kalman_velo_only, make_basic_particles, fit_secondary_vertices,
     make_sv_track_pairs, make_sv_pairs, make_generic_sv_pairs,
@@ -46,6 +47,7 @@ def hlt1_reconstruction(algorithm_name='',
                         with_rich=False,
                         with_AC_split=False,
                         with_fullKF=False,
+                        with_ttracks=False,
                         track_max_chi2ndof=10.0):
     decoded_velo = decode_velo()
     decoded_scifi = decode_scifi()
@@ -139,6 +141,19 @@ def hlt1_reconstruction(algorithm_name='',
             'scifi_consolidate_tracks_forward')
     else:
         raise Exception("Tracking type not supported")
+
+    if with_ttracks:
+        assert "seeding_tracks" in output, "Seeding tracks are not found. Please, double-check the long track reconstruction type."
+        assert "downstream_tracks" in output, "Downstream tracks are not found. Please, double-check the reconstruction sequence."
+        ttrack_vertices = make_ttrack_vertices(
+            scifi_tracks=output["seeding_tracks"],
+            velo_scifi_matches=long_tracks['matched_tracks'],
+            downstream_tracks=output["downstream_tracks"],
+            with_muon=with_muon)
+        output.update({
+            "ttrack_vertices": ttrack_vertices,
+        })
+
     if with_muon:
         decoded_muon = decode_muon()
         muonID = is_muon(

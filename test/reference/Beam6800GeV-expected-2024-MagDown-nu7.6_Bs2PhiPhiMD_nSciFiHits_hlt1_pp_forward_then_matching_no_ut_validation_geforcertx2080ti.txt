@@ -237,6 +237,9 @@ for P>3GeV,Pt>0.5GeV                              :         0/        0   -nan% 
 36_long_nSciFiHits_gt_5000_AND_lt_7000            :      9422/    16105  58.50% ( 58.57%),       136 (  1.42%) clones, pur  99.27%, hit eff  96.98%
 37_long_nSciFiHits_gt_7000_AND_lt_10000           :      5316/     9149  58.10% ( 58.11%),        85 (  1.57%) clones, pur  99.10%, hit eff  96.28%
 38_long_nSciFiHits_gt_10000                       :       178/      449  39.64% ( 39.72%),         4 (  2.20%) clones, pur  98.65%, hit eff  95.44%
+39_TTrack_fromSignal                              :        73/      428  17.06% ( 19.50%),         2 (  2.67%) clones, pur  97.28%, hit eff  91.61%
+40_TTrack_fromSignal_P>3GeV                       :        72/      174  41.38% ( 42.05%),         2 (  2.70%) clones, pur  97.24%, hit eff  91.50%
+41_TTrack_fromSignal_P>5GeV                       :        54/      101  53.47% ( 54.40%),         1 (  1.82%) clones, pur  98.06%, hit eff  92.01%
 
 
 seed_xz_validator validation:
@@ -291,6 +294,9 @@ for P>3GeV,Pt>0.5GeV                              :         0/        0   -nan% 
 36_long_nSciFiHits_gt_5000_AND_lt_7000            :     12429/    16105  77.17% ( 77.30%),       157 (  1.25%) clones, pur  99.37%, hit eff  48.91%
 37_long_nSciFiHits_gt_7000_AND_lt_10000           :      6912/     9149  75.55% ( 75.76%),       107 (  1.52%) clones, pur  99.07%, hit eff  48.53%
 38_long_nSciFiHits_gt_10000                       :       195/      449  43.43% ( 43.47%),         1 (  0.51%) clones, pur  98.91%, hit eff  48.54%
+39_TTrack_fromSignal                              :       146/      428  34.11% ( 37.70%),         0 (  0.00%) clones, pur  98.49%, hit eff  48.45%
+40_TTrack_fromSignal_P>3GeV                       :       137/      174  78.74% ( 77.34%),         0 (  0.00%) clones, pur  98.54%, hit eff  48.47%
+41_TTrack_fromSignal_P>5GeV                       :        88/      101  87.13% ( 86.92%),         0 (  0.00%) clones, pur  98.64%, hit eff  48.38%
 
 
 selreport_validator validation:

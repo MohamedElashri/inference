@@ -1422,6 +1422,22 @@ namespace Categories {
         "38_long_nSciFiHits_gt_10000",
         [](MCParticles::const_reference& mcp) { return mcp.isLong && mcp.nbHits_in_SciFi > 10000; },
       }),
+      TrackEffReport({
+        "39_TTrack_fromSignal",
+        [](MCParticles::const_reference& mcp) { return !mcp.hasVelo && !mcp.hasUT && mcp.hasSciFi && mcp.fromSignal; },
+      }),
+      TrackEffReport({
+        "40_TTrack_fromSignal_P>3GeV",
+        [](MCParticles::const_reference& mcp) {
+          return !mcp.hasVelo && !mcp.hasUT && mcp.hasSciFi && mcp.fromSignal && mcp.p > 3e3f;
+        },
+      }),
+      TrackEffReport({
+        "41_TTrack_fromSignal_P>5GeV",
+        [](MCParticles::const_reference& mcp) {
+          return !mcp.hasVelo && !mcp.hasUT && mcp.hasSciFi && mcp.fromSignal && mcp.p > 5e3f;
+        },
+      }),
 
     }};
   }
@@ -1630,6 +1646,22 @@ namespace Categories {
          "Long_fromSignal_notElectrons",
          [](MCParticles::const_reference& mcp) {
            return mcp.isLong && mcp.fromSignal && !mcp.isElectron() && mcp.inEta2_5();
+         },
+       }),
+       HistoCategory({
+         "TTrack-fromSignal",
+         [](MCParticles::const_reference& mcp) { return !mcp.hasVelo && !mcp.hasUT && mcp.hasSciFi && mcp.fromSignal; },
+       }),
+       HistoCategory({
+         "TTrack-fromSignal-P>3GeV",
+         [](MCParticles::const_reference& mcp) {
+           return !mcp.hasVelo && !mcp.hasUT && mcp.hasSciFi && mcp.fromSignal && mcp.p > 3e3f;
+         },
+       }),
+       HistoCategory({
+         "TTrack-fromSignal-P>5GeV",
+         [](MCParticles::const_reference& mcp) {
+           return !mcp.hasVelo && !mcp.hasUT && mcp.hasSciFi && mcp.fromSignal && mcp.p > 5e3f;
          },
        })
 

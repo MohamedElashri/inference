@@ -144,6 +144,18 @@ __global__ void is_muon::is_muon(
       dev_histo_muon_n_stations,
       dev_histo_muon_pt);
   }
+  else if (const auto ttracks =
+             Allen::dyn_cast<const Allen::Views::Physics::MultiEventTTracks*>(*parameters.dev_tracks_view);
+           ttracks) {
+    is_muon_implementation<Allen::Views::Physics::MultiEventTTracks>(
+      parameters,
+      ttracks,
+      dev_muon_foi,
+      dev_muon_momentum_cuts,
+      dev_histo_n_muons,
+      dev_histo_muon_n_stations,
+      dev_histo_muon_pt);
+  }
   else {
     // This flag tell compile this code it not reachable, so it will optimze with it
     Allen::unreachable();
@@ -251,6 +263,8 @@ __device__ void is_muon::is_muon_implementation(
           const float pt = long_track.pt(velo_state);
           dev_histo_muon_pt.increment(pt);
         }
+        else if constexpr (std::is_same_v<Allen::Views::Physics::MultiEventTTracks, MultiEventTracks>) {
+        }
         else {
           Allen::unreachable();
         }
@@ -277,6 +291,8 @@ __device__ void is_muon::is_muon_implementation(
             const auto velo_state = endvelo_states.state(track_id);
             const float pt = long_track.pt(velo_state);
             dev_histo_muon_pt.increment(pt);
+          }
+          else if constexpr (std::is_same_v<Allen::Views::Physics::MultiEventTTracks, MultiEventTracks>) {
           }
           else {
             Allen::unreachable();
@@ -307,6 +323,8 @@ __device__ void is_muon::is_muon_implementation(
             const auto velo_state = endvelo_states.state(track_id);
             const float pt = long_track.pt(velo_state);
             dev_histo_muon_pt.increment(pt);
+          }
+          else if constexpr (std::is_same_v<Allen::Views::Physics::MultiEventTTracks, MultiEventTracks>) {
           }
           else {
             Allen::unreachable();

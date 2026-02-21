@@ -110,9 +110,9 @@ void Consumers::MagneticField::consume(std::vector<char> const& data)
     // Specify texture object parameters
     cudaTextureDesc texDesc;
     memset(&texDesc, 0, sizeof(texDesc));
-    texDesc.addressMode[0] = cudaAddressModeClamp;
-    texDesc.addressMode[1] = cudaAddressModeClamp;
-    texDesc.addressMode[2] = cudaAddressModeClamp;
+    texDesc.addressMode[0] = cudaAddressModeBorder;
+    texDesc.addressMode[1] = cudaAddressModeBorder;
+    texDesc.addressMode[2] = cudaAddressModeBorder;
     texDesc.filterMode = cudaFilterModeLinear;
     texDesc.readMode = cudaReadModeElementType;
     texDesc.normalizedCoords = 0;
