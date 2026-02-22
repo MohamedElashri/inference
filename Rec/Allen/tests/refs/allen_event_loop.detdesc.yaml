@@ -546,17 +546,17 @@ histos:
       stdDevX: 1.895994
   gather_selections:
     line_passes:
-      nEntries: 17456.0
+      nEntries: 17455.0
       title: line passes
-      sum: 17456
-      meanX: 81.956634
-      stdDevX: 19.826737
+      sum: 17455
+      meanX: 81.958092
+      stdDevX: 19.826369
     line_rates:
-      nEntries: 688.0
+      nEntries: 687.0
       title: line rates
-      sum: 688
-      meanX: 75.440407
-      stdDevX: 30.137007
+      sum: 687
+      meanX: 75.467977
+      stdDevX: 30.150262
   is_muon:
     n_muons:
       nEntries: 461097.0
@@ -953,10 +953,6 @@ counters:
     Hlt1LambdaLLDetachedTrackPass:
       nEntries: 1.0
     Hlt1LambdaLLDetachedTrackRate:
-      nEntries: 1.0
-    Hlt1MaterialVertexSeeds_DWFSPass:
-      nEntries: 1.0
-    Hlt1MaterialVertexSeeds_DWFSRate:
       nEntries: 1.0
     Hlt1OneMuonTrackLinePass:
       nEntries: 5726.0
