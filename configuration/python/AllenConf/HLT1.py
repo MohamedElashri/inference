@@ -902,7 +902,7 @@ def velo_tomography_lines(reconstructed_objects,
                 max_z_materialvertex_seed=1000,
                 name="Hlt1MaterialVertexSeeds_DWFS"),
             prefilter=tomography_prefilters + [
-                make_prescaler(1 if full_velo_tomography else 0.1,
+                make_prescaler(1 if full_velo_tomography else 0.01,
                                "Hlt1MaterialVertexSeeds_DWFS")
             ]),
     ]
