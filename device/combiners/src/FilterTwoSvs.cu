@@ -148,9 +148,15 @@ __global__ void FilterTwoSvs::filter_two_svs(
 
   __syncthreads();
 
+  const bool same_input = (parameters.dev_secondary_vertices_1 == parameters.dev_secondary_vertices_2);
   for (unsigned i_sv = threadIdx.x; i_sv < n_svs_1; i_sv += blockDim.x) {
     bool dec1 = event_sv_1_filter_decision[i_sv];
-    for (unsigned j_sv = threadIdx.y; j_sv < n_svs_2; j_sv += blockDim.y) {
+    // When both inputs are the same container, start j from i+1 to avoid
+    // duplicate and self-paired combinations, matching the n*(n-1)/2
+    // allocation in CalcMaxCombos.
+    // see: https://gitlab.cern.ch/lhcb/Allen/-/blob/master/device/combiners/src/CalcMaxCombos.cu#L58
+    const unsigned j_sv_start = same_input ? i_sv + 1 : 0;
+    for (unsigned j_sv = j_sv_start + threadIdx.y; j_sv < n_svs_2; j_sv += blockDim.y) {
       bool dec2 = event_sv_2_filter_decision[j_sv];
       if (dec1 && dec2) {
         const auto vertex1 = svs_1.particle(i_sv);
