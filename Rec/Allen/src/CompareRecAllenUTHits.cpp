@@ -169,29 +169,29 @@ void CompareRecAllenUTHits::operator()(const std::vector<UT::Hit>& allen_hits, c
   constexpr unsigned width = 12;
 
   if (need_to_print) {
-    info() << std::string(8 * width, '-') << endmsg;
+    debug() << std::string(8 * width, '-') << endmsg;
   }
 
   if (!all_allen_matched || !all_rec_matched) {
-    info() << std::string(8 * width, '-') << endmsg;
-    info() << "Printing Allen and Rec hits that are not matched" << endmsg;
-    info() << std::setw(width) << "Type" << std::setw(width) << "LHCbID" << std::setw(width) << "xAtYEq0"
-           << std::setw(width) << "yBegin" << std::setw(width) << "yEnd" << std::setw(width) << "zAtYEq0"
-           << std::setw(width) << "dxDy" << std::setw(width) << "weight" << endmsg;
+    debug() << std::string(8 * width, '-') << endmsg;
+    debug() << "Printing Allen and Rec hits that are not matched" << endmsg;
+    debug() << std::setw(width) << "Type" << std::setw(width) << "LHCbID" << std::setw(width) << "xAtYEq0"
+            << std::setw(width) << "yBegin" << std::setw(width) << "yEnd" << std::setw(width) << "zAtYEq0"
+            << std::setw(width) << "dxDy" << std::setw(width) << "weight" << endmsg;
     for (unsigned i = 0; i < n_hits_total_allen; i++) {
       if (!allen_hits_matched[i]) {
         const auto& hit = sorted_allen_hits[i];
-        info() << std::setw(width) << "Allen" << std::setw(width) << hit.LHCbID << std::setw(width) << hit.xAtYEq0
-               << std::setw(width) << hit.yBegin << std::setw(width) << hit.yEnd << std::setw(width) << hit.zAtYEq0
-               << std::setw(width) << hit.dxDy << std::setw(width) << hit.weight << endmsg;
+        debug() << std::setw(width) << "Allen" << std::setw(width) << hit.LHCbID << std::setw(width) << hit.xAtYEq0
+                << std::setw(width) << hit.yBegin << std::setw(width) << hit.yEnd << std::setw(width) << hit.zAtYEq0
+                << std::setw(width) << hit.dxDy << std::setw(width) << hit.weight << endmsg;
       }
     }
     for (unsigned i = 0; i < n_hits_total_rec; i++) {
       if (!rec_hits_matched[i]) {
         const auto& hit = sorted_rec_hits[i];
-        info() << std::setw(width) << "Rec" << std::setw(width) << hit.LHCbID << std::setw(width) << hit.xAtYEq0
-               << std::setw(width) << hit.yBegin << std::setw(width) << hit.yEnd << std::setw(width) << hit.zAtYEq0
-               << std::setw(width) << hit.dxDy << std::setw(width) << hit.weight << endmsg;
+        debug() << std::setw(width) << "Rec" << std::setw(width) << hit.LHCbID << std::setw(width) << hit.xAtYEq0
+                << std::setw(width) << hit.yBegin << std::setw(width) << hit.yEnd << std::setw(width) << hit.zAtYEq0
+                << std::setw(width) << hit.dxDy << std::setw(width) << hit.weight << endmsg;
       }
     }
   }
@@ -220,7 +220,7 @@ void CompareRecAllenUTHits::operator()(const std::vector<UT::Hit>& allen_hits, c
   }
 
   if (need_to_print) {
-    info() << std::string(8 * width, '-') << endmsg;
+    debug() << std::string(8 * width, '-') << endmsg;
   }
 
   (*m_rec_hits) += n_hits_total_rec;
