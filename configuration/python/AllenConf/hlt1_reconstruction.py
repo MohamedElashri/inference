@@ -27,7 +27,8 @@ from AllenConf.validators import (
     seeding_xz_validation, long_validation, muon_validation, pv_validation,
     kalman_validation, selreport_validation, data_quality_validation_long,
     data_quality_validation_occupancy, data_quality_validation_pv,
-    data_quality_validation_velo, downstream_validation)
+    data_quality_validation_velo, downstream_validation,
+    downstream_kalman_validation)
 from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenConf.persistency import make_gather_selections, make_sel_report_writer
 from AllenConf.filters import make_gec
@@ -47,6 +48,7 @@ def hlt1_reconstruction(algorithm_name='',
                         with_rich=False,
                         with_AC_split=False,
                         with_fullKF=False,
+                        with_downstream_KF=False,
                         with_ttracks=False,
                         track_max_chi2ndof=10.0):
     decoded_velo = decode_velo()
@@ -86,6 +88,7 @@ def hlt1_reconstruction(algorithm_name='',
                 scifi_seeds=long_tracks["seeding_tracks"],
                 velo_scifi_matches=long_tracks['matched_tracks'],
                 pvs=pvs,
+                with_downstream_KF=with_downstream_KF,
                 dev_used_ut_hits_offsets=long_tracks[
                     "dev_used_ut_hits_offsets"])
             output.update({"downstream_tracks": downstream_tracks})
@@ -117,6 +120,7 @@ def hlt1_reconstruction(algorithm_name='',
                 scifi_seeds=seed_tracks,
                 velo_scifi_matches=long_tracks,
                 pvs=pvs,
+                with_downstream_KF=with_downstream_KF,
                 dev_used_ut_hits_offsets=long_tracks[
                     'dev_used_ut_hits_offsets'])
             output.update({"downstream_tracks": downstream_tracks})
@@ -654,6 +658,7 @@ def validator_node(reconstructed_objects,
                    with_muon,
                    with_AC_split,
                    with_fullKF,
+                   with_downstream_KF=False,
                    prefilters=[]):
 
     validators = [velo_validation(reconstructed_objects["velo_tracks"])]
@@ -668,8 +673,16 @@ def validator_node(reconstructed_objects,
 
     if 'downstream_tracks' in reconstructed_objects:
         validators += [
-            downstream_validation(reconstructed_objects["downstream_tracks"])
+            downstream_validation(
+                reconstructed_objects["downstream_tracks"],
+                with_downstream_KF=with_downstream_KF)
         ]
+        if with_downstream_KF:
+            validators += [
+                downstream_kalman_validation(
+                    reconstructed_objects["downstream_tracks"],
+                    reconstructed_objects["pvs"])
+            ]
 
     if "forward_tracks" in reconstructed_objects:
         validators += [

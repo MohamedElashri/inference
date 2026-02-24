@@ -22,6 +22,7 @@ target_link_libraries(DeviceValidators PRIVATE
   HostEventModel
   SciFi
   Downstream
+  Kalman
   Gear
   AllenCommon
   Backend)

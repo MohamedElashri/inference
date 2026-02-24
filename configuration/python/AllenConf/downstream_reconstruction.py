@@ -17,7 +17,8 @@ from AllenCore.algorithms import (
     downstream_composite_selector_t, downstream_v2_define_scifi_candidates_t,
     downstream_v2_find_tracks_t, downstream_v2_fit_tracks_t,
     downstream_v2_select_tracks_t, downstream_v2_final_fits_t,
-    downstream_v2_compute_offsets_t, downstream_v2_consolidate_t)
+    downstream_v2_compute_offsets_t, downstream_v2_consolidate_t,
+    downstream_kalman_filter_t)
 from AllenConf.utils import initialize_number_of_events, make_dummy
 from AllenCore.generator import make_algorithm
 from AllenConf.velo_reconstruction import decode_velo, make_velo_tracks, run_velo_kalman_filter
@@ -40,7 +41,8 @@ def make_downstream_tracks_v2(decoded_ut,
                               fiducial_cut=True,
                               clone_killing_threshold=0.5,
                               clone_killing=True,
-                              seed_ghost_killer_threshold=0.9):
+                              seed_ghost_killer_threshold=0.9,
+                              with_downstream_KF=False):
 
     # Filter used ut hits
     if dev_used_ut_hits_offsets is not None:
@@ -306,7 +308,13 @@ def make_downstream_tracks_v1(decoded_ut,
                               scifi_seeds,
                               velo_scifi_matches,
                               ghost_killer_threshold=0.5,
-                              dev_used_ut_hits_offsets=None):
+                              dev_used_ut_hits_offsets=None,
+                              with_downstream_KF=False):
+
+    if with_downstream_KF:
+        raise NotImplementedError(
+            "Downstream parameterised Kalman filter not implemented for v1 downstream tracking."
+        )
 
     number_of_events = initialize_number_of_events()
 
@@ -517,10 +525,11 @@ def make_downstream(decoded_ut,
                     ghost_killer_threshold=0.5,
                     with_calo=True,
                     with_muon=True,
+                    with_downstream_KF=False,
                     dev_used_ut_hits_offsets=None,
                     version=2):
     """Performs downstream track reconstruction.
-    
+
     Arguments:
     decoded_ut: Decoded UT hits.
     scifi_seeds: SciFi track seeds used for downstream tracking.
@@ -529,6 +538,7 @@ def make_downstream(decoded_ut,
     ghost_killer_threshold: Threshold for the ghost killer (default: 0.5).
     with_calo: Whether to include calorimeter information in the reconstruction.
     with_muon: Whether to include muon information in the reconstruction.
+    with_downstream_KF: Whether to apply parameterised Kalman filter to downstream tracks (default: False).
     dev_used_ut_hits_offsets: Device memory offsets for UT hit usage (optional).
     version: Algorithm version.
       - 1 = Legacy downstream tracking, assuming the track should come from (x=0,z=0).
@@ -539,9 +549,13 @@ def make_downstream(decoded_ut,
     track_makers = {1: make_downstream_tracks_v1, 2: make_downstream_tracks_v2}
     track_maker = track_makers[version]
 
-    downstream_tracks = track_maker(decoded_ut, scifi_seeds,
-                                    velo_scifi_matches, ghost_killer_threshold,
-                                    dev_used_ut_hits_offsets)
+    downstream_tracks = track_maker(
+        decoded_ut,
+        scifi_seeds,
+        velo_scifi_matches,
+        ghost_killer_threshold,
+        dev_used_ut_hits_offsets,
+        with_downstream_KF=with_downstream_KF)
 
     # Lepton ID
     if with_muon:
@@ -583,6 +597,28 @@ def make_downstream(decoded_ut,
     else:
         leptonID = muonID["dev_lepton_id"]
 
+    views_for_particles = downstream_tracks["dev_downstream_track_states_view"]
+
+    if with_downstream_KF:
+        downstream_kalman_filter = make_algorithm(
+            downstream_kalman_filter_t,
+            name='downstream_kalman_filter_{hash}',
+            # Basics
+            host_number_of_events_t=number_of_events["host_number_of_events"],
+            host_number_of_downstream_tracks_t=downstream_tracks[
+                "host_number_of_downstream_tracks"],
+            dev_number_of_events_t=number_of_events["dev_number_of_events"],
+            # Downstream states and views
+            dev_downstream_track_states_t=downstream_tracks[
+                "dev_downstream_track_states"],
+            dev_downstream_track_view_t=downstream_tracks[
+                "dev_downstream_track_view"],
+            dev_downstream_track_offsets_t=downstream_tracks[
+                "dev_downstream_track_offsets"],
+        )
+        # KF outputs
+        views_for_particles = downstream_kalman_filter.dev_downstream_kf_track_states_view_t
+
     downstream_make_particles = make_algorithm(
         downstream_make_particles_t,
         name="downstream_make_particles",
@@ -592,8 +628,7 @@ def make_downstream(decoded_ut,
         host_number_of_downstream_tracks_t=downstream_tracks[
             'host_number_of_downstream_tracks'],
         # States
-        dev_downstream_track_states_view_t=downstream_tracks[
-            'dev_downstream_track_states_view'],
+        dev_downstream_track_states_view_t=views_for_particles,
         # Downstream consolidated tracks
         dev_offsets_downstream_tracks_t=downstream_tracks[
             'dev_offsets_downstream_tracks'],
@@ -627,6 +662,18 @@ def make_downstream(decoded_ut,
         "dev_downstream_particles_ip":
         downstream_make_particles.dev_downstream_particles_ip_t
     })
+
+    if with_downstream_KF:
+        output_map.update({
+            "downstream_kalman_filter":
+            downstream_kalman_filter,
+            "dev_downstream_kf_tracks":
+            downstream_kalman_filter.dev_downstream_kf_tracks_t,
+            "dev_downstream_kf_track_states":
+            downstream_kalman_filter.dev_downstream_kf_track_states_t,
+            "dev_downstream_kf_track_states_view":
+            downstream_kalman_filter.dev_downstream_kf_track_states_view_t
+        })
 
     return output_map
 

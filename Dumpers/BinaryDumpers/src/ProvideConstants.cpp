@@ -97,7 +97,7 @@ StatusCode ProvideConstants::initialize()
 
   // Kalman Filter Parameters
   std::unique_ptr<ParKalmanReader> parKalmanFilter_reader;
-  parKalmanFilter_reader = std::make_unique<ParKalmanReader>(geometry_path + "/ParametrizedKalmanFit/25v0/params.json");
+  parKalmanFilter_reader = std::make_unique<ParKalmanReader>(geometry_path + "/ParametrizedKalmanFit/25v1/params.json");
 
   m_constants.initialize_kalman_pars_constants(
     parKalmanFilter_reader->VP_pars(),

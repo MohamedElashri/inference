@@ -13,5 +13,7 @@ from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 
 hlt1_node = setup_hlt1_node(
-    tracking_type=TrackingType.FORWARD_THEN_MATCHING, enableDownstream=True)
+    tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+    enableDownstream=True,
+    with_downstream_KF=True)
 generate(hlt1_node)

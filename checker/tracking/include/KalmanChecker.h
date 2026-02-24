@@ -70,6 +70,9 @@ private:
   float m_trk_ndofT = 0.f;
   float m_trk_ghost = 0.f;
   float m_mcp_p = 0.f;
+  float m_mcp_x = 0.f;
+  float m_mcp_y = 0.f;
+  float m_mcp_z = 0.f;
   float m_trk_velo_hits = 0.f;
   float m_trk_scifi_hits = 0.f;
   float m_trk_ut_hits = 0.f;
