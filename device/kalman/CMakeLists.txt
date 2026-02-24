@@ -14,7 +14,7 @@ allen_add_device_library(Kalman STATIC
   ${kalman_ParKalman}
 )
 
-target_link_libraries(Kalman PUBLIC SciFi Associate
+target_link_libraries(Kalman PUBLIC SciFi Associate Downstream
   PRIVATE Backend HostEventModel EventModel Utils)
 
 target_include_directories(Kalman PUBLIC

@@ -119,11 +119,12 @@ __global__ void kalman_filter::kalman_pv_ip(kalman_filter::Parameters parameters
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   const unsigned number_of_events = parameters.dev_number_of_events[0];
 
-  const auto event_long_tracks = parameters.dev_long_tracks_view->container(event_number);
+  const auto event_long_tracks = parameters.dev_multi_event_long_tracks_view->container(event_number);
   parameters.dev_kalman_states_view[event_number] = Allen::Views::Physics::KalmanStates {
     parameters.dev_kalman_fit_results, parameters.dev_atomics_scifi, event_number, number_of_events};
   const auto kalman_states_view = parameters.dev_kalman_states_view[event_number];
-  const unsigned total_number_of_long_tracks = parameters.dev_long_tracks_view->number_of_contained_objects();
+  const unsigned total_number_of_long_tracks =
+    parameters.dev_multi_event_long_tracks_view->number_of_contained_objects();
 
   // The total track-PV association table.
   Associate::Consolidated::Table kalman_pv_ip {parameters.dev_kalman_pv_ip, total_number_of_long_tracks};

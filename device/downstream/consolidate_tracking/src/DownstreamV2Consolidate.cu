@@ -216,7 +216,7 @@ __global__ void downstream_v2_consolidate::downstream_v2_create_track_views(Para
     // UT tracks container
     new (parameters.dev_downstream_ut_tracks_view + event_number) Allen::Views::UT::Consolidated::Tracks {
       parameters.dev_downstream_ut_track_view, parameters.dev_downstream_track_offsets, event_number};
-    // UT+SciFi trakcs container
+    // UT+SciFi tracks container
     new (parameters.dev_downstream_tracks_view + event_number) Allen::Views::Physics::DownstreamTracks {
       parameters.dev_downstream_track_view, parameters.dev_downstream_track_offsets, event_number};
     // State container

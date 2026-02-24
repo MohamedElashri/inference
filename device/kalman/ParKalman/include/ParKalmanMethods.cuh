@@ -30,7 +30,7 @@ namespace ParKalmanFilter {
     Matrix5x5 m_RefPropForwardTotal;
 
     // Reference states.
-    Vector<4> m_RefStateForwardV;
+    Vector<4> m_RefStateForward;
 
     KalmanFloat m_BestMomEst;
 
@@ -80,12 +80,12 @@ __device__ inline void
 ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F, SymMatrix4x4& Q, trackInfo& tI)
 {
   // step size in z
-  KalmanFloat dz = zTo - tI.m_Lastz;
+  const KalmanFloat dz = zTo - tI.m_Lastz;
   if (dz == 0) return;
   // which set of parameters should be used
   unsigned index_offset = (dz > 0 ? 0 : 6);
 
-  KalmanFloat par =
+  const KalmanFloat par =
     (tI.m_polarity * dev_pars[index_offset + 2] * ((KalmanFloat) 1.0e-5) * dz *
      ((dz > 0 ? tI.m_Lastz : zTo) + dev_pars[index_offset + 3] * ((KalmanFloat) 1.0e3)));
 
@@ -106,12 +106,13 @@ ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
   F(0, 4) = ((KalmanFloat) 0.5) * dz * F(2, 4);
 
   // Set noise matrix
-  KalmanFloat sigt = dev_pars[index_offset + 0] * ((KalmanFloat) 1.0e-5) + dev_pars[index_offset + 1] * fabsf(x[4]);
+  const KalmanFloat sigt =
+    dev_pars[index_offset + 0] * ((KalmanFloat) 1.0e-5) + dev_pars[index_offset + 1] * fabsf(x[4]);
 
   // sigma x/y
-  KalmanFloat sigx = dev_pars[index_offset + 4] * sigt * fabsf(dz);
+  const KalmanFloat sigx = dev_pars[index_offset + 4] * sigt * fabsf(dz);
   // Correlation between x/y and tx/ty
-  KalmanFloat corr = dev_pars[index_offset + 5];
+  const KalmanFloat corr = dev_pars[index_offset + 5];
 
   Q(0, 0) = sigx * sigx;
   Q(1, 1) = sigx * sigx;
@@ -127,11 +128,11 @@ ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 {
 
   // cache the old state
-  KalmanFloat tx_old = x[2];
-  KalmanFloat ty_old = x[3];
+  const KalmanFloat tx_old = x[2];
+  const KalmanFloat ty_old = x[3];
   // step size in z
-  KalmanFloat zFrom = tI.m_Lastz;
-  KalmanFloat dz = zTo - zFrom;
+  const KalmanFloat zFrom = tI.m_Lastz;
+  const KalmanFloat dz = zTo - zFrom;
   // which set of parameters should be used
   // extrapolate the current state and define noise
 
@@ -153,39 +154,39 @@ ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 
   // tx
   par = tI.m_polarity * dev_pars[7];
-  KalmanFloat coeff = tI.m_polarity * dev_pars[5] * ((KalmanFloat) 1e1) +
-                      tI.m_polarity * dev_pars[6] * ((KalmanFloat) 1e-2) * zFrom +
-                      par * ((KalmanFloat) 1e2) * ty_old * ty_old;
+  const KalmanFloat coeff = tI.m_polarity * dev_pars[5] * ((KalmanFloat) 1e1) +
+                            tI.m_polarity * dev_pars[6] * ((KalmanFloat) 1e-2) * zFrom +
+                            par * ((KalmanFloat) 1e2) * ty_old * ty_old;
 
-  KalmanFloat a = x[4] * coeff;
-  KalmanFloat t = ((KalmanFloat) 1.0) + tx_old * tx_old + ty_old * ty_old;
-  KalmanFloat b = a * a * t + ((KalmanFloat) 2.0) * a * tx_old * sqrtf(t);
+  const KalmanFloat a = x[4] * coeff;
+  const KalmanFloat t = ((KalmanFloat) 1.0) + tx_old * tx_old + ty_old * ty_old;
+  const KalmanFloat b = a * a * t + ((KalmanFloat) 2.0) * a * tx_old * sqrtf(t);
   KalmanFloat c = b - ty_old * ty_old - ((KalmanFloat) 1.0);
   c = fabsf(c) < ((KalmanFloat) 1e-10) ? std::copysign((KalmanFloat) 1e-10, c) : c;
   KalmanFloat sqroot_term = -(x[3] * x[3] + ((KalmanFloat) 1.0)) * (b + tx_old * tx_old) * c;
   sqroot_term =
     sqroot_term > ((KalmanFloat) 0.0) ? sqroot_term : ((KalmanFloat) 0.0); // happens with very low |tx| tracks
-  KalmanFloat sqroot = sqrtf(sqroot_term);
+  const KalmanFloat sqroot = sqrtf(sqroot_term);
 
   x[2] += (tx_old * c + std::copysign((KalmanFloat) 1.0, tx_old) * sqroot) / c;
 
-  KalmanFloat daDty = par * ((KalmanFloat) 2e2) * ty_old * x[4];
-  KalmanFloat dadqop = coeff;
+  const KalmanFloat daDty = par * ((KalmanFloat) 2e2) * ty_old * x[4];
+  const KalmanFloat dadqop = coeff;
 
-  KalmanFloat dtDtx = ((KalmanFloat) 2.) * tx_old;
-  KalmanFloat dtDty = ((KalmanFloat) 2.) * ty_old;
+  const KalmanFloat dtDtx = ((KalmanFloat) 2.) * tx_old;
+  const KalmanFloat dtDty = ((KalmanFloat) 2.) * ty_old;
 
-  KalmanFloat dbDtx = ((KalmanFloat) 2.) * a;
-  KalmanFloat dbda = ((KalmanFloat) 2.) * (a * t + tx_old);
-  KalmanFloat dbdt = a * a + ((KalmanFloat) 0.5) / sqrtf(t);
+  const KalmanFloat dbDtx = ((KalmanFloat) 2.) * a;
+  const KalmanFloat dbda = ((KalmanFloat) 2.) * (a * t + tx_old);
+  const KalmanFloat dbdt = a * a + ((KalmanFloat) 0.5) / sqrtf(t);
 
   // KalmanFloat dcdb = 1;
-  KalmanFloat dcDty = ((KalmanFloat) -2.) * ty_old;
+  const KalmanFloat dcDty = ((KalmanFloat) -2.) * ty_old;
 
-  KalmanFloat dtxDtx = ((KalmanFloat) 1.0) + tx_old * tx_old * sqroot / (b + tx_old * tx_old) + sqroot;
-  KalmanFloat dtxdb = tx_old * sqroot / (((KalmanFloat) 2.0) * (b + tx_old * tx_old));
-  KalmanFloat dtxdc = tx_old * sqroot / (((KalmanFloat) 2.0) * c);
-  KalmanFloat dtxdnty = x[3] * tx_old * sqroot / (x[3] * x[3] + 1);
+  const KalmanFloat dtxDtx = ((KalmanFloat) 1.0) + tx_old * tx_old * sqroot / (b + tx_old * tx_old) + sqroot;
+  const KalmanFloat dtxdb = tx_old * sqroot / (((KalmanFloat) 2.0) * (b + tx_old * tx_old));
+  const KalmanFloat dtxdc = tx_old * sqroot / (((KalmanFloat) 2.0) * c);
+  const KalmanFloat dtxdnty = x[3] * tx_old * sqroot / (x[3] * x[3] + 1);
 
   F(2, 2) = dtxDtx + dtxdb * (dbDtx + dbdt * dtDtx) + dtxdnty * F(3, 2);                                // DtxDtx
   F(2, 3) = dtxdb * dbda * (daDty + dbdt * dtDty) + dtxdc * (dbda * daDty + dcDty) + dtxdnty * F(3, 3); // DtxDy
@@ -193,8 +194,9 @@ ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 
   par = dev_pars[12];
   // x
-  KalmanFloat zmag = dev_pars[9] * ((KalmanFloat) 1e3) + dev_pars[10] * ((KalmanFloat) 1e-3) * zFrom +
-                     dev_pars[11] * ((KalmanFloat) 1e-5) * zFrom * zFrom + par * ((KalmanFloat) 1e3) * ty_old * ty_old;
+  const KalmanFloat zmag = dev_pars[9] * ((KalmanFloat) 1e3) + dev_pars[10] * ((KalmanFloat) 1e-3) * zFrom +
+                           dev_pars[11] * ((KalmanFloat) 1e-5) * zFrom * zFrom +
+                           par * ((KalmanFloat) 1e3) * ty_old * ty_old;
 
   x[0] += (zmag - zFrom) * tx_old + (zTo - zmag) * x[2];
 
@@ -204,10 +206,10 @@ ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
   F(0, 4) = (zTo - zmag) * F(2, 4);
 
   // add noise
-  KalmanFloat tyErr = dev_pars[1] * fabsf(x[4]);
-  KalmanFloat yErr = dev_pars[4] * fabsf(dz * x[4]);
-  KalmanFloat txErr = dev_pars[8] * fabsf(x[4]);
-  KalmanFloat xErr = dev_pars[13] * fabsf(dz * x[4]);
+  const KalmanFloat tyErr = dev_pars[1] * fabsf(x[4]);
+  const KalmanFloat yErr = dev_pars[4] * fabsf(dz * x[4]);
+  const KalmanFloat txErr = dev_pars[8] * fabsf(x[4]);
+  const KalmanFloat xErr = dev_pars[13] * fabsf(dz * x[4]);
 
   Q(0, 0) = xErr * xErr;
   Q(0, 2) = dev_pars[2] * xErr * txErr;
@@ -267,10 +269,10 @@ __device__ inline void ExtrapolateInUT(
   F(1, 4) = dz * (((KalmanFloat) 1.0) - par) * F(3, 4);
 
   // Define noise
-  KalmanFloat xErr = dev_pars[offset + 1] * fabsf(dz * x[4]);
-  KalmanFloat yErr = dev_pars[offset + 3] * fabsf(dz * x[4]);
-  KalmanFloat txErr = dev_pars[offset + 8] * fabsf(x[4]);
-  KalmanFloat tyErr = dev_pars[offset + 10] * fabsf(x[4]);
+  const KalmanFloat xErr = dev_pars[offset + 1] * fabsf(dz * x[4]);
+  const KalmanFloat yErr = dev_pars[offset + 3] * fabsf(dz * x[4]);
+  const KalmanFloat txErr = dev_pars[offset + 8] * fabsf(x[4]);
+  const KalmanFloat tyErr = dev_pars[offset + 10] * fabsf(x[4]);
 
   // Add noise
   Q(0, 0) = xErr * xErr;
@@ -816,10 +818,10 @@ __device__ inline void PredictStateVUT(
   F.SetDiag();
 
   // Prediction.
-  tI.m_RefStateForwardV[0] = x[0];
-  tI.m_RefStateForwardV[1] = x[1];
-  tI.m_RefStateForwardV[2] = x[2];
-  tI.m_RefStateForwardV[3] = x[3];
+  tI.m_RefStateForward[0] = x[0];
+  tI.m_RefStateForward[1] = x[1];
+  tI.m_RefStateForward[2] = x[2];
+  tI.m_RefStateForward[3] = x[3];
 
   // Check if there is a hit in the first layer
   if (hit_counter != 0xf) {
@@ -850,9 +852,10 @@ __device__ inline void PredictStateUT(
   SymMatrix5x5& C,
   trackInfo& tI,
   unsigned& layer,
-  unsigned& hit_counter)
+  unsigned& hit_counter,
+  bool propagate_F = true)
 {
-  KalmanFloat zTo = dev_lays[layer];
+  KalmanFloat zTo = dev_lays[layer < 4 ? layer : layer - 4];
   Matrix5x5 F;
   F.SetDiag();
   SymMatrix4x4 Q;
@@ -862,9 +865,10 @@ __device__ inline void PredictStateUT(
   if (hit_counter != 0xf) {
     zTo = (KalmanFloat) track.hit(hit_counter).zAtYEq0();
   }
-
   ExtrapolateInUT(dev_pars, zTo, x, F, Q, tI, layer);
-  tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
+  if (propagate_F) { // not needed for downstream tracks.
+    tI.m_RefPropForwardTotal = F * tI.m_RefPropForwardTotal;
+  }
   C = similarity_5_5(F, C);
   C += Q;
   // tI.m_Lastz = zTo; // is set in the ExtrapolateInUT function
@@ -1037,8 +1041,6 @@ __device__ inline void UpdateStateUT(
 {
 
   // Get the hit information.
-  // const KalmanFloat slopes[4] = {0.0, +0.087155742747, -0.087155742747, 0.0}; -> Now from geometry
-  // TODO: Get slopes from simplified geometry.
   const KalmanFloat dxDy = (KalmanFloat) track.hit(nHit).dxDy();
   const KalmanFloat y0 = (KalmanFloat) track.hit(nHit).yBegin();
   const KalmanFloat y1 = (KalmanFloat) track.hit(nHit).yEnd();

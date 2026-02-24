@@ -9,21 +9,9 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "ParKalmanFilter.cuh"
+#include "ParKalmanSharedConstants.cuh"
 
 INSTANTIATE_ALGORITHM(kalman_filter::kalman_filter_t)
-
-namespace kalman_filter { // [nSets * nPars]
-  __constant__ float dev_UT_lay[1 * 4];
-  __constant__ float dev_T_lay[4 * 12];
-  __constant__ float dev_UTT_META[1 * 19];
-
-  __constant__ float dev_V_pars[2 * 6];
-  __constant__ float dev_VUT_pars[15];
-  __constant__ float dev_UT_pars[3 * 12];
-  __constant__ float dev_UTTF_pars[1 * 20];
-  __constant__ float dev_T_pars[22 * 12];
-  __constant__ float dev_TFT_pars[1 * 4];
-} // namespace kalman_filter
 
 void kalman_filter::kalman_filter_t::update(const Constants& constants) const
 {
@@ -60,19 +48,9 @@ void kalman_filter::kalman_filter_t::update(const Constants& constants) const
   host_beamline.tx_SMOG.x = beamlineTx + CrossingAngleh;
   host_beamline.tx_SMOG.y = beamlineTy + CrossingAnglev;
   Allen::memcpyToSymbol(dev_beamline, &host_beamline, sizeof(struct BeamlinePVConstants::Common::Beamline));
-  // load ParKF parameters
-  if (constants.host_UT_Layers == nullptr) {
-    throw std::runtime_error("host_UT_Layers is empty and thus likely all constant ParKF parameters are empty");
-  }
-  Allen::memcpyToSymbol(dev_UT_lay, constants.host_UT_Layers, (1 * 4) * sizeof(float));
-  Allen::memcpyToSymbol(dev_T_lay, constants.host_T_Layers, (4 * 12) * sizeof(float));
-  Allen::memcpyToSymbol(dev_UTT_META, constants.host_UTT_META, (1 * 19) * sizeof(float));
-  Allen::memcpyToSymbol(dev_V_pars, constants.host_VP_pars, (2 * 6) * sizeof(float));
-  Allen::memcpyToSymbol(dev_VUT_pars, constants.host_VPUT_pars, (1 * 15) * sizeof(float));
-  Allen::memcpyToSymbol(dev_UT_pars, constants.host_UT_pars, (3 * 12) * sizeof(float));
-  Allen::memcpyToSymbol(dev_UTTF_pars, constants.host_UTTF_pars, (1 * 20) * sizeof(float));
-  Allen::memcpyToSymbol(dev_T_pars, constants.host_T_pars, (22 * 12) * sizeof(float));
-  Allen::memcpyToSymbol(dev_TFT_pars, constants.host_TFT_pars, (1 * 4) * sizeof(float));
+
+  // Load shared ParKF parameters
+  parkalman_shared::update_shared_constants(constants);
 }
 
 void kalman_filter::kalman_filter_t::set_arguments_size(
@@ -106,36 +84,6 @@ __constant__ struct BeamlinePVConstants::Common::Beamline dev_beamline;
 
 namespace ParKalmanFilter {
   //----------------------------------------------------------------------
-  // Create the output track.
-  __device__ void MakeTrack(
-    const KalmanFloat& init_qop,
-    const Vector5& x,
-    const SymMatrix5x5& C,
-    const trackInfo& tI,
-    FittedTrack& track,
-    const unsigned& velo_hits,
-    unsigned& ut_hits,
-    unsigned& scifi_hits)
-  {
-    track.chi2 = tI.m_chi2V + tI.m_chi2T + tI.m_chi2UT;
-    track.chi2V = tI.m_chi2V;
-    track.chi2T = tI.m_chi2T;
-    track.chi2UT = tI.m_chi2UT;
-    track.ndof = scifi_hits + ut_hits + 2 * velo_hits - 5;
-    track.ndofV = 2 * velo_hits - 5;
-    track.ndofT = scifi_hits - 5;
-    track.state = x;
-    track.cov = C;
-    track.z = tI.m_Lastz;
-    track.first_qop = init_qop;
-    track.best_qop = tI.m_BestMomEst;
-    track.nhits = velo_hits + ut_hits + scifi_hits;
-    track.nhitsV = velo_hits;
-    track.nhitsUT = ut_hits;
-    track.nhitsT = scifi_hits;
-  }
-
-  //----------------------------------------------------------------------
   // Run the Kalman filter.
   __device__ void fit(
     const Allen::Views::Velo::Consolidated::Track& velo_track,
@@ -163,14 +111,6 @@ namespace ParKalmanFilter {
     // Get Velo Hits
     const unsigned n_velo_hits = velo_track.number_of_hits();
 
-    // Get UT Hits
-    const unsigned n_ut_hits = ut_track.number_of_ut_hits();
-    unsigned n_ut_layers = 0;
-
-    // Get SciFi Hits
-    const unsigned n_scifi_hits = scifi_track.number_of_scifi_hits();
-    unsigned n_scifi_layers = 0;
-
     // Run the fit.
     tI.m_Lastz = -1;
     Vector5 x;
@@ -196,22 +136,13 @@ namespace ParKalmanFilter {
     }
 
     KalmanFloat endVeloZ = tI.m_Lastz; // z position if the last Velo hit
-
-    // make a hit map: encode fro each UT layer [0-3], which index in the ut_track
-    // correpsonds to that layer
-    // [n , n+4) bits have the index of the hit in the nth layer
+    // Define UT layer counter (avoid counting two hits in one layer)
+    unsigned n_ut_layers = 0;
+    // Create UT hit map
     unsigned layer;
-    unsigned hit_map0 = 0xffff; // [1111 1111 1111 1111]
-    unsigned hit_counter = 0;
-    for (hit_counter = 0; hit_counter < n_ut_hits; hit_counter++) {
-      layer = ut_track.hit(hit_counter).plane_code();
-      // check that there is not already a hit in that layer
-      // if there already is one the second hit in that layer will be discarded.
-      bool no_hit_in_layer = ((hit_map0 >> (layer * 4)) & 0xf) == 0xf;
-      hit_map0 -= no_hit_in_layer * (0xf << (layer * 4)); // clear the place holder
-      hit_map0 += no_hit_in_layer * (hit_counter << (layer * 4));
-      n_ut_layers += no_hit_in_layer;
-    }
+    unsigned hit_counter;
+    unsigned hit_map0 = make_ut_hitmap(ut_track, n_ut_layers);
+
     // Velo -> UT.
     hit_counter = (hit_map0 & 0xf); // Checks for hit in first layer
     PredictStateVUT(ut_track, dev_UT_lay, dev_VUT_pars, x, C, tI, hit_counter);
@@ -234,19 +165,11 @@ namespace ParKalmanFilter {
     layer = 3; // needed because `PredictStateUTT` calls `ExtrapolateInUT` again
     PredictStateUTT(dev_UT_pars, dev_TFT_pars, dev_UTTF_pars, dev_UTT_META, dev_T_lay, kalman_params, x, C, tI, layer);
 
-    // make T hitmaps: See UT above but now with two seperate maps for the first and last 6 T layers
-    hit_map0 = 0xffffff;          // [1111 1111 1111 1111 1111 1111]
-    unsigned hit_map1 = 0xffffff; // [1111 1111 1111 1111 1111 1111]
-    for (hit_counter = 0; hit_counter < n_scifi_hits; hit_counter++) {
-      layer = scifi_track.hit(hit_counter).planeCode() / 2;
-      // check that there is not already a hit in that layer
-      unsigned& hit_map = (layer < 6) ? hit_map0 : hit_map1;
-      layer = layer % 6; // positon relative to front of map (0,6).
-      bool no_hit_in_layer = ((hit_map >> (layer * 4)) & 0xf) == 0xf;
-      hit_map -= no_hit_in_layer * (0xf << (layer * 4)); // clear the place holder
-      hit_map += no_hit_in_layer * (hit_counter << (layer * 4));
-      n_scifi_layers += no_hit_in_layer;
-    }
+    // Define SciFi layer counter (avoid counting two hits in one layer)
+    unsigned n_scifi_layers = 0;
+    // Get SciFi Hits
+    unsigned hit_map1;
+    make_scifi_hitmaps(scifi_track, hit_map0, hit_map1, n_scifi_layers);
 
     // Predict State UTT already does all the necessary extrapolation to the first layer of FT
     // Update in first T layer if there is a hit.
@@ -275,10 +198,10 @@ namespace ParKalmanFilter {
 
     // Set state and covariance for VELO-only backward fit
     tI.m_BestMomEst = x[4];
-    x[0] = tI.m_RefStateForwardV[0];
-    x[1] = tI.m_RefStateForwardV[1];
-    x[2] = tI.m_RefStateForwardV[2];
-    x[3] = tI.m_RefStateForwardV[3];
+    x[0] = tI.m_RefStateForward[0];
+    x[1] = tI.m_RefStateForward[1];
+    x[2] = tI.m_RefStateForward[2];
+    x[3] = tI.m_RefStateForward[3];
 
     C = similarity_5_5(inverse(tI.m_RefPropForwardTotal), C);
 
@@ -304,30 +227,30 @@ namespace ParKalmanFilter {
     // propagation as the VELO-only Kalman Filter.
     propagate_to_beamline(track, dev_beamline, false);
   }
+
+  __host__ __device__ void
+  set_result(const unsigned track_number, const ParKalmanFilter::FittedTrack& track, Velo::Consolidated::States& states)
+  {
+    states.x(track_number) = track.state[0];
+    states.y(track_number) = track.state[1];
+    states.tx(track_number) = track.state[2];
+    states.ty(track_number) = track.state[3];
+    states.qop(track_number) = track.state[4];
+    states.z(track_number) = track.z;
+
+    states.c00(track_number) = track.cov(0, 0);
+    // states.c10(track_number) = track.cov(1, 0);
+    states.c11(track_number) = track.cov(1, 1);
+    states.c20(track_number) = track.cov(2, 0);
+    // states.c21(track_number) = track.cov(2, 1);
+    states.c22(track_number) = track.cov(2, 2);
+    states.c31(track_number) = track.cov(3, 1);
+    states.c33(track_number) = track.cov(3, 3);
+    states.chi2(track_number) = track.chi2;
+    states.ndof(track_number) = track.ndof;
+    return;
+  }
 } // End namespace ParKalmanFilter.
-
-__host__ __device__ void
-set_result(const unsigned track_number, const ParKalmanFilter::FittedTrack& track, Velo::Consolidated::States& states)
-{
-  states.x(track_number) = track.state[0];
-  states.y(track_number) = track.state[1];
-  states.tx(track_number) = track.state[2];
-  states.ty(track_number) = track.state[3];
-  states.qop(track_number) = track.state[4];
-  states.z(track_number) = track.z;
-
-  states.c00(track_number) = track.cov(0, 0);
-  // states.c10(track_number) = track.cov(1, 0);
-  states.c11(track_number) = track.cov(1, 1);
-  states.c20(track_number) = track.cov(2, 0);
-  // states.c21(track_number) = track.cov(2, 1);
-  states.c22(track_number) = track.cov(2, 2);
-  states.c31(track_number) = track.cov(3, 1);
-  states.c33(track_number) = track.cov(3, 3);
-  states.chi2(track_number) = track.chi2;
-  states.ndof(track_number) = track.ndof;
-  return;
-}
 //----------------------------------------------------------------------
 // Kalman filter kernel.
 __global__ void kalman_filter::kalman_filter(
@@ -338,8 +261,8 @@ __global__ void kalman_filter::kalman_filter(
   const KalmanFloat magSign = dev_magnet_polarity[0];
 
   // Base pointer for the list of all tracks (contiguous in memory), regardless of events boundaries
-  const Allen::Views::Physics::LongTrack* track_base = &(parameters.dev_long_tracks_view->container(0).track(0));
-  const unsigned total_number_of_tracks = parameters.dev_long_tracks_view->number_of_contained_objects();
+  const Allen::Views::Physics::LongTrack* track_base = parameters.dev_long_track_view.data();
+  const unsigned total_number_of_tracks = parameters.dev_long_track_view.size();
 
   Velo::Consolidated::States kalman_states {parameters.dev_kalman_fit_results, total_number_of_tracks};
 
@@ -361,15 +284,15 @@ __global__ void kalman_filter::kalman_filter(
       init_qop,
       dev_kalman_params,
       kalman_track,
-      dev_UT_lay,
-      dev_T_lay,
-      dev_V_pars,
-      dev_VUT_pars,
-      dev_UT_pars,
-      dev_UTTF_pars,
-      dev_T_pars,
-      dev_TFT_pars,
-      dev_UTT_META,
+      parkalman_shared::dev_UT_lay,
+      parkalman_shared::dev_T_lay,
+      parkalman_shared::dev_V_pars,
+      parkalman_shared::dev_VUT_pars,
+      parkalman_shared::dev_UT_pars,
+      parkalman_shared::dev_UTTF_pars,
+      parkalman_shared::dev_T_pars,
+      parkalman_shared::dev_TFT_pars,
+      parkalman_shared::dev_UTT_META,
       magSign);
     set_result(track_id, kalman_track, kalman_states);
     parameters.dev_kf_tracks[track_id] = kalman_track;

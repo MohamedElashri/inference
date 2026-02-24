@@ -296,3 +296,78 @@ __device__ inline void prepare_kalman_tracks(
     kalman_checker_tracks[i_track] = t;
   }
 }
+
+// Prepare downstream Kalman tracks for checker
+// Note: For downstream tracks, "velo_ip" fields use the FinalFit initial state at UT plane (z=2484.6mm)
+// This represents the polynomial fit state before Kalman correction
+__device__ inline void prepare_downstream_kalman_tracks(
+  const unsigned number_of_tracks,
+  const unsigned number_of_vertices,
+  const PV::Vertex* rec_vertices,
+  const Allen::Views::Physics::KalmanStates downstream_kf_states,
+  const ParKalmanFilter::FittedTrack* kf_tracks,
+  Checker::Track* downstream_kalman_checker_tracks)
+{
+  for (unsigned i_track = threadIdx.x; i_track < number_of_tracks; i_track += blockDim.x) {
+    ParKalmanFilter::FittedTrack track = kf_tracks[i_track];
+    auto t = downstream_kalman_checker_tracks[i_track];
+
+    // Get the UT-plane initial state (from FinalFit polynomial fit)
+    const auto ut_state = downstream_kf_states.state(i_track);
+
+    // Calculate IP using Kalman fit
+    t.kalman_ip_chi2 = 9999.;
+    for (unsigned i_vertex = 0; i_vertex < number_of_vertices; ++i_vertex) {
+      const auto vertex = rec_vertices[i_vertex];
+
+      float locIPChi2 = ipChi2Kalman(track, vertex);
+      if (locIPChi2 < t.kalman_ip_chi2) {
+        t.kalman_ip = ipKalman(track, vertex);
+        t.kalman_ip_chi2 = locIPChi2;
+        t.kalman_ipx = ipxKalman(track, vertex);
+        t.kalman_ipy = ipyKalman(track, vertex);
+        t.kalman_docaz = kalmanDOCAz(track, vertex);
+      }
+    }
+
+    // Calculate "VELO" IP using UT initial state (for comparison with Kalman fit)
+    // Semantic meaning: initial state IP from FinalFit at UT plane
+    t.velo_ip_chi2 = 9999.;
+    for (unsigned i_vertex = 0; i_vertex < number_of_vertices; ++i_vertex) {
+      const auto vertex = rec_vertices[i_vertex];
+
+      float locIPChi2 = ipChi2Velo(ut_state, vertex);
+      if (locIPChi2 < t.velo_ip_chi2) {
+        t.velo_ip = ipVelo(ut_state, vertex);
+        t.velo_ip_chi2 = locIPChi2;
+        t.velo_ipx = ipxVelo(ut_state, vertex);
+        t.velo_ipy = ipyVelo(ut_state, vertex);
+        t.velo_docaz = veloDOCAz(ut_state, vertex);
+      }
+    }
+
+    // Get Kalman filter information from FittedTrack
+    t.z = (float) track.z;
+    t.x = (float) track.state[0];
+    t.y = (float) track.state[1];
+    t.tx = (float) track.state[2];
+    t.ty = (float) track.state[3];
+    t.qop = (float) track.state[4];
+    t.chi2 = (float) track.chi2;
+    t.chi2V = (float) track.chi2V; // Will be 0 for downstream (no VELO)
+    t.chi2T = (float) track.chi2T;
+    t.ndof = track.ndof;
+    t.ndofV = track.ndofV; // Will be 0 for downstream (no VELO)
+    t.ndofT = track.ndofT;
+    t.first_qop = (float) track.first_qop;
+    t.best_qop = (float) track.best_qop;
+    t.p = (float) track.p();
+    t.pt = (float) track.pt();
+    t.nhitsV = (float) track.nhitsV; // Will be 0 for downstream (no VELO)
+    t.nhitsT = (float) track.nhitsT;
+    t.nhitsUT = (float) track.nhitsUT;
+    t.chi2UT = (float) track.chi2UT;
+
+    downstream_kalman_checker_tracks[i_track] = t;
+  }
+}

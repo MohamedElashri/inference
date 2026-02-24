@@ -276,7 +276,7 @@ int allen(
   // ParKF constants
   std::unique_ptr<ParKalmanReader> parKalmanFilter_reader;
   parKalmanFilter_reader =
-    std::make_unique<ParKalmanReader>(folder_parameters + "/ParametrizedKalmanFit/25v0/params.json");
+    std::make_unique<ParKalmanReader>(folder_parameters + "/ParametrizedKalmanFit/25v1/params.json");
 
   constants.reserve_and_initialize(muon_field_of_interest_params, folder_parameters);
 

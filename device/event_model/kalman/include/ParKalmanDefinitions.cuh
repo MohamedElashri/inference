@@ -35,36 +35,36 @@ namespace ParKalmanFilter {
   constexpr int DEGy2 = 7;
 
   // Number of velo parameters.
-  constexpr int nParsV = 10;
+  constexpr int nParsV = 6;
   constexpr int nSetsV = 2;
 
   // Number of velo-UT parameters.
-  constexpr int nParsVUT = 30;
-  constexpr int nSetsVUT = 2;
+  constexpr int nParsVUT = 15;
+  constexpr int nSetsVUT = 1;
 
   // Number of UT parameters.
-  constexpr int nParsUT = 20;
-  constexpr int nSetsUT = 7;
-
-  // Number of UTFUT parameters.
-  constexpr int nParsUTFUT = 1;
-  constexpr int nSetsUTFUT = 1;
+  constexpr int nParsUT = 12;
+  constexpr int nSetsUT = 6;
 
   // Number of UTTF parameters.
   constexpr int nParsUTTF = 20;
-  constexpr int nSetsUTTF = 2;
+  constexpr int nSetsUTTF = 1;
+
+  // Number of UTTMETA parameters.
+  constexpr int nParsUTTMETA = 19;
+  constexpr int nSetsUTTMETA = 1;
 
   // Number of TFT parameters.
-  constexpr int nParsTFT = 20;
-  constexpr int nSetsTFT = 2;
+  constexpr int nParsTFT = 4;
+  constexpr int nSetsTFT = 1;
 
   // Number of T parameters.
-  constexpr int nParsT = 20;
-  constexpr int nSetsT = 46;
+  constexpr int nParsT = 12;
+  constexpr int nSetsT = 22;
 
   // Number of TLayer parameters.
   constexpr int nParsTLayer = 12;
-  constexpr int nSetsTLayer = 2;
+  constexpr int nSetsTLayer = 4;
 
   // Number of UTLayer parameters.
   constexpr int nParsUTLayer = 4;

@@ -794,6 +794,7 @@ def setup_hlt1_node(enablePhysics=True,
                     data_quality=False,
                     smog2_lumi_prescale=0.1,
                     with_fullKF=False,
+                    with_downstream_KF=False,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[]):
 
@@ -814,6 +815,7 @@ def setup_hlt1_node(enablePhysics=True,
         with_AC_split=with_AC_split,
         with_rich=with_rich,
         with_fullKF=with_fullKF,
+        with_downstream_KF=with_downstream_KF,
         track_max_chi2ndof=chi2_cuts.SV_track_max_chi2ndof)
 
     hlt1_config['reconstruction'] = reconstructed_objects
@@ -1088,7 +1090,7 @@ def setup_hlt1_node(enablePhysics=True,
         validation_node = validator_node(
             reconstructed_objects, line_algorithms,
             includes_matching(tracking_type), with_ut, with_muon,
-            with_AC_split, with_fullKF, prefilters)
+            with_AC_split, with_fullKF, with_downstream_KF, prefilters)
         hlt1_config['validator_node'] = validation_node
 
         node = CompositeNode(

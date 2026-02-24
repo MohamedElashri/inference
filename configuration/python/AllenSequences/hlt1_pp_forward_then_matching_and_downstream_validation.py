@@ -16,5 +16,7 @@ hlt1_node = setup_hlt1_node(
     tracking_type=TrackingType.FORWARD_THEN_MATCHING,
     withMCChecking=True,
     enableRateValidator=True,
-    enableDownstream=True)
+    enableDownstream=True,
+    with_downstream_KF=True,
+)
 generate(hlt1_node)

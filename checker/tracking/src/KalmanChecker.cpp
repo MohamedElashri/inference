@@ -54,6 +54,9 @@ KalmanChecker::KalmanChecker(CheckerInvoker const* invoker, std::string const& r
   m_tree->Branch("ndofT", &m_trk_ndofT);
   m_tree->Branch("ghost", &m_trk_ghost);
   m_tree->Branch("mcp_p", &m_mcp_p);
+  m_tree->Branch("mcp_x", &m_mcp_x);
+  m_tree->Branch("mcp_y", &m_mcp_y);
+  m_tree->Branch("mcp_z", &m_mcp_z);
   m_tree->Branch("velo_hits", &m_trk_velo_hits);
   m_tree->Branch("scifi_hits", &m_trk_scifi_hits);
   m_tree->Branch("ut_hits", &m_trk_ut_hits);
@@ -86,6 +89,9 @@ void KalmanChecker::accumulate(
           m_trk_ghost = 0.f;
           const auto mcp = std::get<0>(assoc.front());
           m_mcp_p = mcp.p;
+          m_mcp_x = mcp.ovtx_x;
+          m_mcp_y = mcp.ovtx_y;
+          m_mcp_z = mcp.ovtx_z;
         }
       }
       m_trk_z = track.z;

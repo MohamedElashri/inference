@@ -72,6 +72,8 @@ def combine_long_containers(long_tracks_0, long_tracks_1):
         "dev_multi_event_long_tracks_view":
         combine_long_track_containers.
         dev_multi_event_long_tracks_view_output_t,
+        "dev_long_track_view":
+        combine_long_track_containers.dev_long_track_view_output_t,
         "dev_multi_event_long_tracks_ptr":
         combine_long_track_containers.dev_multi_event_long_tracks_ptr_output_t,
         "host_number_of_reconstructed_scifi_tracks":

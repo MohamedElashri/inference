@@ -13,10 +13,11 @@ from AllenCore.algorithms import (
     long_track_validator_t, muon_validator_t, host_pv_validator_t,
     host_rate_validator_t, host_routingbits_validator_t, kalman_validator_t,
     host_seeding_XZ_validator_t, host_seeding_validator_t,
-    downstream_validator_t, host_veloscifi_dump_t, host_data_provider_t,
-    host_sel_report_validator_t, data_quality_validator_long_t,
-    data_quality_validator_occupancy_t, data_quality_validator_pv_t,
-    data_quality_validator_velo_t, host_unmatched_seeding_validator_t)
+    downstream_validator_t, downstream_kalman_validator_t,
+    host_veloscifi_dump_t, host_data_provider_t, host_sel_report_validator_t,
+    data_quality_validator_long_t, data_quality_validator_occupancy_t,
+    data_quality_validator_pv_t, data_quality_validator_velo_t,
+    host_unmatched_seeding_validator_t)
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
 from AllenConf.persistency import make_dec_reporter, make_gather_selections, make_routingbits_writer, rb_map
@@ -113,10 +114,15 @@ def long_validation(long_tracks, name="long_validator"):
         dev_offsets_long_tracks_t=long_tracks["dev_offsets_long_tracks"])
 
 
-def downstream_validation(downstream_tracks, name="downstream_validator"):
+def downstream_validation(downstream_tracks,
+                          name="downstream_validator",
+                          with_downstream_KF=False):
     mc_events = mc_data_provider()
     number_of_events = initialize_number_of_events()
 
+    state_name = "dev_downstream_track_states_view"
+    if with_downstream_KF:
+        state_name = "dev_downstream_kf_track_states_view"
     return make_algorithm(
         downstream_validator_t,
         name=name,
@@ -131,8 +137,7 @@ def downstream_validation(downstream_tracks, name="downstream_validator"):
             'dev_offsets_downstream_tracks'],
         dev_multi_event_downstream_tracks_view_t=downstream_tracks[
             'dev_multi_event_downstream_tracks_view'],
-        dev_downstream_track_states_view_t=downstream_tracks[
-            'dev_downstream_track_states_view'])
+        dev_downstream_track_states_view_t=downstream_tracks[state_name])
 
 
 def seeding_xz_validation(name="seed_xz_validator"):
@@ -324,13 +329,13 @@ def routingbits_validation(lines, name="routingbits_validator"):
         routingbit_map=str(rb_map))
 
 
-def kalman_validation(kalman_velo_only, name="kalman_validator"):
+def kalman_validation(kalman_reconstruction, name="kalman_validator"):
     number_of_events = initialize_number_of_events()
     mc_events = mc_data_provider()
 
-    long_tracks = kalman_velo_only["long_tracks"]
+    long_tracks = kalman_reconstruction["long_tracks"]
     velo_kalman_filter = long_tracks["velo_kalman_filter"]
-    pvs = kalman_velo_only["pvs"]
+    pvs = kalman_reconstruction["pvs"]
 
     return make_algorithm(
         kalman_validator_t,
@@ -343,8 +348,34 @@ def kalman_validation(kalman_velo_only, name="kalman_validator"):
             "dev_velo_kalman_endvelo_states_view"],
         dev_multi_event_long_tracks_view_t=long_tracks[
             "dev_multi_event_long_tracks_view"],
-        dev_kf_tracks_t=kalman_velo_only["dev_kf_tracks"],
+        dev_kf_tracks_t=kalman_reconstruction["dev_kf_tracks"],
         dev_offsets_long_tracks_t=long_tracks["dev_offsets_long_tracks"],
+        dev_multi_final_vertices_t=pvs["dev_multi_final_vertices"],
+        dev_number_of_multi_final_vertices_t=pvs[
+            "dev_number_of_multi_final_vertices"])
+
+
+def downstream_kalman_validation(downstream_tracks,
+                                 pvs,
+                                 name="downstream_kalman_validator"):
+    number_of_events = initialize_number_of_events()
+    mc_events = mc_data_provider()
+
+    return make_algorithm(
+        downstream_kalman_validator_t,
+        name=name,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_mc_events_t=mc_events.host_mc_events_t,
+        host_number_of_downstream_tracks_t=downstream_tracks[
+            "host_number_of_downstream_tracks"],
+        dev_multi_event_downstream_tracks_view_t=downstream_tracks[
+            "dev_multi_event_downstream_tracks_view"],
+        dev_downstream_track_offsets_t=downstream_tracks[
+            "dev_offsets_downstream_tracks"],
+        dev_downstream_kf_tracks_t=downstream_tracks[
+            "dev_downstream_kf_tracks"],
+        dev_downstream_kf_track_states_view_t=downstream_tracks[
+            "dev_downstream_kf_track_states_view"],
         dev_multi_final_vertices_t=pvs["dev_multi_final_vertices"],
         dev_number_of_multi_final_vertices_t=pvs[
             "dev_number_of_multi_final_vertices"])
