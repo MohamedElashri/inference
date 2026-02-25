@@ -102,6 +102,8 @@ add_module_names = False
 linkcheck_ignore = [
     # egroup links will give 403
     r"https://groups\.cern\.ch/group/lhcb-rta-selections/default\.aspx",
+    # Gives 403
+    r"https://docutils.sourceforge.io/rst.html",
     # really broken, see gaudi/Gaudi#156
     r"http://gaudi\.web\.cern\.ch/gaudi/doxygen/master/index\.html",
 ]
