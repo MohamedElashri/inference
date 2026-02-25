@@ -115,12 +115,14 @@ The build process doesn't differ from standard cmake projects::
 
     mkdir build
     cd build
-    cmake -DSTANDALONE=ON ..
+    cmake -DINSTALL_GEOMETRY -DSTANDALONE=ON ..
     make
+
+Note that specifying ``-DINSTALL_GEOMETRY`` here will build the necessary files needed by the geometry (by default these are searched for on CVMFS).
 
 To run Allen, simply invoke the generated binary::
 
-    ./Allen --sequence hlt1_pp_validation
+    ./Allen --sequence hlt1_pp_validation -g allen_geometries/<path to geometry> --mdf <the input file>
 
 Building on macOS
 -----------------

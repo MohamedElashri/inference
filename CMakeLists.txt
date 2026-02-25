@@ -31,6 +31,7 @@ option(STANDALONE "Build Allen standalone" OFF)
 option(TREAT_WARNINGS_AS_ERRORS "Treat all warnings as errors" OFF)
 option(ALWAYS_DISPATCH_TO_DEFAULT "Dispatch architecture-specific functions always to default target" OFF)
 option(USE_BOOST_FILESYSTEM "Use Boost filesystem library instead of std::filesystem" OFF)
+option(INSTALL_GEOMETRY "Install LHCb geometry in the build dir (recommended for container builds)" OFF)
 
 # --------
 # Settings
@@ -180,6 +181,7 @@ endif()
 
 set(WITH_Allen_PRIVATE_DEPENDENCIES TRUE)
 include(AllenDependencies)
+include(CheckMagFields)
 
 if(NOT STANDALONE)
   set(CMAKE_CXX_STANDARD ${GAUDI_CXX_STANDARD})
