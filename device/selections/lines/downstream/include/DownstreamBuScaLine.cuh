@@ -56,6 +56,8 @@ namespace downstream_mva_busca_line {
       bool muon_line;
       bool electron_line;
       bool hadron_line;
+      bool KK_line;
+      bool disable_mass_cut;
       bool disable_R_cut;
       bool clean_region;
       bool general_line;
@@ -78,6 +80,7 @@ namespace downstream_mva_busca_line {
         histogram_ks_fd_min(algo.m_histogramFDMin), histogram_ks_fd_max(algo.m_histogramFDMax),
         histogram_ks_fd_nbins(algo.m_histogramFDNBins), muon_line(algo.m_muon_line.value()),
         electron_line(algo.m_electron_line.value()), hadron_line(algo.m_hadron_line.value()),
+        KK_line(algo.m_KK_line.value()), disable_mass_cut(algo.m_disable_mass_cut.value()),
         disable_R_cut(algo.m_disable_R_cut.value()), clean_region(algo.m_clean_region.value()),
         general_line(algo.m_general_line.value()), busca_scaled(algo.m_busca_scaled.data(ctx)),
         busca_armenteros(algo.m_busca_armenteros.data(ctx)),
@@ -141,7 +144,9 @@ namespace downstream_mva_busca_line {
     Allen::Property<bool> m_muon_line {this, "muon_line", true, "Turn on muon BuSca line"};
     Allen::Property<bool> m_electron_line {this, "electron_line", false, "Turn of electron line"};
     Allen::Property<bool> m_hadron_line {this, "hadron_line", false, "Turn of hadron line"};
+    Allen::Property<bool> m_KK_line {this, "KK_line", false, "Turn of KK line"};
     Allen::Property<bool> m_disable_R_cut {this, "disable_R_cut", false, "Turn of hadron line"};
+    Allen::Property<bool> m_disable_mass_cut {this, "disable_mass_cut", false, "Disable mass cut"};
     Allen::Property<bool> m_general_line {this, "general_line", true, "general line with specific trigger system"};
     Allen::Property<bool> m_clean_region {this, "clean_region", false, "clean region"};
 

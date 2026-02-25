@@ -68,11 +68,13 @@ __device__ bool downstream_mva_busca_line::downstream_mva_busca_line_t::select(
 
       if (properties.muon_line) type_selection = lepton_selection<13>(composite);
       if (properties.electron_line) type_selection = lepton_selection<11>(composite);
-      if (properties.hadron_line) type_selection = true;
+      if (properties.hadron_line | properties.KK_line) type_selection = true;
 
       if (type_selection && busca_mva > properties.mva_threshold) {
 
         float m = composite.m12(Allen::mPi, Allen::mPi);
+
+        if (properties.KK_line) m = composite.m12(Allen::mK, Allen::mK);
         if (properties.muon_line) m = composite.m12(Allen::mMu, Allen::mMu);
         if (properties.electron_line) m = composite.m12(Allen::mEl, Allen::mEl);
 
@@ -106,17 +108,21 @@ __device__ bool downstream_mva_busca_line::downstream_mva_busca_line_t::select(
 
         const bool is_R = (R < rmin) || (R > rmax);
 
-        const bool mass_cut =
-          (mass_ks < properties.mass_pipi_lower_threshold || mass_ks > properties.mass_pipi_higher_threshold) &&
-          (mass_lambda_1 < properties.mass_ppi_lower_threshold ||
-           mass_lambda_1 > properties.mass_ppi_lower_threshold) &&
-          (mass_lambda_2 < properties.mass_ppi_lower_threshold ||
-           mass_lambda_2 > properties.mass_ppi_lower_threshold) &&
-          (mass_ee > properties.mass_ee_cut);
+        bool mass_cut = true;
+        if (!properties.KK_line) {
+          mass_cut =
+            (mass_ks < properties.mass_pipi_lower_threshold || mass_ks > properties.mass_pipi_higher_threshold) &&
+            (mass_lambda_1 < properties.mass_ppi_lower_threshold ||
+             mass_lambda_1 > properties.mass_ppi_lower_threshold) &&
+            (mass_lambda_2 < properties.mass_ppi_lower_threshold ||
+             mass_lambda_2 > properties.mass_ppi_lower_threshold) &&
+            (mass_ee > properties.mass_ee_cut);
+        }
 
         if (
           (m > properties.trigger_mass_min) && (m < properties.trigger_mass_max) && (fd < properties.trigger_fd_max) &&
-          (fd > properties.trigger_fd_min) && (is_R || properties.disable_R_cut) && mass_cut) {
+          (fd > properties.trigger_fd_min) && (is_R || properties.disable_R_cut) &&
+          (mass_cut || properties.disable_mass_cut)) {
           return true;
         }
       }
@@ -177,7 +183,7 @@ __device__ void downstream_mva_busca_line::downstream_mva_busca_line_t::monitor(
     bool type_selection = false;
     if (properties.muon_line) type_selection = lepton_selection<13>(pair);
     if (properties.electron_line) type_selection = lepton_selection<11>(pair);
-    if (properties.hadron_line) type_selection = true;
+    if (properties.hadron_line | properties.KK_line) type_selection = true;
 
     if (type_selection && busca_mva > properties.mva_threshold) {
 
@@ -188,6 +194,7 @@ __device__ void downstream_mva_busca_line::downstream_mva_busca_line_t::monitor(
       float m = mass_ks;
       if (properties.muon_line) m = pair.m12(Allen::mMu, Allen::mMu);
       if (properties.electron_line) m = mass_ee;
+      if (properties.KK_line) m = pair.m12(Allen::mK, Allen::mK);
 
       if (
         (fd > properties.histogram_ks_fd_min) & (fd < properties.histogram_ks_fd_max) &
@@ -220,15 +227,20 @@ __device__ void downstream_mva_busca_line::downstream_mva_busca_line_t::monitor(
 
       const bool is_R = (R < rmin) || (R > rmax);
 
-      const bool mass_cut =
-        (mass_ks < properties.mass_pipi_lower_threshold || mass_ks > properties.mass_pipi_higher_threshold) &&
-        (mass_lambda_1 < properties.mass_ppi_lower_threshold || mass_lambda_1 > properties.mass_ppi_higher_threshold) &&
-        (mass_lambda_2 < properties.mass_ppi_lower_threshold || mass_lambda_2 > properties.mass_ppi_higher_threshold) &&
-        (mass_ee > properties.mass_ee_cut);
+      bool mass_cut = true;
+      if (!properties.KK_line) {
+        mass_cut =
+          (mass_ks < properties.mass_pipi_lower_threshold || mass_ks > properties.mass_pipi_higher_threshold) &&
+          (mass_lambda_1 < properties.mass_ppi_lower_threshold ||
+           mass_lambda_1 > properties.mass_ppi_higher_threshold) &&
+          (mass_lambda_2 < properties.mass_ppi_lower_threshold ||
+           mass_lambda_2 > properties.mass_ppi_higher_threshold) &&
+          (mass_ee > properties.mass_ee_cut);
+      }
 
       if (
-        mass_cut && (is_R || properties.disable_R_cut) && (dA_p > properties.daughter_momentum_cut) &&
-        (dB_p > properties.daughter_momentum_cut)) {
+        (mass_cut || properties.disable_mass_cut) && (is_R || properties.disable_R_cut) &&
+        (dA_p > properties.daughter_momentum_cut) && (dB_p > properties.daughter_momentum_cut)) {
         properties.busca_scaled.increment(m, fd);
         properties.busca_armenteros.increment(
           pair.vertex().downstream_armentero_podolanski_x(), pair.vertex().downstream_armentero_podolanski_y());

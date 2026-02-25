@@ -168,13 +168,15 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                     'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
                 name="Hlt1DownstreamBuScaMonitoring",
                 line_type="monitoring",
-                enable_trigger=False),
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 Monitoring Line with same sign reconstuction / Trigger disabled
                 reconstructed_objects[
                     'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
                 name="Hlt1DownstreamBuScaMonitoringSameSign",
                 line_type="monitoring",
-                enable_trigger=False),
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 Monitoring Line for clean region / Trigger disabled
                 reconstructed_objects[
                     'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
@@ -186,7 +188,8 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 histogram_ks_fd_max=1600,
                 histogram_ks_fd_nbins=10,
                 clean_region=True,
-                enable_trigger=False),
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 Monitoring Line for clean region with same sign reconstuction / Trigger disabled
                 reconstructed_objects[
                     'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
@@ -198,29 +201,49 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 histogram_ks_fd_min=1200,
                 histogram_ks_fd_max=1600,
                 histogram_ks_fd_nbins=10,
-                clean_region=True),
+                clean_region=True,
+                enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 HH with PiPi mass hypo. / Trigger enabled
                 reconstructed_objects[
                     'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
                 name="Hlt1DownstreamBuScaPostScaled",
                 line_type="hadron",
                 enable_trigger=True,
-                post_scaler=0.01,
-                mva_busca_threshold=0.1),
+                post_scaler=0.005,
+                trigger_mass_max=100_000,  # 100 GeV maximum mass
+                mva_busca_threshold=0.1,
+                enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 MuMu Line / Trigger enabled
                 reconstructed_objects[
                     'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
                 name="Hlt1DownstreamBuScaMuMuLine",
                 line_type="muon",
                 mva_busca_threshold=0.1,
-                enable_trigger=True),
+                trigger_mass_max=100_000,
+                enable_trigger=True,
+                enable_tupling=enable_tupling),
             make_BuSca_line(  # BuSca HLT1 ElEl Line / Trigger enabled
                 reconstructed_objects[
                     'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
                 name="Hlt1DownstreamBuScaElElLine",
                 line_type="electron",
                 mva_busca_threshold=0.1,
-                enable_trigger=True),
+                trigger_mass_max=100_000,
+                enable_trigger=True,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 KK Line / Trigger enabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
+                name="Hlt1DownstreamBuScaKKlLine",
+                line_type="kaon",
+                mva_busca_threshold=0.97,
+                enable_trigger=True,
+                trigger_mass_min=1200,
+                trigger_mass_max=5000,
+                trigger_fd_min=1200,
+                trigger_fd_max=2000,
+                disable_R_cut=True,
+                enable_tupling=enable_tupling),
             make_downstream_two_track_ks_line(
                 reconstructed_objects['downstream_tracks'],
                 reconstructed_objects['downstream_secondary_vertices'],
@@ -229,6 +252,83 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 DownstreamTwoTrackKs_minTrackPt_piKs,
                 enable_monitoring=True,
                 enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 HH with PiPi mass hypo. with same sign reconstuction / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
+                name="Hlt1DownstreamBuScaPostScaledSameSign",
+                line_type="hadron",
+                post_scaler=0.01,
+                mva_busca_threshold=0.1,
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 MuMu Line with same sign reconstuction / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
+                name="Hlt1DownstreamBuScaMuMuLineSameSign",
+                line_type="muon",
+                mva_busca_threshold=0.1,
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 ElEl Line with same sign reconstuction / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
+                name="Hlt1DownstreamBuScaElElLineSameSign",
+                line_type="electron",
+                mva_busca_threshold=0.1,
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 High Mass Line / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
+                name="Hlt1DownstreamBuScaHighMassLine",
+                line_type="monitoring",
+                histogram_ks_fd_min=500,
+                histogram_ks_fd_max=2500,
+                histogram_ks_fd_nbins=20,
+                histogram_ks_mass_min=1200,
+                histogram_ks_mass_max=50000,
+                histogram_ks_mass_nbins=50,
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 High Mass Line with same sign reconstuction / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
+                name="Hlt1DownstreamBuScaHighMassLineSameSign",
+                line_type="monitoring",
+                histogram_ks_fd_min=500,
+                histogram_ks_fd_max=2500,
+                histogram_ks_fd_nbins=20,
+                histogram_ks_mass_min=1200,
+                histogram_ks_mass_max=50000,
+                histogram_ks_mass_nbins=50,
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 MuMu High Mass Line / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
+                name="Hlt1DownstreamBuScaMuMuHighMassLine",
+                line_type="muon",
+                histogram_ks_fd_min=500,
+                histogram_ks_fd_max=2500,
+                histogram_ks_fd_nbins=20,
+                histogram_ks_mass_min=1200,
+                histogram_ks_mass_max=50000,
+                histogram_ks_mass_nbins=50,
+                enable_trigger=False,
+                enable_tupling=enable_tupling),
+            make_BuSca_line(  # BuSca HLT1 MuMu High Mass Line with same sign reconstuction / Trigger disabled
+                reconstructed_objects[
+                    'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
+                name="Hlt1DownstreamBuScaMuMuHighMassLineSameSign",
+                line_type="muon",
+                histogram_ks_fd_min=500,
+                histogram_ks_fd_max=2500,
+                histogram_ks_fd_nbins=20,
+                histogram_ks_mass_min=1200,
+                histogram_ks_mass_max=50000,
+                histogram_ks_mass_nbins=50,
+                enable_trigger=False,
+                enable_tupling=enable_tupling)
         ]
         if 'downstream_sv_pairs' in reconstructed_objects:
             lines += [
@@ -239,76 +339,6 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                     minTrackPt_piKs=450.0,
                     minComboPt_Ks=1200.0,
                     enable_tupling=enable_tupling),
-                make_BuSca_line(  # BuSca HLT1 HH with PiPi mass hypo. with same sign reconstuction / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaPostScaledSameSign",
-                    line_type="hadron",
-                    post_scaler=0.01,
-                    mva_busca_threshold=0.1,
-                    enable_trigger=False),
-                make_BuSca_line(  # BuSca HLT1 MuMu Line with same sign reconstuction / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaMuMuLineSameSign",
-                    line_type="muon",
-                    mva_busca_threshold=0.1,
-                    enable_trigger=False),
-                make_BuSca_line(  # BuSca HLT1 ElEl Line with same sign reconstuction / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaElElLineSameSign",
-                    line_type="electron",
-                    mva_busca_threshold=0.1,
-                    enable_trigger=False),
-                make_BuSca_line(  # BuSca HLT1 High Mass Line / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaHighMassLine",
-                    line_type="monitoring",
-                    histogram_ks_fd_min=500,
-                    histogram_ks_fd_max=2500,
-                    histogram_ks_fd_nbins=20,
-                    histogram_ks_mass_min=1200,
-                    histogram_ks_mass_max=50000,
-                    histogram_ks_mass_nbins=50,
-                    enable_trigger=False),
-                make_BuSca_line(  # BuSca HLT1 High Mass Line with same sign reconstuction / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaHighMassLineSameSign",
-                    line_type="monitoring",
-                    histogram_ks_fd_min=500,
-                    histogram_ks_fd_max=2500,
-                    histogram_ks_fd_nbins=20,
-                    histogram_ks_mass_min=1200,
-                    histogram_ks_mass_max=50000,
-                    histogram_ks_mass_nbins=50,
-                    enable_trigger=False),
-                make_BuSca_line(  # BuSca HLT1 MuMu High Mass Line / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaMuMuHighMassLine",
-                    line_type="muon",
-                    histogram_ks_fd_min=500,
-                    histogram_ks_fd_max=2500,
-                    histogram_ks_fd_nbins=20,
-                    histogram_ks_mass_min=1200,
-                    histogram_ks_mass_max=50000,
-                    histogram_ks_mass_nbins=50,
-                    enable_trigger=False),
-                make_BuSca_line(  # BuSca HLT1 MuMu High Mass Line with same sign reconstuction / Trigger disabled
-                    reconstructed_objects[
-                        'downstream_combined_hadronic_and_leptonic_same_sign_secondary_vertices'],
-                    name="Hlt1DownstreamBuScaMuMuHighMassLineSameSign",
-                    line_type="muon",
-                    histogram_ks_fd_min=500,
-                    histogram_ks_fd_max=2500,
-                    histogram_ks_fd_nbins=20,
-                    histogram_ks_mass_min=1200,
-                    histogram_ks_mass_max=50000,
-                    histogram_ks_mass_nbins=50,
-                    enable_trigger=False)
             ]
 
     if "ttrack_vertices" in reconstructed_objects:

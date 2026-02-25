@@ -143,7 +143,8 @@ def make_BuSca_line(downstream_secondary_vertices,
                     histogram_ks_fd_nbins=20,
                     histogram_ks_mass_min=200,
                     histogram_ks_mass_max=5000,
-                    histogram_ks_mass_nbins=80):
+                    histogram_ks_mass_nbins=80,
+                    disable_R_cut=False):
 
     number_of_events = initialize_number_of_events()
 
@@ -172,6 +173,8 @@ def make_BuSca_line(downstream_secondary_vertices,
         muon_line=(line_type == "muon"),
         electron_line=(line_type == "electron"),
         hadron_line=(line_type == "hadron"),
+        KK_line=(line_type == 'kaon'),
+        disable_R_cut=disable_R_cut,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         enable_tupling=enable_tupling,
         dev_downstream_mva_busca_t=busca_mva,
