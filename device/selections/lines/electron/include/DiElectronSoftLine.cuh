@@ -38,6 +38,8 @@ namespace di_electron_soft_line {
     DEVICE_OUTPUT(ee_cloneang_t, float) ee_cloneang;
     DEVICE_OUTPUT(minpt_uncorr_t, float) minpt_uncorr;
     DEVICE_OUTPUT(sv_pt_t, float) sv_pt;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct di_electron_soft_line_t : public SelectionAlgorithm,
@@ -74,7 +76,9 @@ namespace di_electron_soft_line {
       sv_ipperdz_t,
       ee_cloneang_t,
       minpt_uncorr_t,
-      sv_pt_t>;
+      sv_pt_t,
+      evtNo_t,
+      runNo_t>;
 
     __device__ static bool select(
       const Parameters&,

@@ -45,6 +45,9 @@ namespace rich_1_line {
 
     DEVICE_OUTPUT(dev_phi_t, float) dev_phi;
     HOST_OUTPUT(host_phi_t, float) host_phi;
+
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   // SelectionAlgorithm definition
@@ -73,6 +76,8 @@ namespace rich_1_line {
     // Selection function.
     __device__ static bool
     select(const Parameters&, const DeviceProperties&, std::tuple<const Allen::Views::Physics::BasicParticle> input);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
     // Stuff for monitoring hists
     void init_tuples(const ArgumentReferences<Parameters>& arguments, const Allen::Context& context) const;

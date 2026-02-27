@@ -116,7 +116,8 @@ def make_d2kpi_align_line(long_tracks,
 def make_passthrough_line(name="Hlt1Passthrough",
                           pre_scaler=0.0001,
                           pre_scaler_hash_string=None,
-                          post_scaler_hash_string=None):
+                          post_scaler_hash_string=None,
+                          enable_tupling=False):
 
     number_of_events = initialize_number_of_events()
 
@@ -127,7 +128,8 @@ def make_passthrough_line(name="Hlt1Passthrough",
         host_number_of_events_t=number_of_events["host_number_of_events"],
         dev_number_of_events_t=number_of_events["dev_number_of_events"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+        enable_tupling=enable_tupling)
 
 
 def make_rich_line(line_type,
@@ -138,7 +140,8 @@ def make_rich_line(line_type,
                    post_scaler,
                    maxTrChi2,
                    pre_scaler_hash_string=None,
-                   post_scaler_hash_string=None):
+                   post_scaler_hash_string=None,
+                   enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -153,7 +156,8 @@ def make_rich_line(line_type,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
         post_scaler_hash_string=post_scaler_hash_string or name + '_post',
-        maxTrChi2=maxTrChi2)
+        maxTrChi2=maxTrChi2,
+        enable_tupling=enable_tupling)
 
 
 def make_rich_1_line(long_tracks,
@@ -163,10 +167,19 @@ def make_rich_1_line(long_tracks,
                      pre_scaler=1.0,
                      post_scaler=1.0,
                      pre_scaler_hash_string=None,
-                     post_scaler_hash_string=None):
-    return make_rich_line(rich_1_line_t, long_tracks, long_track_particles,
-                          name, pre_scaler, post_scaler, maxTrChi2,
-                          pre_scaler_hash_string, post_scaler_hash_string)
+                     post_scaler_hash_string=None,
+                     enable_tupling=False):
+    return make_rich_line(
+        rich_1_line_t,
+        long_tracks,
+        long_track_particles,
+        name,
+        pre_scaler,
+        post_scaler,
+        maxTrChi2,
+        pre_scaler_hash_string,
+        post_scaler_hash_string,
+        enable_tupling=enable_tupling)
 
 
 def make_rich_2_line(long_tracks,
@@ -176,10 +189,19 @@ def make_rich_2_line(long_tracks,
                      pre_scaler=1.0,
                      post_scaler=1.0,
                      pre_scaler_hash_string=None,
-                     post_scaler_hash_string=None):
-    return make_rich_line(rich_2_line_t, long_tracks, long_track_particles,
-                          name, pre_scaler, post_scaler, maxTrChi2,
-                          pre_scaler_hash_string, post_scaler_hash_string)
+                     post_scaler_hash_string=None,
+                     enable_tupling=False):
+    return make_rich_line(
+        rich_2_line_t,
+        long_tracks,
+        long_track_particles,
+        name,
+        pre_scaler,
+        post_scaler,
+        maxTrChi2,
+        pre_scaler_hash_string,
+        post_scaler_hash_string,
+        enable_tupling=enable_tupling)
 
 
 def make_displaced_dimuon_mass_line(long_tracks,
@@ -221,7 +243,8 @@ def make_di_muon_mass_align_line(long_tracks,
                                  minDira=0.9995,
                                  pre_scaler_hash_string=None,
                                  post_scaler_hash_string=None,
-                                 name="Hlt1DiMuonHighMassAlignment"):
+                                 name="Hlt1DiMuonHighMassAlignment",
+                                 enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -245,7 +268,8 @@ def make_di_muon_mass_align_line(long_tracks,
         minHighMassTrackP=minHighMassTrackP,
         minIP=minIP,
         minFdChi2=minFdChi2,
-        minDira=minDira)
+        minDira=minDira,
+        enable_tupling=enable_tupling)
 
 
 @configurable
@@ -263,7 +287,8 @@ def make_odin_calib_line(pre_scaler=1.,
                          post_scaler=1.,
                          pre_scaler_hash_string=None,
                          post_scaler_hash_string=None,
-                         name="Hlt1ODINCalib"):
+                         name="Hlt1ODINCalib",
+                         enable_tupling=False):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
 
@@ -275,4 +300,5 @@ def make_odin_calib_line(pre_scaler=1.,
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
-        post_scaler_hash_string=post_scaler_hash_string or name + "_post")
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        enable_tupling=enable_tupling)

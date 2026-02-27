@@ -34,3 +34,13 @@ __device__ bool velo_micro_bias_line::velo_micro_bias_line_t::select(
   const auto number_of_velo_tracks = std::get<0>(input);
   return number_of_velo_tracks >= properties.min_velo_tracks;
 }
+
+__device__ bool velo_micro_bias_line::velo_micro_bias_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const unsigned> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

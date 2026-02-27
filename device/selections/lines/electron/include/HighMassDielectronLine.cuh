@@ -102,6 +102,8 @@ namespace highmass_dielectron_line {
       unsigned,
       bool);
 
+    using monitoring_types = std::tuple<mass_t, evtNo_t, runNo_t>;
+
   private:
     // Low-mass no-IP dielectron selections.
     Allen::Property<float> m_minTrackP {this,
@@ -127,7 +129,5 @@ namespace highmass_dielectron_line {
                                                                         "dielectron_upsilon_mass_counts_ss",
                                                                         "dielectron masses w/brem (Upsilon)",
                                                                         {100u, 8000.f, 11500.f}};
-
-    using monitoring_types = std::tuple<mass_t, evtNo_t, runNo_t>;
   };
 } // namespace highmass_dielectron_line

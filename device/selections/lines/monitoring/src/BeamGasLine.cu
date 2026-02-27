@@ -43,3 +43,13 @@ __device__ bool beam_gas_line::beam_gas_line_t::select(
          velo_track_hit_number >= properties.minNHits && velo_track_state_poca_z > properties.minZ &&
          velo_track_state_poca_z < properties.maxZ;
 }
+
+__device__ bool beam_gas_line::beam_gas_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const unsigned, const unsigned, const unsigned, const float> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

@@ -21,6 +21,8 @@ namespace passthrough_line {
     MASK_INPUT(dev_event_list_t) dev_event_list;
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
     HOST_OUTPUT(host_fn_parameters_t, char) host_fn_parameters;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct passthrough_line_t : public SelectionAlgorithm, Parameters, EventLine<passthrough_line_t, Parameters> {
@@ -28,6 +30,11 @@ namespace passthrough_line {
     get_input(const Parameters& parameters, const unsigned event_number, const unsigned);
 
     __device__ static bool select(const Parameters& parameters, std::tuple<const bool> input);
+
+    __device__ static bool
+    fill_tuples(const Parameters& parameters, std::tuple<const bool> input, unsigned index, bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
   };

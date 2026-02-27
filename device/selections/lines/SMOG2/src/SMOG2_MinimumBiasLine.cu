@@ -54,3 +54,13 @@ __device__ bool SMOG2_minimum_bias_line::SMOG2_minimum_bias_line_t::select(
   return velo_track_state_z < properties.maxZ && velo_track_state_z >= properties.minZ &&
          velo_track_hit_number >= properties.minNHits;
 }
+
+__device__ bool SMOG2_minimum_bias_line::SMOG2_minimum_bias_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const unsigned, const float> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

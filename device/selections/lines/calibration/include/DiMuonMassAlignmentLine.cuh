@@ -24,6 +24,8 @@ namespace di_muon_mass_alignment_line {
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
     HOST_OUTPUT_WITH_DEPENDENCIES(host_fn_parameters_t, DEPENDENCIES(dev_particle_container_t), char)
     host_fn_parameters;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct di_muon_mass_alignment_line_t : public SelectionAlgorithm,
@@ -65,6 +67,15 @@ namespace di_muon_mass_alignment_line {
       const Parameters&,
       const DeviceProperties&,
       std::tuple<const Allen::Views::Physics::CompositeParticle, const float>);
+
+    __device__ static bool fill_tuples(
+      const Parameters& parameters,
+      const DeviceProperties&,
+      std::tuple<const Allen::Views::Physics::CompositeParticle, const float> input,
+      unsigned index,
+      bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
     Allen::Property<float> m_minHighMassTrackPt {this,

@@ -24,3 +24,13 @@ __device__ bool one_muon_track_line::one_muon_track_line_t::select(
 
   return decision;
 }
+
+__device__ bool one_muon_track_line::one_muon_track_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const MuonTrack> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

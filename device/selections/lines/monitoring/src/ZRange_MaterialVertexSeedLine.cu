@@ -50,3 +50,13 @@ __device__ bool z_range_materialvertex_seed_line::z_range_materialvertex_seed_li
   const auto& vertex_seed_z = std::get<0>(input);
   return vertex_seed_z >= properties.min_z_materialvertex_seed && vertex_seed_z < properties.max_z_materialvertex_seed;
 }
+
+__device__ bool z_range_materialvertex_seed_line::z_range_materialvertex_seed_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const float> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

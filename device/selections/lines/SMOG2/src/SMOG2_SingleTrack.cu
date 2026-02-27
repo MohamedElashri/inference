@@ -27,3 +27,13 @@ __device__ bool SMOG2_singletrack_line::SMOG2_singletrack_line_t::select(
 
   return decision;
 }
+
+__device__ bool SMOG2_singletrack_line::SMOG2_singletrack_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const Allen::Views::Physics::BasicParticle> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

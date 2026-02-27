@@ -19,3 +19,12 @@ __device__ bool odin_calib_line::odin_calib_line_t::select(const Parameters&, st
   LHCb::ODIN odin {std::get<0>(input)};
   return odin.triggerType() == to_integral(LHCb::ODIN::TriggerTypes::CalibrationTrigger);
 }
+
+__device__ bool odin_calib_line::odin_calib_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  [[maybe_unused]] std::tuple<const ODINData&> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

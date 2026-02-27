@@ -16,6 +16,9 @@ namespace z_range_materialvertex_seed_line {
 
     DEVICE_INPUT(dev_consolidated_interaction_seeds_t, float3) dev_consolidated_interaction_seeds;
     DEVICE_INPUT(dev_interaction_seeds_offsets_t, unsigned) dev_interaction_seeds_offsets;
+
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   // SelectionAlgorithm definition
@@ -46,6 +49,15 @@ namespace z_range_materialvertex_seed_line {
 
     // Selection function
     __device__ static bool select(const Parameters&, const DeviceProperties&, std::tuple<const float> input);
+
+    __device__ static bool fill_tuples(
+      const Parameters& parameters,
+      const DeviceProperties&,
+      std::tuple<const float> input,
+      unsigned index,
+      bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
     // Commonly required properties
