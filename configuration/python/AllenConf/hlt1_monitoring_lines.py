@@ -29,7 +29,8 @@ def make_beam_line(pre_scaler_hash_string=None,
                    pre_scaler=1.,
                    post_scaler=1.e-3,
                    beam_crossing_type=0,
-                   name=None):
+                   name=None,
+                   enable_tupling=False):
     name_map = {
         0: "Hlt1NoBeam",
         1: "Hlt1BeamOne",
@@ -49,7 +50,8 @@ def make_beam_line(pre_scaler_hash_string=None,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or line_name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or line_name + "_post",
-        dev_odin_data_t=odin["dev_odin_data"])
+        dev_odin_data_t=odin["dev_odin_data"],
+        enable_tupling=enable_tupling)
 
 
 def make_velo_micro_bias_line(velo_tracks,
@@ -58,7 +60,8 @@ def make_velo_micro_bias_line(velo_tracks,
                               post_scaler=1.e-4,
                               pre_scaler_hash_string=None,
                               post_scaler_hash_string=None,
-                              min_velo_tracks=1):
+                              min_velo_tracks=1,
+                              enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -73,7 +76,8 @@ def make_velo_micro_bias_line(velo_tracks,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
-        min_velo_tracks=min_velo_tracks)
+        min_velo_tracks=min_velo_tracks,
+        enable_tupling=enable_tupling)
 
 
 def make_odin_event_type_with_decoding_line(odin_event_type: str,
@@ -145,7 +149,8 @@ def make_beam_gas_line(velo_tracks,
                        post_scaler_hash_string=None,
                        pre_scaler=1.,
                        post_scaler=1.e-3,
-                       beam_crossing_type=1):
+                       beam_crossing_type=1,
+                       enable_tupling=False):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
 
@@ -167,7 +172,8 @@ def make_beam_gas_line(velo_tracks,
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
-        post_scaler_hash_string=post_scaler_hash_string or name + "_post")
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        enable_tupling=enable_tupling)
 
 
 @configurable
@@ -255,7 +261,8 @@ def make_z_range_materialvertex_seed_line(
         pre_scaler=1.,
         post_scaler=1.,
         pre_scaler_hash_string=None,
-        post_scaler_hash_string=None):
+        post_scaler_hash_string=None,
+        enable_tupling=False):
 
     return make_algorithm(
         z_range_materialvertex_seed_line_t,
@@ -270,5 +277,6 @@ def make_z_range_materialvertex_seed_line(
         max_z_materialvertex_seed=max_z_materialvertex_seed,
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
+        enable_tupling=enable_tupling,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post")

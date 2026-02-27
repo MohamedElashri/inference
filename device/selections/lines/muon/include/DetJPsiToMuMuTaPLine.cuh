@@ -56,6 +56,8 @@ namespace det_jpsitomumu_tap_line {
     DEVICE_OUTPUT(muprobe_chi2ndof_t, float) muprobe_chi2ndof;
     DEVICE_OUTPUT(mutag_eta_t, float) mutag_eta;
     DEVICE_OUTPUT(muprobe_eta_t, float) muprobe_eta;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct det_jpsitomumu_tap_line_t : public SelectionAlgorithm,
@@ -138,7 +140,9 @@ namespace det_jpsitomumu_tap_line {
       mutag_chi2ndof_t,
       muprobe_chi2ndof_t,
       mutag_eta_t,
-      muprobe_eta_t>;
+      muprobe_eta_t,
+      evtNo_t,
+      runNo_t>;
 
   private:
     Allen::Property<float> m_JpsiMinPt {this, "JpsiMinPt", 1000.f * Allen::Units::MeV, "JpsiMinPt description"};

@@ -41,7 +41,8 @@ def make_SMOG2_dimuon_displaced_line(secondary_vertices,
                                      useMuonNN=False,
                                      pre_scaler=1.,
                                      post_scaler=1.,
-                                     enable_monitoring=True):
+                                     enable_monitoring=True,
+                                     enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -69,7 +70,8 @@ def make_SMOG2_dimuon_displaced_line(secondary_vertices,
         useNN=useMuonNN,
         minPVZ=min_PVz,
         maxPVZ=max_PVz,
-        enable_monitoring=is_allen_standalone() and enable_monitoring)
+        enable_monitoring=is_allen_standalone() and enable_monitoring,
+        enable_tupling=enable_tupling)
 
 
 @configurable
@@ -164,7 +166,8 @@ def make_SMOG2_minimum_bias_line(velo_tracks,
                                  min_z=-537.5,
                                  max_z=-337.5,
                                  pre_scaler=0.00003,
-                                 post_scaler=1.):
+                                 post_scaler=1.,
+                                 enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -181,7 +184,8 @@ def make_SMOG2_minimum_bias_line(velo_tracks,
         dev_velo_states_view_t=velo_states[
             "dev_velo_kalman_beamline_states_view"],
         minZ=min_z,
-        maxZ=max_z)
+        maxZ=max_z,
+        enable_tupling=enable_tupling)
 
 
 def make_SMOG2_ditrack_line(
@@ -289,7 +293,8 @@ def make_SMOG2_singletrack_line(long_tracks,
                                 minPt=1.5,
                                 maxGhostProb=0.3,
                                 pre_scaler=1.,
-                                post_scaler=1.):
+                                post_scaler=1.,
+                                enable_tupling=False):
 
     number_of_events = initialize_number_of_events()
 
@@ -309,7 +314,8 @@ def make_SMOG2_singletrack_line(long_tracks,
         minPt=minPt,
         maxGhostProb=maxGhostProb,
         minBPVz=min_z,
-        maxBPVz=max_z)
+        maxBPVz=max_z,
+        enable_tupling=enable_tupling)
 
 
 def make_SMOG2_single_muon_line(long_tracks,
@@ -326,7 +332,8 @@ def make_SMOG2_single_muon_line(long_tracks,
                                 min_z=-537.5,
                                 max_z=-337.5,
                                 pre_scaler=1.,
-                                post_scaler=1.):
+                                post_scaler=1.,
+                                enable_tupling=False):
 
     number_of_events = initialize_number_of_events()
 
@@ -351,4 +358,5 @@ def make_SMOG2_single_muon_line(long_tracks,
         MinPt=MinPt,
         maxChi2Corr=maxChi2Corr,
         minMuonNN=minMuonNN,
-        useNN=useMuonNN)
+        useNN=useMuonNN,
+        enable_tupling=enable_tupling)

@@ -48,3 +48,13 @@ __device__ bool di_muon_mass_alignment_line::di_muon_mass_alignment_line_t::sele
          vertex.eta() < properties.maxEta && vertex.vertex().chi2() < properties.maxVertexChi2 &&
          vertex.vertex().z() >= properties.minZ && vertex.has_pv() && vertex.pv().position.z >= properties.minZ;
 }
+
+__device__ bool di_muon_mass_alignment_line::di_muon_mass_alignment_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const Allen::Views::Physics::CompositeParticle, const float> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

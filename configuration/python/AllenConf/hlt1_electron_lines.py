@@ -239,6 +239,7 @@ def make_highmass_dielectron_line(
         minMass=minMass,
         maxMass=maxMass,
         enable_monitoring=enable_monitoring,
+        enable_tupling=enable_tupling,
         OppositeSign=(not is_same_sign))
 
 

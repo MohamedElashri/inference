@@ -23,3 +23,12 @@ __device__ bool passthrough_line::passthrough_line_t::select(const Parameters&, 
 {
   return std::get<0>(input);
 }
+
+__device__ bool passthrough_line::passthrough_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  [[maybe_unused]] std::tuple<const bool> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

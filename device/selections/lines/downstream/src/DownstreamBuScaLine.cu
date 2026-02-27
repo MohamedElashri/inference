@@ -282,3 +282,13 @@ __device__ bool downstream_mva_busca_line::downstream_mva_busca_line_t::lepton_s
 
   return false;
 }
+
+__device__ bool downstream_mva_busca_line::downstream_mva_busca_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const Allen::Views::Physics::CompositeParticle, const unsigned> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

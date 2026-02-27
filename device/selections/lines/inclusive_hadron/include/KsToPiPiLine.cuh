@@ -30,6 +30,8 @@ namespace kstopipi_line {
     DEVICE_OUTPUT(sv_masses_t, float) sv_masses;
     DEVICE_OUTPUT(pt_t, float) pt;
     DEVICE_OUTPUT(mipchi2_t, float) mipchi2;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct kstopipi_line_t : public SelectionAlgorithm, Parameters, CompositeParticleLine<kstopipi_line_t, Parameters> {
@@ -56,7 +58,7 @@ namespace kstopipi_line {
       {}
     };
 
-    using monitoring_types = std::tuple<sv_masses_t, pt_t, mipchi2_t>;
+    using monitoring_types = std::tuple<sv_masses_t, pt_t, mipchi2_t, evtNo_t, runNo_t>;
 
     __device__ static bool
     select(const Parameters&, const DeviceProperties&, std::tuple<const Allen::Views::Physics::CompositeParticle>);

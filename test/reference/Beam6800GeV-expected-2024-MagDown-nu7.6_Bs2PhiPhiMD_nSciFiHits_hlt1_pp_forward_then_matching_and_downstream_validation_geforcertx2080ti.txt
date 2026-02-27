@@ -130,7 +130,7 @@ Hlt1DiElectronDisplaced:                               4/   500, (  240.00 +/-  
 Hlt1DiElectronHighMass:                                0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronHighMass_SS:                             0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronLowMass_Displaced:                       1/   500, (   60.00 +/-    59.94) kHz
-Hlt1DiElectronLowMass_NoIP:                            2/   500, (  120.00 +/-    84.68) kHz
+Hlt1DiElectronLowMass_NoIP:                            4/   500, (  240.00 +/-   119.52) kHz
 Hlt1DiElectronLowMass_NoIPNorm:                        0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronLowMass_SS_Displaced:                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronLowMass_SS_NoIP:                         0/   500, (    0.00 +/-     0.00) kHz
@@ -375,7 +375,7 @@ Hlt1DiElectronDisplaced:                               4           5
 Hlt1DiElectronHighMass:                                0           0
 Hlt1DiElectronHighMass_SS:                             0           0
 Hlt1DiElectronLowMass_Displaced:                       1           1
-Hlt1DiElectronLowMass_NoIP:                            2           2
+Hlt1DiElectronLowMass_NoIP:                            4           4
 Hlt1DiElectronLowMass_NoIPNorm:                        0           0
 Hlt1DiElectronLowMass_SS_Displaced:                    0           0
 Hlt1DiElectronLowMass_SS_NoIP:                         0           0
@@ -476,12 +476,12 @@ Hlt1VeloMicroBias:                                     1           0
 Hlt1VeloMicroBiasVeloClosing:                          0           0
 Hlt1XiOmegaLLL:                                        0           0
 
-Total decisions:      566
-Total tracks:         1184
+Total decisions:      568
+Total tracks:         1186
 Total calos clusters: 9
-Total SVs:            1107
-Total hits:           30505
-Total stdinfo:        14502
+Total SVs:            1108
+Total hits:           30553
+Total stdinfo:        14524
 
 
 velo_validator validation:

@@ -28,7 +28,8 @@ def make_one_muon_track_line(muon_tracks,
                              pre_scaler=1.,
                              post_scaler=1.,
                              pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None):
+                             post_scaler_hash_string=None,
+                             enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -42,7 +43,8 @@ def make_one_muon_track_line(muon_tracks,
         post_scaler=post_scaler,
         dev_muon_tracks_t=muon_tracks,
         host_muon_total_number_of_tracks_t=host_muon_total_number_of_tracks,
-        dev_muon_tracks_offsets_t=dev_muon_tracks_offsets)
+        dev_muon_tracks_offsets_t=dev_muon_tracks_offsets,
+        enable_tupling=enable_tupling)
 
 
 @configurable
@@ -182,7 +184,8 @@ def make_di_muon_soft_line(long_tracks,
                            name="Hlt1DiMuonSoft",
                            pre_scaler_hash_string=None,
                            post_scaler_hash_string=None,
-                           pre_scaler=1.):
+                           pre_scaler=1.,
+                           enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -194,7 +197,9 @@ def make_di_muon_soft_line(long_tracks,
             "dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
-        pre_scaler=pre_scaler)
+        pre_scaler=pre_scaler,
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable

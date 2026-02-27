@@ -24,6 +24,8 @@ namespace velo_micro_bias_line {
     DEVICE_INPUT(dev_offsets_velo_track_hit_number_t, unsigned) dev_offsets_velo_track_hit_number;
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
     HOST_OUTPUT(host_fn_parameters_t, char) host_fn_parameters;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct velo_micro_bias_line_t : public SelectionAlgorithm, Parameters, EventLine<velo_micro_bias_line_t, Parameters> {
@@ -37,6 +39,15 @@ namespace velo_micro_bias_line {
     get_input(const Parameters& parameters, const unsigned event_number, const unsigned);
 
     __device__ static bool select(const Parameters&, const DeviceProperties&, std::tuple<const unsigned>);
+
+    __device__ static bool fill_tuples(
+      const Parameters& parameters,
+      const DeviceProperties&,
+      std::tuple<const unsigned> input,
+      unsigned index,
+      bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
     Allen::Property<unsigned> m_min_velo_tracks {this, "min_velo_tracks", 1, "Minimum number of VELO tracks"};

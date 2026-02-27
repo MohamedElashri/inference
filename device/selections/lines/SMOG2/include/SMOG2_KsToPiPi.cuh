@@ -34,6 +34,8 @@ namespace SMOG2_kstopipi_line {
     DEVICE_OUTPUT(pt_t, float) pt;
     DEVICE_OUTPUT(minipchi2_t, float) minipchi2;
     DEVICE_OUTPUT(ip_t, float) ip;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct SMOG2_kstopipi_line_t : public SelectionAlgorithm,
@@ -63,7 +65,8 @@ namespace SMOG2_kstopipi_line {
         histogram_smogks_pt(algo.m_histogram_smogks_pt.data(ctx))
       {}
     };
-    using monitoring_types = std::tuple<sv_masses_t, svz_t, track1pt_t, track2pt_t, minipchi2_t, ip_t, pvz_t, pt_t>;
+    using monitoring_types =
+      std::tuple<sv_masses_t, svz_t, track1pt_t, track2pt_t, minipchi2_t, ip_t, pvz_t, pt_t, evtNo_t, runNo_t>;
 
     __device__ static bool
     select(const Parameters&, const DeviceProperties&, std::tuple<const Allen::Views::Physics::CompositeParticle>);

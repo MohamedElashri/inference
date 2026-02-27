@@ -26,6 +26,8 @@ namespace one_muon_track_line {
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
     DEVICE_INPUT(dev_muon_tracks_t, MuonTrack) dev_muon_tracks;
     DEVICE_INPUT(dev_muon_tracks_offsets_t, unsigned) dev_muon_tracks_offsets;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct one_muon_track_line_t : public SelectionAlgorithm, Parameters, Line<one_muon_track_line_t, Parameters> {
@@ -60,6 +62,15 @@ namespace one_muon_track_line {
     }
 
     __device__ static bool select(const Parameters&, const DeviceProperties&, std::tuple<const MuonTrack> input);
+
+    __device__ static bool fill_tuples(
+      const Parameters& parameters,
+      const DeviceProperties&,
+      std::tuple<const MuonTrack> input,
+      unsigned index,
+      bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
     Allen::Property<float> m_max_chi2x {this, "max_chi2x", 1.f, "Maximum chi2 for the xz plane"};

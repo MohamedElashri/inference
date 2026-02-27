@@ -22,6 +22,8 @@ namespace SMOG2jpsitomumu_tap_line {
     DEVICE_OUTPUT(svz_t, float) svz;
     DEVICE_OUTPUT(maxchi2corr_t, float) maxchi2corr;
     DEVICE_OUTPUT(min_muon_nn_t, float) min_muon_nn;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
 
     MASK_INPUT(dev_event_list_t) dev_event_list;
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
@@ -88,7 +90,7 @@ namespace SMOG2jpsitomumu_tap_line {
       unsigned index,
       bool sel);
 
-    using monitoring_types = std::tuple<mass_t, svz_t, pvz_t, pt_t, maxchi2corr_t, min_muon_nn_t>;
+    using monitoring_types = std::tuple<mass_t, svz_t, pvz_t, pt_t, maxchi2corr_t, min_muon_nn_t, evtNo_t, runNo_t>;
 
   private:
     Allen::Property<float> m_JpsiMinMass {this,

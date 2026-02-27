@@ -25,6 +25,8 @@ namespace SMOG2_minimum_bias_line {
     HOST_INPUT(host_number_of_reconstructed_velo_tracks_t, unsigned) host_number_of_reconstructed_velo_tracks;
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
     HOST_OUTPUT_WITH_DEPENDENCIES(host_fn_parameters_t, DEPENDENCIES(dev_tracks_container_t), char) host_fn_parameters;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   // SelectionAlgorithm definition
@@ -60,6 +62,15 @@ namespace SMOG2_minimum_bias_line {
     // Selection function
     __device__ static bool
     select(const Parameters& parameters, const DeviceProperties&, std::tuple<const unsigned, const float> input);
+
+    __device__ static bool fill_tuples(
+      const Parameters& parameters,
+      const DeviceProperties&,
+      std::tuple<const unsigned, const float> input,
+      unsigned index,
+      bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
     // Commonly required properties

@@ -28,6 +28,8 @@ namespace beam_gas_line {
     DEVICE_INPUT(dev_odin_data_t, ODINData) dev_odin_data;
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
     HOST_OUTPUT(host_fn_parameters_t, char) host_fn_parameters;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct beam_gas_line_t : public SelectionAlgorithm, Parameters, Line<beam_gas_line_t, Parameters> {
@@ -59,6 +61,15 @@ namespace beam_gas_line {
     {
       return parameters.dev_offsets_velo_tracks[event_number];
     }
+
+    __device__ static bool fill_tuples(
+      const Parameters& parameters,
+      const DeviceProperties&,
+      std::tuple<const unsigned, const unsigned, const unsigned, const float> input,
+      unsigned index,
+      bool sel);
+
+    using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
     Allen::Property<unsigned> m_min_velo_tracks {this, "min_velo_tracks", 1, "Minimum number of VELO tracks"};

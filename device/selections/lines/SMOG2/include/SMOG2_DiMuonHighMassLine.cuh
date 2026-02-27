@@ -33,6 +33,8 @@ namespace SMOG2_dimuon_highmass_line {
     HOST_OUTPUT(host_line_data_t, LineData) host_line_data;
     HOST_OUTPUT_WITH_DEPENDENCIES(host_fn_parameters_t, DEPENDENCIES(dev_particle_container_t), char)
     host_fn_parameters;
+    DEVICE_OUTPUT(evtNo_t, uint64_t) evtNo;
+    DEVICE_OUTPUT(runNo_t, unsigned) runNo;
   };
 
   struct SMOG2_dimuon_highmass_line_t : public SelectionAlgorithm,
@@ -87,7 +89,7 @@ namespace SMOG2_dimuon_highmass_line {
       unsigned index,
       bool sel);
 
-    using monitoring_types = std::tuple<mass_t, svz_t, pvz_t, pt_t, maxchi2corr_t>;
+    using monitoring_types = std::tuple<mass_t, svz_t, pvz_t, pt_t, maxchi2corr_t, evtNo_t, runNo_t>;
 
   private:
     Allen::Property<float> m_maxTrackChi2Ndf {this, "maxTrackChi2Ndf", 5.f, "max track fit Chi2ndf"};

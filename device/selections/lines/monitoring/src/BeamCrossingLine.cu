@@ -24,3 +24,13 @@ __device__ bool beam_crossing_line::beam_crossing_line_t::select(
 
   return false;
 }
+
+__device__ bool beam_crossing_line::beam_crossing_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const ODINData&> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

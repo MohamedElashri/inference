@@ -35,3 +35,13 @@ __device__ bool di_muon_soft_line::di_muon_soft_line_t::select(
     vertex.clone_sin2() > properties.DMSoftGhost;
   return decision;
 }
+
+__device__ bool di_muon_soft_line::di_muon_soft_line_t::fill_tuples(
+  [[maybe_unused]] const Parameters& parameters,
+  const DeviceProperties&,
+  [[maybe_unused]] std::tuple<const Allen::Views::Physics::CompositeParticle> input,
+  [[maybe_unused]] unsigned index,
+  bool sel)
+{
+  return sel;
+}

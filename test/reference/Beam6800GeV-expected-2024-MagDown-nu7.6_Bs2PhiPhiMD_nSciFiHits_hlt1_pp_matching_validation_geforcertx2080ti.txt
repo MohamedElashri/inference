@@ -73,7 +73,7 @@ Hlt1DiElectronDisplaced:                 5/   500, (  300.00 +/-   133.49) kHz
 Hlt1DiElectronHighMass:                  0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronHighMass_SS:               0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronLowMass_Displaced:         1/   500, (   60.00 +/-    59.94) kHz
-Hlt1DiElectronLowMass_NoIP:              1/   500, (   60.00 +/-    59.94) kHz
+Hlt1DiElectronLowMass_NoIP:              2/   500, (  120.00 +/-    84.68) kHz
 Hlt1DiElectronLowMass_NoIPNorm:          0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronLowMass_SS_Displaced:      0/   500, (    0.00 +/-     0.00) kHz
 Hlt1DiElectronLowMass_SS_NoIP:           0/   500, (    0.00 +/-     0.00) kHz
@@ -295,7 +295,7 @@ Hlt1DiElectronDisplaced:                 5           6
 Hlt1DiElectronHighMass:                  0           0
 Hlt1DiElectronHighMass_SS:               0           0
 Hlt1DiElectronLowMass_Displaced:         1           1
-Hlt1DiElectronLowMass_NoIP:              1           1
+Hlt1DiElectronLowMass_NoIP:              2           2
 Hlt1DiElectronLowMass_NoIPNorm:          0           0
 Hlt1DiElectronLowMass_SS_Displaced:      0           0
 Hlt1DiElectronLowMass_SS_NoIP:           0           0
@@ -374,12 +374,12 @@ Hlt1VeloMicroBias:                       1           0
 Hlt1VeloMicroBiasVeloClosing:            0           0
 Hlt1XiOmegaLLL:                          0           0
 
-Total decisions:      533
+Total decisions:      534
 Total tracks:         1114
 Total calos clusters: 9
 Total SVs:            1050
 Total hits:           29000
-Total stdinfo:        13681
+Total stdinfo:        13682
 
 
 velo_validator validation:

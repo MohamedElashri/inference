@@ -26,7 +26,8 @@ def make_kstopipi_line(long_tracks,
                        post_scaler=1.0,
                        name='Hlt1KsToPiPi_{hash}',
                        double_muon_misid=False,
-                       enable_monitoring=True):
+                       enable_monitoring=True,
+                       enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -34,6 +35,7 @@ def make_kstopipi_line(long_tracks,
         name=name,
         double_muon_misid=double_muon_misid,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
+        enable_tupling=enable_tupling,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
         dev_particle_container_t=secondary_vertices[

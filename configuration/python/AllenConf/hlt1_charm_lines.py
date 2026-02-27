@@ -123,7 +123,8 @@ def make_two_ks_line(long_tracks,
                      secondary_vertices,
                      name='Hlt1TwoKs_{hash}',
                      pre_scaler_hash_string=None,
-                     post_scaler_hash_string=None):
+                     post_scaler_hash_string=None,
+                     enable_tupling=False):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -135,6 +136,7 @@ def make_two_ks_line(long_tracks,
             "dev_multi_event_sv_combos_view"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        enable_tupling=enable_tupling,
     )
 
 
