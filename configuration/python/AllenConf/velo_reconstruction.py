@@ -16,7 +16,7 @@ from AllenCore.algorithms import (
     count_materialinteraction_candidates_t,
     fill_materialinteraction_candidates_t,
     calculate_number_of_retinaclusters_each_sensor_pair_t,
-    decode_retinaclusters_t)
+    decode_retinaclusters_t, quirks_tools_t)
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
@@ -514,3 +514,35 @@ def velo_tracking():
     velo_tracks = make_velo_tracks(decoded_velo)
     alg = velo_tracks["dev_velo_track_hits"].producer
     return alg
+
+
+def velo_quirks_pairs(maxPHI=0.07,
+                      maxPHIDF=0.06,
+                      maxR=5.0,
+                      minStations=6,
+                      hit_threshold=200,
+                      max_opposite_considered=6):
+    decoded_velo = decode_velo()
+    number_of_events = initialize_number_of_events()
+
+    quirks_tools = make_algorithm(
+        quirks_tools_t,
+        name="quirks_tools",
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_total_number_of_velo_clusters_t=decoded_velo[
+            "host_total_number_of_velo_clusters"],
+        dev_sorted_velo_clusters_container_t=decoded_velo[
+            "dev_sorted_velo_cluster_container"],
+        dev_velo_clusters_t=decoded_velo["dev_velo_clusters"],
+        dev_module_cluster_num_t=decoded_velo["dev_module_cluster_num"],
+        dev_offsets_estimated_input_size_t=decoded_velo[
+            "dev_offsets_estimated_input_size"],
+        dev_number_of_events_t=number_of_events['dev_number_of_events'],
+        maxPHI=maxPHI,
+        maxPHIDF=maxPHIDF,
+        maxR=maxR,
+        minStations=minStations,
+        hit_threshold=hit_threshold,
+        max_opposite_considered=max_opposite_considered)
+
+    return {"dev_quirks_pairs": quirks_tools.dev_quirks_pairs_t}

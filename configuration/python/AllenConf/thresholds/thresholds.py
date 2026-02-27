@@ -56,3 +56,9 @@ class Thresholds(NamedTuple):
     DownstreamTwoTrackKs_minTrackPt_piKs: float = 475.
     DiElectronLowMassNoIP_NN: float = 0.94
     DiElectronLowMass_NN: float = 0.73
+    Quirks_maxPHI: float = 0.07
+    Quirks_maxPHIDF: float = 0.06
+    Quirks_minStations: int = 6
+    Quirks_maxR: float = 5.0
+    Quirks_hit_thresholds: int = 200
+    Quirks_max_opposite_considered: int = 6

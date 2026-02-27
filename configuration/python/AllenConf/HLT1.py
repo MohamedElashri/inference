@@ -37,7 +37,8 @@ import itertools
 
 
 def default_physics_lines(reconstructed_objects, with_calo, with_muon,
-                          with_v0s, thresholds, enable_tupling, chi2_cuts):
+                          with_v0s, with_quirks, thresholds, enable_tupling,
+                          chi2_cuts):
 
     velo_tracks = reconstructed_objects["velo_tracks"]
     long_tracks = reconstructed_objects["long_tracks"]
@@ -124,8 +125,21 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
         make_tautophimu_line(
             phi_plus_track,
             name="Hlt1TauToPhiMu",
-            enable_tupling=enable_tupling),
+            enable_tupling=enable_tupling)
     ]
+    if with_quirks:
+        lines += [
+            make_quirks_line(
+                maxPHI=thresholds.Quirks_maxPHI,
+                maxPHIDF=thresholds.Quirks_maxPHIDF,
+                maxR=thresholds.Quirks_maxR,
+                minStations=thresholds.Quirks_minStations,
+                hit_threshold=thresholds.Quirks_hit_thresholds,
+                max_opposite_considered=thresholds.
+                Quirks_max_opposite_considered,
+                name="Hlt1Quirks",
+                enable_tupling=enable_tupling),
+        ]
 
     if 'downstream_tracks' in reconstructed_objects and 'downstream_secondary_vertices' in reconstructed_objects:
         lines += [
@@ -1448,6 +1462,7 @@ def setup_hlt1_node(enablePhysics=True,
                     with_fullKF=False,
                     with_ttracks=False,
                     with_downstream_KF=False,
+                    with_quirks=True,
                     passthrough_pre_scaler=0.0001,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[],
@@ -1501,7 +1516,7 @@ def setup_hlt1_node(enablePhysics=True,
         with line_maker.bind(prefilter=prefilters):
             physics_lines += default_physics_lines(
                 reconstructed_objects, with_calo, with_muon, with_v0s,
-                threshold_settings, enableTupling, chi2_cuts)
+                with_quirks, threshold_settings, enableTupling, chi2_cuts)
 
     lumiline_name = "Hlt1ODINLumi"
     lumilinefull_name = "Hlt1ODIN1kHzLumi"

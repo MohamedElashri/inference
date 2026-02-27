@@ -125,6 +125,7 @@ Hlt1OneMuonTrackLine:                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Passthrough:                         0/   500, (    0.00 +/-     0.00) kHz
 Hlt1PassthroughPVinSMOG2:                0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Pi02GammaGamma:                      0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Quirks:                              0/   500, (    0.00 +/-     0.00) kHz
 Hlt1RICH1Alignment:                      0/   500, (    0.00 +/-     0.00) kHz
 Hlt1RICH2Alignment:                      0/   500, (    0.00 +/-     0.00) kHz
 Hlt1SMOG22BodyGeneric:                   1/   500, (   60.00 +/-    59.94) kHz
@@ -317,6 +318,7 @@ Hlt1OneMuonTrackLine:                    0           0
 Hlt1Passthrough:                         0           0
 Hlt1PassthroughPVinSMOG2:                0           0
 Hlt1Pi02GammaGamma:                      0           0
+Hlt1Quirks:                              0           0
 Hlt1RICH1Alignment:                      0           0
 Hlt1RICH2Alignment:                      0           0
 Hlt1SMOG22BodyGeneric:                   1           1

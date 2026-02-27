@@ -16,6 +16,7 @@ file(GLOB velo_simplified_kalman_filter "simplified_kalman_filter/src/*cu")
 file(GLOB velo_tracks_ACsplit "tracks_ACsplit/src/*cu")
 file(GLOB velo_consolidate_tracks "consolidate_tracks/src/*cu")
 file(GLOB filter_for_material_interactions "filter_for_material_interactions/src/*cu")
+file(GLOB quirks_filter "quirks_filter/src/*cu")
 
 
 allen_add_device_library(Velo STATIC
@@ -27,6 +28,7 @@ allen_add_device_library(Velo STATIC
   ${velo_tracks_ACsplit}
   ${velo_consolidate_tracks}
   ${filter_for_material_interactions}
+  ${quirks_filter}
 )
 
 target_link_libraries(Velo PRIVATE Backend HostEventModel EventModel Utils)
@@ -42,7 +44,8 @@ target_include_directories(Velo PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tracks_ACsplit/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/consolidate_tracks/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/filter_for_material_interactions/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../PV/beamlinePV/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../PV/beamlinePV/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/quirks_filter/include>)
 
 target_include_directories(WrapperInterface INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>)

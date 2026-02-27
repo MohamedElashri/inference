@@ -13,10 +13,12 @@ from AllenCore.algorithms import (
     two_track_mva_evaluator_t, two_track_line_ks_t, lambda2ppi_line_t,
     lambda_ll_detached_track_line_t, ks_ll_detached_track_line_t,
     xi_omega_lll_line_t, cone_jet_line_t, diproton_highmass_line_t,
-    tautophimu_line_t)
+    tautophimu_line_t, quirks_line_t)
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
 from AllenCore.configuration_options import is_allen_standalone
+from AllenConf.utils import initialize_number_of_events
+from AllenConf.velo_reconstruction import velo_quirks_pairs
 
 
 def make_kstopipi_line(long_tracks,
@@ -320,4 +322,32 @@ def make_diproton_highmass_line(secondary_vertices,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_monitoring=is_allen_standalone() and enable_monitoring,
+        enable_tupling=enable_tupling)
+
+
+def make_quirks_line(pre_scaler_hash_string="track_mva_line_pre",
+                     post_scaler_hash_string="track_mva_line_post",
+                     name="Hlt1Quirks",
+                     maxPHI=0.07,
+                     maxPHIDF=0.06,
+                     maxR=5.0,
+                     minStations=6,
+                     hit_threshold=200,
+                     max_opposite_considered=6,
+                     enable_tupling=True):
+    number_of_events = initialize_number_of_events()
+    quirks_pairs = velo_quirks_pairs(
+        maxPHI=maxPHI,
+        maxPHIDF=maxPHIDF,
+        maxR=maxR,
+        minStations=minStations,
+        hit_threshold=hit_threshold,
+        max_opposite_considered=max_opposite_considered)
+    return make_algorithm(
+        quirks_line_t,
+        name=name,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_quirks_pairs_t=quirks_pairs["dev_quirks_pairs"],
+        pre_scaler_hash_string=pre_scaler_hash_string,
+        post_scaler_hash_string=post_scaler_hash_string,
         enable_tupling=enable_tupling)
