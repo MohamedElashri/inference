@@ -17,6 +17,11 @@ struct Parameters {
     // 8-channel interval features: [events x 40 intervals x 8 channels x 100 bins] = 32000 floats per event
     // Preserved un-collapsed for UNet NCW input: channel c of interval i = latent dim c summed over tracks in i
     DEVICE_OUTPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
+    // CSR index structure for interval-sorted track access:
+    //   interval_start[n_events * 42]: start offset into track_idx for each interval + 1 sentinel
+    //   track_idx[total_tracks * 2]:   track indices sorted by interval (boundary tracks appear twice)
+    DEVICE_OUTPUT(dev_pvfinder_interval_start_t, int) dev_pvfinder_interval_start;
+    DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
 };
 
 struct pvfinder_track_aggregation_t : public DeviceAlgorithm, Parameters {

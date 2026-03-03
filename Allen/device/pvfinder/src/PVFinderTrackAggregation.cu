@@ -38,15 +38,105 @@ __device__ __forceinline__ void pvfinder_linear_layer_reg(
 }
 
 // ---------------------------------------------------------------------------
-// Interval-parallel FC+Aggregation kernel.
+// CSR index builder kernel.
 //
-// Grid: (n_events, N_INTERVALS=40) — each block exclusively owns one interval.
-// This gives 100*40=4000 blocks, saturating all 68 SMs on RTX 2080 Ti.
+// Grid: (n_events)  blockDim: 256
 //
-// Properties:
-//  - No atomics into dev_pvfinder_interval_features (exclusive block ownership).
-//  - Atomics for s_feat/s_hist go into shared memory (fast, single SM).
-//  - Shared mem per block: s_feat[800] + s_hist[100] + s_count = ~3.6 KB.
+// For each event, builds a CSR (compressed sparse row) representation that
+// maps each interval to a contiguous range of track indices:
+//
+//   interval_start[ev * 42 + i]          = start offset in track_idx[]
+//   interval_start[ev * 42 + 41]         = total entries (sentinel)
+//   track_idx[track_idx_base + start..end] = local track indices for interval i
+//
+// Boundary tracks (assigned to 2 intervals) appear twice.
+// Invalid tracks (z_poca <= -98) are omitted entirely.
+//
+// Three shared-memory passes:
+//   1. Histogram: count tracks per interval (pass1 atomic into s_counts[40])
+//   2. Exclusive prefix sum: compute s_start[41] from s_counts
+//   3. Scatter:   fill track_idx[] advancing s_cursor[40] atomically
+// ---------------------------------------------------------------------------
+__global__ void pvfinder_build_csr_kernel(
+    pvfinder_track_aggregation_t::Parameters parameters)
+{
+    const unsigned event_number      = blockIdx.x;
+    const unsigned thread_id         = threadIdx.x;
+    const auto     velo_tracks_view  = parameters.dev_velo_tracks_view[event_number];
+    const unsigned num_tracks        = velo_tracks_view.size();
+    const unsigned event_track_offset = velo_tracks_view.offset();
+
+    __shared__ int s_counts[40];   // histogram
+    __shared__ int s_start[41];    // exclusive prefix sum → CSR start offsets
+    __shared__ int s_cursor[40];   // per-interval fill cursors (advanced atomically)
+
+    for (int i = thread_id; i < 40; i += blockDim.x) s_counts[i] = 0;
+    __syncthreads();
+
+    // Pass 1 — count how many (track, interval) entries per interval
+    for (unsigned i = thread_id; i < num_tracks; i += blockDim.x) {
+        const unsigned gtidx  = event_track_offset + i;
+        const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
+        if (z_poca <= -98.0f) continue;
+        int ivals[2]; int n = 0;
+        assign_intervals(z_poca, ivals, &n);
+        for (int j = 0; j < n; ++j)
+            atomicAdd(&s_counts[ivals[j]], 1);
+    }
+    __syncthreads();
+
+    // Pass 2 — exclusive prefix sum (single-threaded; only 40 elements)
+    if (thread_id == 0) {
+        int acc = 0;
+        for (int i = 0; i < 40; ++i) {
+            s_start[i]  = acc;
+            s_cursor[i] = acc;
+            acc += s_counts[i];
+        }
+        s_start[40] = acc;  // sentinel
+    }
+    __syncthreads();
+
+    // Write interval_start[] to global memory
+    int* g_start = parameters.dev_pvfinder_interval_start + event_number * 42;
+    for (int i = thread_id; i <= 40; i += blockDim.x)
+        g_start[i] = s_start[i];
+    // index 41 = total track_idx entries for this event (= s_start[40])
+    if (thread_id == 0) g_start[41] = s_start[40];
+    __syncthreads();
+
+    // Pass 3 — scatter: write local track indices into track_idx[]
+    int* g_idx = parameters.dev_pvfinder_track_idx + event_track_offset * 2;
+    for (unsigned i = thread_id; i < num_tracks; i += blockDim.x) {
+        const unsigned gtidx  = event_track_offset + i;
+        const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
+        if (z_poca <= -98.0f) continue;
+        int ivals[2]; int n = 0;
+        assign_intervals(z_poca, ivals, &n);
+        for (int j = 0; j < n; ++j) {
+            const int pos = atomicAdd(&s_cursor[ivals[j]], 1);
+            g_idx[pos] = (int)i;   // local track index within event
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Interval-parallel FC+Aggregation kernel — CSR edition.
+//
+// Grid: (n_events, N_INTERVALS=40)  blockDim: 256
+//
+// Each block exclusively owns one interval. Uses the CSR index built by
+// pvfinder_build_csr_kernel so the inner loop iterates over only the
+// ~T/40 tracks belonging to this interval.
+//
+// Static shared mem: s_feat[800] + s_hist[100] = 3.6 KB.
+// This keeps occupancy high (many blocks resident per SM) which is the
+// dominant factor on both SM 7.5 and SM 8.6.
+//
+// NOTE: L6A weight caching in shared memory was tried (69.2 KB dynamic
+// smem) but regressed on SM 8.6 — the 69 KB smem drops blocks-per-SM
+// from ~16 to 1, killing occupancy. The RTX 3090 L2 ($936 GB/s) handles
+// the 64 KB weight matrix well enough without smem caching.
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_fused_fc_aggregation_kernel(
     pvfinder_track_aggregation_t::Parameters parameters,
@@ -58,9 +148,15 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     const unsigned warp_id      = thread_id / warpSize;
     const unsigned n_warps      = blockDim.x / warpSize;
 
-    const auto velo_tracks_view      = parameters.dev_velo_tracks_view[event_number];
-    const unsigned num_tracks        = velo_tracks_view.size();
+    const auto velo_tracks_view       = parameters.dev_velo_tracks_view[event_number];
     const unsigned event_track_offset = velo_tracks_view.offset();
+
+    // CSR pointers for this event
+    const int* g_start  = parameters.dev_pvfinder_interval_start + event_number * 42;
+    const int  iv_begin = g_start[interval];
+    const int  iv_end   = g_start[interval + 1];
+    const int  n_local  = iv_end - iv_begin;
+    const int* g_idx    = parameters.dev_pvfinder_track_idx + event_track_offset * 2;
 
     const float* w1  = dev_weights;
     const float* b1  = w1  + 180;
@@ -77,38 +173,14 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
 
     __shared__ float s_feat[8 * 100];  // 3.2 KB
     __shared__ float s_hist[100];      // 0.4 KB
-    __shared__ int   s_count;
 
     for (int i = thread_id; i < 800; i += blockDim.x) s_feat[i] = 0.0f;
     for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
-    if (thread_id == 0) s_count = 0;
     __syncthreads();
 
-    // Pass 1: count tracks in this interval
-    for (unsigned i = thread_id; i < num_tracks; i += blockDim.x) {
-        const unsigned gtidx  = event_track_offset + i;
-        const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
-        if (z_poca <= -98.0f) continue;
-        int ivals[2]; int n = 0;
-        assign_intervals(z_poca, ivals, &n);
-        for (int j = 0; j < n; ++j)
-            if ((unsigned)ivals[j] == interval) { atomicAdd(&s_count, 1); break; }
-    }
-    __syncthreads();
-
-    // Pass 2: fused FC + accumulation into shared s_feat / s_hist
-    for (unsigned i = warp_id; i < num_tracks; i += n_warps) {
-        const unsigned gtidx  = event_track_offset + i;
-        const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
-        if (z_poca <= -98.0f) continue;
-
-        int ivals[2]; int ni = 0;
-        assign_intervals(z_poca, ivals, &ni);
-
-        bool mine = false;
-        for (int j = 0; j < ni; ++j)
-            if ((unsigned)ivals[j] == interval) { mine = true; break; }
-        if (!mine) continue;
+    for (int i = warp_id; i < n_local; i += n_warps) {
+        const int      local_idx = g_idx[iv_begin + i];
+        const unsigned gtidx     = event_track_offset + (unsigned)local_idx;
 
         const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
         float x1[20], x2[20];
@@ -135,7 +207,7 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     }
     __syncthreads();
 
-    const float weight = s_count > 0 ? 1.0f / s_count : 1.0f;
+    const float weight = n_local > 0 ? 1.0f / n_local : 1.0f;
 
     float* g_feat = parameters.dev_pvfinder_interval_features
                     + event_number * 32000 + interval * 800;
@@ -154,8 +226,13 @@ void pvfinder_track_aggregation_t::set_arguments_size(
     const Constants&) const
 {
     const unsigned total_events = first<host_number_of_events_t>(arguments);
-    set_size<dev_pvfinder_output_histogram_t>(arguments,  total_events * 4000);
-    set_size<dev_pvfinder_interval_features_t>(arguments, total_events * 32000);
+    const unsigned total_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
+    set_size<dev_pvfinder_output_histogram_t>  (arguments, total_events * 4000);
+    set_size<dev_pvfinder_interval_features_t> (arguments, total_events * 32000);
+    // CSR: 42 ints per event (40 interval starts + total sentinel + 1 extra for g_start[41])
+    // track_idx: at most 2 entries per track (boundary tracks assigned to 2 intervals)
+    set_size<dev_pvfinder_interval_start_t>(arguments, total_events * 42);
+    set_size<dev_pvfinder_track_idx_t>     (arguments, total_tracks  * 2);
 }
 
 void pvfinder_track_aggregation_t::operator()(
@@ -172,6 +249,10 @@ void pvfinder_track_aggregation_t::operator()(
         }
     });
     const float* dev_weights = PVFinder::WeightRegistry::instance().get<float>("fc_weights");
+
+    global_function(pvfinder_build_csr_kernel)(
+        dim3(first<host_number_of_events_t>(arguments)), m_block_dim, context)(
+        arguments);
 
     global_function(pvfinder_fused_fc_aggregation_kernel)(
         dim3(first<host_number_of_events_t>(arguments), 40), m_block_dim, context)(
