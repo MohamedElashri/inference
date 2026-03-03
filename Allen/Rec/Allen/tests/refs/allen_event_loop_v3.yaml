@@ -1,0 +1,122 @@
+stdout: |-
+  HLTControlFlowMgr                      INFO Start initialization
+  HLTControlFlowMgr                      INFO Will not use an EventSelector.
+  HLTControlFlowMgr                      INFO Concurrency level information:
+  HLTControlFlowMgr                      INFO  o Number of events slots: 1
+  HLTControlFlowMgr                      INFO  o TBB thread pool size:  'ThreadPoolSize':1
+  ApplicationMgr                         INFO Application Manager Initialized successfully
+  Using 3 input slices.
+    rate_validator
+    global_decision
+    make_selected_object_lists
+    make_subbanks
+    make_selreps
+    host_routingbits_writer
+  ApplicationMgr                         INFO Application Manager Started successfully
+  HLTControlFlowMgr                      INFO Will measure time between events 0 and 0 (stop might be some events later)
+  HLTControlFlowMgr                      INFO Starting loop on events
+  HLTControlFlowMgr                   SUCCESS Processing event 0 in slot 0
+  DeviceFTGeometry                       INFO Conditions DB is compatible with FT bank version 7 and 8.
+  Loading magfield grid, nbins x,y,z : (81, 81, 146)
+  dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
+  dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
+  dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
+  Starting timer for throughput measurement
+  Input complete
+  Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_v3_hist_counts.json
+  error_bank_filter                      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  gather_selections                      INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  pv_beamline_cleanup                    INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  velo_consolidate_tracks                INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  ApplicationMgr                         INFO Application Manager Stopped successfully
+  HLTControlFlowMgr                      INFO
+  HLTControlFlowMgr                      INFO StateTree: CFNode   #executed  #passed
+  NONLAZY_OR: allen_non_event_data                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   AllenODINProducer/AllenODINProducer_e608fece           #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpBeamline/DeviceBeamline                            #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpVPGeometry/DeviceVPGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpUTGeometry/DeviceUTGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpUTLookupTables/DeviceUTLookupTables                #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpCaloGeometry/DeviceCaloGeometry                    #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMagneticField/DeviceMagneticField                  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMagneticFieldPolarity/DeviceMagneticFieldPolarity  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpFTGeometry/DeviceFTGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMuonGeometry/DeviceMuonGeometry                    #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   DumpMuonTable/DeviceMuonTable                          #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+  HLTControlFlowMgr                      INFO Histograms converted successfully according to request.
+  ApplicationMgr                         INFO Application Manager Finalized successfully
+  ApplicationMgr                         INFO Application Manager Terminated successfully
+histos:
+  error_bank_filter:
+    ODIN_banks:
+      nEntries: 1000
+      title: ODIN_banks
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+    Plume_banks:
+      nEntries: 3000
+      title: Plume_banks
+      sum: 3000
+      meanX: 0.0
+      stdDevX: 0.0
+    n_data_banks:
+      nEntries: 4000
+      title: n_data_banks
+      sum: 4000
+      meanX: 7.25
+      stdDevX: 3.031089
+  gather_selections:
+    line_passes:
+      nEntries: 1000.0
+      title: line passes
+      sum: 1000
+      meanX: 59.5
+      stdDevX: 0.0
+    line_rates:
+      nEntries: 1000.0
+      title: line rates
+      sum: 1000
+      meanX: 59.5
+      stdDevX: 0.0
+  pv_beamline_cleanup:
+    n_pvs_event:
+      nEntries: 1000.0
+      title: n_pvs_event
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+    n_smog2_PVs:
+      nEntries: 1000.0
+      title: n_smog2_PVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  velo_consolidate_tracks:
+    n_velo_tracks_event:
+      nEntries: 1000.0
+      title: n_velo_tracks_event
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+ttrees: {}
+counters:
+  HLTControlFlowMgr:
+    Processed events:
+      nEntries: 1
+  gather_selections:
+    Hlt1ODINCalibPass:
+      nEntries: 1000.0
+    Hlt1ODINCalibRate:
+      nEntries: 1000.0
+  pv_beamline_cleanup:
+    n_PVs:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+  velo_consolidate_tracks:
+    n_velo_tracks:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+stderr: ''
