@@ -7,11 +7,8 @@ namespace Allen::CuDNN {
   /**
    * @brief RAII wrapper around cudnnHandle_t.
    *
-   * Declare as: mutable Allen::CuDNN::Handle m_handle;
-   * Initialize in init(): m_handle.create();
-   * Use in operator() const: m_handle.set_stream(context.stream());
-   *
-   * One handle per algorithm instance → one per Allen::Stream → thread-safe.
+   * Legacy per-instance handle — kept for backward compatibility.
+   * Prefer get_thread_local_handle() for new code.
    */
   struct Handle {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
@@ -26,7 +23,6 @@ namespace Allen::CuDNN {
     // cuDNN handles. Calling cudnnDestroy after cudaDeviceReset crashes.
     ~Handle() = default;
 
-    // Non-copyable, non-movable: tied to algorithm instance
     Handle(const Handle&) = delete;
     Handle& operator=(const Handle&) = delete;
     Handle(Handle&&) = delete;
@@ -37,15 +33,11 @@ namespace Allen::CuDNN {
       m_created = true;
     }
 
-    // Non-owning wrapper: adopt an externally managed cudnnHandle_t.
-    // The wrapped handle is NOT destroyed in ~Handle(); the caller owns it.
     void wrap(cudnnHandle_t h) {
       m_h = h;
-      m_created = false;  // false → destructor is a no-op
+      m_created = false;
     }
 
-    // Explicit early destroy, call before CUDA context teardown.
-    // After this, ~Handle() is a no-op.
     void destroy() {
       if (m_created) {
         cudnnDestroy(m_h);
@@ -54,7 +46,6 @@ namespace Allen::CuDNN {
       }
     }
 
-    // Called at the start of operator() const — routes cuDNN work to Allen's stream
     void set_stream(cudaStream_t stream) const {
       ALLEN_CUDNN_CHECK(cudnnSetStream(m_h, stream));
     }
@@ -63,13 +54,41 @@ namespace Allen::CuDNN {
     bool created() const { return m_created; }
 
 #else
-    // HIP stub / CPU no-op: handle is present in the struct but does nothing.
-    // Replace this block with MIOpen equivalents when ready.
     void create() {}
     void set_stream(void*) const {}
     void* get() const { return nullptr; }
     bool created() const { return false; }
+    void wrap(void*) {}
+    void destroy() {}
 #endif
   };
+
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+  /**
+   * @brief Return a cudnnHandle_t bound to the given CUDA stream.
+   *
+   * One handle is created lazily per OS thread on first call, then reused.
+   * cudnnSetStream is called each time to route work to the correct stream.
+   *
+   * This replaces the pattern of storing mutable Handle m_handle in each
+   * algorithm instance (which caused one handle per Allen thread to be created
+   * at startup, spiking GPU memory). With thread_local the handles are created
+   * on demand and there is at most one per OS thread.
+   *
+   * Usage in operator() const:
+   *   cudnnHandle_t h = Allen::CuDNN::get_thread_local_handle(context.stream());
+   *   desc.forward(h, ...);
+   */
+  inline cudnnHandle_t get_thread_local_handle(cudaStream_t stream) {
+    thread_local cudnnHandle_t tl_handle = nullptr;
+    if (tl_handle == nullptr) {
+      ALLEN_CUDNN_CHECK(cudnnCreate(&tl_handle));
+    }
+    ALLEN_CUDNN_CHECK(cudnnSetStream(tl_handle, stream));
+    return tl_handle;
+  }
+#else
+  inline void* get_thread_local_handle(void*) { return nullptr; }
+#endif
 
 } // namespace Allen::CuDNN

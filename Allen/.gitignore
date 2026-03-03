@@ -37,3 +37,4 @@ cache_preload.cmake
 .cache/
 *.swp
 *.mdf
+nocudnn*

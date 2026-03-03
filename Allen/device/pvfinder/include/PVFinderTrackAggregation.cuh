@@ -11,9 +11,6 @@ struct Parameters {
     
     DEVICE_INPUT(dev_velo_tracks_view_t, Allen::Views::Velo::Consolidated::Tracks) dev_velo_tracks_view;
     DEVICE_INPUT(dev_pvfinder_track_features_t, float) dev_pvfinder_track_features;      // Track size x 9
-    // FC weights pointer — passed as a device constant so the fused kernel can run
-    // the FC MLP in registers without a global latent buffer.
-    DEVICE_INPUT(dev_pvfinder_fc_weights_t, float) dev_pvfinder_fc_weights;
     
     // Output array: [events x 40 intervals x 100 bins] -> 4000 floats per event mapping the KDE layout targets
     DEVICE_OUTPUT(dev_pvfinder_output_histogram_t, float) dev_pvfinder_output_histogram;

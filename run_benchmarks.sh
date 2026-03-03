@@ -1,26 +1,23 @@
 #!/bin/bash
 # run_benchmarks.sh
 #
-# Three-way throughput benchmark on the two RTX 2080 Ti GPUs:
-#   Run 1 (device 0): HLT1 baseline         — hlt1_pp_default
-#   Run 2 (device 1): HLT1 + PVFinder FC    — hlt1_pp_pvfinder_benchmark
-#   Run 3 (device 0): HLT1 + PVFinder FC+UNet — hlt1_pp_pvfinder_unet_benchmark
-#
-# Runs 1 and 2 are executed in parallel (one GPU each).
-# Run 3 runs afterwards on device 0 (same GPU as baseline for a fair comparison).
+# Three-way throughput benchmark — all three runs execute sequentially on device 0
+# so they get identical GPU conditions and don't compete for memory:
+#   Run 1: HLT1 baseline             — hlt1_pp_default
+#   Run 2: HLT1 + PVFinder FC        — hlt1_pp_pvfinder_benchmark
+#   Run 3: HLT1 + PVFinder FC+UNet   — hlt1_pp_pvfinder_unet_benchmark
 #
 # Usage:
-#   ./run_benchmarks.sh [--device0 N] [--device1 M] [--threads T]
+#   ./run_benchmarks.sh [--device0 N] [--threads T]
 #                          [--events N] [--slices M] [--repetitions R]
 #
 # Defaults:
-#   devices 0 and 1, -t 16, -n 500, -m 500, -r 1000
+#   device 0, -t 16, -n 500, -m 200, -r 1000
 #
 # Output:
 #   Allen/buildgpu/bench_baseline.log
 #   Allen/buildgpu/bench_fc.log
 #   Allen/buildgpu/bench_unet.log
-#   Allen/buildgpu/bench_results_<timestamp>.txt   (summary)
 ###############################################################################
 set -euo pipefail
 
@@ -31,7 +28,7 @@ DEVICE0=0
 DEVICE1=1
 THREADS=16
 EVENTS=500
-SLICES=500
+SLICES=200
 REPS=1000
 
 # ---------------------------------------------------------------------------
@@ -40,7 +37,7 @@ REPS=1000
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --device0)    DEVICE0="$2";    shift 2 ;;
-        --device1)    DEVICE1="$2";    shift 2 ;;
+        --device|-d)  DEVICE0="$2";    shift 2 ;;
         --threads|-t) THREADS="$2";    shift 2 ;;
         --events|-n)  EVENTS="$2";     shift 2 ;;
         --slices|-m)  SLICES="$2";     shift 2 ;;
@@ -82,46 +79,35 @@ print_header() {
     echo " MDF    : ${MDF}"
     echo " Geometry: ${GEO}"
     echo " Params : -n ${EVENTS} -m ${SLICES} -r ${REPS} -t ${THREADS}"
-    echo " Device0: ${DEVICE0}   Device1: ${DEVICE1}"
+    echo " Device : ${DEVICE0}"
     echo "================================================================"
 }
 
+# Allen writes "Sequence.json" in its CWD — give each run its own tmpdir.
+RUNDIR=$(mktemp -d)
+trap "rm -rf ${RUNDIR}" EXIT
+
 # ---------------------------------------------------------------------------
-# Phase 1: Baseline (device 0) and FC (device 1) — run in parallel
+# All three runs sequential on device 0 — identical GPU conditions, no OOM
 # ---------------------------------------------------------------------------
 print_header
 
-echo ""
-echo "[Phase 1] Running baseline (device ${DEVICE0}) and FC (device ${DEVICE1}) in parallel..."
+run_allen() {
+    local seq="$1" log="$2"
+    echo ""
+    echo "[Running] ${seq} on device ${DEVICE0}..."
+    local d; d=$(mktemp -d)
+    (cd "${d}" && ${ALLEN} --sequence "${seq}" ${COMMON_ARGS} --device ${DEVICE0}) \
+        > "${log}" 2>&1
+    local rc=$?
+    rm -rf "${d}"
+    [[ ${rc} -ne 0 ]] && { echo "ERROR: ${seq} failed (exit ${rc}). See ${log}"; exit 1; }
+    echo "  done."
+}
 
-${ALLEN} --sequence hlt1_pp_default \
-    ${COMMON_ARGS} --device ${DEVICE0} > "${LOG_BASE}" 2>&1 &
-PID_BASE=$!
-
-${ALLEN} --sequence hlt1_pp_pvfinder_benchmark \
-    ${COMMON_ARGS} --device ${DEVICE1} > "${LOG_FC}" 2>&1 &
-PID_FC=$!
-
-wait ${PID_BASE}
-RC_BASE=$?
-wait ${PID_FC}
-RC_FC=$?
-
-[[ ${RC_BASE} -ne 0 ]] && { echo "ERROR: baseline run failed (exit ${RC_BASE}). See ${LOG_BASE}"; exit 1; }
-[[ ${RC_FC}   -ne 0 ]] && { echo "ERROR: FC run failed (exit ${RC_FC}). See ${LOG_FC}";       exit 1; }
-
-echo "  Phase 1 complete."
-
-# ---------------------------------------------------------------------------
-# Phase 2: FC+UNet (device 0) — sequential so it gets the same GPU as baseline
-# ---------------------------------------------------------------------------
-echo ""
-echo "[Phase 2] Running FC+UNet on device ${DEVICE0} (same GPU as baseline)..."
-
-${ALLEN} --sequence hlt1_pp_pvfinder_unet_benchmark \
-    ${COMMON_ARGS} --device ${DEVICE0} > "${LOG_UNET}" 2>&1
-
-echo "  Phase 2 complete."
+run_allen hlt1_pp_default                   "${LOG_BASE}"
+run_allen hlt1_pp_pvfinder_benchmark        "${LOG_FC}"
+run_allen hlt1_pp_pvfinder_unet_benchmark   "${LOG_UNET}"
 
 # ---------------------------------------------------------------------------
 # Extract rates and compute deltas

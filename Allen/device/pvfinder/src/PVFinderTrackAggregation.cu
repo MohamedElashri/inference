@@ -96,7 +96,11 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
 
     __syncthreads();
 
-    // Pass 2: fused FC inference + aggregation (one track per warp)
+    // Pass 2: fused FC inference + aggregation (one track per warp).
+    // Layers 1-5 produce a 20-element hidden state in registers (x1).
+    // Layer 6A (20->800) is NOT stored — each of the 800 outputs is computed
+    // on the fly one bin at a time (lane k handles bin k, 8 channels per bin).
+    // Peak local storage: x1[20] + x2[20] + 8 channel values.
     for (unsigned i = warp_id; i < num_tracks; i += (blockDim.x / warpSize)) {
         const unsigned gtidx  = event_track_offset + i;
         const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
@@ -105,7 +109,7 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
         int intervals[2]; int n = 0;
         assign_intervals(z_poca, intervals, &n);
 
-        // Run the 6-layer MLP entirely in registers — no global writes
+        // Layers 1-5: 9->20->20->20->20->20, result in x1[20]
         const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
         float x1[20], x2[20];
         pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
@@ -113,29 +117,32 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
         pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
         pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
         pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
-        // Layer 6A: 20 -> 800, stored in a register-local array
-        float latent[800];
-        for (int o = 0; o < 800; ++o) {
-            float sum = b6A[o];
-            for (int k = 0; k < 20; ++k) sum += w6A[o * 20 + k] * x1[k];
-            latent[o] = pvfinder_leaky_relu(sum);
-        }
+        // x1 now holds the 20-element layer-5 output.
 
-        // Accumulate into interval features and histogram (lane-parallel within warp)
+        // Layer 6A + accumulation: compute one spatial bin per lane.
+        // For each bin k: compute latent[c*100+k] for c=0..7 inline,
+        // accumulate to interval features and histogram, then discard.
         const int lane_id = thread_id % warpSize;
         for (int j = 0; j < n; ++j) {
             const int interval = intervals[j];
             for (int k = lane_id; k < 100; k += warpSize) {
-                float sum = 0.0f;
+                float chan_sum = 0.0f;
                 for (int c = 0; c < 8; ++c) {
-                    const float val = latent[c * 100 + k];
-                    sum += val;
+                    // Compute latent output for neuron (c*100+k):
+                    //   w6A row = (c*100+k), dot with x1[20], + b6A[c*100+k]
+                    const int   neuron = c * 100 + k;
+                    const float* row   = w6A + neuron * 20;
+                    float val = b6A[neuron];
+                    for (int m = 0; m < 20; ++m) val += row[m] * x1[m];
+                    val = pvfinder_leaky_relu(val);
+                    chan_sum += val;
                     atomicAdd(
                         &parameters.dev_pvfinder_interval_features[
                             event_number * 32000 + (interval * 8 + c) * 100 + k],
                         val);
                 }
-                atomicAdd(&s_output_histograms[interval * 100 + k], pvfinder_softplus(sum));
+                atomicAdd(&s_output_histograms[interval * 100 + k],
+                          pvfinder_softplus(chan_sum));
             }
         }
     }
@@ -164,10 +171,8 @@ void pvfinder_track_aggregation_t::set_arguments_size(
     const Constants&) const
 {
     const unsigned total_events = first<host_number_of_events_t>(arguments);
-    set_size<dev_pvfinder_output_histogram_t>(arguments,   total_events * 4000);
-    set_size<dev_pvfinder_interval_features_t>(arguments,  total_events * 32000);
-    // FC weights are a persistent device pointer — zero pool allocation needed
-    set_size<dev_pvfinder_fc_weights_t>(arguments, 0);
+    set_size<dev_pvfinder_output_histogram_t>(arguments,  total_events * 4000);
+    set_size<dev_pvfinder_interval_features_t>(arguments, total_events * 32000);
 }
 
 void pvfinder_track_aggregation_t::operator()(
