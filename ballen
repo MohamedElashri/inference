@@ -1,0 +1,211 @@
+#!/bin/bash
+
+# Default values
+ALLEN_REPO="Allen"
+CORES=4
+ARCH="full"
+FORCE=0
+BUILD_BASE="build"
+DRYRUN=0
+LCG_TOOLCHAIN="/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains"
+
+VANILLA_URL="https://gitlab.cern.ch/lhcb/Allen"
+INFERENCE_URL="https://gitlab.cern.ch/pvfinder/inference-engine"
+
+function help {
+    echo "Usage: ./build_allen [options]"
+    echo ""
+    echo "Options:"
+    echo "  -a, --arch <gpu|cpu|full>       Build architecture (default: full)"
+    echo "  -c, --clean <gpu|cpu|full>      Clean build folder"
+    echo "  -n, --clone <vanilla|inference> Clone the specified repository"
+    echo "  -r, --repo-dir <path>           Directory to clone Allen into (default: Allen)"
+    echo "  -b, --build-base <name>         Base name for build directories (default: build)"
+    echo "  -i, --input <path>              Specify the Allen repository folder (overrides --repo-dir)"
+    echo "  -j, --cores [num]               Number of cores for the build (default: nproc)"
+  echo "  --cudnn                         Enable cuDNN support (sets -DWITH_CUDNN=ON with local path)"
+    echo "  -f, --force                     Force rebuild, even if 'Allen' binary exists"
+    echo "  -t, --lcg-toolchain <path>      Specify the LCG toolchain folder location"
+    echo "  -d, --dry-run                   Print commands without executing them"
+    echo "  -h, --help                      Show this help message"
+    echo ""
+    exit 0
+}
+
+function resolve_path {
+    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+function dryrun {
+    if [[ $DRYRUN -eq 1 ]]; then
+        echo "[DRYRUN] $*"
+    else
+        eval "$@"
+    fi
+}
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -a|--arch) [[ -n "$2" && "$2" != -* ]] && ARCH="$2" && shift || { echo "Error: --arch requires an argument"; exit 1; } ;;
+        -c|--clean) [[ -n "$2" && "$2" != -* ]] && CLEAN="$2" && shift || { echo "Error: --clean requires an argument"; exit 1; } ;;
+        -n|--clone) [[ -n "$2" && "$2" != -* ]] && REPO_TYPE="$2" && shift || { echo "Error: --clone requires an argument"; exit 1; } ;;
+        -r|--repo-dir) [[ -n "$2" && "$2" != -* ]] && ALLEN_REPO="$2" && shift || { echo "Error: --repo-dir requires an argument"; exit 1; } ;;
+        -b|--build-base) [[ -n "$2" && "$2" != -* ]] && BUILD_BASE="$2" && shift || { echo "Error: --build-base requires an argument"; exit 1; } ;;
+        -i|--input) [[ -n "$2" && "$2" != -* ]] && ALLEN_REPO="$2" && shift || { echo "Error: --input requires an argument"; exit 1; } ;;
+        -j|--cores) [[ -n "$2" && "$2" != -* ]] && CORES="$2" && shift || CORES=$(nproc) ;;
+        -t|--lcg-toolchain) [[ -n "$2" && "$2" != -* ]] && LCG_TOOLCHAIN=$(resolve_path "$2") && shift || { echo "Error: --lcg-toolchain requires an argument"; exit 1; } ;;
+        -f|--force) FORCE=1 ;;
+        -d|--dry-run) DRYRUN=1 ;;
+        --cudnn) USE_CUDNN=1 ;;
+        -h|--help) help ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+BUILD_GPU="${BUILD_BASE}gpu"
+BUILD_CPU="${BUILD_BASE}cpu"
+
+# Load LHCb environment globally
+if [[ $DRYRUN -eq 0 ]]; then
+    source /cvmfs/lhcb.cern.ch/lib/LbEnv
+    # Add CuDNN library path to LD_LIBRARY_PATH if it exists
+    if [[ -d "/data/home/melashri/local/cuda/lib64" ]]; then
+        export LD_LIBRARY_PATH="/data/home/melashri/local/cuda/lib64:$LD_LIBRARY_PATH"
+        echo "Added CuDNN library path to LD_LIBRARY_PATH"
+    fi
+fi
+
+function clone_repo {
+    local REPO_URL
+    if [[ "$REPO_TYPE" == "vanilla" ]]; then
+        REPO_URL="$VANILLA_URL"
+    elif [[ "$REPO_TYPE" == "inference" ]]; then
+        REPO_URL="$INFERENCE_URL"
+    else
+        echo "Invalid repository type. Use 'vanilla' or 'inference'."
+        exit 1
+    fi
+    if [[ -d "$ALLEN_REPO" ]]; then
+        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+        echo "Directory $ALLEN_REPO already exists. Moving it to ${ALLEN_REPO}_backup_$TIMESTAMP."
+        dryrun mv "$ALLEN_REPO" "${ALLEN_REPO}_backup_$TIMESTAMP"
+    fi
+    echo "Cloning $REPO_TYPE repository into $ALLEN_REPO..."
+    dryrun git clone "$REPO_URL" "$ALLEN_REPO"
+    if [[ $DRYRUN -eq 0 && ! -d "$ALLEN_REPO" ]]; then
+        echo "Error: Cloning failed or directory '$ALLEN_REPO' not created."
+        exit 1
+    fi
+}
+
+function clean_build {
+    case $1 in
+        gpu) dryrun rm -rf "$ALLEN_REPO/$BUILD_GPU" ;;
+        cpu) dryrun rm -rf "$ALLEN_REPO/$BUILD_CPU" ;;
+        full) dryrun rm -rf "$ALLEN_REPO/$BUILD_GPU" "$ALLEN_REPO/$BUILD_CPU" ;;
+        *) echo "Invalid clean option. Use --help or -h for options."; exit 1 ;;
+    esac
+    return
+}
+
+function check_allen_binary {
+    [[ -f "$ALLEN_REPO/$1/Allen" ]]
+}
+
+function build_gpu {
+    if [[ $FORCE -eq 1 ]]; then
+        echo "Force rebuilding GPU build..."
+        if [[ -d "$ALLEN_REPO/$BUILD_GPU" ]]; then
+            dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES"
+            return
+        else
+            echo "Build directory does not exist, doing full setup..."
+        fi
+    fi
+
+    if check_allen_binary "$BUILD_GPU"; then
+        echo "'Allen' binary exists in $BUILD_GPU, running make only..."
+        dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES"
+    else
+        echo "'Allen' binary not found in $BUILD_GPU, doing full build..."
+        dryrun mkdir -p "$ALLEN_REPO/$BUILD_GPU"
+        if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_GPU" ]]; then cd "$ALLEN_REPO/$BUILD_GPU" || exit; fi
+        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake"
+        if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
+        CMAKE_ARGS="-DSTANDALONE=ON -DTARGET_DEVICE=CUDA -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
+        if [[ $USE_CUDNN -eq 1 ]]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUDNN=ON -DCUDNN_LIBRARY=$HOME/local/cuda/lib64/libcudnn.so -DCUDNN_INCLUDE_DIR=$HOME/local/cuda/include"
+        fi
+        dryrun cmake $CMAKE_ARGS ..
+        echo "Bootstrapping parameter files and dependencies (single-threaded)..."
+        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1
+        echo "Starting full parallel build..."
+        dryrun make -j"$CORES" || { echo "Initial make failed, retrying..."; dryrun make -j"$CORES"; }
+        if [[ $DRYRUN -eq 0 ]]; then cd .. || exit; fi
+    fi
+}
+
+function build_cpu {
+    if [[ $FORCE -eq 1 ]]; then
+        echo "Force rebuilding CPU build..."
+        if [[ -d "$ALLEN_REPO/$BUILD_CPU" ]]; then
+            dryrun make -C "$ALLEN_REPO/$BUILD_CPU" -j"$CORES"
+            return
+        else
+            echo "Build directory does not exist, doing full setup..."
+        fi
+    fi
+
+    if check_allen_binary "$BUILD_CPU"; then
+        echo "'Allen' binary exists in $BUILD_CPU, running make only..."
+        dryrun make -C "$ALLEN_REPO/$BUILD_CPU" -j"$CORES"
+    else
+        echo "'Allen' binary not found in $BUILD_CPU, doing full build..."
+        dryrun mkdir -p "$ALLEN_REPO/$BUILD_CPU"
+        if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_CPU" ]]; then cd "$ALLEN_REPO/$BUILD_CPU" || exit; fi
+        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13-opt+g.cmake"
+        if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
+        dryrun cmake -DSTANDALONE=ON -DTARGET_DEVICE=CPU -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" ..
+        echo "Bootstrapping parameter files and dependencies (single-threaded)..."
+        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1
+        echo "Starting full parallel build..."
+        dryrun make -j"$CORES" || { echo "Initial make failed, retrying..."; dryrun make -j"$CORES"; }
+        if [[ $DRYRUN -eq 0 ]]; then cd "$ALLEN_REPO" || exit; fi
+    fi
+}
+
+# Handle clean-only case
+if [[ -n "$CLEAN" && -z "$ARCH" && -z "$REPO_TYPE" ]]; then
+    clean_build "$CLEAN"
+    echo "Clean-only operation complete."
+    exit 0
+fi
+
+if [[ -n "$REPO_TYPE" ]]; then
+    clone_repo
+fi
+
+if [[ -n "$CLEAN" ]]; then
+    clean_build "$CLEAN"
+fi
+
+case $ARCH in
+    gpu) build_gpu ;;
+    cpu) build_cpu ;;
+    full) build_gpu; build_cpu ;;
+    *) echo "Invalid architecture. Use --help or -h for options."; exit 1 ;;
+esac
+
+echo "Operation complete."
+if [[ $DRYRUN -eq 1 ]]; then
+    echo "Dry run completed. No changes were made."
+else
+    echo "Build completed successfully."
+fi
+if [[ $DRYRUN -eq 0 ]]; then
+    echo "You can now run the 'Allen' binary from the build directories:"
+    [[ "$ARCH" == "gpu" || "$ARCH" == "full" ]] && echo "GPU: $ALLEN_REPO/$BUILD_GPU/Allen"
+    [[ "$ARCH" == "cpu" || "$ARCH" == "full" ]] && echo "CPU: $ALLEN_REPO/$BUILD_CPU/Allen"
+fi
+exit 0

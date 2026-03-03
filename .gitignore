@@ -1,0 +1,10 @@
+validation_dump
+plan*
+docs
+*.bin
+*.root
+*.mdf
+*.log
+__pycache__
+*.npy
+*.pyt
