@@ -8,3 +8,5 @@ docs
 __pycache__
 *.npy
 *.pyt
+build*
+Sequence.json
