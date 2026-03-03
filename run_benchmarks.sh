@@ -30,6 +30,7 @@ THREADS=16
 EVENTS=500
 SLICES=200
 REPS=1000
+BUILD_NAME=buildgpu
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -42,6 +43,7 @@ while [[ $# -gt 0 ]]; do
         --events|-n)  EVENTS="$2";     shift 2 ;;
         --slices|-m)  SLICES="$2";     shift 2 ;;
         --repetitions|-r) REPS="$2";   shift 2 ;;
+        --build-dir|-B)   BUILD_NAME="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -50,7 +52,7 @@ done
 # Paths  (all relative to repo root; script can be run from anywhere)
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/Allen/buildgpu"
+BUILD_DIR="${SCRIPT_DIR}/Allen/${BUILD_NAME}"
 ALLEN="${BUILD_DIR}/toolchain/wrapper ${BUILD_DIR}/Allen"
 MDF="${SCRIPT_DIR}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${SCRIPT_DIR}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
