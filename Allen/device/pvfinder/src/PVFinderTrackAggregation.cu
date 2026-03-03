@@ -37,27 +37,31 @@ __device__ __forceinline__ void pvfinder_linear_layer_reg(
     }
 }
 
-// Fused FC+Aggregation kernel.
-// Computes the full 6-layer MLP per track entirely in registers (800 floats
-// only live as a local array — never written to global memory), then
-// accumulates the latent values directly into the interval feature and
-// histogram buffers.  The 391 MB global latent buffer is eliminated.
+// ---------------------------------------------------------------------------
+// Interval-parallel FC+Aggregation kernel.
+//
+// Grid: (n_events, N_INTERVALS=40) — each block exclusively owns one interval.
+// This gives 100*40=4000 blocks, saturating all 68 SMs on RTX 2080 Ti.
+//
+// Properties:
+//  - No atomics into dev_pvfinder_interval_features (exclusive block ownership).
+//  - Atomics for s_feat/s_hist go into shared memory (fast, single SM).
+//  - Shared mem per block: s_feat[800] + s_hist[100] + s_count = ~3.6 KB.
+// ---------------------------------------------------------------------------
 __global__ void pvfinder_fused_fc_aggregation_kernel(
     pvfinder_track_aggregation_t::Parameters parameters,
     const float* __restrict__ dev_weights)
 {
     const unsigned event_number = blockIdx.x;
+    const unsigned interval     = blockIdx.y;
     const unsigned thread_id    = threadIdx.x;
     const unsigned warp_id      = thread_id / warpSize;
+    const unsigned n_warps      = blockDim.x / warpSize;
 
-    const auto velo_tracks_view  = parameters.dev_velo_tracks_view[event_number];
-    const unsigned num_tracks    = velo_tracks_view.size();
+    const auto velo_tracks_view      = parameters.dev_velo_tracks_view[event_number];
+    const unsigned num_tracks        = velo_tracks_view.size();
     const unsigned event_track_offset = velo_tracks_view.offset();
 
-    // FC weight layout (matches PVFinderFCEngine.cu exactly):
-    //   L1: W(20x9)=180  B(20)
-    //   L2: W(20x20)=400 B(20)  x4
-    //   L6A: W(800x20)=16000 B(800)
     const float* w1  = dev_weights;
     const float* b1  = w1  + 180;
     const float* w2  = b1  + 20;
@@ -71,45 +75,41 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     const float* w6A = b5  + 20;
     const float* b6A = w6A + 16000;
 
-    // Shared memory: interval counts + collapsed histogram
-    __shared__ int   s_interval_counts[40];
-    __shared__ float s_output_histograms[4000];
+    __shared__ float s_feat[8 * 100];  // 3.2 KB
+    __shared__ float s_hist[100];      // 0.4 KB
+    __shared__ int   s_count;
 
-    for (int i = thread_id; i < 40;   i += blockDim.x) s_interval_counts[i]  = 0;
-    for (int i = thread_id; i < 4000; i += blockDim.x) s_output_histograms[i] = 0.0f;
-    // Zero the global interval-features buffer for this event
-    for (int i = thread_id; i < 32000; i += blockDim.x)
-        parameters.dev_pvfinder_interval_features[event_number * 32000 + i] = 0.0f;
-
+    for (int i = thread_id; i < 800; i += blockDim.x) s_feat[i] = 0.0f;
+    for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
+    if (thread_id == 0) s_count = 0;
     __syncthreads();
 
-    // Pass 1: count tracks per interval (needed for normalisation weight)
+    // Pass 1: count tracks in this interval
     for (unsigned i = thread_id; i < num_tracks; i += blockDim.x) {
-        const unsigned gtidx   = event_track_offset + i;
-        const float    z_poca  = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
-        if (z_poca > -98.0f) {
-            int intervals[2]; int n = 0;
-            assign_intervals(z_poca, intervals, &n);
-            for (int j = 0; j < n; ++j) atomicAdd(&s_interval_counts[intervals[j]], 1);
-        }
+        const unsigned gtidx  = event_track_offset + i;
+        const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
+        if (z_poca <= -98.0f) continue;
+        int ivals[2]; int n = 0;
+        assign_intervals(z_poca, ivals, &n);
+        for (int j = 0; j < n; ++j)
+            if ((unsigned)ivals[j] == interval) { atomicAdd(&s_count, 1); break; }
     }
-
     __syncthreads();
 
-    // Pass 2: fused FC inference + aggregation (one track per warp).
-    // Layers 1-5 produce a 20-element hidden state in registers (x1).
-    // Layer 6A (20->800) is NOT stored — each of the 800 outputs is computed
-    // on the fly one bin at a time (lane k handles bin k, 8 channels per bin).
-    // Peak local storage: x1[20] + x2[20] + 8 channel values.
-    for (unsigned i = warp_id; i < num_tracks; i += (blockDim.x / warpSize)) {
+    // Pass 2: fused FC + accumulation into shared s_feat / s_hist
+    for (unsigned i = warp_id; i < num_tracks; i += n_warps) {
         const unsigned gtidx  = event_track_offset + i;
         const float    z_poca = parameters.dev_pvfinder_track_features[gtidx * 9 + 2];
         if (z_poca <= -98.0f) continue;
 
-        int intervals[2]; int n = 0;
-        assign_intervals(z_poca, intervals, &n);
+        int ivals[2]; int ni = 0;
+        assign_intervals(z_poca, ivals, &ni);
 
-        // Layers 1-5: 9->20->20->20->20->20, result in x1[20]
+        bool mine = false;
+        for (int j = 0; j < ni; ++j)
+            if ((unsigned)ivals[j] == interval) { mine = true; break; }
+        if (!mine) continue;
+
         const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
         float x1[20], x2[20];
         pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
@@ -117,52 +117,35 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
         pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
         pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
         pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
-        // x1 now holds the 20-element layer-5 output.
 
-        // Layer 6A + accumulation: compute one spatial bin per lane.
-        // For each bin k: compute latent[c*100+k] for c=0..7 inline,
-        // accumulate to interval features and histogram, then discard.
         const int lane_id = thread_id % warpSize;
-        for (int j = 0; j < n; ++j) {
-            const int interval = intervals[j];
-            for (int k = lane_id; k < 100; k += warpSize) {
-                float chan_sum = 0.0f;
-                for (int c = 0; c < 8; ++c) {
-                    // Compute latent output for neuron (c*100+k):
-                    //   w6A row = (c*100+k), dot with x1[20], + b6A[c*100+k]
-                    const int   neuron = c * 100 + k;
-                    const float* row   = w6A + neuron * 20;
-                    float val = b6A[neuron];
-                    for (int m = 0; m < 20; ++m) val += row[m] * x1[m];
-                    val = pvfinder_leaky_relu(val);
-                    chan_sum += val;
-                    atomicAdd(
-                        &parameters.dev_pvfinder_interval_features[
-                            event_number * 32000 + (interval * 8 + c) * 100 + k],
-                        val);
-                }
-                atomicAdd(&s_output_histograms[interval * 100 + k],
-                          pvfinder_softplus(chan_sum));
+        for (int k = lane_id; k < 100; k += warpSize) {
+            float chan_sum = 0.0f;
+            for (int c = 0; c < 8; ++c) {
+                const int    neuron = c * 100 + k;
+                const float* row    = w6A + neuron * 20;
+                float val = b6A[neuron];
+                for (int m = 0; m < 20; ++m) val += row[m] * x1[m];
+                val = pvfinder_leaky_relu(val);
+                chan_sum += val;
+                atomicAdd(&s_feat[c * 100 + k], val);
             }
+            atomicAdd(&s_hist[k], pvfinder_softplus(chan_sum));
         }
     }
-
     __syncthreads();
 
-    // Normalise and write outputs
-    for (int i = thread_id; i < 4000; i += blockDim.x) {
-        const int   interval = i / 100;
-        const float weight   = s_interval_counts[interval] > 0
-                               ? 1.0f / s_interval_counts[interval] : 1.0f;
-        parameters.dev_pvfinder_output_histogram[event_number * 4000 + i] =
-            s_output_histograms[i] * weight;
-    }
-    for (int i = thread_id; i < 32000; i += blockDim.x) {
-        const int   interval = i / 800;
-        const float weight   = s_interval_counts[interval] > 0
-                               ? 1.0f / s_interval_counts[interval] : 1.0f;
-        parameters.dev_pvfinder_interval_features[event_number * 32000 + i] *= weight;
-    }
+    const float weight = s_count > 0 ? 1.0f / s_count : 1.0f;
+
+    float* g_feat = parameters.dev_pvfinder_interval_features
+                    + event_number * 32000 + interval * 800;
+    for (int i = thread_id; i < 800; i += blockDim.x)
+        g_feat[i] = s_feat[i] * weight;
+
+    float* g_hist = parameters.dev_pvfinder_output_histogram
+                    + event_number * 4000 + interval * 100;
+    for (int i = thread_id; i < 100; i += blockDim.x)
+        g_hist[i] = s_hist[i] * weight;
 }
 
 void pvfinder_track_aggregation_t::set_arguments_size(
@@ -191,7 +174,7 @@ void pvfinder_track_aggregation_t::operator()(
     const float* dev_weights = PVFinder::WeightRegistry::instance().get<float>("fc_weights");
 
     global_function(pvfinder_fused_fc_aggregation_kernel)(
-        dim3(first<host_number_of_events_t>(arguments)), m_block_dim, context)(
+        dim3(first<host_number_of_events_t>(arguments), 40), m_block_dim, context)(
         arguments, dev_weights);
 }
 
