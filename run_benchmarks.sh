@@ -1,5 +1,5 @@
 #!/bin/bash
-# run_fc_benchmarks.sh
+# run_benchmarks.sh
 #
 # Three-way throughput benchmark on the two RTX 2080 Ti GPUs:
 #   Run 1 (device 0): HLT1 baseline         — hlt1_pp_default
@@ -10,7 +10,7 @@
 # Run 3 runs afterwards on device 0 (same GPU as baseline for a fair comparison).
 #
 # Usage:
-#   ./run_fc_benchmarks.sh [--device0 N] [--device1 M] [--threads T]
+#   ./run_benchmarks.sh [--device0 N] [--device1 M] [--threads T]
 #                          [--events N] [--slices M] [--repetitions R]
 #
 # Defaults:
