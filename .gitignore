@@ -10,3 +10,5 @@ __pycache__
 *.pyt
 build*
 Sequence.json
+*.nsys-rep
+*.sqlite
