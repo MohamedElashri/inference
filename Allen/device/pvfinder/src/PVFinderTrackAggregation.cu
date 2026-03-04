@@ -1,6 +1,9 @@
 #include "PVFinderTrackAggregation.cuh"
 #include "PVFinderWeightRegistry.h"
 #include <mutex>
+#include <fstream>
+#include <vector>
+#include <string>
 
 INSTANTIATE_ALGORITHM(pvfinder_track_aggregation::pvfinder_track_aggregation_t)
 
@@ -178,31 +181,54 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
     __syncthreads();
 
-    for (int i = warp_id; i < n_local; i += n_warps) {
-        const int      local_idx = g_idx[iv_begin + i];
-        const unsigned gtidx     = event_track_offset + (unsigned)local_idx;
-
-        const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
-        float x1[20], x2[20];
-        pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
-        pvfinder_linear_layer_reg(x1,  x2, w2, b2, 20, 20);
-        pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
-        pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
-        pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
-
+    // Process tracks in batches of size warpSize (32) per warp.
+    for (int i = warp_id * warpSize; i < n_local; i += n_warps * warpSize) {
         const int lane_id = thread_id % warpSize;
-        for (int k = lane_id; k < 100; k += warpSize) {
-            float chan_sum = 0.0f;
-            for (int c = 0; c < 8; ++c) {
-                const int    neuron = c * 100 + k;
-                const float* row    = w6A + neuron * 20;
-                float val = b6A[neuron];
-                for (int m = 0; m < 20; ++m) val += row[m] * x1[m];
-                val = pvfinder_leaky_relu(val);
-                chan_sum += val;
-                atomicAdd(&s_feat[c * 100 + k], val);
+        const int track_idx_in_batch = i + lane_id;
+        const bool valid_track = track_idx_in_batch < n_local;
+
+        float x1[20], x2[20];
+        
+        // Phase 1: Thread-parallel L1-L5
+        // Each thread processes L1-L5 for a UNIQUE track.
+        if (valid_track) {
+            const int local_idx = g_idx[iv_begin + track_idx_in_batch];
+            const unsigned gtidx = event_track_offset + (unsigned)local_idx;
+            const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
+            
+            pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
+            pvfinder_linear_layer_reg(x1,  x2, w2, b2, 20, 20);
+            pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
+            pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
+            pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
+        }
+
+        // Phase 2: Warp-collaborative L6A
+        // Loop over the tracks in this warp's current batch.
+        const int batch_size = min(warpSize, n_local - i);
+        for (int t = 0; t < batch_size; ++t) {
+            
+            // Broadcast the target track's x1 array to all lanes in the warp
+            float broadcasted_x1[20];
+            for (int m = 0; m < 20; ++m) {
+                broadcasted_x1[m] = __shfl_sync(0xffffffff, x1[m], t);
             }
-            atomicAdd(&s_hist[k], pvfinder_softplus(chan_sum));
+
+            // All lanes collaboratively process L6A for track t
+            for (int k = lane_id; k < 100; k += warpSize) {
+                float chan_sum = 0.0f;
+                for (int c = 0; c < 8; ++c) {
+                    const int neuron = c * 100 + k;
+                    float val = b6A[neuron];
+                    for (int m = 0; m < 20; ++m) {
+                        val += w6A[m * 800 + neuron] * broadcasted_x1[m];
+                    }
+                    val = pvfinder_leaky_relu(val);
+                    chan_sum += val;
+                    atomicAdd(&s_feat[neuron], val); // neuron is c*100 + k
+                }
+                atomicAdd(&s_hist[k], pvfinder_softplus(chan_sum));
+            }
         }
     }
     __syncthreads();
@@ -244,8 +270,35 @@ void pvfinder_track_aggregation_t::operator()(
     static std::once_flag flag;
     std::call_once(flag, []() {
         if (!PVFinder::WeightRegistry::instance().contains("fc_weights")) {
-            PVFinder::WeightRegistry::instance().load(
-                "fc_weights", "/data/home/melashri/iris/inference/fc_weights.bin");
+            std::string path = "/data/home/melashri/iris/inference/fc_weights.bin";
+            std::ifstream f(path, std::ios::binary | std::ios::ate);
+            if (!f.is_open()) {
+                throw std::runtime_error("Cannot open " + path);
+            }
+            const size_t bytes = static_cast<size_t>(f.tellg());
+            f.seekg(0);
+            std::vector<char> host_buf(bytes);
+            f.read(host_buf.data(), bytes);
+
+            // Transpose L6A weights from [800][20] to [20][800]
+            // Offset to w6A is: 180+20 + 400+20 + 400+20 + 400+20 + 400+20 = 1880 floats
+            // Because w1: 180, b1: 20
+            // w2: 400, b2: 20
+            // w3: 400, b3: 20
+            // w4: 400, b4: 20
+            // w5: 400, b5: 20
+            // Total before w6A: 200 + 420 + 420 + 420 + 420 = 1880 floats
+            float* floats = reinterpret_cast<float*>(host_buf.data());
+            std::vector<float> w6A_transposed(16000);
+            for (int r = 0; r < 800; ++r) {
+                for (int c = 0; c < 20; ++c) {
+                    w6A_transposed[c * 800 + r] = floats[1880 + r * 20 + c];
+                }
+            }
+            std::memcpy(floats + 1880, w6A_transposed.data(), 16000 * sizeof(float));
+
+            PVFinder::WeightRegistry::instance().load_from_buffer(
+                "fc_weights", host_buf.data(), bytes);
         }
     });
     const float* dev_weights = PVFinder::WeightRegistry::instance().get<float>("fc_weights");
