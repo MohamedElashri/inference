@@ -170,6 +170,7 @@ struct VeloGeometry {
   float local_x[Velo::Constants::number_of_sensor_columns];
   float x_pitch[Velo::Constants::number_of_sensor_columns];
   float ltg[12 * Velo::Constants::n_sensors];
+  uint32_t missing_module_pairs_hlt1 {0};
 
   /**
    * @brief Typecast from std::vector.
@@ -202,7 +203,14 @@ struct VeloGeometry {
       std::memcpy(ltg + n_trans * i, p, n_trans * sizeof(float));
       p += sizeof(float) * n_trans;
     }
-    const size_t size = p - geometry.data();
+    size_t size = p - geometry.data();
+
+    if (size >= sizeof(uint32_t)) {
+      // Read the missing module pairs bitmask if it is present
+      missing_module_pairs_hlt1 = ((uint32_t*) p)[0];
+      p += sizeof(uint32_t);
+      size = p - geometry.data();
+    }
 
     if (size != geometry.size()) {
       error_cout << "Size mismatch for geometry" << std::endl;
