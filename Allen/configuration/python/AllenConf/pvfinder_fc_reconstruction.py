@@ -30,8 +30,8 @@ def make_pvfinder_fc(velo_tracks, pv_name=""):
         dev_velo_states_view_t=velo_states["dev_velo_kalman_beamline_states_view"]
     )
 
-    # 2. Fused FC+Aggregation — runs the full MLP per-track in registers,
-    #    accumulates directly into interval features.  No global latent buffer.
+    # 2. Fused FC+Aggregation - runs the full MLP per-track in registers,
+    #    accumulates directly into interval features. - No global latent buffer.
     pvfinder_track_aggregation = make_algorithm(
         pvfinder_track_aggregation_t,
         name="pvfinder_track_aggregation" + pv_name,

@@ -1,6 +1,5 @@
 allen_add_device_library(PVFinder
     src/VeloFeatureExtraction.cu
-    src/PVFinderFCEngine.cu
     src/PVFinderWeightRegistry.cpp
     src/PVFinderTrackAggregation.cu
     src/PVFinderNCWLayout.cu
