@@ -3,7 +3,7 @@
 #include "VeloConsolidated.cuh"
 #include "AlgorithmTypes.cuh"
 
-namespace pvfinder_track_aggregation {
+namespace pvfinder_fc_aggregation {
 
 struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
@@ -24,7 +24,7 @@ struct Parameters {
     DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
 };
 
-struct pvfinder_track_aggregation_t : public DeviceAlgorithm, Parameters {
+struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 
     void operator()(
@@ -37,4 +37,4 @@ private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 };
 
-} // namespace pvfinder_track_aggregation
+} // namespace pvfinder_fc_aggregation

@@ -8,7 +8,7 @@
 # Pipeline:
 #   HLT1 default reco
 #     └─> pvfinder_velo_feature_extraction
-#     └─> pvfinder_track_aggregation
+#     └─> pvfinder_fc_aggregation
 #     └─> pvfinder_ncw_layout
 #     └─> pvfinder_unet
 ###############################################################################

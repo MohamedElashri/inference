@@ -3,7 +3,7 @@
 ###############################################################################
 from AllenCore.algorithms import (
     pvfinder_velo_feature_extraction_t,
-    pvfinder_track_aggregation_t
+    pvfinder_fc_aggregation_t
 )
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 from AllenConf.utils import initialize_number_of_events
@@ -32,9 +32,9 @@ def make_pvfinder_fc(velo_tracks, pv_name=""):
 
     # 2. Fused FC+Aggregation - runs the full MLP per-track in registers,
     #    accumulates directly into interval features. - No global latent buffer.
-    pvfinder_track_aggregation = make_algorithm(
-        pvfinder_track_aggregation_t,
-        name="pvfinder_track_aggregation" + pv_name,
+    pvfinder_fc_aggregation = make_algorithm(
+        pvfinder_fc_aggregation_t,
+        name="pvfinder_fc_aggregation" + pv_name,
         host_number_of_events_t=host_number_of_events,
         host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
         dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
@@ -42,7 +42,7 @@ def make_pvfinder_fc(velo_tracks, pv_name=""):
     )
 
     return {
-        "dev_pvfinder_output_histogram": pvfinder_track_aggregation.dev_pvfinder_output_histogram_t,
-        "dev_pvfinder_interval_features": pvfinder_track_aggregation.dev_pvfinder_interval_features_t,
+        "dev_pvfinder_output_histogram": pvfinder_fc_aggregation.dev_pvfinder_output_histogram_t,
+        "dev_pvfinder_interval_features": pvfinder_fc_aggregation.dev_pvfinder_interval_features_t,
         "host_number_of_events": host_number_of_events,
     }

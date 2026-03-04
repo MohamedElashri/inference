@@ -1,13 +1,13 @@
-#include "PVFinderTrackAggregation.cuh"
+#include "PVFinderFCAggregation.cuh"
 #include "PVFinderWeightRegistry.h"
 #include <mutex>
 #include <fstream>
 #include <vector>
 #include <string>
 
-INSTANTIATE_ALGORITHM(pvfinder_track_aggregation::pvfinder_track_aggregation_t)
+INSTANTIATE_ALGORITHM(pvfinder_fc_aggregation::pvfinder_fc_aggregation_t)
 
-namespace pvfinder_track_aggregation {
+namespace pvfinder_fc_aggregation {
 
 __device__ void assign_intervals(float z_poca, int* intervals, int* num_intervals) {
     z_poca += 100.0f;
@@ -61,7 +61,7 @@ __device__ __forceinline__ void pvfinder_linear_layer_reg(
 //   3. Scatter:   fill track_idx[] advancing s_cursor[40] atomically
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_build_csr_kernel(
-    pvfinder_track_aggregation_t::Parameters parameters)
+    pvfinder_fc_aggregation_t::Parameters parameters)
 {
     const unsigned event_number      = blockIdx.x;
     const unsigned thread_id         = threadIdx.x;
@@ -142,7 +142,7 @@ __global__ void pvfinder_build_csr_kernel(
 // the 64 KB weight matrix well enough without smem caching.
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_fused_fc_aggregation_kernel(
-    pvfinder_track_aggregation_t::Parameters parameters,
+    pvfinder_fc_aggregation_t::Parameters parameters,
     const float* __restrict__ dev_weights)
 {
     const unsigned event_number = blockIdx.x;
@@ -246,7 +246,7 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
         g_hist[i] = s_hist[i] * weight;
 }
 
-void pvfinder_track_aggregation_t::set_arguments_size(
+void pvfinder_fc_aggregation_t::set_arguments_size(
     ArgumentReferences<Parameters> arguments,
     const RuntimeOptions&,
     const Constants&) const
@@ -262,7 +262,7 @@ void pvfinder_track_aggregation_t::set_arguments_size(
     set_size<dev_pvfinder_track_idx_t>     (arguments, total_tracks  * 2);
 }
 
-void pvfinder_track_aggregation_t::operator()(
+void pvfinder_fc_aggregation_t::operator()(
     const ArgumentReferences<Parameters>& arguments,
     const RuntimeOptions&,
     const Constants&,
@@ -313,4 +313,4 @@ void pvfinder_track_aggregation_t::operator()(
         arguments, dev_weights);
 }
 
-} // namespace pvfinder_track_aggregation
+} // namespace pvfinder_fc_aggregation
