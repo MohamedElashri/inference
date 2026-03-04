@@ -55,6 +55,7 @@ target_link_libraries(Utils
 
 target_include_directories(Utils PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prefix_sum/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scan_reduce/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/nn_propagation/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/get_type_id/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>
