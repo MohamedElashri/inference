@@ -13,6 +13,9 @@ INSTANTIATE_ALGORITHM(pvfinder_unet::pvfinder_unet_t)
 
 namespace pvfinder_unet {
 
+static constexpr int B_EVENTS_MAX = 20;
+static constexpr int N_CHUNK_INTERVALS = B_EVENTS_MAX * N_INTERVALS;
+
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 // ---------------------------------------------------------------------------
 // Process-level global descriptor set.
@@ -40,7 +43,7 @@ static std::once_flag    s_init_flag;
 
 static void init_global_descriptors()
 {
-    constexpr int N = N_INTERVALS;
+    constexpr int N = N_CHUNK_INTERVALS;
     // All forward convs — input shape fixed, IMPLICIT_GEMM, zero workspace.
     s_desc.rcbn1.create(    {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
     s_desc.rcbn2.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
@@ -322,15 +325,16 @@ void pvfinder_unet_t::set_arguments_size(
     const Constants&) const
 {
     const unsigned n_events = first<host_number_of_events_t>(arguments);
-    static constexpr unsigned N = N_INTERVALS;   // 40 intervals, fixed single-event batch
+    const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
+    constexpr unsigned N_batch = N_CHUNK_INTERVALS;
 
-    set_size<dev_unet_x1_t>   (arguments, N * N_FEAT * W_IN);       // 1.024 MB
-    set_size<dev_unet_x2_t>   (arguments, N * N_FEAT * W_HALF);     // 0.512 MB
-    set_size<dev_unet_x3_t>   (arguments, N * N_FEAT * W_IN);       // 1.024 MB (also logits)
-    set_size<dev_unet_up1_t>  (arguments, N * N_FEAT * W_HALF);     // 0.512 MB
-    set_size<dev_unet_cat2_t> (arguments, N * N_FEAT * 2 * W_HALF); // 1.024 MB (also up2)
-    set_size<dev_unet_conv_ws_t>(arguments, 1u);                    // 1 float, IMPLICIT_GEMM=0 ws
-    set_size<dev_pvfinder_kde_output_t>(arguments, n_events * N_INTERVALS * W_IN);
+    set_size<dev_unet_x1_t>   (arguments, N_batch * N_FEAT * W_IN);       
+    set_size<dev_unet_x2_t>   (arguments, N_batch * N_FEAT * W_HALF);     
+    set_size<dev_unet_x3_t>   (arguments, N_batch * N_FEAT * W_IN);       
+    set_size<dev_unet_up1_t>  (arguments, N_batch * N_FEAT * W_HALF);     
+    set_size<dev_unet_cat2_t> (arguments, N_batch * N_FEAT * 2 * W_HALF); 
+    set_size<dev_unet_conv_ws_t>(arguments, 1u);                    
+    set_size<dev_pvfinder_kde_output_t>(arguments, padded_events * N_INTERVALS * W_IN);
 }
 
 // ---------------------------------------------------------------------------
@@ -417,7 +421,7 @@ void pvfinder_unet_t::operator()(
     cudnnHandle_t handle = Allen::CuDNN::get_thread_local_handle(context.stream());
 
     const dim3 block = m_block_dim;
-    constexpr int N = N_INTERVALS;  // 40 — fixed per-event batch size
+    constexpr int N = N_CHUNK_INTERVALS;  // batch size = 20 * 40 = 800
 
     // Scratch buffers (fixed size, reused each event iteration)
     float* x1   = data<dev_unet_x1_t>(arguments);
@@ -454,9 +458,11 @@ void pvfinder_unet_t::operator()(
     const float* ncw_base = data<dev_pvfinder_interval_features_t>(arguments);
     float*       kde_base = data<dev_pvfinder_kde_output_t>(arguments);
 
-    for (unsigned ev = 0; ev < n_events; ++ev) {
-        const float* ncw = ncw_base + ev * ncw_stride;
-        float*       kde = kde_base + ev * kde_stride;
+    const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
+
+    for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += B_EVENTS_MAX) {
+        const float* ncw = ncw_base + chunk_start * ncw_stride;
+        float*       kde = kde_base + chunk_start * kde_stride;
 
         // ---- Downsampling ----
         run_convbnrelu(s_desc.rcbn1, ncw, x1,

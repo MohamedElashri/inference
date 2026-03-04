@@ -252,9 +252,10 @@ void pvfinder_track_aggregation_t::set_arguments_size(
     const Constants&) const
 {
     const unsigned total_events = first<host_number_of_events_t>(arguments);
+    const unsigned padded_events = ((total_events + 19) / 20) * 20;
     const unsigned total_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
     set_size<dev_pvfinder_output_histogram_t>  (arguments, total_events * 4000);
-    set_size<dev_pvfinder_interval_features_t> (arguments, total_events * 32000);
+    set_size<dev_pvfinder_interval_features_t> (arguments, padded_events * 32000);
     // CSR: 42 ints per event (40 interval starts + total sentinel + 1 extra for g_start[41])
     // track_idx: at most 2 entries per track (boundary tracks assigned to 2 intervals)
     set_size<dev_pvfinder_interval_start_t>(arguments, total_events * 42);

@@ -99,7 +99,7 @@ run_allen() {
     echo ""
     echo "[Running] ${seq} on device ${DEVICE0}..."
     local d; d=$(mktemp -d)
-    (cd "${d}" && ${ALLEN} --sequence "${seq}" ${COMMON_ARGS} --device ${DEVICE0}) \
+    (cd "${d}" && nsys profile -f true --stats=true -o /tmp/pvfinder_profile_${seq} -t cuda ${ALLEN} --sequence "${seq}" ${COMMON_ARGS} --device ${DEVICE0}) \
         > "${log}" 2>&1
     local rc=$?
     rm -rf "${d}"
