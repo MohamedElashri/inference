@@ -12,3 +12,4 @@ build*
 Sequence.json
 *.nsys-rep
 *.sqlite
+slides
