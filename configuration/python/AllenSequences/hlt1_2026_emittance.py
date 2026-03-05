@@ -15,13 +15,12 @@ from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
 
-with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),\
-      make_pr_velo_tracks.bind(missing_modules=[21]),\
-      default_bgi_activity_lines.bind(enableBGI_full=True)): # Fully enable BGI lines
+with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8)):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         with_ut=True,
         with_fullKF=True,
+        enableBGI=False,
         enableDownstream=False,  # Downstream not used in technical lines
         enablePhysics=False,  # Only enable technical lines
         withSMOG2=False)  # Only enable technical lines
