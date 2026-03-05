@@ -934,6 +934,7 @@ def alignment_monitoring_lines(reconstructed_objects,
         make_d2kpi_align_line(
             long_tracks,
             dihadrons,
+            pre_scaler=0.002,
             name="Hlt1D2KPiAlignment",
             enable_tupling=enable_tupling),
         make_dst_line(
