@@ -71,7 +71,7 @@ rb_map = {
     'Hlt1(VeloMicroBias|BeamGas)':
     2,
     # RB 3 Tracker alignment
-    'Hlt1D2KPiAlignment':
+    'Hlt1(D2KPiAlignment|DiMuonJpsiMassAlignment|UpsilonAlignment)':
     3,
     # RB 4 Muon alignment
     'Hlt1DiMuonJpsiMassAlignment':
