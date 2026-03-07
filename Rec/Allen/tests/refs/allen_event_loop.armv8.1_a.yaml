@@ -26,7 +26,6 @@ stdout: |-
   Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_hist_counts.json
   Hlt1D2KK                               INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1D2KPi                              INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-  Hlt1D2KPiAlignment                     INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1D2PiPi                             INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1DetJpsiToMuMuNegTagLine            INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1DiElectronLowMass_NoIP             INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -129,43 +128,6 @@ histos:
       sum: 14
       meanX: -0.085714
       stdDevX: 0.38114
-  Hlt1D2KPiAlignment:
-    d0_mass:
-      nEntries: 7.0
-      title: m(D0)
-      sum: 7
-      meanX: 1868.571429
-      stdDevX: 41.053474
-    d0_pt:
-      nEntries: 4.0
-      title: pT(D0)
-      sum: 4
-      meanX: 5653.0
-      stdDevX: 1184.220841
-    p0_ipx:
-      nEntries: 4.0
-      title: IP_{x}(p0)
-      sum: 4
-      meanX: 0.12
-      stdDevX: 0.130767
-    p0_ipy:
-      nEntries: 4.0
-      title: IP_{y}(p0)
-      sum: 4
-      meanX: -0.21
-      stdDevX: 0.250998
-    p1_ipx:
-      nEntries: 4.0
-      title: IP_{x}(p1)
-      sum: 4
-      meanX: -0.045
-      stdDevX: 0.107121
-    p1_ipy:
-      nEntries: 4.0
-      title: IP_{y}(p1)
-      sum: 4
-      meanX: 0.165
-      stdDevX: 0.181865
   Hlt1D2PiPi:
     d02pipi_mass:
       nEntries: 4.0
@@ -546,17 +508,17 @@ histos:
       stdDevX: 1.879295
   gather_selections:
     line_passes:
-      nEntries: 17413.0
+      nEntries: 17409.0
       title: line passes
-      sum: 17413
-      meanX: 82.600614
-      stdDevX: 20.244928
+      sum: 17409
+      meanX: 82.616491
+      stdDevX: 20.220136
     line_rates:
-      nEntries: 666.0
+      nEntries: 662.0
       title: line rates
-      sum: 666
-      meanX: 75.918919
-      stdDevX: 30.639925
+      sum: 662
+      meanX: 76.296073
+      stdDevX: 30.344584
   is_muon:
     n_muons:
       nEntries: 458847.0
@@ -848,10 +810,6 @@ counters:
       nEntries: 14.0
     Hlt1D2KKRate:
       nEntries: 14.0
-    Hlt1D2KPiAlignmentPass:
-      nEntries: 4.0
-    Hlt1D2KPiAlignmentRate:
-      nEntries: 4.0
     Hlt1D2KPiPass:
       nEntries: 15.0
     Hlt1D2KPiRate:
