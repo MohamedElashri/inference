@@ -22,6 +22,17 @@ struct Parameters {
     //   track_idx[total_tracks * 2]:   track indices sorted by interval (boundary tracks appear twice)
     DEVICE_OUTPUT(dev_pvfinder_interval_start_t, int) dev_pvfinder_interval_start;
     DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
+    // Compact non-empty slot list (used so the aggregation kernel skips empty intervals):
+    //   nonempty_slots[i] = (event_number << 6) | interval — packed uint32
+    //   nonempty_count[0] = number of valid entries in nonempty_slots
+    DEVICE_OUTPUT(dev_pvfinder_nonempty_slots_t, unsigned) dev_pvfinder_nonempty_slots;
+    DEVICE_OUTPUT(dev_pvfinder_nonempty_count_t, int)      dev_pvfinder_nonempty_count;
+    // cuBLAS L6A GEMM intermediate buffers — sized per chunk, reused across chunks.
+    //   dev_pvfinder_l5_output: L1-L5 hidden states, shape [T_chunk_max × 20] row-major.
+    //   dev_pvfinder_l6a_output: raw L6A GEMM output, shape [800 × T_chunk_max] col-major (cuBLAS layout).
+    //   Both are allocated only when ALLEN_WITH_CUBLAS is defined; zero-sized otherwise.
+    DEVICE_OUTPUT(dev_pvfinder_l5_output_t,  float) dev_pvfinder_l5_output;
+    DEVICE_OUTPUT(dev_pvfinder_l6a_output_t, float) dev_pvfinder_l6a_output;
 };
 
 struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
