@@ -24,6 +24,7 @@ function help {
     echo "  -i, --input <path>              Specify the Allen repository folder (overrides --repo-dir)"
     echo "  -j, --cores [num]               Number of cores for the build (default: nproc)"
   echo "  --cudnn                         Enable cuDNN support (sets -DWITH_CUDNN=ON with local path)"
+  echo "  --cublas                        Enable cuBLAS GEMM for PVFinder L6A (sets -DWITH_CUBLAS=ON)"
   echo "  --cuda-arch <arch>              Set CUDA_ARCH (e.g. 86 for SM 8.6, 75 for SM 7.5; default: COMPATIBILITY)"
     echo "  -f, --force                     Force rebuild, even if 'Allen' binary exists"
     echo "  -t, --lcg-toolchain <path>      Specify the LCG toolchain folder location"
@@ -58,6 +59,7 @@ while [[ "$#" -gt 0 ]]; do
         -f|--force) FORCE=1 ;;
         -d|--dry-run) DRYRUN=1 ;;
         --cudnn) USE_CUDNN=1 ;;
+        --cublas) USE_CUBLAS=1 ;;
         --cuda-arch) [[ -n "$2" && "$2" != -* ]] && CUDA_ARCH_OVERRIDE="$2" && shift || { echo "Error: --cuda-arch requires an argument"; exit 1; } ;;
         -h|--help) help ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -138,6 +140,9 @@ function build_gpu {
         CMAKE_ARGS="-DSTANDALONE=ON -DTARGET_DEVICE=CUDA -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
         if [[ $USE_CUDNN -eq 1 ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUDNN=ON -DCUDNN_LIBRARY=$HOME/local/cuda/lib64/libcudnn.so -DCUDNN_INCLUDE_DIR=$HOME/local/cuda/include"
+        fi
+        if [[ ${USE_CUBLAS:-0} -eq 1 ]]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUBLAS=ON"
         fi
         if [[ -n "${CUDA_ARCH_OVERRIDE:-}" ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DCUDA_ARCH=${CUDA_ARCH_OVERRIDE}"

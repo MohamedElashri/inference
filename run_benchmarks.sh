@@ -31,6 +31,7 @@ EVENTS=500
 SLICES=200
 REPS=1000
 BUILD_NAME=buildgpu
+PROFILE=0   # off by default; use --profile to enable nsys
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -44,6 +45,7 @@ while [[ $# -gt 0 ]]; do
         --slices|-m)  SLICES="$2";     shift 2 ;;
         --repetitions|-r) REPS="$2";   shift 2 ;;
         --build-dir|-B)   BUILD_NAME="$2"; shift 2 ;;
+        --profile)    PROFILE=1;       shift 1 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -82,6 +84,11 @@ print_header() {
     echo " Geometry: ${GEO}"
     echo " Params : -n ${EVENTS} -m ${SLICES} -r ${REPS} -t ${THREADS}"
     echo " Device : ${DEVICE0}"
+    if [[ ${PROFILE} -eq 1 ]]; then
+        echo " Profiling: nsys ON"
+    else
+        echo " Profiling: OFF (use --profile to enable)"
+    fi
     echo "================================================================"
 }
 
@@ -99,8 +106,14 @@ run_allen() {
     echo ""
     echo "[Running] ${seq} on device ${DEVICE0}..."
     local d; d=$(mktemp -d)
-    (cd "${d}" && nsys profile -f true --stats=true -o /tmp/pvfinder_profile_${seq} -t cuda ${ALLEN} --sequence "${seq}" ${COMMON_ARGS} --device ${DEVICE0}) \
-        > "${log}" 2>&1
+    if [[ ${PROFILE} -eq 1 ]]; then
+        (cd "${d}" && nsys profile -f true --stats=true -o /tmp/pvfinder_profile_${seq} -t cuda \
+            ${ALLEN} --sequence "${seq}" ${COMMON_ARGS} --device ${DEVICE0}) \
+            > "${log}" 2>&1
+    else
+        (cd "${d}" && ${ALLEN} --sequence "${seq}" ${COMMON_ARGS} --device ${DEVICE0}) \
+            > "${log}" 2>&1
+    fi
     local rc=$?
     rm -rf "${d}"
     [[ ${rc} -ne 0 ]] && { echo "ERROR: ${seq} failed (exit ${rc}). See ${log}"; exit 1; }
