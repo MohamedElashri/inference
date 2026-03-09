@@ -40,6 +40,10 @@ stdout: |-
   Hlt1KsLLDetachedTrack                  INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1KsToPiPi                           INFO Booked 4 Histogram(s) : 1D=4 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1LambdaLLDetachedTrack              INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGamma                     INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGammaMiddleInnerMixed     INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGammaMiddleOuterMixed     INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGammaOuter                INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1TrackMVA                           INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1TwoTrackMVA                        INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   calo_find_clusters                     INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -310,6 +314,58 @@ histos:
       sum: 1
       meanX: 1118.75
       stdDevX: 0.0
+  Hlt1Pi02GammaGamma:
+    diphoton_mass:
+      nEntries: 5.0
+      title: m(diphoton)
+      sum: 5
+      meanX: 433.5
+      stdDevX: 48.311489
+    diphoton_pt:
+      nEntries: 5.0
+      title: pT(diphoton)
+      sum: 5
+      meanX: 1698.0
+      stdDevX: 141.194901
+  Hlt1Pi02GammaGammaMiddleInnerMixed:
+    diphoton_mass:
+      nEntries: 1.0
+      title: m(diphoton)
+      sum: 1
+      meanX: 497.5
+      stdDevX: 0.0
+    diphoton_pt:
+      nEntries: 1.0
+      title: pT(diphoton)
+      sum: 1
+      meanX: 1450.0
+      stdDevX: 0.0
+  Hlt1Pi02GammaGammaMiddleOuterMixed:
+    diphoton_mass:
+      nEntries: 1.0
+      title: m(diphoton)
+      sum: 1
+      meanX: 367.5
+      stdDevX: 0.0
+    diphoton_pt:
+      nEntries: 1.0
+      title: pT(diphoton)
+      sum: 1
+      meanX: 1510.0
+      stdDevX: 0.0
+  Hlt1Pi02GammaGammaOuter:
+    diphoton_mass:
+      nEntries: 2.0
+      title: m(diphoton)
+      sum: 2
+      meanX: 310.0
+      stdDevX: 52.5
+    diphoton_pt:
+      nEntries: 2.0
+      title: pT(diphoton)
+      sum: 2
+      meanX: 1750.0
+      stdDevX: 220.0
   Hlt1TrackMVA:
     ghost_prob:
       nEntries: 104.0
@@ -508,17 +564,17 @@ histos:
       stdDevX: 1.879295
   gather_selections:
     line_passes:
-      nEntries: 17409.0
+      nEntries: 17415.0
       title: line passes
-      sum: 17409
-      meanX: 82.616491
-      stdDevX: 20.220136
+      sum: 17415
+      meanX: 85.618174
+      stdDevX: 22.563413
     line_rates:
-      nEntries: 662.0
+      nEntries: 666.0
       title: line rates
-      sum: 662
-      meanX: 76.296073
-      stdDevX: 30.344584
+      sum: 666
+      meanX: 79.89039
+      stdDevX: 32.410943
   is_muon:
     n_muons:
       nEntries: 458847.0
@@ -914,6 +970,20 @@ counters:
       nEntries: 1.0
     Hlt1OneMuonTrackLinePass:
       nEntries: 5717.0
+    Hlt1Pi02GammaGammaMiddleInnerMixedPass:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaMiddleInnerMixedRate:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaMiddleOuterMixedPass:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaMiddleOuterMixedRate:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaOuterPass:
+      nEntries: 2.0
+    Hlt1Pi02GammaGammaOuterRate:
+      nEntries: 2.0
+    Hlt1Pi02GammaGammaPass:
+      nEntries: 2.0
     Hlt1QuirksPass:
       nEntries: 2.0
     Hlt1QuirksRate:
