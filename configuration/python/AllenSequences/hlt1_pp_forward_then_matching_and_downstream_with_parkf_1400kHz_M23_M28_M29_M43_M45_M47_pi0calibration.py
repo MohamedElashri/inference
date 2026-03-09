@@ -14,12 +14,20 @@ from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
-from AllenConf.hlt1_calibration_lines import make_pi02gammagamma_line
+from AllenConf.hlt1_calibration_lines import make_pi02gammagamma_line, make_pi02gammagamma_middleoutermixed_line, make_pi02gammagamma_middleinnermixed_line, make_pi02gammagamma_inner_line, make_pi02gammagamma_middle_line, make_pi02gammagamma_outer_line
 
 with make_velo_scifi_matches.bind(
         ghost_killer_threshold=0.8), make_pr_velo_tracks.bind(
-            missing_modules=[21, 23, 28, 29, 43, 45, 47
-                             ]), make_pi02gammagamma_line.bind(pre_scaler=1.):
+            missing_modules=[21, 23, 28, 29, 43, 45, 47]
+        ), make_pi02gammagamma_line.bind(
+            pre_scaler=1.), make_pi02gammagamma_inner_line.bind(
+                pre_scaler=1.), make_pi02gammagamma_middle_line.bind(
+                    pre_scaler=1.), make_pi02gammagamma_outer_line.bind(
+                        pre_scaler=1.
+                    ), make_pi02gammagamma_middleinnermixed_line.bind(
+                        pre_scaler=1.
+                    ), make_pi02gammagamma_middleoutermixed_line.bind(
+                        pre_scaler=1.):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         threshold_settings=get_thresholds(

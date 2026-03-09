@@ -70,6 +70,15 @@ struct CaloCluster {
     sintheta = sqrtf(sintheta);
     this->et = this->e * sintheta;
   }
+
+  __device__ __host__ constexpr int area() const
+  {
+    constexpr int middle_offset = 2688;
+    constexpr int inner_offset = 4480;
+    constexpr int pin_offset = 6016;
+
+    return (center_id < middle_offset) ? 0 : (center_id < inner_offset) ? 1 : (center_id < pin_offset) ? 2 : -1;
+  }
 };
 
 struct TwoCaloCluster {

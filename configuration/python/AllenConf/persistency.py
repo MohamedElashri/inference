@@ -89,7 +89,7 @@ rb_map = {
     'Hlt1VeloMicroBias.*':
     8,
     # RB 9 ECAL pi0 calibration
-    'Hlt1Pi02GammaGamma':
+    'Hlt1Pi02GammaGamma(Inner|Middle|Outer|MiddleOuterMixed|MiddleInnerMixed)': #withou the GammaGamma original line
     9,
     # RB 10 ODIN calibration triggers
     'Hlt1ODINCalib':

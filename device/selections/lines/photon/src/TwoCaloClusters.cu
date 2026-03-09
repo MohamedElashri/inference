@@ -16,6 +16,17 @@
 // Explicit instantiation
 INSTANTIATE_LINE(two_calo_clusters_line::two_calo_clusters_line_t, two_calo_clusters_line::Parameters)
 
+__device__ inline int compute_event_calo_region(const CaloCluster& c1, const CaloCluster& c2)
+{
+  int area1 = c1.area();
+  int area2 = c2.area();
+
+  if (area1 == area2) return area1;
+  if ((area1 == 0 && area2 == 1) || (area1 == 1 && area2 == 0)) return 10;
+  if ((area1 == 1 && area2 == 2) || (area2 == 1 && area1 == 2)) return 12;
+  return -1;
+}
+
 __device__ bool two_calo_clusters_line::two_calo_clusters_line_t::select(
   const Parameters&,
   const DeviceProperties& properties,
@@ -35,6 +46,15 @@ __device__ bool two_calo_clusters_line::two_calo_clusters_line_t::select(
   const float pt = dicluster.diphoton_pt();
   const float eta = dicluster.diphoton_eta();
 
+  const int selected_region = properties.selected_calo_region;
+  bool in_region = true;
+  if (selected_region >= 0) {
+    int event_calo_region = compute_event_calo_region(c1, c2);
+    if (event_calo_region != selected_region) {
+      in_region = false;
+    }
+  }
+
   bool decision = (mass > properties.minMass) && (mass < properties.maxMass) && (pt > properties.minPt) &&
                   (pt <= properties.maxPt) && (pt > properties.minPtEta * (10 - eta)) &&
                   (child1->et() > properties.minEt_clusters && child2->et() > properties.minEt_clusters) &&
@@ -43,7 +63,7 @@ __device__ bool two_calo_clusters_line::two_calo_clusters_line_t::select(
                   (fabsf(c1.y) > properties.minAbsY_clusters && fabsf(c2.y) > properties.minAbsY_clusters) &&
                   (number_of_velo_tracks <= properties.max_velo_tracks) &&
                   (ecal_number_of_clusters <= properties.max_ecal_clusters) && (n_pvs <= properties.max_n_pvs) &&
-                  (eta < properties.eta_max);
+                  (n_pvs >= properties.min_n_pvs) && (eta < properties.eta_max) && (in_region);
 
   if (properties.veto_bm_clusters) decision = decision && !(c1.isBremMatched || c2.isBremMatched);
 
@@ -108,6 +128,7 @@ __device__ void two_calo_clusters_line::two_calo_clusters_line_t::monitor(
 {
   const auto& dicluster = std::get<0>(input);
   if (sel) {
+
     properties.histogram_diphoton_mass.increment(dicluster.diphoton_mass());
     properties.histogram_diphoton_pt.increment(dicluster.diphoton_pt());
   }

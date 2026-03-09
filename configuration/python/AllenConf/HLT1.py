@@ -737,6 +737,26 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 name="Hlt1DiPhotonHighMass",
                 enable_tupling=enable_tupling,
                 minET=thresholds.DiPhotonHighMass_minET),
+            make_pi02gammagamma_middleoutermixed_line(
+                ecal_clusters,
+                velo_tracks,
+                pvs,
+                name="Hlt1Pi02GammaGammaMiddleOuterMixed",
+                pre_scaler_hash_string=
+                "p02gammagamma_middleoutermixed_line_pre",
+                post_scaler_hash_string=
+                "p02gammagamma_middleoutermixed_line_post",
+                enable_tupling=enable_tupling),
+            make_pi02gammagamma_middleinnermixed_line(
+                ecal_clusters,
+                velo_tracks,
+                pvs,
+                name="Hlt1Pi02GammaGammaMiddleInnerMixed",
+                pre_scaler_hash_string=
+                "p02gammagamma_middleInnermixed_line_pre",
+                post_scaler_hash_string=
+                "p02gammagamma_middleInnermixed_line_post",
+                enable_tupling=enable_tupling),
             make_pi02gammagamma_line(
                 ecal_clusters,
                 velo_tracks,
@@ -744,6 +764,30 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
                 name="Hlt1Pi02GammaGamma",
                 pre_scaler_hash_string="p02gammagamma_line_pre",
                 post_scaler_hash_string="p02gammagamma_line_post",
+                enable_tupling=enable_tupling),
+            make_pi02gammagamma_outer_line(
+                ecal_clusters,
+                velo_tracks,
+                pvs,
+                name="Hlt1Pi02GammaGammaOuter",
+                pre_scaler_hash_string="p02gammagamma_outer_line_pre",
+                post_scaler_hash_string="p02gammagamma_outer_line_post",
+                enable_tupling=enable_tupling),
+            make_pi02gammagamma_middle_line(
+                ecal_clusters,
+                velo_tracks,
+                pvs,
+                name="Hlt1Pi02GammaGammaMiddle",
+                pre_scaler_hash_string="p02gammagamma_middle_line_pre",
+                post_scaler_hash_string="p02gammagamma_middle_line_post",
+                enable_tupling=enable_tupling),
+            make_pi02gammagamma_inner_line(
+                ecal_clusters,
+                velo_tracks,
+                pvs,
+                name="Hlt1Pi02GammaGammaInner",
+                pre_scaler_hash_string="p02gammagamma_inner_line_pre",
+                post_scaler_hash_string="p02gammagamma_inner_line_post",
                 enable_tupling=enable_tupling),
             make_highmass_dielectron_line(
                 long_tracks,

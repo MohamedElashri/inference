@@ -196,6 +196,11 @@ Hlt1OneMuonTrackLine:                                  1/   500, (   60.00 +/-  
 Hlt1Passthrough:                                       0/   500, (    0.00 +/-     0.00) kHz
 Hlt1PassthroughPVinSMOG2:                              0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Pi02GammaGamma:                                    0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaInner:                               0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddle:                              0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddleInnerMixed:                    0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddleOuterMixed:                    0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaOuter:                               0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Quirks:                                            0/   500, (    0.00 +/-     0.00) kHz
 Hlt1RICH1Alignment:                                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1RICH2Alignment:                                    0/   500, (    0.00 +/-     0.00) kHz
@@ -442,6 +447,11 @@ Hlt1OneMuonTrackLine:                                  1           0
 Hlt1Passthrough:                                       0           0
 Hlt1PassthroughPVinSMOG2:                              0           0
 Hlt1Pi02GammaGamma:                                    0           0
+Hlt1Pi02GammaGammaInner:                               0           0
+Hlt1Pi02GammaGammaMiddle:                              0           0
+Hlt1Pi02GammaGammaMiddleInnerMixed:                    0           0
+Hlt1Pi02GammaGammaMiddleOuterMixed:                    0           0
+Hlt1Pi02GammaGammaOuter:                               0           0
 Hlt1Quirks:                                            0           0
 Hlt1RICH1Alignment:                                    0           0
 Hlt1RICH2Alignment:                                    0           0
