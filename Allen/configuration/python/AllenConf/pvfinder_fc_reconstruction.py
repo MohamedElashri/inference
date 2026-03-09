@@ -11,7 +11,7 @@ from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
 @configurable
-def make_pvfinder_fc(velo_tracks, pv_name=""):
+def make_pvfinder_fc(velo_tracks, pv_name="", dump_validation=""):
     number_of_events = initialize_number_of_events()
     host_number_of_events = number_of_events["host_number_of_events"]
 
@@ -38,7 +38,8 @@ def make_pvfinder_fc(velo_tracks, pv_name=""):
         host_number_of_events_t=host_number_of_events,
         host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
         dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
-        dev_pvfinder_track_features_t=pvfinder_feature_extraction.dev_pvfinder_track_features_t
+        dev_pvfinder_track_features_t=pvfinder_feature_extraction.dev_pvfinder_track_features_t,
+        dump_validation=dump_validation,
     )
 
     return {

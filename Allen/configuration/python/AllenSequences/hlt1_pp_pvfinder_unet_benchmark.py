@@ -38,11 +38,13 @@ def hook_pvfinder_unet_to_hlt1():
     hlt1_graph = hlt1_node_dict["control_flow_node"]
     reco = hlt1_node_dict["reconstruction"]
 
+    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
+
     # FC chain: feature extraction -> FC engine -> track aggregation
-    pvfinder_fc_output = make_pvfinder_fc(reco["velo_tracks"])
+    pvfinder_fc_output = make_pvfinder_fc(reco["velo_tracks"],
+                                          dump_validation=_dump_dir)
 
     # UNet chain: NCW layout -> UNet inference
-    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
     pvfinder_unet_output = make_pvfinder_unet(
         pvfinder_fc_output,
         dump_validation=_dump_dir,

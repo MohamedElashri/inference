@@ -18,10 +18,12 @@ struct Parameters {
     // Preserved un-collapsed for UNet NCW input: channel c of interval i = latent dim c summed over tracks in i
     DEVICE_OUTPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
     // CSR index structure for interval-sorted track access:
-    //   interval_start[n_events * 42]: start offset into track_idx for each interval + 1 sentinel
+    //   interval_start[n_events * 42]: start offset in track_idx for each interval + 1 sentinel
     //   track_idx[total_tracks * 2]:   track indices sorted by interval (boundary tracks appear twice)
-    DEVICE_OUTPUT(dev_pvfinder_interval_start_t, int) dev_pvfinder_interval_start;
-    DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
+    //   track_offset[n_events]:        per-event velo track global offsets (for validation dump)
+    DEVICE_OUTPUT(dev_pvfinder_interval_start_t, int)      dev_pvfinder_interval_start;
+    DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int)      dev_pvfinder_track_idx;
+    DEVICE_OUTPUT(dev_pvfinder_track_offset_t,   unsigned) dev_pvfinder_track_offset;
 };
 
 struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
@@ -35,6 +37,12 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
 
 private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
+
+    Allen::Property<std::string> m_dump_dir {
+        this, "dump_validation", "",
+        "if non-empty, dump per-interval track features, FC histogram and NCW to this directory (first call only)"};
+
+    mutable bool m_dump_done = false;
 };
 
 } // namespace pvfinder_fc_aggregation

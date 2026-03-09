@@ -10,6 +10,7 @@ target_link_libraries(PVFinder PRIVATE AllenCommon Backend HostEventModel EventM
 
 if(WITH_CUDNN AND TARGET_DEVICE STREQUAL "CUDA")
     target_link_libraries(PVFinder PRIVATE AllenCuDNN)
+    target_compile_definitions(PVFinder PRIVATE ALLEN_CUDNN_BACKEND_CUDA)
 endif()
 
 target_include_directories(PVFinder PUBLIC

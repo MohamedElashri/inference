@@ -105,7 +105,10 @@ __global__ void pvfinder_build_csr_kernel(
     for (int i = thread_id; i <= 40; i += blockDim.x)
         g_start[i] = s_start[i];
     // index 41 = total track_idx entries for this event (= s_start[40])
-    if (thread_id == 0) g_start[41] = s_start[40];
+    if (thread_id == 0) {
+        g_start[41] = s_start[40];
+        parameters.dev_pvfinder_track_offset[event_number] = event_track_offset;
+    }
     __syncthreads();
 
     // Pass 3 — scatter: write local track indices into track_idx[]
@@ -260,6 +263,7 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     // track_idx: at most 2 entries per track (boundary tracks assigned to 2 intervals)
     set_size<dev_pvfinder_interval_start_t>(arguments, total_events * 42);
     set_size<dev_pvfinder_track_idx_t>     (arguments, total_tracks  * 2);
+    set_size<dev_pvfinder_track_offset_t>  (arguments, total_events);
 }
 
 void pvfinder_fc_aggregation_t::operator()(
@@ -311,6 +315,106 @@ void pvfinder_fc_aggregation_t::operator()(
     global_function(pvfinder_fused_fc_aggregation_kernel)(
         dim3(first<host_number_of_events_t>(arguments), 40), m_block_dim, context)(
         arguments, dev_weights);
+
+    // -----------------------------------------------------------------------
+    // End-to-end validation dump (first call only, when dump_dir is set).
+    //
+    // Writes three binary files, all with header: uint32 magic, uint32 n_events
+    //
+    //  allen_track_features.bin  — per-interval track features, padded to
+    //                              MAX_TRACKS_PER_INTERVAL=250 tracks/interval
+    //                              shape: [n_events, 40, 9, 250]  float32
+    //                              sentinel value -99 for empty slots
+    //
+    //  allen_fc_histogram.bin    — FC-only softplus histogram (no UNet)
+    //                              shape: [n_events, 40, 100]  float32
+    //
+    //  allen_ncw_features.bin    — 8-channel NCW going into UNet
+    //                              shape: [n_events, 40, 8, 100]  float32
+    // -----------------------------------------------------------------------
+    const std::string& dump_dir = m_dump_dir.value();
+    if (!dump_dir.empty() && !m_dump_done) {
+        cudaStreamSynchronize(context.stream());
+
+        const unsigned n_events    = first<host_number_of_events_t>(arguments);
+        const unsigned n_tracks    = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
+        constexpr unsigned N_INT   = 40;
+        constexpr unsigned N_FEAT  = 9;
+        constexpr unsigned MAX_TRK = 250;
+        constexpr unsigned N_CH    = 8;
+        constexpr unsigned W       = 100;
+
+        // Copy CSR index, track features, histograms, and NCW from device.
+        // dev_pvfinder_track_idx is allocated as total_tracks*2 ints.
+        // dev_pvfinder_track_features is allocated as total_tracks*9 floats.
+        std::vector<int>   h_csr(n_events * 42);
+        std::vector<int>   h_idx(n_tracks * 2);
+        std::vector<float> h_feat(n_tracks * N_FEAT);
+        std::vector<float> h_hist(n_events * N_INT * W);
+        std::vector<float> h_ncw (n_events * N_INT * N_CH * W);
+
+        cudaMemcpy(h_csr.data(),  data<dev_pvfinder_interval_start_t>(arguments),
+                   n_events * 42 * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_idx.data(),  data<dev_pvfinder_track_idx_t>(arguments),
+                   n_tracks * 2 * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_feat.data(), data<dev_pvfinder_track_features_t>(arguments),
+                   n_tracks * N_FEAT * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_hist.data(), data<dev_pvfinder_output_histogram_t>(arguments),
+                   n_events * N_INT * W * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_ncw.data(),  data<dev_pvfinder_interval_features_t>(arguments),
+                   n_events * N_INT * N_CH * W * sizeof(float), cudaMemcpyDeviceToHost);
+
+        // Per-event track offsets: read directly from dev_pvfinder_track_offset
+        // (written by pvfinder_build_csr_kernel as velo_tracks_view.offset()).
+        std::vector<unsigned> ev_track_offset(n_events);
+        cudaMemcpy(ev_track_offset.data(),
+                   data<dev_pvfinder_track_offset_t>(arguments),
+                   n_events * sizeof(unsigned), cudaMemcpyDeviceToHost);
+
+        // Build padded [n_events, 40, 9, 250] track tensor — sentinel -99
+        const unsigned trk_total = n_events * N_INT * N_FEAT * MAX_TRK;
+        std::vector<float> h_trk(trk_total, -99.0f);
+
+        for (unsigned e = 0; e < n_events; ++e) {
+            const int*     g_start = h_csr.data() + e * 42;
+            const unsigned ev_off  = ev_track_offset[e];
+            // CSR track_idx entries for event e start at ev_off*2 in h_idx
+            // (matches the kernel: g_idx = dev_pvfinder_track_idx + event_track_offset*2)
+            const int* g_idx = h_idx.data() + ev_off * 2;
+
+            for (unsigned iv = 0; iv < N_INT; ++iv) {
+                const int iv_begin = g_start[iv];
+                const int iv_end   = g_start[iv + 1];
+                const int n_local  = iv_end - iv_begin;
+
+                float* dst = h_trk.data() + (e * N_INT + iv) * N_FEAT * MAX_TRK;
+
+                for (int t = 0; t < n_local && (unsigned)t < MAX_TRK; ++t) {
+                    const int local_idx = g_idx[iv_begin + t];
+                    const float* src = h_feat.data() + (ev_off + (unsigned)local_idx) * N_FEAT;
+                    for (unsigned f = 0; f < N_FEAT; ++f) {
+                        dst[f * MAX_TRK + t] = src[f];
+                    }
+                }
+            }
+        }
+
+        const uint32_t magic = 0xAB1Eu;
+        auto write_bin = [&](const std::string& path, const float* d, unsigned n) {
+            std::ofstream file(path, std::ios::binary);
+            file.write(reinterpret_cast<const char*>(&magic),    sizeof(magic));
+            file.write(reinterpret_cast<const char*>(&n_events), sizeof(n_events));
+            file.write(reinterpret_cast<const char*>(d),         n * sizeof(float));
+        };
+
+        write_bin(dump_dir + "/allen_track_features.bin", h_trk.data(),  trk_total);
+        write_bin(dump_dir + "/allen_fc_histogram.bin",   h_hist.data(), n_events * N_INT * W);
+        write_bin(dump_dir + "/allen_ncw_features.bin",   h_ncw.data(),  n_events * N_INT * N_CH * W);
+
+        printf("[pvfinder_fc_aggregation] E2E validation dump written to %s (%u events)\n",
+               dump_dir.c_str(), n_events);
+        m_dump_done = true;
+    }
 }
 
 } // namespace pvfinder_fc_aggregation
