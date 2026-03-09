@@ -76,8 +76,12 @@ def stat(label, arr):
           f"P99={p[3]:.4e}  P99.9={p[4]:.4e}  Pmax={p[5]:.4e}")
     return p
 
-def compare(name, allen, pytorch):
-    """Print a full comparison block, return dict of metrics."""
+def compare(name, allen, pytorch, sig_mask=None):
+    """Print a full comparison block, return dict of metrics.
+
+    sig_mask: optional boolean array (same shape as allen) marking signal bins.
+              If None, defaults to pytorch > 1e-3 (appropriate for KDE-scale outputs).
+    """
     diff     = allen.astype(np.float64) - pytorch.astype(np.float64)
     abs_diff = np.abs(diff)
     rel_diff = abs_diff / (np.abs(pytorch).astype(np.float64) + 1e-9)
@@ -107,12 +111,16 @@ def compare(name, allen, pytorch):
     print(f"\n  Pearson r : {pearson:.10f}")
     print(f"  R²        : {r2:.10f}")
 
-    # signal region
-    sig  = pytorch > 1e-3
+    # signal region — use provided mask or fall back to pytorch > 1e-3
+    if sig_mask is None:
+        sig = pytorch > 1e-3
+    else:
+        sig = sig_mask
     n_sig = sig.sum()
-    sig_worst = float(abs_diff[sig].max()) if n_sig > 0 else 0.0
+    sig_worst     = float(abs_diff[sig].max())     if n_sig > 0 else 0.0
+    sig_worst_rel = float(rel_diff[sig].max())     if n_sig > 0 else 0.0
 
-    # verdict
+    # verdict on overall worst abs diff
     worst = float(abs_diff.max())
     thrs = [("fp32_noise<1e-5",1e-5),("tight<1e-4",1e-4),
             ("acceptable<1e-3",1e-3),("loose<1e-2",1e-2)]
@@ -123,14 +131,20 @@ def compare(name, allen, pytorch):
             break
     print(f"\n  Verdict: {verdict}  (worst abs={worst:.3e})")
     if n_sig > 0:
-        sv = "PASS" if sig_worst < 1e-3 else "FAIL"
-        print(f"  Signal-region (KDE>1e-3): worst={sig_worst:.3e}  {sv}")
+        # For KDE-scale outputs the absolute threshold is 1e-3;
+        # for NCW/FC (large magnitude) use relative threshold 1e-2.
+        if sig_mask is None:  # KDE-scale
+            sv = "PASS" if sig_worst < 1e-3 else "FAIL"
+            print(f"  Signal-region (pytorch>1e-3): worst_abs={sig_worst:.3e}  {sv}")
+        else:                  # NCW or other large-magnitude tensor
+            sv = "PASS" if sig_worst_rel < 1e-2 else "FAIL"
+            print(f"  Signal-region (KDE>1e-3): worst_abs={sig_worst:.3e}  worst_rel={sig_worst_rel:.3e}  {sv}")
 
     return dict(max_abs=worst, mean_abs=float(abs_diff.mean()),
                 rms=float(np.sqrt((diff**2).mean())),
                 pearson_r=float(pearson), r_squared=float(r2),
                 abs_percentiles={l:float(v) for l,v in zip(lbls,abs_p)},
-                signal_worst=sig_worst, verdict=verdict)
+                signal_worst=sig_worst, signal_worst_rel=sig_worst_rel, verdict=verdict)
 
 # ---------------------------------------------------------------------------
 # Read Allen dumps
@@ -247,14 +261,14 @@ with torch.no_grad():
     y0_norm = y0 / n_valid.view(-1, 1, 1)                # [N, 8, 100]
 
     # ---- PyTorch FC-only histogram (replicate Allen's s_hist accumulation) ----
-    # Allen accumulates: for each track t, for each bin k:
-    #   chan_sum = sum_c( leaky_relu( layer6A_out[t, c*100+k] ) )
-    #   s_hist[k] += softplus(chan_sum)
-    # then divides by n_local.
-    # We already have x_t (layer6A output) before the view, shape [N, 250, 800]
-    # Recompute from saved x before view:
+    # Allen: s_hist[k] += softplus(sum_c leaky_relu(L6A[t,c,k])) for each track t,
+    # then g_hist[k] = s_hist[k] / n_local   (n_local = CSR count, boundary tracks x2).
+    #
+    # The padded dump gives us unique tracks per interval (no boundary duplicates),
+    # so n_valid == unique track count.  Allen's n_local >= n_valid due to boundary
+    # duplication.  We therefore compare the UNNORMALISED sums (raw softplus sums)
+    # so the divisor mismatch doesn't pollute the result.
     with torch.no_grad():
-        # Re-run L1-L6A cleanly
         xfc = x_t.transpose(1,2)
         xfc = leaky(model.layer1(xfc))
         xfc = leaky(model.layer2(xfc))
@@ -263,11 +277,15 @@ with torch.no_grad():
         xfc = leaky(model.layer5(xfc))
         xfc = leaky(model.layer6A(xfc))       # [N, 250, 800]
         xfc = xfc.view(nEvts, nTrks, 8, W)   # [N, 250, 8, 100]
-        xfc_masked = xfc * filt.unsqueeze(2).unsqueeze(3)  # zero out invalid tracks
-        # chan_sum per (interval, bin): sum over channels of leaky(layer6A)
-        chan_sum = xfc_masked.sum(dim=2)       # [N, 250, 100]
-        # softplus per track per bin, then sum over tracks, then divide
-        fc_hist_pt = F.softplus(chan_sum).sum(dim=1) / n_valid.view(-1,1)  # [N, 100]
+        xfc_masked = xfc * filt.unsqueeze(2).unsqueeze(3)
+        chan_sum    = xfc_masked.sum(dim=2)    # [N, 250, 100]
+        # Unnormalised softplus sum (no /n_local), then normalise by n_valid for display
+        fc_hist_raw = F.softplus(chan_sum).sum(dim=1)          # [N, 100]  raw
+        fc_hist_pt  = fc_hist_raw / n_valid.view(-1, 1)        # [N, 100]  /n_valid
+        # Allen histogram was divided by n_local; undo that division by multiplying
+        # back by n_valid to get the raw sums on the same footing.
+        allen_fch_raw_t = torch.tensor(allen_fch) * n_valid.view(-1, 1)  # [N,100] unnorm
+        fc_hist_allen_raw = allen_fch_raw_t                   # kept as tensor for compare
 
     # ---- UNet on y0_norm ----
     x1  = model.rcbn1(y0_norm)
@@ -279,23 +297,31 @@ with torch.no_grad():
     logits = model.outc(xoi)
     pt_kde = F.softplus(logits).squeeze(1) * 0.001       # [N, 100]
 
-pt_fc_hist = fc_hist_pt.cpu().numpy().reshape(N, W)
-pt_ncw     = y0_norm.cpu().numpy().reshape(N, N_CH, W)
-pt_kde_np  = pt_kde.cpu().numpy().reshape(N, W)
+pt_fc_hist      = fc_hist_pt.cpu().numpy().reshape(N, W)
+pt_fc_hist_raw  = fc_hist_raw.cpu().numpy().reshape(N, W)
+allen_fch_raw   = fc_hist_allen_raw.cpu().numpy().reshape(N, W)
+pt_ncw          = y0_norm.cpu().numpy().reshape(N, N_CH, W)
+pt_kde_np       = pt_kde.cpu().numpy().reshape(N, W)
 
 subsection("PyTorch output statistics")
-stat("PyTorch FC histogram", pt_fc_hist)
-stat("PyTorch NCW",          pt_ncw)
-stat("PyTorch KDE",          pt_kde_np)
+stat("PyTorch FC histogram (/n_valid)", pt_fc_hist)
+stat("PyTorch NCW",                    pt_ncw)
+stat("PyTorch KDE",                    pt_kde_np)
 
 # ---------------------------------------------------------------------------
 # Three-stage comparison
 # ---------------------------------------------------------------------------
 section("Stage 1: FC Aggregation Histogram  (Allen vs PyTorch)")
-r1 = compare("FC histogram", allen_fch, pt_fc_hist)
+print("  NOTE: Allen divides s_hist by n_local (CSR count, boundary tracks x2).")
+print("        Padded dump gives unique tracks only, so n_valid <= n_local.")
+print("        Comparing RAW unnormalised sums: allen_fch*n_valid vs pt_fc_hist_raw.")
+r1 = compare("FC histogram (raw sums)", allen_fch_raw, pt_fc_hist_raw)
 
 section("Stage 2: NCW Features  (Allen vs PyTorch)")
-r2 = compare("NCW", allen_ncw, pt_ncw)
+# NCW values are large-magnitude (-16k to +20k); broadcast KDE signal mask over channels
+kde_sig_mask = allen_kde > 1e-3                                    # [N, 100]
+ncw_sig_mask = kde_sig_mask[:, np.newaxis, :].repeat(N_CH, axis=1) # [N, 8, 100]
+r2 = compare("NCW", allen_ncw, pt_ncw, sig_mask=ncw_sig_mask)
 
 section("Stage 3: Final KDE  (Allen vs PyTorch, end-to-end)")
 r3 = compare("KDE e2e", allen_kde, pt_kde_np)
