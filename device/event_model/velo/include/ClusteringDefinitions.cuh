@@ -205,7 +205,7 @@ struct VeloGeometry {
     }
     size_t size = p - geometry.data();
 
-    if (size >= sizeof(uint32_t)) {
+    if ((geometry.size() - size) >= sizeof(uint32_t)) {
       // Read the missing module pairs bitmask if it is present
       missing_module_pairs_hlt1 = ((uint32_t*) p)[0];
       p += sizeof(uint32_t);
