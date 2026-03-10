@@ -15,7 +15,7 @@ from AllenCore.algorithms import host_dummy_odin_provider_t
 from AllenCore.generator import make_algorithm
 
 
-def decode_dummy_odin(lumi_fraction=[0.5, 0.5, 0.5, 0.5]):
+def decode_dummy_odin(lumi_fraction=(0.5, 0.5, 0.5, 0.5)):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
 

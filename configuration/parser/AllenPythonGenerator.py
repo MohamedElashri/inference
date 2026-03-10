@@ -43,6 +43,9 @@ class AllenPythonGenerator:
             if type(dv) is str:
                 dv = f'"{dv}"'
 
+            if data_type == "dim3" or data_type.startswith("std::array"):
+                dv = tuple(dv)
+
             # Write the code for the property
             s += f"    {pn} = {dv}, # ({data_type}) {descr}\n"
         s = s[:-1]
