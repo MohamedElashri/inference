@@ -7,11 +7,8 @@ namespace pvfinder_velo_feature_extraction {
 
 __device__ float3 normalize(float3 v) {
     float mag = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-    if (mag > 0.0f) {
-        return make_float3(v.x / mag, v.y / mag, v.z / mag);
-    } else {
-        return make_float3(0.0f, 0.0f, 0.0f);
-    }
+    float inv_mag = 1.0f / fmaxf(mag, 1e-8f);
+    return make_float3(v.x * inv_mag, v.y * inv_mag, v.z * inv_mag);
 }
 
 __device__ float3 cross(float3 a, float3 b) {
@@ -39,11 +36,8 @@ __device__ bool state_poca(
     float t_sq = tx * tx + ty * ty;
 
     // Evaluate Z_POCA geometrically minimizing trajectory distance D(z) to the z-axis (0,0)
-    if (t_sq > 1e-8f) {
-        poca_z = -(x0 * tx + y0 * ty) / t_sq;
-    } else {
-        poca_z = 0.0f; // Track is entirely parallel to beamline
-    }
+    float safe_t_sq = fmaxf(t_sq, 1e-8f);
+    poca_z = -(x0 * tx + y0 * ty) / safe_t_sq;
 
     poca_x = x0 + tx * poca_z;
     poca_y = y0 + ty * poca_z;
@@ -60,18 +54,17 @@ __device__ void calculate_ellipsoid_params(
     float& poca_x, float& poca_y, float& poca_z)
 {
     bool poca_success = state_poca(state, poca_x, poca_y, poca_z);
-    if (!poca_success) {
-        poca_x = poca_y = poca_z = 0.0f;
-        for (int i = 0; i < 6; ++i) ellipsoid_params[i] = 0.0f;
-        return;
-    }
+    float mask = poca_success ? 1.0f : 0.0f;
+    poca_x *= mask;
+    poca_y *= mask;
+    poca_z *= mask;
 
     float3 center = make_float3(poca_x, poca_y, poca_z);
     float3 track_dir = normalize(make_float3(state.tx(), state.ty(), 1.0f));
     float3 zhat = normalize(center);
     float3 xhat = track_dir;
     float3 yhat = normalize(cross(zhat, xhat));
-    float road_error = sqrtf(state.c00());
+    float road_error = sqrtf(state.c00()) * mask;
     float3 u1 = make_float3(road_error * zhat.x, road_error * zhat.y, road_error * zhat.z);
     float3 u2 = make_float3(road_error * yhat.x, road_error * yhat.y, road_error * yhat.z);
     float arg = dot(xhat, track_dir);

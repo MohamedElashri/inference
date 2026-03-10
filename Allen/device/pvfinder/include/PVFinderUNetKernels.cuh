@@ -51,7 +51,7 @@ __global__ void relu_inplace_kernel(float* __restrict__ x, int total)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= total) return;
-    x[i] = x[i] > 0.f ? x[i] : 0.f;
+    x[i] = fmaxf(x[i], 0.f);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,24 +78,32 @@ __global__ void maxpool1d_2_kernel(
 // Concat along channel dim: [N, C1, W] cat [N, C2, W] -> [N, C1+C2, W]
 // Fills the dst buffer: first C1 channels from a, then C2 from b.
 // ---------------------------------------------------------------------------
-__global__ void concat_channels_kernel(
+__global__ void concat_channels_a_kernel(
     const float* __restrict__ a,
-    const float* __restrict__ b,
     float* __restrict__ dst,
-    int N, int C1, int C2, int W)
+    int N, int C1, int C_out, int W)
 {
-    int C_out = C1 + C2;
-    int total = N * C_out * W;
+    int total = N * C1 * W;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= total) return;
     int w = i % W;
-    int c = (i / W) % C_out;
-    int n = i / (C_out * W);
-    if (c < C1) {
-        dst[i] = a[(n * C1 + c) * W + w];
-    } else {
-        dst[i] = b[(n * C2 + (c - C1)) * W + w];
-    }
+    int c = (i / W) % C1;
+    int n = i / (C1 * W);
+    dst[(n * C_out + c) * W + w] = a[i];
+}
+
+__global__ void concat_channels_b_kernel(
+    const float* __restrict__ b,
+    float* __restrict__ dst,
+    int N, int C1, int C2, int C_out, int W)
+{
+    int total = N * C2 * W;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    int w = i % W;
+    int c = (i / W) % C2;
+    int n = i / (C2 * W);
+    dst[(n * C_out + C1 + c) * W + w] = b[i];
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +115,10 @@ __global__ void softplus_scale_kernel(float* __restrict__ x, float scale, int to
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= total) return;
     float v = x[i];
-    x[i] = (v > 0.f ? v + logf(1.f + expf(-v)) : logf(1.f + expf(v))) * scale;
+    float vpos = fmaxf(v, 0.f);
+    float vneg = fminf(v, 0.f);
+    x[i] = (vpos + log1pf(expf(-fabsf(v)))) * scale;
+    (void)vneg;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,10 +200,19 @@ inline void launch_concat(
     int N, int C1, int C2, int W,
     const dim3& block, const Allen::Context& ctx)
 {
-    int total = N * (C1 + C2) * W;
-    dim3 grid((total + block.x - 1) / block.x);
-    concat_channels_kernel<<<grid, block, 0, ctx.stream()>>>(
-        a, b, dst, N, C1, C2, W);
+    const int C_out = C1 + C2;
+    {
+        int total = N * C1 * W;
+        dim3 grid((total + block.x - 1) / block.x);
+        concat_channels_a_kernel<<<grid, block, 0, ctx.stream()>>>(
+            a, dst, N, C1, C_out, W);
+    }
+    {
+        int total = N * C2 * W;
+        dim3 grid((total + block.x - 1) / block.x);
+        concat_channels_b_kernel<<<grid, block, 0, ctx.stream()>>>(
+            b, dst, N, C1, C2, C_out, W);
+    }
 }
 
 inline void launch_softplus_scale(

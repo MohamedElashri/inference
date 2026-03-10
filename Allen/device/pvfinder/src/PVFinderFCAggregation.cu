@@ -11,21 +11,22 @@ namespace pvfinder_fc_aggregation {
 
 __device__ void assign_intervals(float z_poca, int* intervals, int* num_intervals) {
     z_poca += 100.0f;
-    *num_intervals = (z_poca >= 0.0f && z_poca <= 400.0f) ? 1 + (z_poca <= 10.0f || z_poca >= 390.0f) : 1;
+    int in_range   = (z_poca >= 0.0f) & (z_poca <= 400.0f);
+    int at_lo_edge = (z_poca <= 10.0f);
+    int at_hi_edge = (z_poca >= 390.0f);
+    *num_intervals = 1 + (in_range & (at_lo_edge | at_hi_edge));
     int base_interval = min(39, max(0, int(z_poca / 10.0f)));
     intervals[0] = base_interval;
-    if (*num_intervals > 1) {
-        intervals[1] = (z_poca <= 10.0f) ? base_interval + 1 : base_interval - 1;
-    }
+    intervals[1] = base_interval + (2 * at_lo_edge - 1);
 }
 
 __device__ float pvfinder_softplus(float x) {
-    return x > 0.0f ? x : logf(1.0f + expf(x));
+    return fmaxf(x, 0.0f) + log1pf(expf(-fabsf(x)));
 }
 
 // Inline LeakyReLU and linear layer — runs in registers, no global writes.
 __device__ __forceinline__ float pvfinder_leaky_relu(float x) {
-    return x > 0.0f ? x : 0.01f * x;
+    return fmaxf(x, 0.0f) + 0.01f * fminf(x, 0.0f);
 }
 
 __device__ __forceinline__ void pvfinder_linear_layer_reg(
@@ -136,10 +137,6 @@ __global__ void pvfinder_build_csr_kernel(
 // This keeps occupancy high (many blocks resident per SM) which is the
 // dominant factor on both SM 7.5 and SM 8.6.
 //
-// NOTE: L6A weight caching in shared memory was tried (69.2 KB dynamic
-// smem) but regressed on SM 8.6 — the 69 KB smem drops blocks-per-SM
-// from ~16 to 1, killing occupancy. The RTX 3090 L2 ($936 GB/s) handles
-// the 64 KB weight matrix well enough without smem caching.
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_fused_fc_aggregation_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
