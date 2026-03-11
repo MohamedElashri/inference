@@ -211,10 +211,6 @@ class AllenCore():
             for [name, [value, typedef, description]], init in zip(
                 default_properties.items(), properties_initialization)
         ]
-        properties += [
-            # a property indicating that it does not contain optionals
-            'Gaudi::Property<bool> m_hasOptionals{this, "hasOptionals", true};'
-        ]
 
         # split into aggregates and normal inputs
         inputs = [
@@ -243,8 +239,6 @@ class AllenCore():
                 f"  [=,this]( Gaudi::Details::PropertyBase& ) {{",
                 f"    this->m_{agg.typename} =",
                 f"      Gaudi::Functional::details::make_vector_of_handles<decltype( this->m_{agg.typename} )>( this, m_{agg.typename}_locations );",
-                f"    std::for_each( this->m_{agg.typename}.begin(), this->m_{agg.typename}.end(),",
-                f"                    []( auto& h ) {{ h.setOptional( true ); }} );",
                 f"}},",
                 f"Gaudi::Details::Property::ImmediatelyInvokeHandler{{true}}}};",
             ]) for agg in aggregates
@@ -467,10 +461,6 @@ class AllenCore():
             f"Gaudi::Property<{typedef}> m_{name}{{this, \"{name}\", m_algorithm.get_property<{typedef}>(\"{name}\"), [=, this](auto&) {{ {init} }}, Gaudi::Details::Property::ImmediatelyInvokeHandler{{true}}, \"{description}\" }};"
             for [name, [value, typedef, description]], init in zip(
                 default_properties.items(), properties_initialization)
-        ]
-        properties += [
-            # a property indicating that it does not contain optionals
-            'Gaudi::Property<bool> m_hasOptionals{this, "hasOptionals", false};'
         ]
 
         inputs = [
