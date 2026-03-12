@@ -18,8 +18,7 @@ from AllenConf.hlt1_heavy_ions_lines import make_heavy_ion_event_line
 
 with make_routingbits_writer.bind(rb_map=rb_map_PbPb):
     with make_heavy_ion_event_line.bind(PbPb_SMOG_z_separation=-330.):
-        with make_pr_velo_tracks.bind(
-                missing_modules=[21, 23, 41, 45, 47], skip_forward=2):
+        with make_pr_velo_tracks.bind(skip_forward=2):
             with make_ecal_clusters.bind(
                     seed_min_adc=10, neighbour_min_adc=2, min_et=200,
                     min_e19=0):

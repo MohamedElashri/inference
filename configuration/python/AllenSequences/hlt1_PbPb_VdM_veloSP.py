@@ -138,7 +138,7 @@ def setup_hlt1_node(velo_open=False, enableBGI=True, enableBGI_full=False):
 
 
 with decode_velo.bind(retina_decoding=False), make_pr_velo_tracks.bind(
-        missing_modules=[21, 23, 41], skip_forward=2):
+        skip_forward=2):
     hlt1_node = setup_hlt1_node(enableBGI_full=True)
 
 generate(hlt1_node)

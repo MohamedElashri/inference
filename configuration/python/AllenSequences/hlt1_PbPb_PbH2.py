@@ -32,9 +32,7 @@ with make_routingbits_writer.bind(rb_map=rb_map_PbPb):
                         neighbour_min_adc=2,
                         min_et=200,
                         min_e19=0):
-                    with make_pr_velo_tracks.bind(
-                            missing_modules=[21, 23, 41, 45, 47],
-                            skip_forward=2):
+                    with make_pr_velo_tracks.bind(skip_forward=2):
                         hlt1_node = setup_hlt1_node(
                             prescale=True,
                             with_ut=True,
