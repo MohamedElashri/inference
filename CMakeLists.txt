@@ -773,7 +773,7 @@ target_link_libraries(AllenLib
 
 # To propagate filesystem includes/libs
 target_link_libraries(AllenLib PRIVATE AllenFS)
-target_link_libraries(AllenCommon INTERFACE ROOT::RIO ROOT::Core ROOT::Cling ROOT::Hist ROOT::Tree TBB::tbb)
+target_link_libraries(AllenCommon INTERFACE ROOT::RIO ROOT::Core ROOT::Hist ROOT::Tree TBB::tbb)
 
 if (NOT STANDALONE)
   target_link_libraries(AllenLib
