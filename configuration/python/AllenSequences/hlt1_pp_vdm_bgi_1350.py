@@ -1,5 +1,5 @@
 ###############################################################################
-# (c) Copyright 2021-2025 CERN for the benefit of the LHCb Collaboration      #
+# (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           #
 #                                                                             #
 # This software is distributed under the terms of the Apache License          #
 # version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
@@ -21,7 +21,7 @@ with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         threshold_settings=get_thresholds(
-            f"forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1400kHz"
+            f"forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1350kHz"
         ),
         with_fullKF=True,
         with_ut=True,
