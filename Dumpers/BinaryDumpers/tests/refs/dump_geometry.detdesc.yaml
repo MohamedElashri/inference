@@ -82,7 +82,7 @@ counters:
       nEntries: 15544
   DeviceVPGeometry:
     BytesWritten_VeloGeometry:
-      nEntries: 16376
+      nEntries: 16380
   HLTControlFlowMgr:
     Processed events:
       nEntries: 1
