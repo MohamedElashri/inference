@@ -27,6 +27,7 @@ Consumers::VPGeometry::VPGeometry(Constants& constants) : m_constants {constants
 void Consumers::VPGeometry::initialize(vector<char> const&)
 {
   Allen::malloc((void**) &m_constants.get().dev_velo_geometry, sizeof(VeloGeometry));
+  Allen::malloc_host((void**) &m_constants.get().host_velo_geometry, sizeof(VeloGeometry));
 }
 
 void Consumers::VPGeometry::consume(vector<char> const& data)
@@ -37,6 +38,7 @@ void Consumers::VPGeometry::consume(vector<char> const& data)
   }
   // FIXME need to check the size of data is as expected
 
-  VeloGeometry host_velo_geometry {data};
-  Allen::memcpy(dev_velo_geometry, &host_velo_geometry, sizeof(VeloGeometry), Allen::memcpyHostToDevice);
+  *m_constants.get().host_velo_geometry = {data};
+  Allen::memcpy(
+    dev_velo_geometry, m_constants.get().host_velo_geometry, sizeof(VeloGeometry), Allen::memcpyHostToDevice);
 }

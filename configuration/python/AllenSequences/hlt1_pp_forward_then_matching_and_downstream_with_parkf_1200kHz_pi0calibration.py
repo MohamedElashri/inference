@@ -1,5 +1,5 @@
 ###############################################################################
-# (c) Copyright 2021 CERN for the benefit of the LHCb Collaboration           #
+# (c) Copyright 2025 CERN for the benefit of the LHCb Collaboration           #
 #                                                                             #
 # This software is distributed under the terms of the Apache License          #
 # version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
@@ -13,19 +13,18 @@ from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
-from AllenConf.velo_reconstruction import make_pr_velo_tracks
+from AllenConf.hlt1_calibration_lines import make_pi02gammagamma_line
 
 with make_velo_scifi_matches.bind(
-        ghost_killer_threshold=0.8), make_pr_velo_tracks.bind(
-            missing_modules=[21, 23, 41]):
+        ghost_killer_threshold=0.8), make_pi02gammagamma_line.bind(
+            pre_scaler=1.):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         threshold_settings=get_thresholds(
-            f"forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_900kHz"
+            "forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1200kHz"
         ),
-        with_ut=True,
-        enableDownstream=True,
         with_fullKF=True,
-    )
+        with_ut=True,
+        enableDownstream=True)
 
 generate(hlt1_node)

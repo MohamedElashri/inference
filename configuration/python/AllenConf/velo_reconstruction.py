@@ -136,7 +136,10 @@ def missing_module_pairs_bitmask(missing_modules):
 
 
 @configurable
-def make_pr_velo_tracks(decoded_velo, missing_modules=[], skip_forward=1):
+def make_pr_velo_tracks(decoded_velo,
+                        missing_modules=[],
+                        use_missing_modules=False,
+                        skip_forward=1):
 
     number_of_events = initialize_number_of_events()
     dev_module_cluster_num = decoded_velo["dev_module_cluster_num"]
@@ -157,7 +160,8 @@ def make_pr_velo_tracks(decoded_velo, missing_modules=[], skip_forward=1):
         dev_module_cluster_num_t=dev_module_cluster_num,
         dev_number_of_events_t=number_of_events["dev_number_of_events"],
         max_skipped_modules=skip_forward,
-        missing_module_pairs=missing_module_pairs_bitmask(missing_modules))
+        missing_module_pairs=missing_module_pairs_bitmask(missing_modules),
+        UseMissingModulesProp=use_missing_modules)
 
     velo_three_hit_tracks_filter = make_algorithm(
         velo_three_hit_tracks_filter_t,
