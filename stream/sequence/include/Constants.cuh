@@ -69,6 +69,7 @@ namespace MagneticField {
 struct Constants {
 
   // Velo related
+  VeloGeometry* host_velo_geometry = nullptr;
   VeloGeometry* dev_velo_geometry = nullptr;
 
   // UT related
