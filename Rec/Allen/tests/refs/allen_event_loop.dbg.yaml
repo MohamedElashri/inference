@@ -857,6 +857,11 @@ counters:
       mean: 49.4739
       nEntries: 10000.0
       sum: 494739.0
+  filter_sv_track_40f8ecbc:
+    n_events_reaching_cutoff:
+      mean: 1.0
+      nEntries: 14.0
+      sum: 14.0
   gather_selections:
     Hlt1ConeJet100GeVPass:
       nEntries: 1.0
