@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <mutex>
 #include <Datatype.cuh>
+#include <VertexDefinitions.cuh>
 
 #include <ROOTHeaders.h>
 #include <functional>
@@ -43,11 +44,11 @@ public:
     //   0 = Correct matched
     //   1 = Tracks from same origin but not same mother
     //   2 = Combinatorial backgrounds (tracks are real but not from same composite)
-    //   3 = Partial: one of the track is ghost
-    //   4 = Ghost: both are ghsots
+    //   3 = Partial: at least one mcp is matched, so one or two are ghosts
+    //   4 = Ghost: all are ghosts
     int category = -1;
-    const MCParticle* trackA = nullptr;
-    const MCParticle* trackB = nullptr;
+    std::array<const MCParticle*, VertexFit::max_tracks_per_sv> tracks = {
+      nullptr}; // need to resize the vector whenever you want to use the MatchedComposite_t structure
   };
 
   // Define tupling data handle
@@ -92,21 +93,35 @@ protected:
 };
 
 namespace {
-  inline int compute_truth_matching_category(const MCParticle* mcpA, const MCParticle* mcpB)
+  inline int compute_truth_matching_category(std::span<const MCParticle*> mcps)
   {
-    if (mcpA && mcpB) {
-      if (mcpA->motherKey == mcpB->motherKey) {
+    // Check if there is any not matched mcp
+    bool all_matched = std::all_of(mcps.begin(), mcps.end(), [](const auto* mcp) { return mcp != nullptr; });
+
+    if (all_matched) {
+      // Check if they all have the same mother key
+      const auto key = mcps[0]->motherKey;
+      bool sameMom = std::all_of(mcps.begin(), mcps.end(), [&key](const auto* mcp) { return key == mcp->motherKey; });
+
+      // Check if they all have the same mother origin key
+      const auto origKey = mcps[0]->DecayOriginMother_key;
+      bool same_origin = std::all_of(
+        mcps.begin(), mcps.end(), [&origKey](const auto* mcp) { return origKey == mcp->DecayOriginMother_key; });
+
+      if (sameMom) {
         return 0;
       }
-      else if (mcpA->DecayOriginMother_key == mcpB->DecayOriginMother_key) {
-        return 1;
+      else if (same_origin) {
+        return 1; // Useful when there are intermediate resonances, for instance Bs -> phi (KK) phi (KK)
       }
       else {
         return 2;
       }
     }
     else {
-      if (mcpA || mcpB) {
+      // Check if there is at least one matched mcp
+      bool anymcpMatched = std::any_of(mcps.begin(), mcps.end(), [](const auto* mcp) { return mcp != nullptr; });
+      if (anymcpMatched) {
         return 3;
       }
       else {
@@ -129,7 +144,6 @@ namespace {
     truth_matching_result_t result;
 
     // Create the association table
-    // std::unordered_map<uint32_t, std::vector<MCAssociator::TrackWithWeight>> assoc_table;
     std::unordered_map<int, std::pair<uint32_t, float>> assoc_table;
 
     // Fill the association table
@@ -193,10 +207,13 @@ void CompositeDumper::accumulate(
 
     // Get Tracks
     std::vector<const Checker::Track*> tracks;
-    tracks.reserve(composites.size() * 2);
+
+    tracks.reserve(composites.size() * VertexFit::max_tracks_per_sv);
     for (const auto& composite : composites) {
-      tracks.push_back(&(composite.TrackA));
-      tracks.push_back(&(composite.TrackB));
+      unsigned nChildren = composite.nChildren;
+      for (unsigned i_child = 0; i_child < nChildren; i_child++) {
+        tracks.push_back(&(composite.Tracks[i_child]));
+      }
     }
 
     // Run truth matching over tracks
@@ -208,13 +225,17 @@ void CompositeDumper::accumulate(
 
       // Truth matching result
       MatchedComposite_t matched_composite;
-      bool matched_A = truth_matching_result.count(&(composite.TrackA));
-      bool matched_B = truth_matching_result.count(&(composite.TrackB));
-      matched_composite.trackA = matched_A ? truth_matching_result.at(&(composite.TrackA)) : nullptr;
-      matched_composite.trackB = matched_B ? truth_matching_result.at(&(composite.TrackB)) : nullptr;
+      unsigned nChildren = composite.nChildren;
+      std::vector<bool> matched_child(nChildren);
+      for (unsigned i_child = 0; i_child < nChildren; i_child++) {
+        matched_child[i_child] = truth_matching_result.count(&(composite.Tracks[i_child]));
+        matched_composite.tracks[i_child] =
+          matched_child[i_child] ? truth_matching_result.at(&(composite.Tracks[i_child])) : nullptr;
+      }
 
-      // Compute category
-      matched_composite.category = compute_truth_matching_category(matched_composite.trackA, matched_composite.trackB);
+      // Compute category, filter the nChildren first elements of the array
+      matched_composite.category =
+        compute_truth_matching_category(std::span<const MCParticle*>(matched_composite.tracks.data(), nChildren));
 
       // Filter
       if (!filter_composite(event_number, composite, matched_composite)) continue;

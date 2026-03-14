@@ -70,13 +70,13 @@ void CombineSVTrack::combine_sv_track_t::operator()(
 {
   Allen::memset_async<dev_sv_track_composite_view_t>(arguments, 0, context);
   Allen::memset_async<dev_sv_track_fit_results_t>(arguments, 0, context);
-  global_function(combine_sv_track)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(arguments);
+  global_function(combine_sv_track)(dim3(first<host_number_of_events_t>(arguments)), m_block_dim, context)(arguments);
   global_function(create_views)(dim3(first<host_number_of_events_t>(arguments)), m_block_dim, context)(arguments);
 }
 
 __global__ void CombineSVTrack::combine_sv_track(CombineSVTrack::Parameters parameters)
 {
-  const unsigned event_number = parameters.dev_event_list[blockIdx.x];
+  const unsigned event_number = blockIdx.x;
   const unsigned number_of_events = parameters.dev_number_of_events[0];
 
   const unsigned combination_offset = parameters.dev_combination_offsets[event_number];
@@ -132,6 +132,7 @@ __global__ void CombineSVTrack::combine_sv_track(CombineSVTrack::Parameters para
       }
     }
     pv_table.pv(i_comb) = pv_idx;
+
     parameters.dev_sv_track_pointers[combination_offset + i_comb] = {
       svs.particle_pointer(event_sv_idx[i_comb]), tracks.particle_pointer(event_track_idx[i_comb]), nullptr, nullptr};
 

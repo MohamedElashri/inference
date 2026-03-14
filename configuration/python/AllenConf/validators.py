@@ -17,7 +17,7 @@ from AllenCore.algorithms import (
     host_veloscifi_dump_t, host_data_provider_t, host_sel_report_validator_t,
     data_quality_validator_long_t, data_quality_validator_occupancy_t,
     data_quality_validator_pv_t, data_quality_validator_velo_t,
-    host_unmatched_seeding_validator_t)
+    host_unmatched_seeding_validator_t, vertexing_validator_t)
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
 from AllenConf.persistency import make_dec_reporter, make_gather_selections, make_routingbits_writer, rb_map
@@ -28,6 +28,7 @@ from AllenConf.muon_reconstruction import decode_muon
 from AllenConf.velo_reconstruction import decode_velo, make_velo_tracks
 from AllenConf.calo_reconstruction import decode_calo, make_ecal_clusters
 import json
+from AllenConf.odin import decode_odin
 
 
 def mc_data_provider():
@@ -477,3 +478,21 @@ def data_quality_validation_occupancy(name="data_quality_validator"):
         dev_scifi_hit_offsets_t=decoded_scifi["dev_scifi_hit_offsets"],
         dev_scifi_seedsXZ_t=scifi_xz_seeds['seed_xz_number_of_tracks'],
         dev_ecal_clusters_offsets_t=ecal_clusters["dev_ecal_cluster_offsets"])
+
+
+def VertexingValidator(multi_body_svs, name="vertexing_validator"):
+    mc_events = mc_data_provider()
+    number_of_events = initialize_number_of_events()
+    odin = decode_odin()
+
+    return make_algorithm(
+        vertexing_validator_t,
+        name=name,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_mc_events_t=mc_events.host_mc_events_t,
+        dev_odin_data_t=odin["dev_odin_data"],
+        host_number_of_vertices_t=multi_body_svs["host_number_of_svs"],
+        dev_offset_vertices_t=multi_body_svs["dev_sv_offsets"],
+        dev_multi_event_composites_view_t=multi_body_svs[
+            "dev_multi_event_composites"],
+    )
