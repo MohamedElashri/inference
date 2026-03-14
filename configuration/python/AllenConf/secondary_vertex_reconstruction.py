@@ -167,10 +167,16 @@ def make_basic_particles(
         dev_multi_final_vertices_t=pvs["dev_multi_final_vertices"],
         dev_lepton_id_t=lepton_id)
     return {
+        "dev_basic_particle":
+        make_long_track_particles.dev_long_track_particle_view_t,
         "dev_multi_event_basic_particles":
         make_long_track_particles.dev_multi_event_basic_particles_view_t,
         "dev_multi_event_container_basic_particles":
-        make_long_track_particles.dev_multi_event_container_basic_particles_t
+        make_long_track_particles.dev_multi_event_container_basic_particles_t,
+        "host_number_of_tracks":
+        long_tracks["host_number_of_reconstructed_scifi_tracks"],
+        "dev_offsets_long_tracks":
+        long_tracks["dev_offsets_long_tracks"]
     }
 
 
@@ -198,7 +204,6 @@ def fit_secondary_vertices(
         max_assoc_ipchi2=16.):
 
     number_of_events = initialize_number_of_events()
-
     filter_tracks = make_algorithm(
         filter_tracks_t,
         name='filter_tracks_{hash}',
@@ -253,6 +258,8 @@ def fit_secondary_vertices(
         filter_tracks.dev_svs_trk1_idx_t,
         "dev_svs_trk2_idx":
         filter_tracks.dev_svs_trk2_idx_t,
+        "dev_svs":
+        fit_secondary_vertices.dev_two_track_composite_view_t,
         "dev_two_track_particles":
         fit_secondary_vertices.dev_two_track_composites_view_t,
         "dev_multi_event_composites":
@@ -396,6 +403,8 @@ def make_generic_sv_pairs(
     }
 
 
+# new cut variables: min_track_p, sv_t_bpvnewdira_min, sv_mcorr_min, sv_mcorr_max, sv_track_min_ipchi2
+# set to 0 or large values so it does not affect existing lines
 def make_sv_track_pairs(secondary_vertices,
                         long_track_particles,
                         pvs,
@@ -412,31 +421,52 @@ def make_sv_track_pairs(secondary_vertices,
                         sv_vz_max=650.,
                         sv_track_doca_max=0.15,
                         opening_angle_min=0.5e-3,
-                        require_neutral_sv=True):
+                        require_neutral_sv=True,
+                        sv_mcorr_min=0.0,
+                        sv_mcorr_max=200000,
+                        sv_track_min_ipchi2=0.0,
+                        sv_fd_min=0.0,
+                        sv_fd_max=1000,
+                        min_track_p=0.0,
+                        max_track_chi2ndf=10.0,
+                        sv_t_bpvnewdira_min=-10,
+                        require_same_pv=False):
 
     number_of_events = initialize_number_of_events()
-
     filter_sv_track = make_algorithm(
         filter_sv_track_t,
         name='filter_sv_track_{hash}',
         host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_number_of_tracks_t=long_track_particles["host_number_of_tracks"],
+        host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
         dev_number_of_events_t=number_of_events["dev_number_of_events"],
-        dev_svs_t=secondary_vertices["dev_multi_event_composites"],
-        dev_tracks_t=long_track_particles["dev_multi_event_basic_particles"],
+        dev_svs_t=secondary_vertices["dev_svs"],
+        dev_sv_offsets_t=secondary_vertices["dev_sv_offsets"],
+        dev_tracks_t=long_track_particles["dev_basic_particle"],
+        dev_offsets_tracks_t=long_track_particles["dev_offsets_long_tracks"],
         T_MIPCHI2_min=min_track_ipchi2,
         T_MIPCHI2_max=max_track_ipchi2,
         T_MIP_min=min_track_ip,
         T_MIP_max=max_track_ip,
         T_PT_min=min_track_pt,
+        T_P_min=min_track_p,
+        T_CHI2NDF_max=max_track_chi2ndf,
         SV_VZ_min=sv_vz_min,
         SV_VZ_max=sv_vz_max,
+        SV_FD_min=sv_fd_min,
+        SV_FD_max=sv_fd_max,
         SV_BPVIP_min=sv_bpvip_min,
         SV_BPVVDZ_min=sv_bpvvdz_min,
         SV_BPVVDRHO_min=sv_bpvvdrho_min,
         SV_BPVDIRA_min=sv_bpvdira_min,
+        SV_T_BPV_NEWDIRA_min=sv_t_bpvnewdira_min,
         SV_T_DOCA_max=sv_track_doca_max,
+        SV_MCORR_min=sv_mcorr_min,
+        SV_MCORR_max=sv_mcorr_max,
+        T_SV_MIPCHI2_min=sv_track_min_ipchi2,
         opening_angle_min=opening_angle_min,
-        require_os_pair=require_neutral_sv)
+        require_os_pair=require_neutral_sv,
+        require_same_pv=require_same_pv)
 
     combine_sv_track = make_algorithm(
         combine_sv_track_t,
@@ -456,6 +486,12 @@ def make_sv_track_pairs(secondary_vertices,
     return {
         "dev_multi_event_composites":
         combine_sv_track.dev_multi_event_composites_view_t,
+        "host_number_of_svs":
+        filter_sv_track.host_number_of_combinations_t,
+        "dev_sv_offsets":
+        filter_sv_track.dev_combination_offsets_t,
+        "dev_svs":
+        combine_sv_track.dev_sv_track_composite_view_t,
         "host_number_of_sv_track_combinations":
         filter_sv_track.host_number_of_combinations_t,
         "dev_sv_track_combination_offsets":
@@ -465,7 +501,7 @@ def make_sv_track_pairs(secondary_vertices,
     }
 
 
-def make_three_body_svs(secondary_vertices,
+def make_multi_body_svs(secondary_vertices,
                         long_track_particles,
                         pvs,
                         min_track_ipchi2=16.0,
@@ -473,15 +509,24 @@ def make_three_body_svs(secondary_vertices,
                         min_track_ip=0.05,
                         max_track_ip=1e16,
                         min_track_pt=0.0,
-                        sv_bpvvdz_min=0.,
                         sv_bpvip_min=0.0,
+                        sv_bpvvdz_min=0.,
                         sv_bpvvdrho_min=3.,
+                        sv_bpvdira_min=0.99,
                         sv_vz_min=-200.,
                         sv_vz_max=650.,
-                        opening_angle_min=0.5e-3,
                         sv_track_doca_max=0.2,
-                        sv_bpvvdchi2_min=25.0,
-                        sv_bpvdira_min=0.99):
+                        opening_angle_min=0.5e-3,
+                        require_neutral_sv=True,
+                        sv_mcorr_min=0.0,
+                        sv_mcorr_max=200000,
+                        sv_track_min_ipchi2=0.0,
+                        sv_fd_min=0.0,
+                        sv_fd_max=1000,
+                        min_track_p=0.0,
+                        max_track_chi2ndf=10.0,
+                        sv_t_bpvnewdira_min=-10,
+                        require_same_pv=False):
 
     number_of_events = initialize_number_of_events()
 
@@ -501,7 +546,17 @@ def make_three_body_svs(secondary_vertices,
         sv_vz_min,
         sv_vz_max,
         sv_track_doca_max,
-        opening_angle_min=0.5e-3,
+        opening_angle_min,
+        require_neutral_sv,
+        sv_mcorr_min,
+        sv_mcorr_max,
+        sv_track_min_ipchi2,
+        sv_fd_min,
+        sv_fd_max,
+        min_track_p,
+        max_track_chi2ndf,
+        sv_t_bpvnewdira_min,
+        require_same_pv,
     )
 
     make_flat_svs = make_algorithm(
@@ -514,12 +569,15 @@ def make_three_body_svs(secondary_vertices,
         dev_composite_offsets_t=combine_sv_track[
             "dev_sv_track_combination_offsets"],
         dev_input_sv_mec_t=combine_sv_track["dev_sv_track_combination"])
-
     return {
-        "host_number_of_three_body_svs":
+        "host_number_of_svs":
         combine_sv_track["host_number_of_sv_track_combinations"],
-        "dev_three_body_svs":
+        "dev_multi_event_composites":
         make_flat_svs.dev_multi_event_composites_view_t,
+        "dev_sv_offsets":
+        combine_sv_track["dev_sv_track_combination_offsets"],
+        "dev_svs":
+        combine_sv_track["dev_svs"],
     }
 
 
