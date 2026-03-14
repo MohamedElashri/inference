@@ -28,6 +28,11 @@ namespace Allen::CuDNN {
   void WeightRegistry::load_from_buffer(const std::string& key,
                                          const void* host_data,
                                          size_t bytes) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_locked) {
+      throw std::runtime_error("WeightRegistry: attempted to load weights after initialization phase: " + key);
+    }
+    
     if (m_registry.count(key)) {
       throw std::runtime_error("WeightRegistry: key already registered: " + key);
     }

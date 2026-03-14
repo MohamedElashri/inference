@@ -1,6 +1,8 @@
 #pragma once
 #include "CuDNNCheck.h"
 #include "CuDNNBackendShim.h"
+#include <mutex>
+#include <unordered_map>
 
 namespace Allen::CuDNN {
 
@@ -65,27 +67,49 @@ namespace Allen::CuDNN {
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   /**
-   * @brief Return a cudnnHandle_t bound to the given CUDA stream.
-   *
-   * One handle is created lazily per OS thread on first call, then reused.
-   * cudnnSetStream is called each time to route work to the correct stream.
-   *
-   * This replaces the pattern of storing mutable Handle m_handle in each
-   * algorithm instance (which caused one handle per Allen thread to be created
-   * at startup, spiking GPU memory). With thread_local the handles are created
-   * on demand and there is at most one per OS thread.
-   *
-   * Usage in operator() const:
-   *   cudnnHandle_t h = Allen::CuDNN::get_thread_local_handle(context.stream());
-   *   desc.forward(h, ...);
+   * @brief Singleton resource manager for cudnnHandle_t based on cudaStream_t.
+   * 
+   * Provides 1:1 mapping of cuDNN handles to Allen CUDA streams. This ensures resources 
+   * correspond to Allen's thread lifecycle rather than arbitrary OS thread boundaries.
+   */
+  class CuDNNManager {
+  public:
+    static CuDNNManager& instance() {
+      static CuDNNManager s_instance;
+      return s_instance;
+    }
+
+    cudnnHandle_t get_handle(cudaStream_t stream) {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      auto it = m_handles.find(stream);
+      if (it == m_handles.end()) {
+        cudnnHandle_t h;
+        ALLEN_CUDNN_CHECK(cudnnCreate(&h));
+        ALLEN_CUDNN_CHECK(cudnnSetStream(h, stream));
+        m_handles[stream] = h;
+        return h;
+      }
+      // Ensure the handle continues to recognize this stream
+      ALLEN_CUDNN_CHECK(cudnnSetStream(it->second, stream));
+      return it->second;
+    }
+
+  private:
+    CuDNNManager() = default;
+    ~CuDNNManager() = default;
+    
+    CuDNNManager(const CuDNNManager&) = delete;
+    CuDNNManager& operator=(const CuDNNManager&) = delete;
+
+    std::mutex m_mutex;
+    std::unordered_map<cudaStream_t, cudnnHandle_t> m_handles;
+  };
+
+  /**
+   * @brief Helper to get the stream-associated handle.
    */
   inline cudnnHandle_t get_thread_local_handle(cudaStream_t stream) {
-    thread_local cudnnHandle_t tl_handle = nullptr;
-    if (tl_handle == nullptr) {
-      ALLEN_CUDNN_CHECK(cudnnCreate(&tl_handle));
-    }
-    ALLEN_CUDNN_CHECK(cudnnSetStream(tl_handle, stream));
-    return tl_handle;
+    return CuDNNManager::instance().get_handle(stream);
   }
 #else
   inline void* get_thread_local_handle(void*) { return nullptr; }

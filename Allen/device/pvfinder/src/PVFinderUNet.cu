@@ -18,59 +18,6 @@ static constexpr int N_CHUNK_INTERVALS = B_EVENTS_MAX * N_INTERVALS;
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 // ---------------------------------------------------------------------------
-// Process-level global descriptor set.
-// Created exactly once via s_init_flag — shared read-only across all threads.
-// Shapes are compile-time constants so no synchronisation is needed after init.
-// ---------------------------------------------------------------------------
-struct GlobalDescriptors {
-    Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→64,  k=25, pad=12)
-    Allen::CuDNN::ConvDescriptors rcbn2;    // Conv(64→64, k=7,  pad=3)
-    Allen::CuDNN::ConvDescriptors rcbn3;    // Conv(64→64, k=5,  pad=2)
-    Allen::CuDNN::ConvDescriptors up1_c;    // Conv(64→64, k=5,  pad=2) after ConvTranspose
-    Allen::CuDNN::ConvDescriptors up2_c;    // Conv(64→64, k=5,  pad=2)
-    Allen::CuDNN::ConvDescriptors oint_half;// Conv(64→64, k=5,  pad=2) — two halves
-    Allen::CuDNN::ConvDescriptors outc;     // Conv(64→1,  k=5,  pad=2)
-
-    // ConvTranspose descriptors (filter + conv only; tensor descs are local in operator())
-    cudnnFilterDescriptor_t       filter_up1_t = nullptr;
-    cudnnConvolutionDescriptor_t  conv_up1_t   = nullptr;
-    cudnnFilterDescriptor_t       filter_up2_t = nullptr;
-    cudnnConvolutionDescriptor_t  conv_up2_t   = nullptr;
-};
-
-static GlobalDescriptors s_desc;
-static std::once_flag    s_init_flag;
-
-static void init_global_descriptors()
-{
-    constexpr int N = N_CHUNK_INTERVALS;
-    // All forward convs — input shape fixed, IMPLICIT_GEMM, zero workspace.
-    s_desc.rcbn1.create(    {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
-    s_desc.rcbn2.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
-    s_desc.rcbn3.create(    {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.up1_c.create(    {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.up2_c.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.oint_half.create({N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.outc.create(     {N, N_FEAT,            1, W_IN},  {1,      N_FEAT,            1,  5}, {0, 2});
-
-    // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
-    // Tensor descriptors for in/out are created as locals in operator() per-call.
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up1_t));
-    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up1_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up1_t));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up1_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up2_t));
-    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up2_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT*2, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-}
-
-// ---------------------------------------------------------------------------
 // Binary weight file parser
 // Layout (from convert_cnn_weights.py):
 //   uint32  magic = 0xCAFE0001
@@ -82,42 +29,6 @@ static void init_global_descriptors()
 //   conv(128→64,k=5): out_intermediate
 //   conv(64→1,k=5):   outc
 // ---------------------------------------------------------------------------
-struct WeightBlob {
-    // Per-layer device pointers into WeightRegistry
-    // Naming: w_<layer>_<weight/bias/gamma/beta/mean/var>
-    const float* w_rcbn1_w;  const float* w_rcbn1_b;
-    const float* w_rcbn1_gamma; const float* w_rcbn1_beta;
-    const float* w_rcbn1_mean;  const float* w_rcbn1_var;
-    float rcbn1_eps;
-
-    const float* w_rcbn2_w;  const float* w_rcbn2_b;
-    const float* w_rcbn2_gamma; const float* w_rcbn2_beta;
-    const float* w_rcbn2_mean;  const float* w_rcbn2_var;
-    float rcbn2_eps;
-
-    const float* w_rcbn3_w;  const float* w_rcbn3_b;
-    const float* w_rcbn3_gamma; const float* w_rcbn3_beta;
-    const float* w_rcbn3_mean;  const float* w_rcbn3_var;
-    float rcbn3_eps;
-
-    const float* w_up1t_w;   const float* w_up1t_b;     // ConvTranspose
-    const float* w_up1c_w;   const float* w_up1c_b;     // Conv after transpose
-    const float* w_up1c_gamma; const float* w_up1c_beta;
-    const float* w_up1c_mean;  const float* w_up1c_var;
-    float up1c_eps;
-
-    const float* w_up2t_w;   const float* w_up2t_b;
-    const float* w_up2c_w;   const float* w_up2c_b;
-    const float* w_up2c_gamma; const float* w_up2c_beta;
-    const float* w_up2c_mean;  const float* w_up2c_var;
-    float up2c_eps;
-
-    // out_intermediate: split into two 64-channel halves to avoid cat_out[N,128,100] buffer
-    const float* w_oint_a_w; // [64, 64, 1, 5] — input channels 0:64  (from up2)
-    const float* w_oint_b_w; // [64, 64, 1, 5] — input channels 64:128 (from x1)
-    const float* w_oint_b;   // bias [64] — added after both halves
-    const float* w_outc_w;   const float* w_outc_b;
-};
 
 // ---------------------------------------------------------------------------
 // Read a block of floats from a host buffer at a given byte offset.
@@ -146,7 +57,7 @@ static size_t read_float32(const std::vector<char>& buf, size_t offset, float& v
 // ---------------------------------------------------------------------------
 // Load weights from binary file into WeightRegistry and fill WeightBlob.
 // ---------------------------------------------------------------------------
-static WeightBlob load_weights(const std::string& path)
+static pvfinder_unet_t::WeightBlob load_weights(const std::string& path)
 {
     // Read entire file into host buffer
     FILE* fp = fopen(path.c_str(), "rb");
@@ -171,7 +82,7 @@ static WeightBlob load_weights(const std::string& path)
     }
 
     auto& reg = Allen::CuDNN::WeightRegistry::instance();
-    WeightBlob wb {};
+    pvfinder_unet_t::WeightBlob wb {};
 
     // Helper lambdas
     auto load_conv = [&](const std::string& key_w, const std::string& key_b,
@@ -290,11 +201,6 @@ static WeightBlob load_weights(const std::string& path)
     return wb;
 }
 
-// ---------------------------------------------------------------------------
-// Static weight blob (filled once at init())
-// ---------------------------------------------------------------------------
-static WeightBlob s_wb {};
-static bool s_wb_loaded = false;
 #endif // ALLEN_CUDNN_BACKEND_CUDA
 
 // ---------------------------------------------------------------------------
@@ -303,15 +209,38 @@ static bool s_wb_loaded = false;
 void pvfinder_unet_t::init()
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    if (m_init_done) return;
-    // Both weight loading and descriptor creation touch process-level statics.
-    // A single call_once guarantees they happen exactly once across all threads.
-    std::call_once(s_init_flag, [this]() {
-        s_wb = load_weights(m_weight_file.value());
-        s_wb_loaded = true;
-        init_global_descriptors();
-    });
-    m_init_done = true;
+    if (m_wb_loaded) return;
+    
+    // Both weight loading and descriptor creation are now scoped to the algorithm instance.
+    m_wb = load_weights(m_weight_file.value());
+    m_wb_loaded = true;
+
+    constexpr int N = N_CHUNK_INTERVALS;
+    // All forward convs — input shape fixed, IMPLICIT_GEMM, zero workspace.
+    m_desc.rcbn1.create(    {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
+    m_desc.rcbn2.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
+    m_desc.rcbn3.create(    {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    m_desc.up1_c.create(    {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    m_desc.up2_c.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    m_desc.oint_half.create({N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    m_desc.outc.create(     {N, N_FEAT,            1, W_IN},  {1,      N_FEAT,            1,  5}, {0, 2});
+
+    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&m_desc.filter_up1_t));
+    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
+        m_desc.filter_up1_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
+    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&m_desc.conv_up1_t));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
+        m_desc.conv_up1_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+
+    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&m_desc.filter_up2_t));
+    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
+        m_desc.filter_up2_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT*2, N_FEAT, 1, 2));
+    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&m_desc.conv_up2_t));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
+        m_desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+
+    auto& reg = Allen::CuDNN::WeightRegistry::instance();
+    reg.lock_allocations();
 #endif
 }
 
@@ -413,7 +342,7 @@ void pvfinder_unet_t::operator()(
     const Allen::Context& context) const
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    if (!m_init_done || !s_wb_loaded) return;
+    if (!m_wb_loaded) return;
 
     const unsigned n_events = first<host_number_of_events_t>(arguments);
 
@@ -465,64 +394,64 @@ void pvfinder_unet_t::operator()(
         float*       kde = kde_base + chunk_start * kde_stride;
 
         // ---- Downsampling ----
-        run_convbnrelu(s_desc.rcbn1, ncw, x1,
-            s_wb.w_rcbn1_w, s_wb.w_rcbn1_b,
-            s_wb.w_rcbn1_gamma, s_wb.w_rcbn1_beta,
-            s_wb.w_rcbn1_mean,  s_wb.w_rcbn1_var, s_wb.rcbn1_eps,
+        run_convbnrelu(m_desc.rcbn1, ncw, x1,
+            m_wb.w_rcbn1_w, m_wb.w_rcbn1_b,
+            m_wb.w_rcbn1_gamma, m_wb.w_rcbn1_beta,
+            m_wb.w_rcbn1_mean,  m_wb.w_rcbn1_var, m_wb.rcbn1_eps,
             N, N_FEAT, W_IN, block, context, handle);
 
-        run_convbnrelu(s_desc.rcbn2, x1, up2,
-            s_wb.w_rcbn2_w, s_wb.w_rcbn2_b,
-            s_wb.w_rcbn2_gamma, s_wb.w_rcbn2_beta,
-            s_wb.w_rcbn2_mean,  s_wb.w_rcbn2_var, s_wb.rcbn2_eps,
+        run_convbnrelu(m_desc.rcbn2, x1, up2,
+            m_wb.w_rcbn2_w, m_wb.w_rcbn2_b,
+            m_wb.w_rcbn2_gamma, m_wb.w_rcbn2_beta,
+            m_wb.w_rcbn2_mean,  m_wb.w_rcbn2_var, m_wb.rcbn2_eps,
             N, N_FEAT, W_IN, block, context, handle);
         launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
 
-        run_convbnrelu(s_desc.rcbn3, x2, up2,
-            s_wb.w_rcbn3_w, s_wb.w_rcbn3_b,
-            s_wb.w_rcbn3_gamma, s_wb.w_rcbn3_beta,
-            s_wb.w_rcbn3_mean,  s_wb.w_rcbn3_var, s_wb.rcbn3_eps,
+        run_convbnrelu(m_desc.rcbn3, x2, up2,
+            m_wb.w_rcbn3_w, m_wb.w_rcbn3_b,
+            m_wb.w_rcbn3_gamma, m_wb.w_rcbn3_beta,
+            m_wb.w_rcbn3_mean,  m_wb.w_rcbn3_var, m_wb.rcbn3_eps,
             N, N_FEAT, W_HALF, block, context, handle);
         launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
         // ---- Upsampling ----
         run_conv_transpose(x3, up2,
-            s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
-            s_wb.w_up1t_w, s_wb.w_up1t_b,
+            m_desc.filter_up1_t, m_desc.conv_up1_t, td_up1_in, td_up1_out,
+            m_wb.w_up1t_w, m_wb.w_up1t_b,
             N, N_FEAT, W_HALF, block, context, handle);
-        run_convbnrelu(s_desc.up1_c, up2, up1,
-            s_wb.w_up1c_w, s_wb.w_up1c_b,
-            s_wb.w_up1c_gamma, s_wb.w_up1c_beta,
-            s_wb.w_up1c_mean,  s_wb.w_up1c_var, s_wb.up1c_eps,
+        run_convbnrelu(m_desc.up1_c, up2, up1,
+            m_wb.w_up1c_w, m_wb.w_up1c_b,
+            m_wb.w_up1c_gamma, m_wb.w_up1c_beta,
+            m_wb.w_up1c_mean,  m_wb.w_up1c_var, m_wb.up1c_eps,
             N, N_FEAT, W_HALF, block, context, handle);
 
         launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
         run_conv_transpose(cat2, logits,
-            s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
-            s_wb.w_up2t_w, s_wb.w_up2t_b,
+            m_desc.filter_up2_t, m_desc.conv_up2_t, td_up2_in, td_up2_out,
+            m_wb.w_up2t_w, m_wb.w_up2t_b,
             N, N_FEAT, W_IN, block, context, handle);
-        run_convbnrelu(s_desc.up2_c, logits, up2,
-            s_wb.w_up2c_w, s_wb.w_up2c_b,
-            s_wb.w_up2c_gamma, s_wb.w_up2c_beta,
-            s_wb.w_up2c_mean,  s_wb.w_up2c_var, s_wb.up2c_eps,
+        run_convbnrelu(m_desc.up2_c, logits, up2,
+            m_wb.w_up2c_w, m_wb.w_up2c_b,
+            m_wb.w_up2c_gamma, m_wb.w_up2c_beta,
+            m_wb.w_up2c_mean,  m_wb.w_up2c_var, m_wb.up2c_eps,
             N, N_FEAT, W_IN, block, context, handle);
 
         // ---- Output ----
         // Safe sequence: read x1 skip → logits first, then overwrite x1 (=oint) with half-a.
-        run_conv(s_desc.oint_half, x1, logits,
-            s_wb.w_oint_b_w, nullptr,
+        run_conv(m_desc.oint_half, x1, logits,
+            m_wb.w_oint_b_w, nullptr,
             N, N_FEAT, W_IN, block, context, handle, 0.f);
-        run_conv(s_desc.oint_half, up2, oint,
-            s_wb.w_oint_a_w, nullptr,
+        run_conv(m_desc.oint_half, up2, oint,
+            m_wb.w_oint_a_w, nullptr,
             N, N_FEAT, W_IN, block, context, handle, 0.f);
         {
             const unsigned total = (unsigned)(N * N_FEAT * W_IN);
             const unsigned grid  = (total + block.x - 1) / block.x;
             accumulate_add_kernel<<<grid, block, 0, context.stream()>>>(oint, logits, total);
-            launch_bias_add(oint, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+            launch_bias_add(oint, m_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
         }
-        run_conv(s_desc.outc, oint, logits,
-            s_wb.w_outc_w, s_wb.w_outc_b,
+        run_conv(m_desc.outc, oint, logits,
+            m_wb.w_outc_w, m_wb.w_outc_b,
             N, 1, W_IN, block, context, handle, 0.f);
 
         launch_softplus_scale(logits, KDE_SCALE, N * W_IN, block, context);

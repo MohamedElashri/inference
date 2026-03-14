@@ -77,11 +77,64 @@ private:
         this, "dump_validation", "",
         "if non-empty, dump NCW input + KDE output of the first slice to this directory"};
 
-    // m_init_done: set to true after init() completes. Guards call_once.
-    mutable bool m_init_done = false;
+    // m_dump_done: guard for dumping validation output once
     mutable bool m_dump_done = false;
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
+    struct GlobalDescriptors {
+        Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→64,  k=25, pad=12)
+        Allen::CuDNN::ConvDescriptors rcbn2;    // Conv(64→64, k=7,  pad=3)
+        Allen::CuDNN::ConvDescriptors rcbn3;    // Conv(64→64, k=5,  pad=2)
+        Allen::CuDNN::ConvDescriptors up1_c;    // Conv(64→64, k=5,  pad=2) after ConvTranspose
+        Allen::CuDNN::ConvDescriptors up2_c;    // Conv(64→64, k=5,  pad=2)
+        Allen::CuDNN::ConvDescriptors oint_half;// Conv(64→64, k=5,  pad=2) — two halves
+        Allen::CuDNN::ConvDescriptors outc;     // Conv(64→1,  k=5,  pad=2)
+
+        cudnnFilterDescriptor_t       filter_up1_t = nullptr;
+        cudnnConvolutionDescriptor_t  conv_up1_t   = nullptr;
+        cudnnFilterDescriptor_t       filter_up2_t = nullptr;
+        cudnnConvolutionDescriptor_t  conv_up2_t   = nullptr;
+    };
+
+    struct WeightBlob {
+        const float* w_rcbn1_w = nullptr;  const float* w_rcbn1_b = nullptr;
+        const float* w_rcbn1_gamma = nullptr; const float* w_rcbn1_beta = nullptr;
+        const float* w_rcbn1_mean = nullptr;  const float* w_rcbn1_var = nullptr;
+        float rcbn1_eps = 0.0f;
+
+        const float* w_rcbn2_w = nullptr;  const float* w_rcbn2_b = nullptr;
+        const float* w_rcbn2_gamma = nullptr; const float* w_rcbn2_beta = nullptr;
+        const float* w_rcbn2_mean = nullptr;  const float* w_rcbn2_var = nullptr;
+        float rcbn2_eps = 0.0f;
+
+        const float* w_rcbn3_w = nullptr;  const float* w_rcbn3_b = nullptr;
+        const float* w_rcbn3_gamma = nullptr; const float* w_rcbn3_beta = nullptr;
+        const float* w_rcbn3_mean = nullptr;  const float* w_rcbn3_var = nullptr;
+        float rcbn3_eps = 0.0f;
+
+        const float* w_up1t_w = nullptr;   const float* w_up1t_b = nullptr;
+        const float* w_up1c_w = nullptr;   const float* w_up1c_b = nullptr;
+        const float* w_up1c_gamma = nullptr; const float* w_up1c_beta = nullptr;
+        const float* w_up1c_mean = nullptr;  const float* w_up1c_var = nullptr;
+        float up1c_eps = 0.0f;
+
+        const float* w_up2t_w = nullptr;   const float* w_up2t_b = nullptr;
+        const float* w_up2c_w = nullptr;   const float* w_up2c_b = nullptr;
+        const float* w_up2c_gamma = nullptr; const float* w_up2c_beta = nullptr;
+        const float* w_up2c_mean = nullptr;  const float* w_up2c_var = nullptr;
+        float up2c_eps = 0.0f;
+
+        const float* w_oint_a_w = nullptr;
+        const float* w_oint_b_w = nullptr;
+        const float* w_oint_b = nullptr;
+        const float* w_outc_w = nullptr;   const float* w_outc_b = nullptr;
+    };
+
+    GlobalDescriptors m_desc;
+    WeightBlob m_wb;
+    bool m_wb_loaded = false;
+
+
     // Per-layer helpers — use global descriptor set + thread_local handle
     void run_convbnrelu(
         const Allen::CuDNN::ConvDescriptors& desc,

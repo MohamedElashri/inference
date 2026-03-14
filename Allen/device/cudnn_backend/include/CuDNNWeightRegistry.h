@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <mutex>
 #include <stdexcept>
 #include <cstddef>
 
@@ -25,6 +26,11 @@ namespace Allen::CuDNN {
 
     void load(const std::string& key, const std::string& file_path);
     void load_from_buffer(const std::string& key, const void* host_data, size_t bytes);
+
+    void lock_allocations() { 
+      std::lock_guard<std::mutex> lock(m_mutex);
+      m_locked = true; 
+    }
 
     template<typename T>
     const T* get(const std::string& key) const {
@@ -57,6 +63,8 @@ namespace Allen::CuDNN {
     };
 
     std::unordered_map<std::string, Entry> m_registry;
+    std::mutex m_mutex;
+    bool m_locked = false;
   };
 
 } // namespace Allen::CuDNN
