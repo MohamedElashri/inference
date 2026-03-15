@@ -4,6 +4,11 @@ allen_add_device_library(PVFinder
     src/PVFinderFCAggregation.cu
     src/PVFinderNCWLayout.cu
     src/PVFinderUNet.cu
+    src/PVFinderKDEPeakFinder.cu
+    src/PVFinderCalculateDenom.cu
+    src/PVFinderVertexFitter.cu
+    src/PVFinderNNCleanup.cu
+    src/PVFinderDumpVertices.cu
 )
 
 target_link_libraries(PVFinder PRIVATE AllenCommon Backend HostEventModel EventModel Utils PV_beamline)
