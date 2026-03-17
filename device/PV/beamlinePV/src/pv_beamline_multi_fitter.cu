@@ -256,8 +256,16 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
       vertex.setCovMatrix(vtxcov);
       vertex.nTracks = sum_weights;
 
-      const auto beamlinedx = vertex.position.x - dev_beamline.pos.x;
-      const auto beamlinedy = vertex.position.y - dev_beamline.pos.y;
+      float2 tx_beam;
+      if (vertex.position.z > SMOG2_pp_separation) {
+        tx_beam = dev_beamline.tx;
+      }
+      else {
+        tx_beam = dev_beamline.tx_SMOG;
+      }
+
+      const auto beamlinedx = vertex.position.x - dev_beamline.pos.x - tx_beam.x * vertex.position.z;
+      const auto beamlinedy = vertex.position.y - dev_beamline.pos.y - tx_beam.y * vertex.position.z;
       const auto beamlinerho2 = beamlinedx * beamlinedx + beamlinedy * beamlinedy;
       const auto minTracks =
         vertex.position.z <= SMOG2_pp_separation ? SMOG2_minNumTracksPerVertex : pp_minNumTracksPerVertex;
