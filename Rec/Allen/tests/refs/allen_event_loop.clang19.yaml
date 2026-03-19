@@ -180,30 +180,30 @@ histos:
       stdDevX: 352.333248
   Hlt1DiElectronLowMass_SS_NoIP:
     dielectron_mass_counts:
-      nEntries: 186.0
+      nEntries: 185.0
       title: dielectron masses
-      sum: 186
-      meanX: 762.701613
-      stdDevX: 540.568426
+      sum: 185
+      meanX: 765.587838
+      stdDevX: 540.596268
     dielectron_mass_counts_brem:
-      nEntries: 171.0
+      nEntries: 170.0
       title: dielectron masses with brem
-      sum: 171
-      meanX: 744.97807
-      stdDevX: 523.982122
+      sum: 170
+      meanX: 747.970588
+      stdDevX: 524.061994
   Hlt1DiElectronLowMass_SS_NoIPNorm:
     dielectron_mass_counts:
-      nEntries: 618.0
+      nEntries: 617.0
       title: dielectron masses
-      sum: 618
-      meanX: 1001.371359
-      stdDevX: 506.345221
+      sum: 617
+      meanX: 1002.623582
+      stdDevX: 505.798336
     dielectron_mass_counts_brem:
-      nEntries: 561.0
+      nEntries: 560.0
       title: dielectron masses with brem
-      sum: 561
-      meanX: 993.455882
-      stdDevX: 508.018044
+      sum: 560
+      meanX: 994.808036
+      stdDevX: 507.461829
   Hlt1DiMuonHighMass:
     Jpsi_mass:
       nEntries: 2.0
@@ -281,8 +281,8 @@ histos:
       nEntries: 827.0
       title: m(ks)
       sum: 827
-      meanX: 493.016929
-      stdDevX: 19.400064
+      meanX: 493.007255
+      stdDevX: 19.397327
     ks_pt:
       nEntries: 827.0
       title: pT(ks)
@@ -564,17 +564,17 @@ histos:
       stdDevX: 1.879295
   gather_selections:
     line_passes:
-      nEntries: 17415.0
+      nEntries: 17414.0
       title: line passes
-      sum: 17415
-      meanX: 85.618174
-      stdDevX: 22.563413
+      sum: 17414
+      meanX: 85.620937
+      stdDevX: 22.56145
     line_rates:
-      nEntries: 666.0
+      nEntries: 667.0
       title: line rates
-      sum: 666
-      meanX: 79.89039
-      stdDevX: 32.410943
+      sum: 667
+      meanX: 79.792354
+      stdDevX: 32.48531
   is_muon:
     n_muons:
       nEntries: 458847.0
@@ -892,9 +892,9 @@ counters:
     Hlt1D2KPiRate:
       nEntries: 15.0
     Hlt1D2KshhPass:
-      nEntries: 7.0
+      nEntries: 8.0
     Hlt1D2KshhRate:
-      nEntries: 7.0
+      nEntries: 8.0
     Hlt1D2PiPiPass:
       nEntries: 4.0
     Hlt1D2PiPiRate:
@@ -924,11 +924,11 @@ counters:
     Hlt1DiElectronLowMass_SS_DisplacedRate:
       nEntries: 1.0
     Hlt1DiElectronLowMass_SS_NoIPNormPass:
-      nEntries: 142.0
+      nEntries: 141.0
     Hlt1DiElectronLowMass_SS_NoIPNormRate:
       nEntries: 2.0
     Hlt1DiElectronLowMass_SS_NoIPPass:
-      nEntries: 77.0
+      nEntries: 76.0
     Hlt1DiElectronLowMass_SS_NoIPRate:
       nEntries: 1.0
     Hlt1DiMuonDisplacedPass:
