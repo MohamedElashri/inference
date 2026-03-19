@@ -25,6 +25,9 @@ with make_velo_scifi_matches.bind(
         ),
         with_fullKF=True,
         with_ut=True,
-        enableDownstream=True)
+        enableDownstream=True,
+        with_downstream_KF=True,
+        with_ttracks=True,
+    )
 
 generate(hlt1_node)
