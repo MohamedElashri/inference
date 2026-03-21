@@ -325,8 +325,8 @@ def make_diproton_highmass_line(secondary_vertices,
         enable_tupling=enable_tupling)
 
 
-def make_quirks_line(pre_scaler_hash_string="track_mva_line_pre",
-                     post_scaler_hash_string="track_mva_line_post",
+def make_quirks_line(pre_scaler_hash_string=None,
+                     post_scaler_hash_string=None,
                      name="Hlt1Quirks",
                      maxPHI=0.07,
                      maxPHIDF=0.06,
@@ -348,6 +348,6 @@ def make_quirks_line(pre_scaler_hash_string="track_mva_line_pre",
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         dev_quirks_pairs_t=quirks_pairs["dev_quirks_pairs"],
-        pre_scaler_hash_string=pre_scaler_hash_string,
-        post_scaler_hash_string=post_scaler_hash_string,
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_tupling=enable_tupling)
