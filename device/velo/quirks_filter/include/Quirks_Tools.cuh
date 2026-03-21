@@ -20,22 +20,6 @@
 #include <cstdint>
 #include <cmath>
 
-// host/device read-only load wrapper:
-// - on device expands to __ldg(ptr) (read-only cache)
-// - on host simply dereferences the pointer
-template<typename T>
-#ifdef __CUDA_ARCH__
-__device__ __inline__ T ldg_load(const T* ptr)
-{
-  return __ldg(ptr);
-}
-#else
-inline T ldg_load(const T* ptr)
-{
-  return *ptr;
-}
-#endif
-
 namespace quirks_tools {
 
   struct Parameters {
@@ -49,11 +33,6 @@ namespace quirks_tools {
     DEVICE_INPUT(dev_sorted_velo_clusters_container_t, char) dev_sorted_velo_clusters_container;
     DEVICE_INPUT(dev_offsets_estimated_input_size_t, unsigned) dev_offsets_estimated_input_size;
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
-
-    // per-module per-side counts (indexed by off_idx = event_idx * pairs + layer)
-    // These are produced/updated by the precompute kernel in No_std_file.cu
-    DEVICE_OUTPUT(dev_module_cluster_num_A_t, unsigned) dev_module_cluster_num_A;
-    DEVICE_OUTPUT(dev_module_cluster_num_C_t, unsigned) dev_module_cluster_num_C;
 
     // Output: one int per event: 0 = fail selection, 1 = pass selection
     DEVICE_OUTPUT(dev_quirks_pairs_t, unsigned) dev_quirks_pairs;
@@ -71,13 +50,14 @@ namespace quirks_tools {
     const unsigned max_opposite_considered,
     const unsigned hit_threshold,
     const unsigned max_pairs_per_module,
-    const float maxPHI,
+    const int16_t host_maxPHI_i16,
+    const int16_t host_window_start,
     const float maxR);
 
   // selection kernel prototype: now iterates over pair-lists (last arg = max_pairs_per_module)
   __global__ void quirks_selection_kernel(
     Parameters parameters,
-    const float maxPHIDF,
+    const int16_t host_maxPHIDF_i16,
     const unsigned minStations,
     const unsigned max_pairs_per_module);
 
