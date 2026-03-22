@@ -183,7 +183,7 @@ elseif(STANDALONE)
       "${LHCBROOT}/Event/DAQEvent/src/ODIN.cpp")
 
     if(NOT LHCB_TARGET_BRANCH)
-      set(LHCB_TARGET_BRANCH "master" CACHE STRING "LHCB target branch")
+      set(LHCB_TARGET_BRANCH "2026-patches" CACHE STRING "LHCB target branch")
     endif()
 
     add_custom_command(
@@ -214,7 +214,7 @@ elseif(STANDALONE)
     file(RELATIVE_PATH GAUDIROOT_RELPATH ${PROJECT_SEQUENCE_DIR} ${GAUDIROOT})
 
     if(NOT GAUDI_TARGET_BRANCH)
-      set(GAUDI_TARGET_BRANCH "master" CACHE STRING "Gaudi target branch")
+      set(GAUDI_TARGET_BRANCH "v40r3" CACHE STRING "Gaudi target branch")
     endif()
 
     add_custom_command(
