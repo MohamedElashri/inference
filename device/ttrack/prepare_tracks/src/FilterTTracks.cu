@@ -255,7 +255,6 @@ __global__ void filter_ttracks::kalman_filter(Parameters parameters, const Magne
       has_hit[i_hit] = false;
     }
 
-    UNROLL(9)
     for (unsigned i_hit = 0; i_hit < scifi_track_view.number_of_scifi_hits(); ++i_hit) {
       const auto hit = scifi_track_view.hit(i_hit);
       const auto layer = hit.planeCode() / 2;
