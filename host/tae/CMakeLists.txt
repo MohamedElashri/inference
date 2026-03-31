@@ -8,7 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-allen_add_host_library(HostTAEFilter STATIC
+allen_add_host_library(HostTAEFilter OBJECT
   src/HostTAEFilter.cpp
 )
 

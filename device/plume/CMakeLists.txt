@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB plume_decoding "decoding/src/*cu")
 
-allen_add_device_library(Plume STATIC
+allen_add_device_library(Plume OBJECT
   ${plume_decoding}
 )
 

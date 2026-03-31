@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB pv_checker_sources "src/*cpp")
 
-allen_add_host_library(PVChecking STATIC
+allen_add_host_library(PVChecking OBJECT
   ${pv_checker_sources}
 )
 target_include_directories(PVChecking PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)

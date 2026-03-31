@@ -66,14 +66,14 @@ The build process is the standard cmake procedure. You should specify a `CMAKE_T
 
     mkdir build
     cd build
-    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13-opt+g.cmake ..
+    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108b/x86_64_v3-el9-gcc13-opt+g.cmake ..
     make
 
 * CUDA target::
 
     mkdir build
     cd build
-    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake ..
+    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108b/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake ..
     make
 
 * HIP target (the following is a CentOS 7 configuration, a RHEL 9 one will soon be provided)::
@@ -87,7 +87,7 @@ Note: CUDA builds with CVMFS outside CERN network still require a local CUDA ins
 
 * Specify `CMAKE_CUDA_COMPILER` when invoking `cmake`::
 
-    cmake -DSTANDALONE=ON -DCMAKE_CUDA_COMPILER=</path/to/nvcc> -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake ..
+    cmake -DSTANDALONE=ON -DCMAKE_CUDA_COMPILER=</path/to/nvcc> -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108b/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake ..
 
 * Add `nvcc` directory to `PATH` (typically `/usr/local/cuda-X.Y/bin`)::
 
@@ -213,12 +213,12 @@ As a Gaudi/LHCb cmake project
 -------------------------------
 To build Allen like this, is the same as building
 any other Gaudi/LHCb project. Allen depends on Rec and all projects that Rec depends on. So either clone them locally or add the path to a valid nightly build to `CMAKE_PREFIX_PATH` (check the |nightly_builds| to).
-To build e.g. on `lxplus` machines, the below script may be used (again using the |nightly_builds| to inform the choice of Binary tag and LCG version, in this example `x86_64_v3-el9-gcc13-opt+g` and `106c`)::
+To build e.g. on `lxplus` machines, the below script may be used (again using the |nightly_builds| to inform the choice of Binary tag and LCG version, in this example `x86_64_v3-el9-gcc13-opt+g` and `108b`)::
 
     git clone ssh://git@gitlab.cern.ch:7999/lhcb/Allen.git
     cd Allen
     lb-set-platform x86_64_v3-el9-gcc13-opt+g
-    export LCG_VERSION="106c"
+    export LCG_VERSION="108b"
     export BINARY_TAG="x86_64_v3-el9-gcc13-opt+g"
     lb-project-init
     make configure

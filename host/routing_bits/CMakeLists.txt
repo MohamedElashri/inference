@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB host_routingbits "src/*cpp")
 
-allen_add_host_library(HostRoutingBits STATIC
+allen_add_host_library(HostRoutingBits OBJECT
   ${host_routingbits}
 )
 target_link_libraries(HostRoutingBits PUBLIC Boost::headers HostEventModel EventModel Gear AllenCommon Backend)

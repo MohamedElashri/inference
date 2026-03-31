@@ -204,24 +204,6 @@ set(TARGET_DEFINITION "TARGET_DEVICE_${TARGET_DEVICE}")
 
 include(CTest)
 
-if (NOT STANDALONE)
-  # Disable messages from the LHCb configuration checks that fire as
-  # a result of the different directory/source structure of Allen
-  if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
-    set(LHCB_UNUSED_SUBDIR_MESSAGE_TYPE "VERBOSE")
-    set(LHCB_UNUSED_SOURCE_MESSAGE_TYPE "IGNORE")
-  endif()
-
-  lhcb_add_subdirectories(
-    Rec/Allen
-    Dumpers/BinaryDumpers
-    Dumpers/RootDumpers)
-
-  lhcb_env(
-    SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
-    SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-
 # Detect CUDA architecture
 if(TARGET_DEVICE STREQUAL "CUDA")
   if (NOT CMAKE_CUDA_COMPILER)
@@ -280,10 +262,7 @@ if(TARGET_DEVICE STREQUAL "CUDA")
       list(APPEND CUDA_ARCH_LIST ${CUDA_ARCH})
     endif()
 
-    # Compatibility with CMake 3.18
-    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18.0")
-      set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_LIST})
-    endif()
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_LIST})
 
     set(DEVICE_ARCHITECTURE "")
     foreach(arch ${CUDA_ARCH_LIST})
@@ -600,6 +579,24 @@ if (USE_KALMAN_DOUBLE_PRECISION)
   add_compile_definitions(KALMAN_DOUBLE_PRECISION)
 endif()
 
+if (NOT STANDALONE)
+  # Disable messages from the LHCb configuration checks that fire as
+  # a result of the different directory/source structure of Allen
+  if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
+    set(LHCB_UNUSED_SUBDIR_MESSAGE_TYPE "VERBOSE")
+    set(LHCB_UNUSED_SOURCE_MESSAGE_TYPE "IGNORE")
+  endif()
+
+  lhcb_add_subdirectories(
+    Rec/Allen
+    Dumpers/BinaryDumpers
+    Dumpers/RootDumpers)
+
+  lhcb_env(
+    SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
+    SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 # Determine which sequences to generate or copy configurations for
 file(GLOB available_sequences CONFIGURE_DEPENDS "configuration/python/AllenSequences/*.py")
 set(BUILD_SEQUENCES "")
@@ -723,12 +720,12 @@ target_include_directories(AllenLib PUBLIC
 
 target_link_libraries(AllenLib
   PRIVATE
-    algorithm_db
     Associate
     Backend
     Calo
     Combiners
     DeviceValidators
+    Downstream
     EventModel
     Examples
     HostCombiners
@@ -748,11 +745,13 @@ target_link_libraries(AllenLib
     PVChecking
     PV_beamline
     Plume
+    Rich
     SciFi
     SelChecking
     Selections
     Stream
     TrackChecking
+    TTrack
     UT
     Utils
     Validators

@@ -266,6 +266,7 @@ namespace Allen::Store {
   public:
     using unaltered_parameters_tuple_t = UnalteredParameterTuple;
     using parameters_tuple_t = ParameterTuple;
+    using aggregates_tuple_t = InputAggregatesTuple;
     using parameters_struct_t = ParameterStruct;
     using input_aggregates_t = typename AggregateTypes<InputAggregatesTuple>::aggregates_tuple_type_t;
     using arguments_t = std::array<std::reference_wrapper<BaseArgument>, std::tuple_size_v<parameters_tuple_t>>;

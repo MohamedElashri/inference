@@ -37,8 +37,8 @@ namespace {
 
       std::vector<double> pos(3);
       region.avgPosition.GetCoordinates(pos.begin(), pos.end());
-      pos[0] = pos[0] + offset[0];
-      pos[1] = pos[1] + offset[1];
+      pos[0] = pos[0] + static_cast<double>(offset[0]);
+      pos[1] = pos[1] + static_cast<double>(offset[1]);
 
       std::vector<double> sprd(region.spread.begin(), region.spread.end());
       auto as_float = [](auto const& vd) {
@@ -50,8 +50,8 @@ namespace {
       double xangleh = 0.;
       double xanglev = 0.;
       if (LHC_info.has_value()) {
-        xangleh = LHC_info.value().xangleh;
-        xanglev = LHC_info.value().xanglev;
+        xangleh = static_cast<double>(LHC_info.value().xangleh);
+        xanglev = static_cast<double>(LHC_info.value().xanglev);
       }
       std::vector<double> cross_angles(2);
       cross_angles[0] = xangleh;

@@ -51,6 +51,7 @@ gaudi_add_module(AllenWrapper
                    HostRoutingBits
                    TrackChecking
                    PV_beamline
+                   Kalman
                    PVChecking
                    SelChecking
                    HostCombiners

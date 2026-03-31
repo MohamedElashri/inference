@@ -69,6 +69,19 @@ namespace {
     return true;
   }
 
+  template<typename T>
+  std::string demangled_type()
+  {
+    int status;
+    std::string tname = typeid(T).name();
+    char* demangled_name = abi::__cxa_demangle(tname.c_str(), NULL, NULL, &status);
+    if (status == 0) {
+      tname = demangled_name;
+      std::free(demangled_name);
+    }
+    return tname;
+  }
+
   template<typename T, std::size_t... Is>
   void emplace_output_argument(
     const std::vector<std::string>& arguments,
@@ -76,6 +89,73 @@ namespace {
     std::index_sequence<Is...>)
   {
     (emplace_output_arg<T, Is>(arguments, store) && ...);
+  }
+
+  template<typename datatype>
+  std::map<std::string, nlohmann::json> argument_to_json()
+  {
+    std::map<std::string, nlohmann::json> arg;
+
+    // Basic type information
+    arg["typename"] = demangled_type<datatype>();
+    arg["type"] = demangled_type<typename datatype::type>();
+
+    // Determine scope (host or device)
+    if constexpr (std::is_base_of_v<Allen::Store::host_datatype, datatype>) {
+      arg["scope"] = "host";
+    }
+    else if constexpr (std::is_base_of_v<Allen::Store::device_datatype, datatype>) {
+      arg["scope"] = "device";
+    }
+    else {
+      arg["scope"] = "unknown";
+    }
+
+    // Determine kind (input or output)
+    if constexpr (std::is_base_of_v<
+                    Allen::Store::input_datatype<std::remove_const_t<typename datatype::type>>,
+                    datatype>) {
+      arg["kind"] = "input";
+    }
+    else if constexpr (std::is_base_of_v<Allen::Store::output_datatype<typename datatype::type>, datatype>) {
+      arg["kind"] = "output";
+    }
+    else {
+      arg["kind"] = "unknown";
+    }
+
+    // Is aggregate or optional ?
+    if constexpr (std::is_base_of_v<Allen::Store::aggregate_datatype, datatype>) {
+      arg["kind"] = "input";
+      arg["aggregate"] = true;
+      arg["type"] = "unknown_t"; // Pyconf typechecking doesn't know how to handle aggregates, so disable it
+    }
+    if constexpr (std::is_base_of_v<Allen::Store::optional_datatype, datatype>) {
+      arg["optional"] = true;
+    }
+
+    // Extract dependencies
+    if constexpr (requires { typename datatype::dependencies_type; }) {
+      // Get the dependency types
+      using deps_type = typename datatype::dependencies_type;
+
+      // Convert dependencies to JSON array
+      std::vector<std::string> deps;
+      [&]<typename... Deps>(Allen::Store::dependencies<Deps...>*) { (deps.push_back(demangled_type<Deps>()), ...); }
+      (static_cast<deps_type*>(nullptr));
+
+      arg["dependencies"] = deps;
+    }
+    return arg;
+  }
+
+  template<typename... Types>
+  std::vector<nlohmann::json> arguments_json_infos(std::tuple<Types...>)
+  {
+    std::vector<nlohmann::json> out;
+    [&]<typename... Ts>(std::tuple<Ts...>*) { (out.emplace_back(argument_to_json<Ts>()), ...); }
+    (static_cast<std::tuple<Types...>*>(nullptr));
+    return out;
   }
 } // namespace
 
@@ -129,6 +209,7 @@ namespace Allen {
       void (*set_properties)(void*, const std::map<std::string, nlohmann::json>&) = nullptr;
       std::map<std::string, nlohmann::json> (*get_properties)(void const*) = nullptr;
       std::map<std::string, nlohmann::json> (*get_properties_infos)(void const*) = nullptr;
+      std::map<std::string, nlohmann::json> (*get_algorithm_infos)(void const*) = nullptr;
       std::string (*scope)() = nullptr;
       void (*dtor)(void*) = nullptr;
       void (*run_preconditions)(
@@ -208,6 +289,18 @@ namespace Allen {
         },
         [](void const* p) { return static_cast<ALGORITHM const*>(p)->get_properties(); },
         [](void const* p) { return static_cast<ALGORITHM const*>(p)->get_properties_infos(); },
+        [](void const* p) { // get_algorithm_infos
+          std::map<std::string, nlohmann::json> algorithm;
+          algorithm["scope"] = ALGORITHM::algorithm_scope;
+          algorithm["type"] = demangled_type<ALGORITHM>();
+          using aggregates_tuple_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType::aggregates_tuple_t;
+          using parameters_tuple_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType::parameters_tuple_t;
+          using full_parameters_tuple_t =
+            decltype(std::tuple_cat(std::declval<aggregates_tuple_t>(), std::declval<parameters_tuple_t>()));
+          algorithm["parameters"] = arguments_json_infos(full_parameters_tuple_t {});
+          algorithm["properties"] = static_cast<ALGORITHM const*>(p)->get_properties_infos();
+          return algorithm;
+        },
         []() -> std::string { return ALGORITHM::algorithm_scope; },
         [](void* p) { delete static_cast<ALGORITHM*>(p); },
         [](
@@ -303,6 +396,7 @@ namespace Allen {
     {
       return (table.get_properties_infos)(instance);
     }
+    std::map<std::string, nlohmann::json> get_algorithm_infos() const { return (table.get_algorithm_infos)(instance); }
     std::string scope() const { return (table.scope)(); }
     void run_preconditions(
       std::any& arg_ref_manager,
@@ -331,14 +425,57 @@ namespace Allen {
 #endif
 
   // Tool to instantiate algorithms
-  template<typename T>
-  TypeErasedAlgorithm instantiate_algorithm(const std::string& name);
+  struct AlgorithmDB {
+    static AlgorithmDB* get();
 
-#define INSTANTIATE_ALGORITHM(TYPE)                                                      \
-  template<>                                                                             \
-  Allen::TypeErasedAlgorithm Allen::instantiate_algorithm<TYPE>(const std::string& name) \
-  {                                                                                      \
-    return TypeErasedAlgorithm {std::in_place_type<TYPE>, name};                         \
+    using factory_t = TypeErasedAlgorithm (*)(const std::string& name);
+
+    TypeErasedAlgorithm instantiate_algorithm(const std::string& id, const std::string& name) const
+    {
+      return m_factories.at(id)(name);
+    }
+
+    std::vector<std::pair<std::string, TypeErasedAlgorithm>> all_algorithms() const
+    {
+      std::vector<std::pair<std::string, TypeErasedAlgorithm>> algs;
+      for (const auto& [id, factory] : m_factories) {
+        algs.emplace_back(id, factory(""));
+      }
+      return algs;
+    }
+
+    template<typename F>
+    bool register_factory(const std::string& id, const std::string& filename, F&& factory)
+    {
+      m_filenames[id] = filename;
+      m_factories[id] = factory;
+      return true;
+    }
+
+    std::string filename_for(const std::string& id) const { return m_filenames.at(id); }
+
+    std::map<std::string, std::string> m_filenames;
+    std::map<std::string, factory_t> m_factories;
+  };
+
+#define CONCATENATE_IMPL(s1, s2) s1##s2
+#define CONCATENATE(s1, s2) CONCATENATE_IMPL(s1, s2)
+#define ANONYMOUS_VARIABLE(prefix) CONCATENATE(prefix, __COUNTER__)
+
+#define INSTANTIATE_ALGORITHM(TYPE)                                                                \
+  namespace {                                                                                      \
+    static bool ANONYMOUS_VARIABLE(registered_algorithm_) =                                        \
+      (Allen::AlgorithmDB::get())->register_factory(#TYPE, __FILE__, [](const std::string& name) { \
+        return Allen::TypeErasedAlgorithm {std::in_place_type<TYPE>, name};                        \
+      });                                                                                          \
+  }
+
+#define INSTANTIATE_ALGORITHM_WITH_ID(TYPE, ID)                                                 \
+  namespace {                                                                                   \
+    static bool ANONYMOUS_VARIABLE(registered_algorithm_) =                                     \
+      (Allen::AlgorithmDB::get())->register_factory(ID, __FILE__, [](const std::string& name) { \
+        return Allen::TypeErasedAlgorithm {std::in_place_type<TYPE>, name};                     \
+      });                                                                                       \
   }
 
   // Forward declare to use in Algorithm

@@ -34,12 +34,6 @@ private:
   std::mutex m_mutex;
 
 public:
-  struct SelRepTag {
-    static std::string const name;
-  };
-
-  using subdetector_t = SelRepTag;
-
   SelReportChecker(CheckerInvoker const*, std::string const&, std::string const&) {};
 
   virtual ~SelReportChecker() = default;

@@ -8,7 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-allen_add_host_library(HostErrorBanks STATIC
+allen_add_host_library(HostErrorBanks OBJECT
   src/HostOdinErrorFilter.cpp
   src/ErrorBankFilter.cpp
 )
