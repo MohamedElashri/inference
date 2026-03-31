@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB host_combiners "src/*cpp")
 
-allen_add_host_library(HostCombiners STATIC
+allen_add_host_library(HostCombiners OBJECT
   ${host_combiners}
 )
 

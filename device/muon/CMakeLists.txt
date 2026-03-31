@@ -22,7 +22,7 @@ file(GLOB consolidate_muon "consolidate_tracks/src/*cu")
 
 
 
-allen_add_device_library(Muon STATIC
+allen_add_device_library(Muon OBJECT
   ${muon_filtering}
   ${muon_features_extraction}
   ${muon_classification}

@@ -29,7 +29,7 @@ namespace {
   {
     for (const auto& idau : mcvtx.products()) {
       double dv2 = (mcpv.position() - idau->originVertex()->position()).Mag2();
-      if (dv2 > (100. * Allen::Units::mm) * (100. * Allen::Units::mm)) continue;
+      if (dv2 > static_cast<double>((100.f * Allen::Units::mm) * (100.f * Allen::Units::mm))) continue;
       allprods.emplace_back(idau);
       for (const auto& ivtx : idau->endVertices()) {
         collectProductss(mcpv, *ivtx, allprods);

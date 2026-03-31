@@ -580,12 +580,12 @@ def make_downstream(decoded_ut,
             host_number_of_tracks=downstream_tracks[
                 'host_number_of_downstream_tracks'],
             dev_multi_event_tracks_ptr=downstream_tracks[
-                'dev_multi_event_downstream_tracks_view_ptr'],
+                'dev_multi_event_downstream_tracks_view'],
             dev_velo_states=downstream_tracks[
                 'dev_downstream_track_states_view'],
             dev_scifi_states=downstream_tracks[
                 'dev_downstream_track_scifi_states'],
-        )
+            track_type="downstream")
         leptonID = make_lepton_id(
             host_number_of_tracks=downstream_tracks[
                 'host_number_of_downstream_tracks'],

@@ -22,7 +22,7 @@ include(GenerateConfiguration)
 file(GLOB stream_src "sequence/src/*cpp")
 file(GLOB gear_src "gear/src/*cpp")
 
-allen_add_host_library(Stream STATIC ${stream_src} ${gear_src})
+allen_add_host_library(Stream OBJECT ${stream_src} ${gear_src})
 
 target_link_libraries(Stream
   PRIVATE
@@ -44,7 +44,6 @@ target_link_libraries(Stream
     Validators
     Velo
     VertexFitter
-    algorithm_db
     AllenCommon
     Gear
     track_matching

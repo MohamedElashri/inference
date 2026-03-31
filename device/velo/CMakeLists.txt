@@ -19,7 +19,7 @@ file(GLOB filter_for_material_interactions "filter_for_material_interactions/src
 file(GLOB quirks_filter "quirks_filter/src/*cu")
 
 
-allen_add_device_library(Velo STATIC
+allen_add_device_library(Velo OBJECT
   ${velo_sparse_ccl_sources}
   ${velo_retinaclusters_sources}
   ${velo_prefix_sum}

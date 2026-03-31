@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB rich_decoding "decoding/src/*cu")
 
-allen_add_device_library(Rich STATIC
+allen_add_device_library(Rich OBJECT
   ${rich_decoding}
 )
 
