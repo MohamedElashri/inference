@@ -76,5 +76,13 @@ namespace pv_beamline_cleanup {
                                                                "pv_z_only_smog",
                                                                {2000u, -600.f, -200.f}};
     Allen::Monitoring::Histogram<> m_histogram_n_smogpvs {this, "n_smog2_PVs", "n_smog2_PVs", {10, -0.5f, 9.5f}};
+
+    // Binary dump of final vertices for offline validation
+    Allen::Property<std::string> m_dump_dir {
+        this, "dump_dir", "",
+        "directory to write binary vertex dump (0xAB21 format); empty disables"};
+    Allen::Property<std::string> m_output_file {
+        this, "output_file", "allen_classical_vertices.bin",
+        "filename inside dump_dir"};
   };
 } // namespace pv_beamline_cleanup

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
+#include "CuDNNBackendShim.h"
+
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
 #endif
@@ -80,6 +82,7 @@ private:
     // m_dump_done: guard for dumping validation output once
     mutable bool m_dump_done = false;
 
+public:
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     struct GlobalDescriptors {
         Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→64,  k=25, pad=12)

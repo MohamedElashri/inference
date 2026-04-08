@@ -13,7 +13,8 @@ from AllenCore.algorithms import (
     pv_beamline_calculate_denom_t, pv_beamline_multi_fitter_t,
     pv_beamline_cleanup_t,
     pvfinder_kde_peak_finder_t, pvfinder_nn_calculate_denom_t,
-    pvfinder_vertex_fitter_t, pvfinder_nn_cleanup_t)
+    pvfinder_vertex_fitter_t, pvfinder_nn_cleanup_t,
+    pvfinder_dump_vertices_t)
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
@@ -27,7 +28,8 @@ def make_pvs(velo_tracks,
              zmin=-541.,
              zmax=307.,
              SMOG2_pp_separation=-334.,
-             Nbins=3392):
+             Nbins=3392,
+             dump_validation=""):
 
     dz = 0.25
     pp_maxTrackZ0Err = 1.5
@@ -41,6 +43,10 @@ def make_pvs(velo_tracks,
         pp_minNumTracksPerVertex = 4.
         maxChi2 = 12.
         maxTrackBlChi2 = 10.
+
+    import os
+    if not dump_validation:
+        dump_validation = os.environ.get("PVFINDER_DUMP_DIR", "")
 
     number_of_events = initialize_number_of_events()
     host_number_of_events = number_of_events["host_number_of_events"]
@@ -125,9 +131,12 @@ def make_pvs(velo_tracks,
         dev_multi_fit_vertices_t=pv_beamline_multi_fitter.
         dev_multi_fit_vertices_t,
         dev_number_of_multi_fit_vertices_t=pv_beamline_multi_fitter.
-        dev_number_of_multi_fit_vertices_t)
+        dev_number_of_multi_fit_vertices_t,
+        dump_dir=dump_validation,
+        output_file="allen_classical_vertices.bin")
 
     return {
+
         "dev_number_of_zpeaks":
         pv_beamline_peak.dev_number_of_zpeaks_t,
         "dev_multi_final_vertices":
@@ -229,7 +238,8 @@ def make_nn_pvs(velo_tracks,
         pvfinder_kde_peak_finder_t,
         name="pvfinder_kde_peak_finder" + pv_name,
         host_number_of_events_t=host_number_of_events,
-        dev_pvfinder_kde_output_t=unet_output["dev_pvfinder_kde_output"])
+        dev_pvfinder_kde_output_t=unet_output["dev_pvfinder_kde_output"],
+        min_integral_tracks=0.5)
 
     # ------------------------------------------------------------------ #
     # 5. Calculate per-track denominator over NN z-seeds                 #
@@ -273,7 +283,18 @@ def make_nn_pvs(velo_tracks,
         dev_multi_fit_vertices_t=
         nn_vertex_fitter.dev_nn_multi_fit_vertices_t,
         dev_number_of_multi_fit_vertices_t=
-        nn_vertex_fitter.dev_nn_number_of_multi_fit_vertices_t)
+        nn_vertex_fitter.dev_nn_number_of_multi_fit_vertices_t,
+        dump_dir=dump_validation,
+        output_file="allen_nn_final_vertices.bin")
+
+    pvfinder_dump_vertices = make_algorithm(
+        pvfinder_dump_vertices_t,
+        name="pvfinder_dump_vertices_nn" + pv_name,
+        host_number_of_events_t=host_number_of_events,
+        dev_multi_final_vertices_t=nn_cleanup.dev_multi_final_vertices_t,
+        dev_number_of_multi_final_vertices_t=nn_cleanup.dev_number_of_multi_final_vertices_t,
+        dump_dir=dump_validation,
+        output_file="allen_nn_final_vertices.bin")
 
     return {
         "dev_number_of_zpeaks":
@@ -283,5 +304,7 @@ def make_nn_pvs(velo_tracks,
         "dev_number_of_multi_final_vertices":
         nn_cleanup.dev_number_of_multi_final_vertices_t,
         "pp_minNumTracksPerVertex":
-        pp_minNumTracksPerVertex
+        pp_minNumTracksPerVertex,
+        "pvfinder_dump_vertices":
+        pvfinder_dump_vertices
     }

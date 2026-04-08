@@ -2,6 +2,7 @@
 
 #include "AlgorithmTypes.cuh"
 #include "PV_Definitions.cuh"
+#include "BackendCommon.h"
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -34,13 +35,17 @@ struct Parameters {
     // both use the same parameter tag names.
     DEVICE_INPUT(dev_multi_final_vertices_t, PV::Vertex) dev_multi_final_vertices;
     DEVICE_INPUT(dev_number_of_multi_final_vertices_t, unsigned) dev_number_of_multi_final_vertices;
+    // Dummy output to force this algorithm into the Allen dependency graph
+    HOST_OUTPUT(host_pv_dump_done_t, bool) host_pv_dump_done;
 };
 
-struct pvfinder_dump_vertices_t : public DeviceAlgorithm, Parameters {
+struct pvfinder_dump_vertices_t : public HostAlgorithm, Parameters {
     void set_arguments_size(
-        ArgumentReferences<Parameters>,
+        ArgumentReferences<Parameters> arguments,
         const RuntimeOptions&,
-        const Constants&) const {}
+        const Constants&) const {
+        set_size<host_pv_dump_done_t>(arguments, 1);
+    }
 
     void operator()(
         const ArgumentReferences<Parameters>& arguments,
@@ -57,7 +62,6 @@ private:
         this, "output_file", "allen_vertices.bin",
         "filename inside dump_dir (default: allen_vertices.bin)"};
 
-    mutable bool m_dump_done = false;
 };
 
 } // namespace pvfinder_dump_vertices

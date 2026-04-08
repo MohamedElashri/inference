@@ -9,6 +9,11 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "pv_beamline_cleanup.cuh"
+#include <cstdint>
+#include <fstream>
+#include <string>
+#include <vector>
+#include "ArgumentOps.cuh"
 
 INSTANTIATE_ALGORITHM(pv_beamline_cleanup::pv_beamline_cleanup_t)
 
@@ -40,6 +45,48 @@ void pv_beamline_cleanup::pv_beamline_cleanup_t::operator()(
     m_histogram_pv_z.data(context),
     m_histogram_pv_z_only_pp.data(context),
     m_histogram_pv_z_only_smog.data(context));
+
+  // ----- Optional binary dump for offline validation -----
+  const std::string& current_dump_dir = m_dump_dir.value();
+  if (!current_dump_dir.empty()) {
+      const auto h_vertices  = Allen::ArgumentOperations::make_host_buffer<dev_multi_final_vertices_t>(arguments, context);
+      const auto h_nvertices = Allen::ArgumentOperations::make_host_buffer<dev_number_of_multi_final_vertices_t>(arguments, context);
+      const unsigned n_events = first<host_number_of_events_t>(arguments);
+
+      const std::string path = current_dump_dir + "/" + m_output_file.value();
+      const bool file_exists = std::ifstream(path).good();
+      std::ofstream f(path, std::ios::binary | std::ios::app);
+      if (f) {
+          if (!file_exists) {
+              const uint32_t magic = 0xAB21u;
+              const uint32_t ne    = n_events;
+              f.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+              f.write(reinterpret_cast<const char*>(&ne),    sizeof(ne));
+          }
+          for (unsigned e = 0; e < n_events; ++e) {
+              const uint32_t nv = h_nvertices[e];
+              f.write(reinterpret_cast<const char*>(&nv), sizeof(nv));
+              const PV::Vertex* verts = h_vertices.data() + e * PV::max_number_vertices;
+              for (unsigned v = 0; v < nv; ++v) {
+                  f.write(reinterpret_cast<const char*>(&verts[v].position.x), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].position.y), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].position.z), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].cov00), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].cov10), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].cov11), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].cov20), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].cov21), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].cov22), sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].chi2),     sizeof(float));
+                  f.write(reinterpret_cast<const char*>(&verts[v].ndof),     sizeof(int32_t));
+                  f.write(reinterpret_cast<const char*>(&verts[v].nTracks),  sizeof(float));
+              }
+          }
+          info_cout << "[pv_beamline_cleanup] Written slice to " << path << " (" << n_events << " events)\n";
+      } else {
+          info_cout << "[pv_beamline_cleanup] WARNING: could not open " << path << " for writing\n";
+      }
+  }
 }
 
 __device__ void pv_beamline_cleanup::sort_pvs_by_z(PV::Vertex* final_vertices, unsigned n_vertices)
