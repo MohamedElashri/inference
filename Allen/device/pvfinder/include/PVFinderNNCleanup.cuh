@@ -84,13 +84,12 @@ private:
     Allen::Monitoring::Histogram<> m_histogram_pv_z_only_pp {
         this, "pv_z_only_pp", "pv_z_only_pp", {2000u, -200.f, 400.f}};
 
-    // Binary dump of final vertices for offline validation
+    // Validation dump -- post-deduplication final vertices (magic 0xAB20)
     Allen::Property<std::string> m_dump_dir {
-        this, "dump_dir", "",
-        "directory to write binary vertex dump (0xAB21 format); empty disables"};
-    Allen::Property<std::string> m_output_file {
-        this, "output_file", "allen_nn_final_vertices.bin",
-        "filename inside dump_dir"};
+        this, "dump_validation", "",
+        "if non-empty, dump final NN PVs (post-cleanup) to this directory on the first call; "
+        "file: allen_nn_final_vertices.bin (magic 0xAB20)"};
+    mutable bool m_dump_done = false;
 };
 
 } // namespace pvfinder_nn_cleanup

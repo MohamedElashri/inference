@@ -16,10 +16,10 @@
 #     └─> pvfinder_nn_calculate_denom
 #     └─> pvfinder_vertex_fitter
 #     └─> pvfinder_nn_cleanup            (final PV::Vertex array)
-#     └─> pvfinder_dump_vertices_nn      (binary dump when PVFINDER_DUMP_DIR set)
 #
 # Set the PVFINDER_DUMP_DIR environment variable to a directory path to write
-# binary validation dumps (allen_nn_final_vertices.bin) for all processed slices.
+# binary validation dumps (allen_nn_zpeaks.bin, allen_nn_vertices.bin) on the
+# first processed slice.
 ###############################################################################
 import os
 from AllenConf.HLT1 import setup_hlt1_node
@@ -48,23 +48,19 @@ def hook_pvfinder_nn_to_hlt1():
 
     _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
 
-    # Full NN PV chain: FC → UNet → KDE peaks → denom → fitter → cleanup → dump
+    # Full NN PV chain: FC → UNet → KDE peaks → denom → fitter → cleanup
     nn_pvs_output = make_nn_pvs(
         reco["velo_tracks"],
         dump_validation=_dump_dir)
 
-    # Combine HLT1 and the NN output into a top-level NONLAZY_AND node.
-    # NONLAZY_AND ensures the cleanup algorithm always runs (unconditional side-effect).
-    nn_cleanup_alg = nn_pvs_output["dev_multi_final_vertices"]
-    nn_dump_node = CompositeNode(
-        "NNPVFinderDump", [nn_cleanup_alg.producer],
-        NodeLogic.NONLAZY_OR, force_order=False)
+    # Append the cleanup algorithm (last in the NN chain) as an extra child of
+    # the HLT1 top node.  Allen evaluates children sequentially; appending here
+    # means the NN PV chain runs after all HLT1 lines have been evaluated.
+    nn_cleanup_producer = nn_pvs_output["dev_multi_final_vertices"].producer
+    hlt1_graph.children = tuple(
+        list(hlt1_graph.children) + [nn_cleanup_producer])
 
-    top_node = CompositeNode(
-        "AllenWithNNDump", [hlt1_graph, nn_dump_node],
-        NodeLogic.NONLAZY_AND, force_order=True)
-
-    return top_node
+    return hlt1_graph
 
 
 with make_velo_scifi_matches.bind(

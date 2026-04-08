@@ -4,7 +4,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include "ArgumentOps.cuh"
 
 INSTANTIATE_ALGORITHM(pvfinder_nn_cleanup::pvfinder_nn_cleanup_t)
 
@@ -67,9 +66,6 @@ void pvfinder_nn_cleanup_t::operator()(
     const Constants&,
     const Allen::Context& context) const
 {
-    const std::string& current_dump_dir = m_dump_dir.value();
-    info_cout << "[pvfinder_nn_cleanup] operator() called. dump_dir: '" << current_dump_dir << "'\n";
-
     Allen::memset_async<dev_number_of_multi_final_vertices_t>(arguments, 0, context);
 
     global_function(pvfinder_nn_cleanup)(
@@ -85,23 +81,36 @@ void pvfinder_nn_cleanup_t::operator()(
         m_histogram_pv_z.data(context),
         m_histogram_pv_z_only_pp.data(context));
 
-    // ----- Optional binary dump for offline validation -----
+    // Validation dump -- fires once when dump_dir property is non-empty.
+    // Writes post-deduplication final vertices (magic 0xAB20).
+    // Binary layout matches validate_vertices.py reader (same as 0xAB1F from
+    // PVFinderVertexFitter, but produced after the chi2-distance cleanup pass).
     const std::string& dump_dir = m_dump_dir.value();
-    if (!dump_dir.empty()) {
-        const auto h_vertices  = Allen::ArgumentOperations::make_host_buffer<dev_multi_final_vertices_t>(arguments, context);
-        const auto h_nvertices = Allen::ArgumentOperations::make_host_buffer<dev_number_of_multi_final_vertices_t>(arguments, context);
-        const unsigned n_events = first<host_number_of_events_t>(arguments);
+    if (!dump_dir.empty() && !m_dump_done) {
+        cudaStreamSynchronize(context.stream());
 
-        const std::string path = dump_dir + "/" + m_output_file.value();
-        const bool file_exists = std::ifstream(path).good();
-        std::ofstream f(path, std::ios::binary | std::ios::app);
+        const unsigned n_events = first<host_number_of_events_t>(arguments);
+        std::vector<PV::Vertex> h_vertices(n_events * PV::max_number_vertices);
+        std::vector<unsigned>   h_nvertices(n_events);
+
+        cudaMemcpy(
+            h_vertices.data(),
+            data<dev_multi_final_vertices_t>(arguments),
+            n_events * PV::max_number_vertices * sizeof(PV::Vertex),
+            cudaMemcpyDeviceToHost);
+        cudaMemcpy(
+            h_nvertices.data(),
+            data<dev_number_of_multi_final_vertices_t>(arguments),
+            n_events * sizeof(unsigned),
+            cudaMemcpyDeviceToHost);
+
+        const std::string path = dump_dir + "/allen_nn_final_vertices.bin";
+        std::ofstream f(path, std::ios::binary);
         if (f) {
-            if (!file_exists) {
-                const uint32_t magic = 0xAB21u;
-                const uint32_t ne    = n_events;
-                f.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
-                f.write(reinterpret_cast<const char*>(&ne),    sizeof(ne));
-            }
+            const uint32_t magic = 0xAB20u;
+            const uint32_t ne    = n_events;
+            f.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+            f.write(reinterpret_cast<const char*>(&ne),    sizeof(ne));
             for (unsigned e = 0; e < n_events; ++e) {
                 const uint32_t nv = h_nvertices[e];
                 f.write(reinterpret_cast<const char*>(&nv), sizeof(nv));
@@ -121,10 +130,13 @@ void pvfinder_nn_cleanup_t::operator()(
                     f.write(reinterpret_cast<const char*>(&verts[v].nTracks),  sizeof(float));
                 }
             }
-            info_cout << "[pvfinder_nn_cleanup] Written slice to " << path << " (" << n_events << " events)\n";
+            printf("[pvfinder_nn_cleanup] Validation dump written to %s (%u events)\n",
+                   path.c_str(), n_events);
         } else {
-            info_cout << "[pvfinder_nn_cleanup] WARNING: could not open " << path << " for writing\n";
+            printf("[pvfinder_nn_cleanup] WARNING: could not open %s for writing\n",
+                   path.c_str());
         }
+        m_dump_done = true;
     }
 }
 

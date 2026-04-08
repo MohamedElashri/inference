@@ -342,10 +342,7 @@ void pvfinder_unet_t::operator()(
     const Allen::Context& context) const
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    if (!m_wb_loaded) {
-        info_cout << "[pvfinder_unet::operator()] ABORT: Weights not loaded.\n";
-        return;
-    }
+    if (!m_wb_loaded) return;
 
     const unsigned n_events = first<host_number_of_events_t>(arguments);
 
