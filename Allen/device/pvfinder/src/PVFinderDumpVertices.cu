@@ -1,6 +1,7 @@
 #include "PVFinderDumpVertices.cuh"
 
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -19,6 +20,8 @@ void pvfinder_dump_vertices_t::operator()(
     if (dump_dir.empty() || m_dump_done) return;
 
     cudaStreamSynchronize(context.stream());
+    std::error_code ec;
+    std::filesystem::create_directories(dump_dir, ec);
 
     const unsigned n_events = first<host_number_of_events_t>(arguments);
     std::vector<PV::Vertex> h_vertices(n_events * PV::max_number_vertices);

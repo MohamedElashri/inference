@@ -9,6 +9,12 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "pv_beamline_peak.cuh"
+#include <cstdio>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
 
 INSTANTIATE_ALGORITHM(pv_beamline_peak::pv_beamline_peak_t)
 
@@ -39,6 +45,55 @@ void pv_beamline_peak::pv_beamline_peak_t::operator()(
     m_pp_minTracksInSeed,
     m_minDipDensity,
     m_minDensity);
+
+  const std::string& dump_dir = m_dump_dir.value();
+  if (!dump_dir.empty() && !m_dump_done) {
+    cudaStreamSynchronize(context.stream());
+    std::error_code ec;
+    std::filesystem::create_directories(dump_dir, ec);
+
+    const unsigned n_events = first<host_number_of_events_t>(arguments);
+    std::vector<float> h_zpeaks(n_events * PV::max_number_vertices);
+    std::vector<unsigned> h_npeaks(n_events);
+
+    cudaMemcpy(
+      h_zpeaks.data(),
+      data<dev_zpeaks_t>(arguments),
+      n_events * PV::max_number_vertices * sizeof(float),
+      cudaMemcpyDeviceToHost);
+    cudaMemcpy(
+      h_npeaks.data(),
+      data<dev_number_of_zpeaks_t>(arguments),
+      n_events * sizeof(unsigned),
+      cudaMemcpyDeviceToHost);
+
+    // Binary layout:
+    //   uint32  magic = 0xAB2E
+    //   uint32  n_events
+    //   for each event e:
+    //       uint32  n_seeds
+    //       float32[n_seeds]  z_seeds
+    const std::string path = dump_dir + "/" + m_output_file.value();
+    std::ofstream f(path, std::ios::binary);
+    if (f) {
+      const uint32_t magic = 0xAB2Eu;
+      const uint32_t ne = n_events;
+      f.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+      f.write(reinterpret_cast<const char*>(&ne), sizeof(ne));
+      for (unsigned e = 0; e < n_events; ++e) {
+        const uint32_t np = h_npeaks[e];
+        f.write(reinterpret_cast<const char*>(&np), sizeof(np));
+        f.write(
+          reinterpret_cast<const char*>(h_zpeaks.data() + e * PV::max_number_vertices),
+          np * sizeof(float));
+      }
+      printf("[pv_beamline_peak] Validation dump written to %s (%u events)\n", path.c_str(), n_events);
+    }
+    else {
+      printf("[pv_beamline_peak] WARNING: could not open %s for writing\n", path.c_str());
+    }
+    m_dump_done = true;
+  }
 }
 
 __global__ void pv_beamline_peak::pv_beamline_peak(

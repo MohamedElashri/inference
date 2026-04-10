@@ -27,11 +27,13 @@
 import os
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
+from AllenCore.generator import make_algorithm
+from AllenCore.algorithms import pvfinder_dump_vertices_t
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
-from AllenConf.primary_vertex_reconstruction import make_nn_pvs
+from AllenConf.primary_vertex_reconstruction import make_nn_pvs, make_pvs
 from AllenConf.validators import pv_validation
 
 
@@ -40,26 +42,47 @@ def hook_nn_pv_checker_to_hlt1():
     # 1. Standard HLT1 with MC-truth checking enabled.                   #
     #    This sets up the classical PV chain and pv_validator.            #
     # ------------------------------------------------------------------ #
-    hlt1_node_dict = setup_hlt1_node(
-        tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        threshold_settings=get_thresholds(
-            "forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1200kHz"
-        ),
-        with_ut=True,
-        enableDownstream=True,
-        with_fullKF=True,
-        withMCChecking=True,
-    )
+    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
+    with make_pvs.bind(
+            dump_validation=_dump_dir,
+            output_file="allen_classical_zseeds.bin"):
+        hlt1_node_dict = setup_hlt1_node(
+            tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+            threshold_settings=get_thresholds(
+                "forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1200kHz"
+            ),
+            with_ut=True,
+            enableDownstream=True,
+            with_fullKF=True,
+            withMCChecking=True,
+        )
 
     reco = hlt1_node_dict["reconstruction"]
     validator_node = hlt1_node_dict["validator_node"]
+
+    # Optional classical reference dump. This lets one run produce both:
+    #   - classical z-seeds        (allen_classical_zseeds.bin, magic 0xAB2E)
+    #   - classical final vertices (allen_classical_vertices.bin, magic 0xAB21)
+    #   - NN z-seeds               (allen_nn_zpeaks.bin, magic 0xAB2F)
+    #   - NN final vertices        (allen_nn_final_vertices.bin, magic 0xAB20)
+    # so seed-level and vertex-level comparisons can both be done event-by-event.
+    if _dump_dir:
+        classical_dump = make_algorithm(
+            pvfinder_dump_vertices_t,
+            name="pvfinder_dump_classical_vertices",
+            host_number_of_events_t=reco["pvs"]["host_number_of_events"],
+            dev_multi_final_vertices_t=reco["pvs"]["dev_multi_final_vertices"],
+            dev_number_of_multi_final_vertices_t=reco["pvs"]["dev_number_of_multi_final_vertices"],
+            dump_dir=_dump_dir,
+            output_file="allen_classical_vertices.bin")
+        validator_node.children = tuple(
+            list(validator_node.children) + [classical_dump])
 
     # ------------------------------------------------------------------ #
     # 2. NN PV chain (shares VELO tracks from HLT1 reconstruction).      #
     #    make_nn_pvs() returns the same dict keys as make_pvs() so the   #
     #    pv_validation() helper wires it transparently.                  #
     # ------------------------------------------------------------------ #
-    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
     nn_pvs_output = make_nn_pvs(
         reco["velo_tracks"],
         dump_validation=_dump_dir)

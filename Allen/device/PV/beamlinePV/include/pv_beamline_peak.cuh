@@ -20,6 +20,7 @@
 #include "patPV_Definitions.cuh"
 #include "FloatOperations.cuh"
 #include <cstdint>
+#include <string>
 
 namespace pv_beamline_peak {
   struct Parameters {
@@ -83,5 +84,12 @@ namespace pv_beamline_peak {
                                             "minDipDensity",
                                             BeamlinePVConstants::Peak::minDipDensity,
                                             "minimum dip density"};
+    Allen::Property<std::string> m_dump_dir {
+      this, "dump_validation", "",
+      "if non-empty, dump classical z-seeds to this directory on the first call"};
+    Allen::Property<std::string> m_output_file {
+      this, "output_file", "allen_classical_zseeds.bin",
+      "filename inside dump_validation for classical z-seed dump"};
+    mutable bool m_dump_done = false;
   };
 } // namespace pv_beamline_peak

@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <stdexcept>
@@ -469,6 +470,8 @@ void pvfinder_unet_t::operator()(
     const std::string& dump_dir = m_dump_dir.value();
     if (!dump_dir.empty() && !m_dump_done) {
         cudaStreamSynchronize(context.stream());
+        std::error_code ec;
+        std::filesystem::create_directories(dump_dir, ec);
         const unsigned ncw_elems = n_events * N_INTERVALS * N_BATCH_CHANNELS * W_IN;
         const unsigned kde_elems = n_events * N_INTERVALS * W_IN;
         std::vector<float> h_ncw(ncw_elems), h_kde(kde_elems);
@@ -479,14 +482,21 @@ void pvfinder_unet_t::operator()(
         const uint32_t magic = 0xAB1EU;
         auto write_bin = [&](const std::string& path, const float* d, unsigned n) {
             std::ofstream f(path, std::ios::binary);
+            if (!f) return false;
             f.write(reinterpret_cast<const char*>(&magic),    sizeof(magic));
             f.write(reinterpret_cast<const char*>(&n_events), sizeof(n_events));
             f.write(reinterpret_cast<const char*>(d),         n * sizeof(float));
+            return static_cast<bool>(f);
         };
-        write_bin(dump_dir + "/allen_ncw_input.bin",  h_ncw.data(), ncw_elems);
-        write_bin(dump_dir + "/allen_kde_output.bin", h_kde.data(), kde_elems);
-        printf("[pvfinder_unet] Validation dump written to %s (%u events)\n",
-               dump_dir.c_str(), n_events);
+        const bool wrote_ncw = write_bin(dump_dir + "/allen_ncw_input.bin",  h_ncw.data(), ncw_elems);
+        const bool wrote_kde = write_bin(dump_dir + "/allen_kde_output.bin", h_kde.data(), kde_elems);
+        if (wrote_ncw && wrote_kde) {
+            printf("[pvfinder_unet] Validation dump written to %s (%u events)\n",
+                   dump_dir.c_str(), n_events);
+        } else {
+            printf("[pvfinder_unet] WARNING: could not write validation dump(s) under %s\n",
+                   dump_dir.c_str());
+        }
         m_dump_done = true;
     }
 #endif

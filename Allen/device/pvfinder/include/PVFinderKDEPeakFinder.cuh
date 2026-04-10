@@ -24,7 +24,8 @@ struct Parameters {
 __global__ void pvfinder_kde_peak_finder(
     Parameters,
     const float kde_peak_threshold,
-    const float min_integral_tracks);
+    const float min_integral_tracks,
+    const unsigned min_width);
 
 struct pvfinder_kde_peak_finder_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(
@@ -40,13 +41,17 @@ struct pvfinder_kde_peak_finder_t : public DeviceAlgorithm, Parameters {
 
 private:
     Allen::Property<float> m_kde_peak_threshold {
-        this, "kde_peak_threshold", 1e-3f,
+        this, "kde_peak_threshold", 1e-2f,
         "KDE bin threshold -- bins below this are treated as empty"};
 
     Allen::Property<float> m_min_integral_tracks {
-        this, "min_integral_tracks", 2.5f,
+        this, "min_integral_tracks", 0.5f,
         "Minimum cluster integral (units of track weight) to accept a z-seed; "
-        "matches BeamlinePVConstants::Peak::pp_minTracksInSeed"};
+        "matches the reference pvfinder_pytorch post-processing"};
+
+    Allen::Property<unsigned> m_min_width {
+        this, "min_width", 2u,
+        "Minimum width in bins for a KDE feature to become a z-seed"};
 
     Allen::Property<dim3> m_block_dim {
         this, "block_dim", {32, 1, 1},

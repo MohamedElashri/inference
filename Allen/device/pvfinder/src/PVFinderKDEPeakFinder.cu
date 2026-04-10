@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -49,12 +50,15 @@ void pvfinder_kde_peak_finder_t::operator()(
         context)(
         arguments,
         static_cast<float>(m_kde_peak_threshold),
-        static_cast<float>(m_min_integral_tracks));
+        static_cast<float>(m_min_integral_tracks),
+        static_cast<unsigned>(m_min_width));
 
     // Validation dump -- fires once when dump_dir property is non-empty.
     const std::string& dump_dir = m_dump_dir.value();
     if (!dump_dir.empty() && !m_dump_done) {
         cudaStreamSynchronize(context.stream());
+        std::error_code ec;
+        std::filesystem::create_directories(dump_dir, ec);
 
         const unsigned n_events = first<host_number_of_events_t>(arguments);
         std::vector<float>    h_zpeaks(n_events * PV::max_number_vertices);
@@ -102,180 +106,66 @@ void pvfinder_kde_peak_finder_t::operator()(
 }
 
 // ---------------------------------------------------------------------------
-// CUDA kernel -- one block per event, exactly one warp (blockDim.x = 32).
+// CUDA kernel -- one block per event.
 //
-// Three phases:
-//   1. Find proto-cluster edges (contiguous above-threshold regions) using
-//      warp-ballot intrinsics -- same technique as pv_beamline_peak.
-//      KDE_N_BINS = 4000 = 32 * 125, so every iteration uses a full warp.
-//   2. Filter proto-clusters by integrated KDE weight >= min_integral_tracks.
-//   3. For each accepted cluster compute the KDE-weighted centroid z-seed.
+// The logic below intentionally mirrors pvfinder_pytorch/utils.py:
+//   * thresholded "active" regions
+//   * minimum region width in bins
+//   * minimum integral
+//   * KDE-weighted centroid
+//   * special merged-peak split/end heuristic
+//
+// A single thread performs the scan so the behavior matches the Python
+// reference as closely as possible during validation/debugging.
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_kde_peak_finder(
     pvfinder_kde_peak_finder::Parameters parameters,
     const float kde_peak_threshold,
-    const float min_integral_tracks)
+    const float min_integral_tracks,
+    const unsigned min_width)
 {
-    // seq_idx: sequential position matching UNet's output ordering (0..n_events-1).
-    // event_number: actual event index used to write into global output buffers.
     const unsigned seq_idx      = blockIdx.x;
     const unsigned event_number = parameters.dev_event_list[seq_idx];
 
-    // Pointers to this event's KDE input and z-peaks output.
     const float* __restrict__ kde    = parameters.dev_pvfinder_kde_output + seq_idx * KDE_N_BINS;
     float*                    zpeaks = parameters.dev_nn_zpeaks + event_number * PV::max_number_vertices;
-
-    // Shared memory: cluster edge index pairs -- (ibegin, iend) per proto-cluster.
-    using BinIndex = unsigned short;  // sufficient for indices up to 4000
-    __shared__ BinIndex clusteredges[PV::max_number_clusteredges];  // 200 entries
-    unsigned number_of_clusteredges = 0u;
-
-    // =========================================================================
-    // Phase 1 -- proto-cluster edge detection via warp ballot.
-    //
-    // All 32 threads process KDE_N_BINS / 32 = 125 full-warp iterations.
-    // prev_mask initialised to ~0u ("all empty") so the very first non-empty
-    // bin produces an opening edge.
-    // =========================================================================
-#if defined(TARGET_DEVICE_CUDA)
-    {
-        uint32_t prev_mask  = ~0u;
-        const uint32_t lane_eq = 1u << threadIdx.x;
-        const uint32_t lane_lt = lane_eq - 1u;
-
-        for (int i = threadIdx.x; i < KDE_N_BINS; i += blockDim.x) {
-            const bool empty = (kde[i] < kde_peak_threshold);
-
-            // cur_mask: bit j = 1 if thread j's bin is empty.
-            const uint32_t cur_mask = __ballot_sync(~0u, empty);
-
-            // edge_mask: bit j = 1 where there is a transition between bins i-1 and i.
-            // __funnelshift_l(hi, lo, 1) = (lo << 1) | (hi >> 31), i.e. shifts {hi:lo}
-            // left by 1 and returns the upper 32 bits -- equivalent to "prev bit in cur_mask".
-            const uint32_t edge_mask = cur_mask ^ __funnelshift_l(prev_mask, cur_mask, 1u);
-            prev_mask = cur_mask;
-
-            // Compute this thread's slot in clusteredges[] and write if it has an edge.
-            const int idx = static_cast<int>(number_of_clusteredges)
-                          + static_cast<int>(__popc(edge_mask & lane_lt));
-            if ((edge_mask & lane_eq) && idx < static_cast<int>(PV::max_number_clusteredges)) {
-                clusteredges[idx] = static_cast<BinIndex>(i);
-            }
-            number_of_clusteredges += __popc(edge_mask);
-        }
-    }
-#else
-    // Non-CUDA fallback: single-threaded serial scan.
-    {
-        bool prev_empty = true;
-        for (int i = 0; i < KDE_N_BINS; ++i) {
-            const bool empty = (kde[i] < kde_peak_threshold);
-            if (empty != prev_empty && number_of_clusteredges < PV::max_number_clusteredges) {
-                clusteredges[number_of_clusteredges++] = static_cast<BinIndex>(i);
-            }
-            prev_empty = empty;
-        }
-        // Close any cluster still open at the array boundary.
-        if (!prev_empty && number_of_clusteredges < PV::max_number_clusteredges) {
-            clusteredges[number_of_clusteredges++] = static_cast<BinIndex>(KDE_N_BINS);
-        }
-    }
-#endif
-
-    // Guard: if KDE ends above threshold the last cluster has no closing edge.
-    // Round down to nearest even count to discard the orphan opening edge.
-    number_of_clusteredges &= ~1u;
-
-    __syncthreads();  // make clusteredges visible to all threads before Phase 2
-
-    // =========================================================================
-    // Phase 2 -- filter proto-clusters by integrated KDE weight.
-    //
-    // Each cluster [ibegin, iend) is integrated with a parallel warp reduction.
-    // Accepted clusters are compacted back into clusteredges[] (outIdx <= c).
-    // The condition is identical in all threads (warp-reduced integral is
-    // broadcast to all lanes), so outIdx stays consistent across the warp.
-    // =========================================================================
-    int outIdx = 0;
-    for (int c = 0; c < static_cast<int>(number_of_clusteredges); c += 2) {
-        const BinIndex ibegin = clusteredges[c];
-        const BinIndex iend   = clusteredges[c + 1];
-
-        float integral = 0.f;
-        for (int j = static_cast<int>(ibegin) + threadIdx.x;
-             j < static_cast<int>(iend);
-             j += blockDim.x) {
-            integral += kde[j];
-        }
-#if defined(TARGET_DEVICE_CUDA)
-        for (int offset = 16; offset > 0; offset >>= 1) {
-            integral += __shfl_xor_sync(~0u, integral, offset);
-        }
-        __syncwarp();
-#endif
-
-        if (integral > min_integral_tracks) {
-            if (threadIdx.x == 0) {
-                clusteredges[outIdx]     = ibegin;
-                clusteredges[outIdx + 1] = iend;
-            }
-            outIdx += 2;
-        }
-        __syncthreads();  // before next read of clusteredges[c+2..] or write at outIdx
-    }
-    number_of_clusteredges = static_cast<unsigned>(outIdx);
-    __syncthreads();
-
-    // =========================================================================
-    // Phase 3 -- KDE-weighted centroid z-seed per accepted cluster.
-    //
-    // z_seed = sum(z_centre(b) * kde[b]) / sum(kde[b])  for b in [ibegin, iend)
-    //
-    // n_seeds is broadcast from thread 0 after each write so all threads see
-    // the same value and the early-exit check is consistent across the warp.
-    // =========================================================================
-    const unsigned n_clusters = number_of_clusteredges / 2u;
-    unsigned n_seeds = 0u;
-
-    for (unsigned c = 0u; c < n_clusters; ++c) {
-        if (n_seeds >= PV::max_number_vertices) break;
-
-        const BinIndex ibegin = clusteredges[c * 2u];
-        const BinIndex iend   = clusteredges[c * 2u + 1u];
-
-        float wz = 0.f;
-        float w  = 0.f;
-        for (int j = static_cast<int>(ibegin) + threadIdx.x;
-             j < static_cast<int>(iend);
-             j += blockDim.x) {
-            const float kval = kde[j];
-            wz += kval * bin_to_z(j);
-            w  += kval;
-        }
-#if defined(TARGET_DEVICE_CUDA)
-        for (int offset = 16; offset > 0; offset >>= 1) {
-            wz += __shfl_xor_sync(~0u, wz, offset);
-            w  += __shfl_xor_sync(~0u, w,  offset);
-        }
-        __syncwarp();
-#endif
-
-        if (threadIdx.x == 0) {
-            // Fall back to bin midpoint if cluster integral is pathologically zero.
-            const float z_seed = (w > 0.f)
-                ? wz / w
-                : bin_to_z((static_cast<int>(ibegin) + static_cast<int>(iend)) / 2);
-            zpeaks[n_seeds] = z_seed;
-            ++n_seeds;
-        }
-
-        // Broadcast updated n_seeds to all threads for consistent loop control.
-#if defined(TARGET_DEVICE_CUDA)
-        n_seeds = __shfl_sync(~0u, n_seeds, 0u);
-#endif
-    }
-
     if (threadIdx.x == 0) {
+        unsigned state = 0u;
+        float integral = 0.f;
+        float weighted_z = 0.f;
+        unsigned n_seeds = 0u;
+        bool peak_passed = false;
+
+        for (int i = 0; i < KDE_N_BINS; ++i) {
+            const float v = kde[i];
+            if (v >= kde_peak_threshold) {
+                ++state;
+                integral += v;
+                weighted_z += v * bin_to_z(i);
+
+                if (i > 0 && kde[i - 1] > v + 0.05f && kde[i - 1] > 1.1f * v) {
+                    peak_passed = true;
+                }
+            }
+
+            const bool end_region =
+                (v < kde_peak_threshold) ||
+                (i == KDE_N_BINS - 1) ||
+                ((i > 0) && (kde[i - 1] < v) && peak_passed);
+
+            if (end_region && state > 0u) {
+                if (state >= min_width && integral >= min_integral_tracks && n_seeds < PV::max_number_vertices) {
+                    zpeaks[n_seeds] = weighted_z / integral;
+                    ++n_seeds;
+                }
+
+                state = 0u;
+                integral = 0.f;
+                weighted_z = 0.f;
+                peak_passed = false;
+            }
+        }
+
         parameters.dev_nn_number_of_zpeaks[event_number] = n_seeds;
     }
 }

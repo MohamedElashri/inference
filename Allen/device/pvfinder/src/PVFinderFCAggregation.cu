@@ -230,17 +230,15 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     }
     __syncthreads();
 
-    const float weight = n_local > 0 ? 1.0f / n_local : 1.0f;
-
     float* g_feat = parameters.dev_pvfinder_interval_features
                     + event_number * 32000 + interval * 800;
     for (int i = thread_id; i < 800; i += blockDim.x)
-        g_feat[i] = s_feat[i] * weight;
+        g_feat[i] = s_feat[i];
 
     float* g_hist = parameters.dev_pvfinder_output_histogram
                     + event_number * 4000 + interval * 100;
     for (int i = thread_id; i < 100; i += blockDim.x)
-        g_hist[i] = s_hist[i] * weight;
+        g_hist[i] = s_hist[i];
 }
 
 void pvfinder_fc_aggregation_t::set_arguments_size(

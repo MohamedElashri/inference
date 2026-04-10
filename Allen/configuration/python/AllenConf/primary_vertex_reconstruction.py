@@ -27,7 +27,9 @@ def make_pvs(velo_tracks,
              zmin=-541.,
              zmax=307.,
              SMOG2_pp_separation=-334.,
-             Nbins=3392):
+             Nbins=3392,
+             dump_validation="",
+             output_file="allen_classical_zseeds.bin"):
 
     dz = 0.25
     pp_maxTrackZ0Err = 1.5
@@ -89,7 +91,9 @@ def make_pvs(velo_tracks,
         Nbins=Nbins,
         SMOG2_pp_separation=SMOG2_pp_separation,
         SMOG2_maxTrackZ0Err=SMOG2_maxTrackZ0Err,
-        pp_maxTrackZ0Err=pp_maxTrackZ0Err)
+        pp_maxTrackZ0Err=pp_maxTrackZ0Err,
+        dump_validation=dump_validation,
+        output_file=output_file)
 
     pv_beamline_calculate_denom = make_algorithm(
         pv_beamline_calculate_denom_t,
@@ -128,6 +132,8 @@ def make_pvs(velo_tracks,
         dev_number_of_multi_fit_vertices_t)
 
     return {
+        "host_number_of_events":
+        host_number_of_events,
         "dev_number_of_zpeaks":
         pv_beamline_peak.dev_number_of_zpeaks_t,
         "dev_multi_final_vertices":
@@ -230,7 +236,10 @@ def make_nn_pvs(velo_tracks,
         name="pvfinder_kde_peak_finder" + pv_name,
         host_number_of_events_t=host_number_of_events,
         dev_pvfinder_kde_output_t=unet_output["dev_pvfinder_kde_output"],
-        min_integral_tracks=0.5)
+        kde_peak_threshold=0.01,
+        min_integral_tracks=0.5,
+        min_width=2,
+        dump_validation=dump_validation)
 
     # ------------------------------------------------------------------ #
     # 5. Calculate per-track denominator over NN z-seeds                 #
@@ -259,7 +268,8 @@ def make_nn_pvs(velo_tracks,
         dev_nn_pvtracks_denom_t=nn_calculate_denom.dev_nn_pvtracks_denom_t,
         dev_nn_zpeaks_t=nn_kde_peak_finder.dev_nn_zpeaks_t,
         dev_nn_number_of_zpeaks_t=nn_kde_peak_finder.dev_nn_number_of_zpeaks_t,
-        pp_minNumTracksPerVertex=pp_minNumTracksPerVertex)
+        pp_minNumTracksPerVertex=pp_minNumTracksPerVertex,
+        dump_validation=dump_validation)
 
     # ------------------------------------------------------------------ #
     # 7. Cleanup: deduplicate + z-sort → final PV::Vertex array          #
@@ -274,9 +284,12 @@ def make_nn_pvs(velo_tracks,
         dev_multi_fit_vertices_t=
         nn_vertex_fitter.dev_nn_multi_fit_vertices_t,
         dev_number_of_multi_fit_vertices_t=
-        nn_vertex_fitter.dev_nn_number_of_multi_fit_vertices_t)
+        nn_vertex_fitter.dev_nn_number_of_multi_fit_vertices_t,
+        dump_validation=dump_validation)
 
     return {
+        "host_number_of_events":
+        host_number_of_events,
         "dev_number_of_zpeaks":
         nn_kde_peak_finder.dev_nn_number_of_zpeaks_t,
         "dev_multi_final_vertices":
