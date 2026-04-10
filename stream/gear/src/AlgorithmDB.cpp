@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2023 CERN for the benefit of the LHCb Collaboration           *
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "COPYING".              *
@@ -8,9 +8,10 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#pragma once
+#include <Algorithm.cuh>
 
-#include "Configuration.h"
-#include "Algorithm.cuh"
-
-Allen::TypeErasedAlgorithm instantiate_allen_algorithm(const ConfiguredAlgorithm& alg);
+Allen::AlgorithmDB* Allen::AlgorithmDB::get()
+{
+  static Allen::AlgorithmDB instance;
+  return &instance;
+}

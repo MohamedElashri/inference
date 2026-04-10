@@ -19,14 +19,14 @@
 #include "ParticleTypes.cuh"
 
 namespace track_digit_selective_matching {
+  template<typename MultiEventTracks>
   struct Parameters {
     HOST_INPUT(host_number_of_reconstructed_scifi_tracks_t, unsigned) host_number_of_reconstructed_scifi_tracks;
     MASK_INPUT(dev_event_list_t) dev_event_list;
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
     // SciFi tracks
     DEVICE_INPUT(dev_scifi_states_t, MiniState) dev_scifi_states;
-    // DEVICE_INPUT(dev_long_tracks_view_t, Allen::Views::Physics::MultiEventLongTracks) dev_long_tracks_view;
-    DEVICE_INPUT(dev_tracks_view_t, Allen::IMultiEventContainer*) dev_tracks_view;
+    DEVICE_INPUT(dev_tracks_view_t, MultiEventTracks) dev_tracks_view;
     // Calo digits
     HOST_INPUT(host_ecal_number_of_digits_t, unsigned) host_ecal_number_of_digits;
     DEVICE_INPUT(dev_ecal_digits_t, CaloDigit) dev_ecal_digits;
@@ -50,11 +50,16 @@ namespace track_digit_selective_matching {
     DEVICE_OUTPUT(dev_ecal_digits_isTrackMatched_t, bool) dev_ecal_digits_isTrackMatched;
   };
 
-  struct track_digit_selective_matching_t : public DeviceAlgorithm, Parameters {
-    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
+  template<typename MultiEventTracks>
+  struct track_digit_selective_matching_t : public DeviceAlgorithm, Parameters<MultiEventTracks> {
+
+    void set_arguments_size(
+      ArgumentReferences<Parameters<MultiEventTracks>> arguments,
+      const RuntimeOptions&,
+      const Constants&) const;
 
     void operator()(
-      const ArgumentReferences<Parameters>&,
+      const ArgumentReferences<Parameters<MultiEventTracks>>&,
       const RuntimeOptions&,
       const Constants&,
       Allen::Context const&) const;
@@ -63,11 +68,8 @@ namespace track_digit_selective_matching {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {32, 1, 1}, "block dimensions"};
   };
 
-  __global__ void track_digit_selective_matching(Parameters parameters, const char* raw_ecal_geometry);
-
   template<typename MultiEventTracks>
-  __device__ void track_digit_selective_matching_implementation(
-    Parameters parameters,
-    const MultiEventTracks* dev_long_tracks_view,
+  __global__ void track_digit_selective_matching(
+    Parameters<MultiEventTracks> parameters,
     const char* raw_ecal_geometry);
 } // namespace track_digit_selective_matching

@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB selection_checker_sources "src/*.cpp")
 
-allen_add_host_library(SelChecking STATIC
+allen_add_host_library(SelChecking OBJECT
   ${selection_checker_sources}
 )
 set_target_properties(SelChecking PROPERTIES POSITION_INDEPENDENT_CODE ON)

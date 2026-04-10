@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB tracking_checker_sources "src/*cpp")
 
-allen_add_host_library(TrackChecking STATIC
+allen_add_host_library(TrackChecking OBJECT
   ${tracking_checker_sources}
 )
 target_include_directories(TrackChecking PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)

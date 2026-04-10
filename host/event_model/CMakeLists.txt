@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB host_event_model "MC/src/*cpp")
 
-allen_add_host_library(HostEventModel STATIC
+allen_add_host_library(HostEventModel OBJECT
   ${host_event_model}
 )
 

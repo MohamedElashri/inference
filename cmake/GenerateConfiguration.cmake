@@ -21,7 +21,6 @@ set(ALLEN_CORE_DIR ${PROJECT_SEQUENCE_DIR}/AllenCore)
 set(ALLEN_SEQUENCE_DIR ${PROJECT_SEQUENCE_DIR}/AllenSequences)
 set(ALLEN_PARSER_DIR ${PROJECT_SEQUENCE_DIR}/parser)
 set(ALGORITHMS_OUTPUTFILE ${ALLEN_ALGORITHMS_DIR}/allen_standalone_algorithms.py)
-set(PARSED_ALGORITHMS_OUTPUTFILE ${CODE_GENERATION_DIR}/parsed_algorithms.pickle)
 set(ALGORITHMS_GENERATION_SCRIPT ${PROJECT_SOURCE_DIR}/configuration/parser/ParseAlgorithms.py)
 set(DEFAULT_PROPERTIES_SRC ${PROJECT_SOURCE_DIR}/configuration/src/default_properties.cpp)
 
@@ -31,44 +30,6 @@ file(MAKE_DIRECTORY ${CODE_GENERATION_DIR})
 file(MAKE_DIRECTORY ${ALLEN_PARSER_DIR})
 file(MAKE_DIRECTORY ${ALLEN_GENERATED_INCLUDE_FILES_DIR})
 file(MAKE_DIRECTORY ${ALLEN_ALGORITHMS_DIR})
-
-# We will invoke the parser a few times, set its required environment in a variable
-# Add the scripts folder only if we are invoking with a CMAKE_TOOLCHAIN_FILE
-set(TEST_CINDEX ${PROJECT_SOURCE_DIR}/cmake/utils/check_cindex.sh)
-
-if(LCG_OS)
-  # cvmfs build
-  set(CINDEX_ENV PYTHONPATH=${LIBCLANG_LIBDIR}/python:$ENV{PYTHONPATH} LD_LIBRARY_PATH=${LIBCLANG_LIBDIR}:$ENV{LD_LIBRARY_PATH})
-else()
-  set(CINDEX_ENV PYTHONPATH=$ENV{PYTHONPATH}:${LIBCLANG_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages LD_LIBRARY_PATH=${LIBCLANG_LIBDIR}:$ENV{LD_LIBRARY_PATH})
-endif()
-
-execute_process(COMMAND ${CMAKE_COMMAND} -E env ${CINDEX_ENV} ${TEST_CINDEX} RESULT_VARIABLE CINDEX_RESULT OUTPUT_VARIABLE CINDEX_STDOUT ERROR_VARIABLE CINDEX_STDERR)
-if(CINDEX_RESULT EQUAL 0)
-  set(PARSER_ENV ${CINDEX_ENV})
-  message(STATUS "Using cindex: ${CINDEX_STDOUT}")
-elseif(LCG_OS)
-  set(PARSER_ENV PYTHONPATH=$ENV{PYTHONPATH}:${PROJECT_SOURCE_DIR}/scripts LD_LIBRARY_PATH=${LIBCLANG_LIBDIR}:$ENV{LD_LIBRARY_PATH})
-  message(STATUS "Using bundled cindex")
-else()
-  message(FATAL_ERROR "Failed to find libclang python bindings")
-endif()
-
-# Parse Allen algorithms
-# Parsing should depend on ALL algorithm headers (which include the Parameters section)
-# We need to get the list of algorithms at configuration time in order to
-# know the list of files that will be required of this build
-set(ALGORITHM_HEADERS_LIST ${CODE_GENERATION_DIR}/algorithm_headers_list.txt)
-execute_process(COMMAND ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate algorithm_headers_list --filename "${ALGORITHM_HEADERS_LIST}" --prefix_project_folder "${PROJECT_SOURCE_DIR}")
-file(READ "${ALGORITHM_HEADERS_LIST}" ALGORITHM_HEADERS_FILES) # ALGORITHM_HEADERS_FILES="a.cuh b.cuh c.cuh"
-
-add_custom_command(
-  OUTPUT "${PARSED_ALGORITHMS_OUTPUTFILE}"
-  COMMENT "Parsing Allen algorithms"
-  COMMAND
-    ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate parsed_algorithms --filename "${PARSED_ALGORITHMS_OUTPUTFILE}" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
-  DEPENDS "${PROJECT_SOURCE_DIR}/configuration/parser/ParseAlgorithms.py" ${ALGORITHM_HEADERS_FILES})
-add_custom_target(parsed_algorithms DEPENDS "${PARSED_ALGORITHMS_OUTPUTFILE}")
 
 # Symlink Allen build directories
 file(RELATIVE_PATH PROJECT_SOURCE_DIR_RELPATH ${PROJECT_SEQUENCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -83,55 +44,38 @@ add_custom_command(
   DEPENDS "${PROJECT_SOURCE_DIR}/configuration/python/AllenConf" "${PROJECT_SOURCE_DIR}/configuration/python/AllenCore" "${PROJECT_SOURCE_DIR}/configuration/python/AllenSequences")
 add_custom_target(generate_conf_core DEPENDS "${SEQUENCE_DEFINITION_DIR}" "${ALLEN_CORE_DIR}" "${ALLEN_SEQUENCE_DIR}")
 
-# Generate Allen AlgorithmDB
-add_custom_command(
-  OUTPUT "${CODE_GENERATION_DIR}/AlgorithmDB.cpp"
-  COMMENT "Generating AlgorithmDB"
-  COMMAND ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate db --filename "${CODE_GENERATION_DIR}/AlgorithmDB.cpp" --parsed_algorithms "${PARSED_ALGORITHMS_OUTPUTFILE}"
-  WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
-  DEPENDS "${PARSED_ALGORITHMS_OUTPUTFILE}")
-add_custom_target(algorithm_db_generation DEPENDS "${CODE_GENERATION_DIR}/AlgorithmDB.cpp")
-add_library(algorithm_db OBJECT "${CODE_GENERATION_DIR}/AlgorithmDB.cpp")
-add_dependencies(algorithm_db algorithm_db_generation)
-target_link_libraries(algorithm_db
-  PUBLIC
-    EventModel
-    HostEventModel
-    Backend
-    AllenCommon
-    Gear)
-
 add_executable(default_properties ${DEFAULT_PROPERTIES_SRC})
-target_link_libraries(default_properties PRIVATE AllenLib HostEventModel EventModel)
+target_link_libraries(default_properties PRIVATE AllenLib HostEventModel EventModel Gear)
+
+set(PARSER_ENV PYTHONPATH=$ENV{PYTHONPATH} LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH})
 
 # Generate allen standalone algorithms file
 add_custom_command(
   OUTPUT "${ALGORITHMS_OUTPUTFILE}"
   COMMAND
-    ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate views --filename "${ALGORITHMS_OUTPUTFILE}" --parsed_algorithms "${PARSED_ALGORITHMS_OUTPUTFILE}" --default_properties $<TARGET_FILE:default_properties> &&
+    ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate views --filename "${ALGORITHMS_OUTPUTFILE}" --default_properties $<TARGET_FILE:default_properties> --prefix_project_folder "${PROJECT_SOURCE_DIR}" &&
     ${CMAKE_COMMAND} -E touch ${ALLEN_ALGORITHMS_DIR}/__init__.py
   WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
-  DEPENDS "${PARSED_ALGORITHMS_OUTPUTFILE}" generate_conf_core default_properties)
+  DEPENDS generate_conf_core default_properties)
 add_custom_target(generate_algorithms_view DEPENDS "${ALGORITHMS_OUTPUTFILE}")
 install(FILES "${ALGORITHMS_OUTPUTFILE}" DESTINATION python/AllenAlgorithms)
 
 # Target that the generation of the sequences can depend on
 add_custom_target(Sequences DEPENDS generate_algorithms_view)
 
+# Make ExternLines.cuh
 if(SEPARABLE_COMPILATION)
   add_custom_command(
     OUTPUT "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh"
     COMMAND
-      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --parsed_algorithms "${PARSED_ALGORITHMS_OUTPUTFILE}"
-    WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
-    DEPENDS "${PARSED_ALGORITHMS_OUTPUTFILE}")
+      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY ${ALLEN_PARSER_DIR})
 else()
   add_custom_command(
     OUTPUT "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh"
     COMMAND
-      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines_nosepcomp --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --parsed_algorithms "${PARSED_ALGORITHMS_OUTPUTFILE}"
-    WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
-    DEPENDS "${PARSED_ALGORITHMS_OUTPUTFILE}")
+      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines_nosepcomp --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY ${ALLEN_PARSER_DIR})
 endif()
 add_custom_target(extern_lines_generation DEPENDS "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh")
 add_library(extern_lines INTERFACE)
@@ -155,9 +99,10 @@ if(NOT STANDALONE AND TARGET_DEVICE STREQUAL "CPU")
     OUTPUT ${WRAPPED_ALGORITHM_SOURCES}
     COMMENT "Generating wrapped algorithm sources"
     COMMAND
-      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate wrappers --parsed_algorithms "${PARSED_ALGORITHMS_OUTPUTFILE}" --algorithm_wrappers_folder "${ALGORITHM_WRAPPERS_FOLDER}" --default_properties $<TARGET_FILE:default_properties>
+      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate wrappers --algorithm_wrappers_folder "${ALGORITHM_WRAPPERS_FOLDER}" --default_properties $<TARGET_FILE:default_properties> --prefix_project_folder "${PROJECT_SOURCE_DIR}"
     WORKING_DIRECTORY ${PROJECT_SEQUENCE_DIR}
-    DEPENDS "${PARSED_ALGORITHMS_OUTPUTFILE}" default_properties)
+    DEPENDS default_properties)
+
 elseif(STANDALONE)
   if (DEFINED ENV{LHCBROOT})
     set(LHCBROOT $ENV{LHCBROOT} CACHE STRING "LHCB root directory")

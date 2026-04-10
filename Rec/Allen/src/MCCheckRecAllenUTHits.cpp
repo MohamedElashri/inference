@@ -155,8 +155,8 @@ void MCCheckRecAllenUTHits::operator()(
             << std::setw(width) << "p [MeV]" << std::setw(width) << "dep. E [MeV]" << endmsg;
     debug() << std::string(8 * width, '-') << endmsg;
     for (const auto& ut_mc_hit : regrouped_mc_hits[i]) {
-      const auto mch_x = ut_mc_hit.midPoint().x();
-      const auto mch_y = ut_mc_hit.midPoint().y();
+      const float mch_x = ut_mc_hit.midPoint().x();
+      const float mch_y = ut_mc_hit.midPoint().y();
       unsigned hit_mult = 0;
 
       // truth matching by comparing MC hit position to decoded strip position. also handles bookkeeping like counters.
@@ -164,7 +164,7 @@ void MCCheckRecAllenUTHits::operator()(
                                     &mch_y,
                                     tol_x = static_cast<float>(m_tol_x),
                                     tol_y = static_cast<float>(m_tol_y)](const auto& hit, auto hit_matched) -> bool {
-        const bool in_x_tolerance = abs((hit.xAtYEq0 + hit.dxDy * mch_y) - mch_x) < tol_x;
+        const bool in_x_tolerance = fabsf((hit.xAtYEq0 + hit.dxDy * mch_y) - mch_x) < tol_x;
         const bool in_y_tolerance = hit.yBegin - tol_y < mch_y && mch_y < hit.yEnd + tol_y;
         const bool matched = in_x_tolerance && in_y_tolerance;
         hit_matched = matched;

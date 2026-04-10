@@ -43,7 +43,7 @@ def generate_json_configuration(algorithms):
 
     # Generate list of configured algorithms
     configured_algorithms = [[
-        f"{algorithm.type.namespace()}::{algorithm.typename}", algorithm.name,
+        algorithm.type.getName(), algorithm.name,
         algorithm.type.category()
     ] for algorithm in algorithms]
 

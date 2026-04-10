@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB lumi_src "src/*cu")
 
-allen_add_device_library(Lumi STATIC
+allen_add_device_library(Lumi OBJECT
   ${lumi_src}
 )
 

@@ -135,10 +135,10 @@ LHCb::Event::Calo::Clusters GaudiAllenCaloToCaloClusters::operator()(
     uint i = 0;
     for (const auto& Cluster : EcalClusters.scalar()) {
       auto cellID = Cluster.cellID();
-      const double e = Cluster.energy();
-      const double x = Cluster.position().x();
-      const double y = Cluster.position().y();
-      const double z = Cluster.position().z();
+      const double e = static_cast<double>(Cluster.energy());
+      const double x = static_cast<double>(Cluster.position().x());
+      const double y = static_cast<double>(Cluster.position().y());
+      const double z = static_cast<double>(Cluster.position().z());
 
       if (i % 5 == 0) {
         debug() << "Ecal cellID: " << cellID << " energy = " << e << ", x = " << x << ", y = " << y << ", z = " << z

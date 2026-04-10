@@ -5,7 +5,7 @@ Debugging
 
 In order to debug you should use a debug build for the target architecture you are interested in. If CVMFS is available, you should use a `dbg` tag such as::
 
-    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-dbg.cmake ..
+    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108b/x86_64_v3-el9-gcc13+cuda12_4-dbg.cmake ..
 
 Then, you should be able to run your code with a debugger such as `gdb` (CPU), `cuda-gdb` (CUDA) or `rocgdb` (HIP). For instance::
 

@@ -26,7 +26,7 @@ struct mask_t {
 
 namespace Allen::Store {
 
-  // Struct to hold the types of the dependencies (libClang)
+  // Struct to hold the types of the dependencies
   namespace {
     template<typename... T>
     struct dependencies {
@@ -34,7 +34,6 @@ namespace Allen::Store {
   } // namespace
 
   // Datatypes can be host, device or aggregates.
-  // Note: These structs need to be not templated (libClang).
   struct host_datatype {
   };
   struct device_datatype {
@@ -91,49 +90,51 @@ namespace Allen::Store {
 #define DEVICE_INPUT(ARGUMENT_NAME, ...)                                                            \
   struct ARGUMENT_NAME : Allen::Store::device_datatype, Allen::Store::input_datatype<__VA_ARGS__> { \
     using Allen::Store::input_datatype<__VA_ARGS__>::input_datatype;                                \
-    void parameter(__VA_ARGS__) const;                                                              \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                        \
   }
 
 #define HOST_INPUT(ARGUMENT_NAME, ...)                                                            \
   struct ARGUMENT_NAME : Allen::Store::host_datatype, Allen::Store::input_datatype<__VA_ARGS__> { \
     using Allen::Store::input_datatype<__VA_ARGS__>::input_datatype;                              \
-    void parameter(__VA_ARGS__) const;                                                            \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                      \
   }
 
 #define DEVICE_OUTPUT(ARGUMENT_NAME, ...)                                                            \
   struct ARGUMENT_NAME : Allen::Store::device_datatype, Allen::Store::output_datatype<__VA_ARGS__> { \
     using Allen::Store::output_datatype<__VA_ARGS__>::output_datatype;                               \
-    void parameter(__VA_ARGS__);                                                                     \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                         \
   }
 
 #define HOST_OUTPUT(ARGUMENT_NAME, ...)                                                            \
   struct ARGUMENT_NAME : Allen::Store::host_datatype, Allen::Store::output_datatype<__VA_ARGS__> { \
     using Allen::Store::output_datatype<__VA_ARGS__>::output_datatype;                             \
-    void parameter(__VA_ARGS__);                                                                   \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                       \
   }
 
 #define DEVICE_OUTPUT_WITH_DEPENDENCIES(ARGUMENT_NAME, DEPS, ...)                                    \
   struct ARGUMENT_NAME : Allen::Store::device_datatype, Allen::Store::output_datatype<__VA_ARGS__> { \
     using Allen::Store::output_datatype<__VA_ARGS__>::output_datatype;                               \
-    DEPS parameter(__VA_ARGS__);                                                                     \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                         \
+    using dependencies_type = DEPS;                                                                  \
   }
 
 #define HOST_OUTPUT_WITH_DEPENDENCIES(ARGUMENT_NAME, DEPS, ...)                                    \
   struct ARGUMENT_NAME : Allen::Store::host_datatype, Allen::Store::output_datatype<__VA_ARGS__> { \
     using Allen::Store::output_datatype<__VA_ARGS__>::output_datatype;                             \
-    DEPS parameter(__VA_ARGS__);                                                                   \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                       \
+    using dependencies_type = DEPS;                                                                \
   }
 
 #define MASK_INPUT(ARGUMENT_NAME)                                                              \
   struct ARGUMENT_NAME : Allen::Store::device_datatype, Allen::Store::input_datatype<mask_t> { \
     using Allen::Store::input_datatype<mask_t>::input_datatype;                                \
-    void parameter(mask_t) const;                                                              \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                   \
   }
 
 #define MASK_OUTPUT(ARGUMENT_NAME)                                                              \
   struct ARGUMENT_NAME : Allen::Store::device_datatype, Allen::Store::output_datatype<mask_t> { \
     using Allen::Store::output_datatype<mask_t>::output_datatype;                               \
-    void parameter(mask_t);                                                                     \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                                    \
   }
 
 // Support for optional input aggregates
@@ -142,7 +143,7 @@ namespace Allen::Store {
                          Allen::Store::optional_datatype,            \
                          Allen::Store::input_datatype<__VA_ARGS__> { \
     using Allen::Store::input_datatype<__VA_ARGS__>::input_datatype; \
-    void parameter(__VA_ARGS__) const;                               \
+    static constexpr std::string_view name = #ARGUMENT_NAME;         \
   }
 
 #define HOST_INPUT_OPTIONAL(ARGUMENT_NAME, ...)                      \
@@ -150,7 +151,7 @@ namespace Allen::Store {
                          Allen::Store::optional_datatype,            \
                          Allen::Store::input_datatype<__VA_ARGS__> { \
     using Allen::Store::input_datatype<__VA_ARGS__>::input_datatype; \
-    void parameter(__VA_ARGS__) const;                               \
+    static constexpr std::string_view name = #ARGUMENT_NAME;         \
   }
 
 #define DEPENDENCIES(...) Allen::Store::dependencies<__VA_ARGS__>

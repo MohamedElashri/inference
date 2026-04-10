@@ -12,7 +12,7 @@ file(GLOB ttrack_test "test/src/*.cu")
 file(GLOB ttrack_prepare_tracks "prepare_tracks/src/*.cu")
 file(GLOB ttrack_make_vertices "make_vertices/src/*.cu")
 
-allen_add_device_library(TTrack STATIC
+allen_add_device_library(TTrack OBJECT
   ${ttrack_test}
   ${ttrack_prepare_tracks}
   ${ttrack_make_vertices}

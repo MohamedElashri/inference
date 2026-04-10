@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB device_validators "src/*cu")
 
-allen_add_device_library(DeviceValidators STATIC
+allen_add_device_library(DeviceValidators OBJECT
   ${device_validators}
 )
 
