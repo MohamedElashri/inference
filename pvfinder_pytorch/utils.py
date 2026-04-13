@@ -318,7 +318,6 @@ class TrackIntervalsToKDE_HDplusUNet100(nn.Module):
         x = leaky(self.layer6A(x))  # Produces latentChannels x 100 bins for intervals
 
         # Print Track 0 features and its corresponding Latent mapping layer natively across PyTorch
-        print(f"DEBUG utils.py [Event 0, Track 0] Track Input Layer = {x[0, 0, :6]}")
         
         # Apply dropout
         x = self.fc6dropout(x)
@@ -328,12 +327,9 @@ class TrackIntervalsToKDE_HDplusUNet100(nn.Module):
 
         # Multiply mask and sum over tracks
         f2 = torch.unsqueeze(f2, 2)
-        print(f"DEBUG utils.py [Event 0, Track 0 shape] f2 = {f2.shape}")
         
         x = torch.mul(f2, x)
         y0 = torch.sum(x, dim=1)
-        
-        print(f"DEBUG utils.py [Event 0] Interval 20 output accumulation (first 5 bins) = {y0[0, 0, :5]}")
 
         # Pass through downsampling layers
         x1 = self.rcbn1(y0)  # Size: 100
