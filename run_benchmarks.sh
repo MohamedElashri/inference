@@ -1,12 +1,11 @@
 #!/bin/bash
 # run_benchmarks.sh
 #
-# Four-way throughput benchmark -- all four runs execute sequentially on device 0
-# so they get identical GPU conditions and don't compete for memory:
-#   Run 1: HLT1 baseline                  -- hlt1_pp_default
+# Three-way throughput benchmark -- runs execute sequentially on one GPU so
+# each configuration gets the full device and identical input conditions:
+#   Run 1: HLT1 baseline                  -- hlt1_pp_baseline_benchmark
 #   Run 2: HLT1 + PVFinder FC             -- hlt1_pp_pvfinder_benchmark
-#   Run 3: HLT1 + PVFinder FC+UNet        -- hlt1_pp_pvfinder_unet_benchmark
-#   Run 4: HLT1 + PVFinder NN (full chain)-- hlt1_pp_pvfinder_nn_benchmark
+#   Run 3: HLT1 + PVFinder FC+CNN         -- hlt1_pp_pvfinder_unet_benchmark
 #
 # Usage:
 #   ./run_benchmarks.sh [--device0 N] [--threads T]
@@ -18,8 +17,7 @@
 # Output:
 #   Allen/buildgpu/bench_baseline.log
 #   Allen/buildgpu/bench_fc.log
-#   Allen/buildgpu/bench_unet.log
-#   Allen/buildgpu/bench_nn.log
+#   Allen/buildgpu/bench_fc_cnn.log
 ###############################################################################
 set -euo pipefail
 
@@ -27,7 +25,6 @@ set -euo pipefail
 # Defaults
 # ---------------------------------------------------------------------------
 DEVICE0=0
-DEVICE1=1
 THREADS=16
 EVENTS=500
 SLICES=200
@@ -60,13 +57,11 @@ BUILD_DIR="${SCRIPT_DIR}/Allen/${BUILD_NAME}"
 ALLEN="${BUILD_DIR}/toolchain/wrapper ${BUILD_DIR}/Allen"
 MDF="${SCRIPT_DIR}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${SCRIPT_DIR}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
-WEIGHT_FILE="${SCRIPT_DIR}/cnn_weights.bin"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_BASE="${BUILD_DIR}/bench_baseline.log"
 LOG_FC="${BUILD_DIR}/bench_fc.log"
-LOG_UNET="${BUILD_DIR}/bench_unet.log"
-LOG_NN="${BUILD_DIR}/bench_nn.log"
+LOG_FC_CNN="${BUILD_DIR}/bench_fc_cnn.log"
 SUMMARY="${BUILD_DIR}/bench_results_${TIMESTAMP}.txt"
 
 COMMON_ARGS="--mdf ${MDF} -g ${GEO} -n ${EVENTS} -m ${SLICES} -r ${REPS} -t ${THREADS}"
@@ -81,17 +76,16 @@ extract_rate() {
 
 print_header() {
     echo "================================================================"
-    echo " PVFinder Benchmark Suite (4-way)"
+    echo " PVFinder Benchmark Suite (3-way)"
     echo " $(date)"
     echo " MDF    : ${MDF}"
     echo " Geometry: ${GEO}"
     echo " Params : -n ${EVENTS} -m ${SLICES} -r ${REPS} -t ${THREADS}"
     echo " Device : ${DEVICE0}"
     echo " Sequences:"
-    echo "   1. hlt1_pp_default                   (baseline)"
+    echo "   1. hlt1_pp_baseline_benchmark       (baseline)"
     echo "   2. hlt1_pp_pvfinder_benchmark         (FC)"
-    echo "   3. hlt1_pp_pvfinder_unet_benchmark    (FC+UNet)"
-    echo "   4. hlt1_pp_pvfinder_nn_benchmark      (NN full chain)"
+    echo "   3. hlt1_pp_pvfinder_unet_benchmark    (FC+CNN)"
     if [[ ${PROFILE} -eq 1 ]]; then
         echo " Profiling: nsys ON"
     else
@@ -105,7 +99,7 @@ RUNDIR=$(mktemp -d)
 trap "rm -rf ${RUNDIR}" EXIT
 
 # ---------------------------------------------------------------------------
-# All four runs sequential on device 0 -- identical GPU conditions, no OOM
+# All three runs sequential on one device -- identical GPU conditions, no OOM
 # ---------------------------------------------------------------------------
 print_header
 
@@ -128,45 +122,40 @@ run_allen() {
     echo "  done."
 }
 
-run_allen hlt1_pp_default                   "${LOG_BASE}"
+run_allen hlt1_pp_baseline_benchmark        "${LOG_BASE}"
 run_allen hlt1_pp_pvfinder_benchmark        "${LOG_FC}"
-run_allen hlt1_pp_pvfinder_unet_benchmark   "${LOG_UNET}"
-run_allen hlt1_pp_pvfinder_nn_benchmark     "${LOG_NN}"
+run_allen hlt1_pp_pvfinder_unet_benchmark   "${LOG_FC_CNN}"
 
 # ---------------------------------------------------------------------------
 # Extract rates and compute deltas
 # ---------------------------------------------------------------------------
 RATE_BASE=$(extract_rate "${LOG_BASE}")
 RATE_FC=$(extract_rate "${LOG_FC}")
-RATE_UNET=$(extract_rate "${LOG_UNET}")
-RATE_NN=$(extract_rate "${LOG_NN}")
+RATE_FC_CNN=$(extract_rate "${LOG_FC_CNN}")
 
-if [[ -z "${RATE_BASE}" || -z "${RATE_FC}" || -z "${RATE_UNET}" || -z "${RATE_NN}" ]]; then
+if [[ -z "${RATE_BASE}" || -z "${RATE_FC}" || -z "${RATE_FC_CNN}" ]]; then
     echo ""
     echo "ERROR: Could not extract one or more throughput values."
     echo "  baseline : '${RATE_BASE}'"
     echo "  fc       : '${RATE_FC}'"
-    echo "  unet     : '${RATE_UNET}'"
-    echo "  nn       : '${RATE_NN}'"
-    echo "Check logs: ${LOG_BASE}  ${LOG_FC}  ${LOG_UNET}  ${LOG_NN}"
+    echo "  fc+cnn   : '${RATE_FC_CNN}'"
+    echo "Check logs: ${LOG_BASE}  ${LOG_FC}  ${LOG_FC_CNN}"
     exit 1
 fi
 
 # ---------------------------------------------------------------------------
 # Print summary
 # ---------------------------------------------------------------------------
-awk -v base="${RATE_BASE}" -v fc="${RATE_FC}" -v unet="${RATE_UNET}" -v nn="${RATE_NN}" \
+awk -v base="${RATE_BASE}" -v fc="${RATE_FC}" -v fc_cnn="${RATE_FC_CNN}" \
     -v ts="${TIMESTAMP}" -v t="${THREADS}" -v n="${EVENTS}" \
     -v m="${SLICES}" -v r="${REPS}" \
-    -v d0="${DEVICE0}" -v d1="${DEVICE1}" \
-    -v log_base="${LOG_BASE}" -v log_fc="${LOG_FC}" -v log_unet="${LOG_UNET}" -v log_nn="${LOG_NN}" \
+    -v d0="${DEVICE0}" \
+    -v log_base="${LOG_BASE}" -v log_fc="${LOG_FC}" -v log_fc_cnn="${LOG_FC_CNN}" \
 'BEGIN {
     fc_diff    = base - fc
-    unet_diff  = base - unet
-    nn_diff    = base - nn
+    fc_cnn_diff = base - fc_cnn
     fc_pct     = (base > 0) ? (fc_diff   / base) * 100 : 0
-    unet_pct   = (base > 0) ? (unet_diff / base) * 100 : 0
-    nn_pct     = (base > 0) ? (nn_diff   / base) * 100 : 0
+    fc_cnn_pct = (base > 0) ? (fc_cnn_diff / base) * 100 : 0
 
     printf "\n"
     printf "================================================================\n"
@@ -175,17 +164,15 @@ awk -v base="${RATE_BASE}" -v fc="${RATE_FC}" -v unet="${RATE_UNET}" -v nn="${RA
     printf "================================================================\n"
     printf "  %-44s  %12s  %10s  %8s\n", "Sequence", "events/s", "delta", "overhead"
     printf "  %-44s  %12s  %10s  %8s\n", "--------", "--------", "-----", "-------"
-    printf "  %-44s  %12.2f  %10s  %8s\n",  "hlt1_pp_default (baseline)",                   base, "--",       "--"
+    printf "  %-44s  %12.2f  %10s  %8s\n",  "hlt1_pp_baseline_benchmark (baseline)",        base, "--",       "--"
     printf "  %-44s  %12.2f  %10.2f  %7.2f%%\n", "hlt1_pp_pvfinder_benchmark (FC)",          fc,   fc_diff,   fc_pct
-    printf "  %-44s  %12.2f  %10.2f  %7.2f%%\n", "hlt1_pp_pvfinder_unet_benchmark (FC+UNet)",unet, unet_diff, unet_pct
-    printf "  %-44s  %12.2f  %10.2f  %7.2f%%\n", "hlt1_pp_pvfinder_nn_benchmark (NN full)",  nn,   nn_diff,   nn_pct
+    printf "  %-44s  %12.2f  %10.2f  %7.2f%%\n", "hlt1_pp_pvfinder_unet_benchmark (FC+CNN)",fc_cnn, fc_cnn_diff, fc_cnn_pct
     printf "================================================================\n"
     printf "\n"
     printf "  Logs:\n"
     printf "    baseline : %s\n", log_base
     printf "    FC       : %s\n", log_fc
-    printf "    FC+UNet  : %s\n", log_unet
-    printf "    NN full  : %s\n", log_nn
+    printf "    FC+CNN   : %s\n", log_fc_cnn
     printf "\n"
 }' | tee "${SUMMARY}"
 

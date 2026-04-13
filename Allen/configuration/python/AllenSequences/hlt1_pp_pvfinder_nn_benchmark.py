@@ -17,11 +17,7 @@
 #     └─> pvfinder_vertex_fitter
 #     └─> pvfinder_nn_cleanup            (final PV::Vertex array)
 #
-# Set the PVFINDER_DUMP_DIR environment variable to a directory path to write
-# binary validation dumps (allen_nn_zpeaks.bin, allen_nn_vertices.bin) on the
-# first processed slice.
 ###############################################################################
-import os
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
@@ -29,7 +25,6 @@ from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
 from AllenConf.primary_vertex_reconstruction import make_nn_pvs
-from PyConf.control_flow import NodeLogic, CompositeNode
 
 
 def hook_pvfinder_nn_to_hlt1():
@@ -46,12 +41,8 @@ def hook_pvfinder_nn_to_hlt1():
     hlt1_graph = hlt1_node_dict["control_flow_node"]
     reco = hlt1_node_dict["reconstruction"]
 
-    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
-
     # Full NN PV chain: FC → UNet → KDE peaks → denom → fitter → cleanup
-    nn_pvs_output = make_nn_pvs(
-        reco["velo_tracks"],
-        dump_validation=_dump_dir)
+    nn_pvs_output = make_nn_pvs(reco["velo_tracks"])
 
     # Append the cleanup algorithm (last in the NN chain) as an extra child of
     # the HLT1 top node.  Allen evaluates children sequentially; appending here

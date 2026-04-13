@@ -9,7 +9,6 @@
 #   HLT1 default reco
 #     └─> pvfinder_velo_feature_extraction
 #     └─> pvfinder_fc_aggregation
-#     └─> pvfinder_ncw_layout
 #     └─> pvfinder_unet
 ###############################################################################
 from AllenConf.HLT1 import setup_hlt1_node
@@ -20,8 +19,6 @@ from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
 from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc
 from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet
-from PyConf.control_flow import NodeLogic, CompositeNode
-import os
 
 
 def hook_pvfinder_unet_to_hlt1():
@@ -41,12 +38,9 @@ def hook_pvfinder_unet_to_hlt1():
     # FC chain: feature extraction -> FC engine -> track aggregation
     pvfinder_fc_output = make_pvfinder_fc(reco["velo_tracks"])
 
-    # UNet chain: NCW layout -> UNet inference
-    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
+    # UNet chain: FC interval features -> UNet inference
     pvfinder_unet_output = make_pvfinder_unet(
-        pvfinder_fc_output,
-        dump_validation=_dump_dir,
-    )
+        pvfinder_fc_output)
 
     # Append the final UNet producer as an extra child of the HLT1 top node.
     # Allen evaluates children sequentially; appending here means PVFinder
