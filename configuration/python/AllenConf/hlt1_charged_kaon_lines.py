@@ -66,9 +66,9 @@ def make_kplus_to_piee_line(kplus_to_three_tracks,
         minFlightDistance=minFD_k2piee,
         minPairMass=50.,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=kplus_to_three_tracks[
-            "host_number_of_three_body_svs"],
-        dev_particle_container_t=kplus_to_three_tracks["dev_three_body_svs"],
+        host_number_of_svs_t=kplus_to_three_tracks["host_number_of_svs"],
+        dev_particle_container_t=kplus_to_three_tracks[
+            "dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
         post_scaler_hash_string=post_scaler_hash_string or name + '_post')
 
@@ -98,9 +98,9 @@ def make_kplus_to_pimumu_line(kplus_to_three_tracks,
         minComboPt=mincomPt,
         minFlightDistance=minFD_k2pimumu,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=kplus_to_three_tracks[
-            "host_number_of_three_body_svs"],
-        dev_particle_container_t=kplus_to_three_tracks["dev_three_body_svs"],
+        host_number_of_svs_t=kplus_to_three_tracks["host_number_of_svs"],
+        dev_particle_container_t=kplus_to_three_tracks[
+            "dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
         post_scaler_hash_string=post_scaler_hash_string or name + '_post')
 
@@ -128,9 +128,9 @@ def make_kplus_to_3pi_line(kplus_to_three_tracks,
         minComboPt=mincomPt,
         minFlightDistance=minFD,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=kplus_to_three_tracks[
-            "host_number_of_three_body_svs"],
-        dev_particle_container_t=kplus_to_three_tracks["dev_three_body_svs"],
+        host_number_of_svs_t=kplus_to_three_tracks["host_number_of_svs"],
+        dev_particle_container_t=kplus_to_three_tracks[
+            "dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
         post_scaler_hash_string=post_scaler_hash_string or name + '_post',
         pre_scaler=pre_scaler)

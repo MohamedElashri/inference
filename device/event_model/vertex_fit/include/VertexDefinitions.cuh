@@ -19,6 +19,8 @@ namespace VertexFit {
 
   constexpr unsigned max_svs = 1000;
   constexpr unsigned max_sv_track_combinations = 1000;
+  constexpr unsigned max_tracks_per_sv =
+    4; // harcoded as the multi-track vertexing has not been tested for more than 4 tracks
 
   struct TrackMVAVertex {
     // Fit results.

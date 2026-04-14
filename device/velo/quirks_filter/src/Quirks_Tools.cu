@@ -42,7 +42,7 @@ namespace quirks_tools {
 
     const float maxR_sq = maxR * maxR;
 
-    const auto& clusters = parameters.dev_velo_clusters[0];
+    const auto& clusters = parameters.dev_velo_clusters[event_number];
 
     // For each A-side precomp entry, find candidate opposite-side hit using binary search on clusters.phi
     for (unsigned ia = threadIdx.x; ia < count; ia += blockDim.x) {

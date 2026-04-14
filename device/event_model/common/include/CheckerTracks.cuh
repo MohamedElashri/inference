@@ -25,6 +25,7 @@
 
 #include "LHCbID.cuh"
 #include "ParticleTypes.cuh"
+#include "VertexDefinitions.cuh"
 
 namespace Checker {
   struct Track {
@@ -66,8 +67,9 @@ namespace Checker {
   using Tracks = std::vector<Track>;
 
   struct Composite {
-    Track TrackA, TrackB;
+    std::array<Track, VertexFit::max_tracks_per_sv> Tracks;
     unsigned idx = 0;
+    unsigned nChildren = 0;
   };
   using Composites = std::vector<Composite>;
 

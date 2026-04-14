@@ -20,7 +20,7 @@ from AllenConf.ttrack_vertex_reconstruction import make_ttrack_vertices
 from AllenConf.secondary_vertex_reconstruction import (
     make_kalman_velo_only, make_basic_particles, fit_secondary_vertices,
     make_sv_track_pairs, make_sv_pairs, make_generic_sv_pairs,
-    make_three_body_svs, make_kalman_long, make_extrapolated_states)
+    make_multi_body_svs, make_kalman_long, make_extrapolated_states)
 from AllenConf.jet_reconstruction import make_cone_jets
 from AllenConf.validators import (
     velo_validation, veloUT_validation, seeding_validation,
@@ -392,7 +392,7 @@ def hlt1_reconstruction(algorithm_name='',
         sv_bpvdira_min=0.9997,
         sv_bpvvdrho_min=0.)
 
-    three_body_svs = make_three_body_svs(dihadrons, long_track_particles, pvs)
+    three_body_svs = make_multi_body_svs(dihadrons, long_track_particles, pvs)
 
     # Tau -> phi(-> KK) + third track
     phi_plus_track = make_sv_track_pairs(

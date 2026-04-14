@@ -74,8 +74,16 @@ void updateCommon(const Constants& constants)
   if ((CrossingAnglev == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
     CrossingAnglev = fabs(static_cast<double>(constants.host_gen_crossing_angles[1])) / 2;
   }
-  host_beamline.tx_SMOG.x = beamlineTx + CrossingAngleh;
-  host_beamline.tx_SMOG.y = beamlineTy + CrossingAnglev;
+
+  host_beamline.tx_SMOG.x = 0.;
+  host_beamline.tx_SMOG.y = 0.;
+  if (
+    !std::isnan(host_beamline.sprd[3] / host_beamline.sprd[5]) and
+    !std::isnan(host_beamline.sprd[4] / host_beamline.sprd[5])) {
+    host_beamline.tx_SMOG.x = static_cast<double>(host_beamline.sprd[3] / host_beamline.sprd[5]) + CrossingAngleh;
+    host_beamline.tx_SMOG.y = static_cast<double>(host_beamline.sprd[4] / host_beamline.sprd[5]) + CrossingAnglev;
+  }
+
   Allen::memcpyToSymbol(dev_beamline, &host_beamline, sizeof(struct BeamlinePVConstants::Common::Beamline));
 }
 

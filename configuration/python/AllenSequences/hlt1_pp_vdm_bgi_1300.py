@@ -1,5 +1,5 @@
 ###############################################################################
-# (c) Copyright 2025 CERN for the benefit of the LHCb Collaboration           #
+# (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           #
 #                                                                             #
 # This software is distributed under the terms of the Apache License          #
 # version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
@@ -8,20 +8,26 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1 import setup_hlt1_node, default_bgi_activity_lines
-from AllenCore.generator import generate
+from AllenConf.HLT1 import setup_hlt1_node
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
+from AllenCore.generator import generate
+from AllenConf.HLT1 import default_bgi_activity_lines
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 
-with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),\
-      default_bgi_activity_lines.bind(enableBGI_full=True)): # Fully enable BGI lines
+default_bgi_activity_lines.global_bind(enableBGI_full=True)
+
+with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        with_ut=True,
+        threshold_settings=get_thresholds(
+            f"forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1300kHz"
+        ),
         with_fullKF=True,
-        enableDownstream=False,  # Downstream not used in technical lines
-        enablePhysics=False,  # Only enable technical lines
-        withSMOG2=False)  # Only enable technical lines
+        with_ut=True,
+        enableDownstream=True,
+        with_downstream_KF=True,
+        with_ttracks=True,
+        with_quirks=True)
 
 generate(hlt1_node)

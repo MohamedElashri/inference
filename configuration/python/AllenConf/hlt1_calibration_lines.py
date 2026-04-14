@@ -20,15 +20,16 @@ from AllenCore.configuration_options import is_allen_standalone
 
 
 @configurable
-def make_pi02gammagamma_line(calo,
-                             velo_tracks,
-                             pvs,
-                             name="Hlt1Pi02GammaGamma",
-                             pre_scaler=0.05,
-                             pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None,
-                             enable_tupling=False,
-                             enable_monitoring=True):
+def make_pi02gammagamma_middleoutermixed_line(
+        calo,
+        velo_tracks,
+        pvs,
+        name="Hlt1Pi02GammaGammaMiddleOuterMixed",
+        pre_scaler=0.05,
+        pre_scaler_hash_string=None,
+        post_scaler_hash_string=None,
+        enable_tupling=False,
+        enable_monitoring=True):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -45,13 +46,213 @@ def make_pi02gammagamma_line(calo,
             "dev_multi_event_neutral_particles"],
         host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
         dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
-        minMass=50,  #MeV
-        maxMass=300,  #MeV
-        minEt_clusters=400,  #MeV
-        minE19_clusters=0.7,
-        maxE19_clusters=1.0,
+        minMass=0,  #MeV
+        maxMass=500,  #MeV
+        minEt_clusters=400.0,  #MeV
+        minE19_clusters=0.7,  #0.7
+        maxE19_clusters=1.0,  #1.0
         minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
         max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=10,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring)
+
+
+@configurable
+def make_pi02gammagamma_middleinnermixed_line(
+        calo,
+        velo_tracks,
+        pvs,
+        name="Hlt1Pi02GammaGammaMiddleInnerMixed",
+        pre_scaler=0.05,
+        pre_scaler_hash_string=None,
+        post_scaler_hash_string=None,
+        enable_tupling=False,
+        enable_monitoring=True):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo[
+            "dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  #MeV
+        maxMass=500,  #MeV
+        minEt_clusters=400.0,  #MeV
+        minE19_clusters=0.7,  #0.7
+        maxE19_clusters=1.0,  #1.0
+        minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=12,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring)
+
+
+@configurable
+def make_pi02gammagamma_inner_line(calo,
+                                   velo_tracks,
+                                   pvs,
+                                   name="Hlt1Pi02GammaGammaInner",
+                                   pre_scaler=0.05,
+                                   pre_scaler_hash_string=None,
+                                   post_scaler_hash_string=None,
+                                   enable_tupling=False,
+                                   enable_monitoring=True):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo[
+            "dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  #MeV
+        maxMass=500,  #MeV
+        minEt_clusters=400.0,  #MeV
+        minE19_clusters=0.7,  #0.7
+        maxE19_clusters=1.0,  #1.0
+        minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=2,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring)
+
+
+@configurable
+def make_pi02gammagamma_middle_line(calo,
+                                    velo_tracks,
+                                    pvs,
+                                    name="Hlt1Pi02GammaGammaMiddle",
+                                    pre_scaler=0.035,
+                                    pre_scaler_hash_string=None,
+                                    post_scaler_hash_string=None,
+                                    enable_tupling=False,
+                                    enable_monitoring=True):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo[
+            "dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  #MeV
+        maxMass=500,  #MeV
+        minEt_clusters=400.0,  #MeV
+        minE19_clusters=0.7,  #0.7
+        maxE19_clusters=1.0,  #1.0
+        minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=1,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring)
+
+
+@configurable
+def make_pi02gammagamma_outer_line(calo,
+                                   velo_tracks,
+                                   pvs,
+                                   name="Hlt1Pi02GammaGammaOuter",
+                                   pre_scaler=0.06,
+                                   pre_scaler_hash_string=None,
+                                   post_scaler_hash_string=None,
+                                   enable_tupling=False,
+                                   enable_monitoring=True):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo[
+            "dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  #MeV
+        maxMass=500,  #MeV
+        minEt_clusters=400.0,  #MeV
+        minE19_clusters=0.7,  #0.7
+        maxE19_clusters=1.0,  #1.0
+        minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=0,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring)
+
+
+@configurable
+def make_pi02gammagamma_line(calo,
+                             velo_tracks,
+                             pvs,
+                             name="Hlt1Pi02GammaGamma",
+                             pre_scaler=0.05,
+                             post_scaler=0,
+                             pre_scaler_hash_string=None,
+                             post_scaler_hash_string=None,
+                             enable_tupling=False,
+                             enable_monitoring=True):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        post_scaler=post_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo[
+            "dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  #MeV
+        maxMass=500,  #300MeV
+        minEt_clusters=400.0,  #MeV
+        minE19_clusters=0.7,  #0.7
+        maxE19_clusters=1.0,  #1.0
+        minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=-1,
         enable_tupling=enable_tupling,
         enable_monitoring=enable_monitoring)
 
@@ -80,6 +281,7 @@ def make_dst_line(dstars,
 def make_d2kpi_align_line(long_tracks,
                           secondary_vertices,
                           name="Hlt1D2KPiAlignment",
+                          pre_scaler=0.002,
                           enable_monitoring=True,
                           pre_scaler_hash_string=None,
                           post_scaler_hash_string=None,
@@ -90,6 +292,7 @@ def make_d2kpi_align_line(long_tracks,
     return make_algorithm(
         d2kpi_line_t,
         name=name,
+        pre_scaler=pre_scaler,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         enable_tupling=enable_tupling,
         minComboPt=2000.,  #MeV

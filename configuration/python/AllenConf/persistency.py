@@ -71,7 +71,7 @@ rb_map = {
     'Hlt1(VeloMicroBias|BeamGas)':
     2,
     # RB 3 Tracker alignment
-    'Hlt1D2KPiAlignment':
+    'Hlt1(D2KPiAlignment|DiMuonJpsiMassAlignment|UpsilonAlignment)':
     3,
     # RB 4 Muon alignment
     'Hlt1DiMuonJpsiMassAlignment':
@@ -89,7 +89,7 @@ rb_map = {
     'Hlt1VeloMicroBias.*':
     8,
     # RB 9 ECAL pi0 calibration
-    'Hlt1Pi02GammaGamma':
+    'Hlt1Pi02GammaGamma(Inner|Middle|Outer|MiddleOuterMixed|MiddleInnerMixed)': #withou the GammaGamma original line
     9,
     # RB 10 ODIN calibration triggers
     'Hlt1ODINCalib':

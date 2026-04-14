@@ -39,7 +39,9 @@ void pv_beamline_cleanup::pv_beamline_cleanup_t::operator()(
     m_histogram_pv_y.data(context),
     m_histogram_pv_z.data(context),
     m_histogram_pv_z_only_pp.data(context),
-    m_histogram_pv_z_only_smog.data(context));
+    m_histogram_pv_z_only_smog.data(context),
+    m_histogram_2D_pv_xz.data(context),
+    m_histogram_2D_pv_yz.data(context));
 }
 
 __device__ void pv_beamline_cleanup::sort_pvs_by_z(PV::Vertex* final_vertices, unsigned n_vertices)
@@ -84,7 +86,9 @@ __global__ void pv_beamline_cleanup::pv_beamline_cleanup(
   Allen::Monitoring::Histogram<>::DeviceType dev_pv_y_histo,
   Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_histo,
   Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_only_pp_histo,
-  Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_only_smog_histo)
+  Allen::Monitoring::Histogram<>::DeviceType dev_pv_z_only_smog_histo,
+  Allen::Monitoring::Histogram2D<>::DeviceType dev_pv_xz_histo2D,
+  Allen::Monitoring::Histogram2D<>::DeviceType dev_pv_yz_histo2D)
 {
 
   __shared__ unsigned tmp_number_vertices[1];
@@ -122,6 +126,8 @@ __global__ void pv_beamline_cleanup::pv_beamline_cleanup(
 
       // monitoring
       dev_pv_z_histo.increment(vertex1.position.z);
+      dev_pv_xz_histo2D.increment(vertex1.position.z, vertex1.position.x);
+      dev_pv_yz_histo2D.increment(vertex1.position.z, vertex1.position.y);
       if (-200 < vertex1.position.z && vertex1.position.z < 200) {
         dev_pv_x_histo.increment(vertex1.position.x);
         dev_pv_y_histo.increment(vertex1.position.y);

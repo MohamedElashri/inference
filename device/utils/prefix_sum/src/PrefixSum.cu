@@ -2,9 +2,11 @@
 * (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
 \*****************************************************************************/
 
-#include "PrefixSum.cuh"
-
 #ifndef TARGET_DEVICE_CPU
+
+#include "PrefixSum.cuh"
+#include "PrefixSum_Impl.cuh"
+
 namespace PrefixSum {
   constexpr unsigned NUM_BANKS = 32;
   constexpr unsigned LOG_NUM_BANKS = 5;
@@ -386,6 +388,36 @@ namespace PrefixSum {
         if (index * 4 + 3 == array_size) *host_total = elem1.w;
       }
     }
+  }
+
+  __global__ void initialize_tile_state(unsigned tile_state_size, TileStoreType* tile_state_data)
+  {
+    const int index = blockDim.x * blockIdx.x + threadIdx.x;
+    if (index < tile_state_size) {
+      ScanReduce::SinglePassScan::TileState<unsigned>::set_initial_tile_state(index, tile_state_data);
+    }
+  }
+
+  __global__ void prefix_sum_single_pass(
+    unsigned* dev_array,
+    const unsigned array_size,
+    TileStoreType* tile_state_data,
+    unsigned* host_total)
+  {
+    chain_scan<threads_per_block, values_per_thread>(dev_array, array_size, tile_state_data, host_total);
+  }
+
+  __global__ void prefix_sum_single_block_32x8(unsigned* dev_array, const unsigned array_size, unsigned* host_total)
+  {
+    sliding_block_scan<32, 8>(dev_array, array_size, host_total);
+  }
+  __global__ void prefix_sum_single_block_64x8(unsigned* dev_array, const unsigned array_size, unsigned* host_total)
+  {
+    sliding_block_scan<64, 8>(dev_array, array_size, host_total);
+  }
+  __global__ void prefix_sum_single_block_128x8(unsigned* dev_array, const unsigned array_size, unsigned* host_total)
+  {
+    sliding_block_scan<128, 8>(dev_array, array_size, host_total);
   }
 } // namespace PrefixSum
 #endif

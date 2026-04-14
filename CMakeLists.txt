@@ -74,7 +74,7 @@ endif()
 
 # CUDA compute capability
 set(CUDA_ARCH COMPATIBILITY CACHE STRING "CUDA target architecture")
-set_property(CACHE CUDA_ARCH PROPERTY STRINGS COMPATIBILITY MAX MIN 60 61 62 70 72 75 80 86)
+set_property(CACHE CUDA_ARCH PROPERTY STRINGS COMPATIBILITY MAX MIN 70 72 75 80 86)
 
 # HIP architecture
 # https://llvm.org/docs/AMDGPUUsage.html
@@ -243,7 +243,7 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   #CUDA_ARCH can be set to MIN
     elseif(CUDA_ARCH STREQUAL "MIN")
       message(STATUS "Setting lowest CUDA compute capability:")
-      list(APPEND CUDA_ARCH_LIST 60)
+      list(APPEND CUDA_ARCH_LIST 70)
   #By default, compile for compatibility
     elseif(CUDA_ARCH STREQUAL "COMPATIBILITY")
   #Compatibility arch flag.
@@ -253,7 +253,7 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   #* Forward compatibility with newer devices is also supported by generating PTX from 8.6
   #(- gencode = arch = compute_86, compute = compute_86)
       message(STATUS "Setting compute capability to COMPATIBILITY:")
-      foreach(arch 60 70 75 80 86)
+      foreach(arch 70 75 80 86)
         list(APPEND CUDA_ARCH_LIST ${arch})
       endforeach()
   #Finally, compile for the specified architecture

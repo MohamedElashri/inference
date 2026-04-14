@@ -21,11 +21,13 @@ with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         threshold_settings=get_thresholds(
-            f"forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1200kHz"
+            f"forward_then_matching_and_downstream_with_parkf_tuned_mu5p3_1400kHz"
         ),
+        with_fullKF=True,
         with_ut=True,
         enableDownstream=True,
-        with_fullKF=True,
-    )
+        with_downstream_KF=True,
+        with_ttracks=True,
+        with_quirks=True)
 
 generate(hlt1_node)
