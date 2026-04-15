@@ -117,7 +117,10 @@ rb_map = {
     25,
     # RB 26 HLT1 large-event passthrough
     'Hlt1PassthroughLargeEvent':
-    26
+    26,
+    # RB 27 HLT1 VP large clusters for monitoring
+    'Hlt1VeloLargeClusters':
+    27,
 }
 
 #routing bits for Heavy ions
@@ -160,7 +163,9 @@ rb_map_PbPb = {
     # RB 25 error banks
     'Hlt1ErrorBank': 25,
     # RB 26 HLT1 large-event passthrough
-    'Hlt1PassthroughLargeEvent': 26
+    'Hlt1PassthroughLargeEvent': 26,
+    # RB 27 HLT1 VP large clusters for monitoring
+    'Hlt1VeloLargeClusters': 27,
 }
 
 #routing bits for Light ions
@@ -202,7 +207,9 @@ rb_map_LightIon = {
     # RB 25 error banks
     'Hlt1ErrorBank': 25,
     # RB 26 HLT1 large-event passthrough
-    'Hlt1PassthroughLargeEvent': 26
+    'Hlt1PassthroughLargeEvent': 26,
+    # RB 27 HLT1 VP large clusters for monitoring
+    'Hlt1VeloLargeClusters': 27,
 }
 
 

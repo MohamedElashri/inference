@@ -1659,6 +1659,19 @@ def setup_hlt1_node(enablePhysics=True,
     technical_lines += velo_micro_bias_lines(
         reconstructed_objects, odin_err_filter, enable_tupling=enableTupling)
 
+    with line_maker.bind(prefilter=odin_err_filter + velo_closed + gec):
+        technical_lines += [
+            line_maker(
+                make_velo_large_clusters_line(
+                    reconstructed_objects["velo_tracks"],
+                    reconstructed_objects["velo_states"],
+                    name="Hlt1VeloLargeClusters",
+                    min_eta=5.,
+                    min_cluster_size=5,
+                    min_n_hits=6,
+                    enable_tupling=enableTupling))
+        ]
+
     bx_BE = make_bxtype(bx_type=1)
     with line_maker.bind(
             prefilter=odin_err_filter + [bx_BE] + velo_closed + gec):

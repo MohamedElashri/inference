@@ -163,6 +163,7 @@ __global__ void velo_consolidate_tracks::velo_consolidate_tracks(
         consolidated_hits.set_x(i, velo_cluster_container.x(hit_index));
         consolidated_hits.set_y(i, velo_cluster_container.y(hit_index));
         consolidated_hits.set_z(i, velo_cluster_container.z(hit_index));
+        consolidated_hits.set_cluster_size(i, velo_cluster_container.cluster_size(hit_index));
       });
 
     populate(

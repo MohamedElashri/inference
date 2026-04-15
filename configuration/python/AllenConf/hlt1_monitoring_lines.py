@@ -10,7 +10,7 @@
 ###############################################################################
 from PyConf.tonic import configurable
 from AllenCore.algorithms import (
-    beam_crossing_line_t, velo_micro_bias_line_t,
+    beam_crossing_line_t, velo_micro_bias_line_t, velo_large_clusters_line_t,
     odin_event_type_with_decoding_line_t, calo_digits_minADC_t,
     beam_gas_line_t, velo_clusters_micro_bias_line_t, plume_activity_line_t,
     t_track_cosmic_line_t, z_range_materialvertex_seed_line_t)
@@ -169,6 +169,40 @@ def make_beam_gas_line(velo_tracks,
         dev_offsets_velo_track_hit_number_t=velo_tracks[
             "dev_offsets_velo_track_hit_number"],
         dev_odin_data_t=odin["dev_odin_data"],
+        pre_scaler=pre_scaler,
+        post_scaler=post_scaler,
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        enable_tupling=enable_tupling)
+
+
+@configurable
+def make_velo_large_clusters_line(velo_tracks,
+                                  velo_states,
+                                  name="Hlt1VeloLargeClusters",
+                                  pre_scaler_hash_string=None,
+                                  post_scaler_hash_string=None,
+                                  pre_scaler=1.,
+                                  post_scaler=1.,
+                                  min_eta=5.,
+                                  min_cluster_size=4,
+                                  min_n_hits=3,
+                                  enable_tupling=False):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        velo_large_clusters_line_t,
+        name=name,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_number_of_reconstructed_velo_tracks_t=velo_tracks[
+            "host_number_of_reconstructed_velo_tracks"],
+        dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
+        dev_velo_states_view_t=velo_states[
+            "dev_velo_kalman_beamline_states_view"],
+        dev_offsets_velo_tracks_t=velo_tracks["dev_offsets_all_velo_tracks"],
+        min_cluster_size=min_cluster_size,
+        min_eta=min_eta,
+        min_n_hits=min_n_hits,
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",

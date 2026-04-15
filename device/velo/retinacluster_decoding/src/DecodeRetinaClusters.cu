@@ -13,8 +13,42 @@
 #include <VeloTools.cuh>
 #include <BinarySearch.cuh>
 #include <SegSort.h>
+#include <RetinaClusterSizeDecoder.cuh>
+
+namespace decode_retinaclusters {
+  // Create LUT in global memory (2KB in total)
+  __device__ const auto velo_cluster_size_iso = decode_retinaclusters::h_velo_cluster_size_iso;
+  __device__ const auto velo_cluster_size_noniso = decode_retinaclusters::h_velo_cluster_size_noniso;
+  __device__ const auto velo_cluster_size_noniso_rev = decode_retinaclusters::h_velo_cluster_size_noniso_rev;
+} // namespace decode_retinaclusters
 
 INSTANTIATE_ALGORITHM(decode_retinaclusters::decode_retinaclusters_t)
+
+namespace {
+  __device__ inline uint8_t compute_cluster_size(uint32_t raw_bank_word, unsigned raw_bank_sensor_index)
+  {
+    const uint32_t fx = (raw_bank_word >> 10) & 0x3;
+    const uint32_t fy = (raw_bank_word) &0x3;
+    const uint32_t isoBit = (raw_bank_word >> 30) & 0x1;
+
+    if (isoBit) {
+      // Isolated cluster: 6-bit topoID2x4 in bits [28:23]
+      const uint32_t topoID = (raw_bank_word >> 23) & 0x3F;
+      return decode_retinaclusters::velo_cluster_size_iso[(topoID << 4) | (fx << 2) | fy];
+    }
+    else {
+      // Non-isolated cluster: 5-bit topoID3x3 in bits [27:23]
+      const uint32_t topoID = (raw_bank_word >> 23) & 0x1F;
+      const uint32_t key = (topoID << 4) | (fx << 2) | fy;
+      const unsigned smod = raw_bank_sensor_index % 4;
+      if (smod == 0 || smod == 3)
+        return decode_retinaclusters::velo_cluster_size_noniso[key];
+      else
+        return decode_retinaclusters::velo_cluster_size_noniso_rev[key];
+    }
+  }
+
+} // namespace
 
 template<int decoding_version>
 __global__ void populate_module_pair_offsets_and_sizes(
@@ -256,6 +290,15 @@ __device__ void populate_retinacluster(
     or_fy = (cy_frac_half | cy_frac_quarter);
   }
 
+  uint16_t cluster_size;
+  if constexpr (decoding_version == 4) {
+    cluster_size = compute_cluster_size(raw_bank_word, raw_bank_sensor_index);
+  }
+  else {
+    // TODO: add cluster size decoding for old rawbanks
+    cluster_size = 0;
+  }
+
   const uint32_t chip = cx >> VP::ChipColumns_division;
   const float local_x = g.local_x[cx] + fx * g.x_pitch[cx];
   const float local_y = (0.5f + fy) * Velo::Constants::pixel_size;
@@ -271,6 +314,7 @@ __device__ void populate_retinacluster(
   velo_cluster_container.set_y(cluster_index, gy);
   velo_cluster_container.set_z(cluster_index, gz);
   velo_cluster_container.set_phi(cluster_index, hit_phi_16(gx, gy));
+  velo_cluster_container.set_cluster_size(cluster_index, cluster_size);
 }
 
 template<int decoding_version, bool mep_layout>
