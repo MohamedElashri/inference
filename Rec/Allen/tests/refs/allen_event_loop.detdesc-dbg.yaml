@@ -577,11 +577,11 @@ histos:
       stdDevX: 32.637829
   is_muon:
     n_muons:
-      nEntries: 461098.0
+      nEntries: 461104.0
       title: '# muons'
-      sum: 461098
-      meanX: 0.10964
-      stdDevX: 0.312441
+      sum: 461104
+      meanX: 0.109641
+      stdDevX: 0.312442
     pv_x:
       nEntries: 29987.0
       title: pv_x
@@ -589,11 +589,11 @@ histos:
       meanX: 2.0
       stdDevX: 0.0
     pv_y:
-      nEntries: 50554.0
+      nEntries: 50555.0
       title: pv_y
-      sum: 50554
-      meanX: 502.264905
-      stdDevX: 337.195266
+      sum: 50555
+      meanX: 502.261201
+      stdDevX: 337.192959
   make_long_track_particles:
     number_of_trks:
       nEntries: 10000.0
