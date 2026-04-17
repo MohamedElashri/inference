@@ -95,7 +95,7 @@ namespace quirks_tools {
       }
     } // for ia
     __syncthreads();
-    if (blockIdx.x == 0 && threadIdx.x == 0 && parameters.dev_pair_count[layer_idx] > max_pairs_per_module) {
+    if (threadIdx.x == 0 && parameters.dev_pair_count[layer_idx] > max_pairs_per_module) {
       parameters.dev_pair_count[layer_idx] = 0u;
     }
   }
