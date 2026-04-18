@@ -189,7 +189,7 @@ __global__ void velo_calculate_sorting_key(
         Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module / 2,
         cluster_number + event_clusters_offset);
     }
-    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair];
+    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair + offset];
 
     unsigned index_within_raw_bank = cluster_number - (sensor_pair_offsets[sensor_pair] - event_clusters_offset);
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
@@ -349,7 +349,7 @@ __global__ void decode_retinaclusters_sorted(
       sensor_pair = binary_search_rightmost(
         sensor_pair_offsets, Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module / 2, cluster_number);
     }
-    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair];
+    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair + offset];
 
     unsigned index_within_raw_bank = cluster_number - sensor_pair_offsets[sensor_pair];
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
