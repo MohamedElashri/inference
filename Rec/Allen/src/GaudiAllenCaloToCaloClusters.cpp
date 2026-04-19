@@ -102,7 +102,7 @@ LHCb::Event::Calo::Clusters GaudiAllenCaloToCaloClusters::operator()(
       entry.setCellID(seedCellID);
       entry.setEnergy(cluster.e);
       entry.setFraction(1.f);
-      entry.setStatus({LHCb::CaloDigitStatus::Mask::UseForEnergy, LHCb::CaloDigitStatus::Mask::SeedCell});
+      entry.setStatus(LHCb::CaloDigitStatus::Mask::UseForEnergy | LHCb::CaloDigitStatus::Mask::SeedCell);
 
       for (unsigned j = 0; j < Calo::Constants::max_neighbours; ++j) {
         if (cluster.digits[j] == USHRT_MAX) continue;
@@ -113,7 +113,7 @@ LHCb::Event::Calo::Clusters GaudiAllenCaloToCaloClusters::operator()(
           entry.setCellID(cellID);
           entry.setEnergy(0.f);
           entry.setFraction(1.f);
-          entry.setStatus({LHCb::CaloDigitStatus::Mask::UseForEnergy, LHCb::CaloDigitStatus::Mask::OwnedCell});
+          entry.setStatus(LHCb::CaloDigitStatus::Mask::UseForEnergy | LHCb::CaloDigitStatus::Mask::OwnedCell);
         }
       }
 
