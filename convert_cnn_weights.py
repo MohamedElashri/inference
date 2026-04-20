@@ -67,7 +67,7 @@ def main():
     from utils import TrackIntervalsToKDE_HDplusUNet100 as Model
     
     model = Model()
-    name = 'pvfinder_pytorch/weights/07Sept2023_t2hists_HDplusUNet100_iter12Ca_200epochs_2em5_5p0_final.pyt'
+    name = 'pvfinder_pytorch/weights/64-channel/07Sept2023_t2hists_HDplusUNet100_iter12Ca_200epochs_2em5_5p0_final.pyt'
     d = torch.load(name, map_location='cpu')
     model.load_state_dict(d)
     model.eval()

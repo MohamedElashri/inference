@@ -12,6 +12,11 @@ if(WITH_CUDNN AND TARGET_DEVICE STREQUAL "CUDA")
     target_link_libraries(PVFinder PRIVATE AllenCuDNN)
 endif()
 
+if(PVFINDER_UNET_N_FEAT)
+    target_compile_definitions(PVFinder PRIVATE PVFINDER_UNET_N_FEAT=${PVFINDER_UNET_N_FEAT})
+    message(STATUS "PVFinder: UNet N_FEAT overridden to ${PVFINDER_UNET_N_FEAT}")
+endif()
+
 if(WITH_CUBLAS AND TARGET_DEVICE STREQUAL "CUDA")
     # cuBLAS ships with every CUDA toolkit — no extra find_package required.
     target_link_libraries(PVFinder PRIVATE CUDA::cublas)

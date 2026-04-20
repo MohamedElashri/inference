@@ -32,6 +32,7 @@ SLICES=200
 REPS=1000
 BUILD_NAME=buildgpu
 PROFILE=0   # off by default; use --profile to enable nsys
+CNN_WEIGHTS_OVERRIDE=""  # if set, temporarily swap cnn_weights.bin for this file
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -46,6 +47,7 @@ while [[ $# -gt 0 ]]; do
         --repetitions|-r) REPS="$2";   shift 2 ;;
         --build-dir|-B)   BUILD_NAME="$2"; shift 2 ;;
         --profile)    PROFILE=1;       shift 1 ;;
+        --cnn-weights)    CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -59,6 +61,7 @@ ALLEN="${BUILD_DIR}/toolchain/wrapper ${BUILD_DIR}/Allen"
 MDF="${SCRIPT_DIR}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${SCRIPT_DIR}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
 WEIGHT_FILE="${SCRIPT_DIR}/cnn_weights.bin"
+CNN_WEIGHTS_BACKUP="${SCRIPT_DIR}/cnn_weights.bin.bak_$$"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_BASE="${BUILD_DIR}/bench_baseline.log"
@@ -119,6 +122,17 @@ run_allen() {
     [[ ${rc} -ne 0 ]] && { echo "ERROR: ${seq} failed (exit ${rc}). See ${log}"; exit 1; }
     echo "  done."
 }
+
+# If an alternative CNN weight file is specified, swap it in for the duration.
+if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
+    if [[ ! -f "${CNN_WEIGHTS_OVERRIDE}" ]]; then
+        echo "ERROR: --cnn-weights file not found: ${CNN_WEIGHTS_OVERRIDE}"; exit 1
+    fi
+    echo "Using CNN weights: ${CNN_WEIGHTS_OVERRIDE}"
+    [[ -f "${WEIGHT_FILE}" ]] && cp "${WEIGHT_FILE}" "${CNN_WEIGHTS_BACKUP}"
+    trap '[[ -f "${CNN_WEIGHTS_BACKUP}" ]] && cp "${CNN_WEIGHTS_BACKUP}" "${WEIGHT_FILE}" && rm -f "${CNN_WEIGHTS_BACKUP}"' EXIT
+    cp "${CNN_WEIGHTS_OVERRIDE}" "${WEIGHT_FILE}"
+fi
 
 run_allen hlt1_pp_default                   "${LOG_BASE}"
 run_allen hlt1_pp_pvfinder_benchmark        "${LOG_FC}"

@@ -22,8 +22,13 @@
 namespace pvfinder_unet {
 
 // UNet architecture constants (default weights: HDplusUNet100 iter12Ca)
+// Override N_FEAT at build time with -DPVFINDER_UNET_N_FEAT=<n> (e.g. 16 for the lighter model).
 static constexpr int N_BATCH_CHANNELS = 8;   // input latent channels
+#ifdef PVFINDER_UNET_N_FEAT
+static constexpr int N_FEAT    = PVFINDER_UNET_N_FEAT;
+#else
 static constexpr int N_FEAT    = 64;          // feature maps throughout
+#endif
 static constexpr int W_IN      = 100;         // input width
 static constexpr int W_HALF    = 50;          // after first MaxPool
 static constexpr int W_QTR     = 25;          // after second MaxPool
