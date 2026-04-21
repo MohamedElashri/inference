@@ -40,18 +40,19 @@ struct GlobalDescriptors {
 
 static GlobalDescriptors s_desc;
 static std::once_flag    s_init_flag;
+static std::once_flag    s_desc_init_flag;
 
-static void init_global_descriptors()
+static void init_global_descriptors(cudnnHandle_t handle)
 {
     constexpr int N = N_CHUNK_INTERVALS;
-    // All forward convs — input shape fixed, IMPLICIT_GEMM, zero workspace.
-    s_desc.rcbn1.create(    {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
-    s_desc.rcbn2.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
-    s_desc.rcbn3.create(    {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.up1_c.create(    {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.up2_c.create(    {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.oint_half.create({N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.outc.create(     {N, N_FEAT,            1, W_IN},  {1,      N_FEAT,            1,  5}, {0, 2});
+    // Forward convs: algorithm selected at create() time via cudnnGetConvolutionForwardAlgorithm_v7.
+    s_desc.rcbn1.create(    handle, {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
+    s_desc.rcbn2.create(    handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
+    s_desc.rcbn3.create(    handle, {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    s_desc.up1_c.create(    handle, {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    s_desc.up2_c.create(    handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    s_desc.oint_half.create(handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
+    s_desc.outc.create(     handle, {N, N_FEAT,            1, W_IN},  {1,      N_FEAT,            1,  5}, {0, 2});
 
     // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
     // Tensor descriptors for in/out are created as locals in operator() per-call.
@@ -304,12 +305,9 @@ void pvfinder_unet_t::init()
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     if (m_init_done) return;
-    // Both weight loading and descriptor creation touch process-level statics.
-    // A single call_once guarantees they happen exactly once across all threads.
     std::call_once(s_init_flag, [this]() {
         s_wb = load_weights(m_weight_file.value());
         s_wb_loaded = true;
-        init_global_descriptors();
     });
     m_init_done = true;
 #endif
@@ -317,7 +315,8 @@ void pvfinder_unet_t::init()
 
 // ---------------------------------------------------------------------------
 // set_arguments_size
-// IMPLICIT_GEMM needs zero workspace. Allocate 1 float (Allen requires non-zero).
+// Workspace for cuDNN is owned per ConvDescriptors (cudaMalloc'd at init).
+// dev_unet_conv_ws_t is kept at 1 float as Allen requires a non-zero allocation.
 // ---------------------------------------------------------------------------
 void pvfinder_unet_t::set_arguments_size(
     ArgumentReferences<Parameters> arguments,
@@ -342,7 +341,7 @@ void pvfinder_unet_t::set_arguments_size(
 // ---------------------------------------------------------------------------
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-// Conv1d + bias + BN + ReLU. IMPLICIT_GEMM: workspace=nullptr, ws=0.
+// Conv1d + bias + BN + ReLU.
 void pvfinder_unet_t::run_convbnrelu(
     const Allen::CuDNN::ConvDescriptors& desc,
     const float* input, float* output,
@@ -355,13 +354,11 @@ void pvfinder_unet_t::run_convbnrelu(
 {
     const float alpha = 1.f, beta = 0.f;
     desc.forward(handle, alpha, beta, input, w_ptr, output);
-    launch_bias_add(output, bias_ptr, C_out, W, N, block, ctx);
-    launch_batchnorm(output, bn_gamma, bn_beta, bn_mean, bn_var, bn_eps,
-                     C_out, W, N, block, ctx);
-    launch_relu(output, N * C_out * W, block, ctx);
+    launch_bias_bn_relu(output, bias_ptr, bn_gamma, bn_beta, bn_mean, bn_var, bn_eps,
+                        C_out, W, N, block, ctx);
 }
 
-// Conv1d only (no BN/ReLU). IMPLICIT_GEMM: workspace=nullptr, ws=0.
+// Conv1d only (no BN/ReLU).
 void pvfinder_unet_t::run_conv(
     const Allen::CuDNN::ConvDescriptors& desc,
     const float* input,  float* output,
@@ -419,6 +416,10 @@ void pvfinder_unet_t::operator()(
 
     // One thread_local handle per OS thread — created lazily, routed to this stream.
     cudnnHandle_t handle = Allen::CuDNN::get_thread_local_handle(context.stream());
+
+    // Descriptor creation needs a live handle (for algorithm selection), so it runs
+    // here on first operator() call rather than in init().
+    std::call_once(s_desc_init_flag, init_global_descriptors, handle);
 
     const dim3 block = m_block_dim;
     constexpr int N = N_CHUNK_INTERVALS;  // batch size = 20 * 40 = 800

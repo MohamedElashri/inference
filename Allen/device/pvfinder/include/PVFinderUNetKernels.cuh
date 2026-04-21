@@ -139,8 +139,43 @@ __global__ void accumulate_add_kernel(
 }
 
 // ---------------------------------------------------------------------------
+// Fused bias + BN + ReLU: one global-memory pass instead of three.
+// y[i] = max(0, gamma[c] * ((x[i] + bias[c]) - mean[c]) * rsqrt(var[c]+eps) + beta[c])
+// ---------------------------------------------------------------------------
+__global__ void bias_bn_relu_kernel(
+    float* __restrict__ tensor,
+    const float* __restrict__ bias,
+    const float* __restrict__ gamma,
+    const float* __restrict__ beta,
+    const float* __restrict__ mean,
+    const float* __restrict__ var,
+    float eps,
+    int C, int W, int total)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    int c = (i / W) % C;
+    float v = tensor[i] + bias[c];
+    v = gamma[c] * (v - mean[c]) * rsqrtf(var[c] + eps) + beta[c];
+    tensor[i] = v > 0.f ? v : 0.f;
+}
+
+// ---------------------------------------------------------------------------
 // Convenience: launch helpers called from host code
 // ---------------------------------------------------------------------------
+inline void launch_bias_bn_relu(
+    float* tensor, const float* bias,
+    const float* gamma, const float* beta,
+    const float* mean, const float* var, float eps,
+    int C, int W, int N,
+    const dim3& block, const Allen::Context& ctx)
+{
+    int total = N * C * W;
+    dim3 grid((total + block.x - 1) / block.x);
+    bias_bn_relu_kernel<<<grid, block, 0, ctx.stream()>>>(
+        tensor, bias, gamma, beta, mean, var, eps, C, W, total);
+}
+
 inline void launch_bias_add(
     float* tensor, const float* bias,
     int C, int W, int N,
