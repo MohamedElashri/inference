@@ -27,13 +27,18 @@ __global__ void calculate_number_of_retinaclusters_each_sensor_pair_kernel(
 {
   const auto event_number = parameters.dev_event_list[blockIdx.x];
   unsigned* each_sensor_pair_size = nullptr;
+  unsigned* dev_retina_bank_index = nullptr;
 
   if constexpr (decoding_version == 2 || decoding_version == 3) {
     each_sensor_pair_size = parameters.dev_offsets_each_sensor_pair_size +
                             event_number * Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module;
+    dev_retina_bank_index = parameters.dev_retina_bank_index +
+                            event_number * Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module;
   }
   else {
     each_sensor_pair_size = parameters.dev_offsets_each_sensor_pair_size +
+                            event_number * Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module / 2;
+    dev_retina_bank_index = parameters.dev_retina_bank_index +
                             event_number * Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module / 2;
   }
 
@@ -62,9 +67,8 @@ __global__ void calculate_number_of_retinaclusters_each_sensor_pair_kernel(
           (masked_modules & (1 << (raw_bank.sensor_pair() / 2))) ? 0 : raw_bank.size / 4;
       }
     }
-    if (blockIdx.x == 0) {
-      parameters.dev_retina_bank_index[raw_bank.sensor_pair()] = raw_bank_number;
-    }
+    // /!\ this need to be overwritten by every event in case some events have missing rawbanks:
+    dev_retina_bank_index[raw_bank.sensor_pair()] = raw_bank_number;
   }
 }
 
@@ -74,10 +78,10 @@ void calculate_number_of_retinaclusters_each_sensor_pair::calculate_number_of_re
   const auto bank_version = first<host_raw_bank_version_t>(arguments);
   unsigned size = Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module;
   if (bank_version != 2 && bank_version != 3) {
-    size /= 2;
+    size /= 2; // divide by 2 for sensor pair
   }
   set_size<dev_offsets_each_sensor_pair_size_t>(arguments, first<host_number_of_events_t>(arguments) * size + 1);
-  set_size<dev_retina_bank_index_t>(arguments, size); // divide by 2 for sensor pair
+  set_size<dev_retina_bank_index_t>(arguments, first<host_number_of_events_t>(arguments) * size);
   set_size<host_total_sum_holder_t>(arguments, 1);
 }
 
