@@ -26,7 +26,8 @@ namespace Allen {
         struct Hit {
         private:
           constexpr static unsigned offset_coordinates = sizeof(unsigned) / sizeof(half_t);
-          constexpr static unsigned offset_cluster_size = (sizeof(unsigned) + 4 * sizeof(half_t)) / sizeof(int16_t);
+          constexpr static unsigned offset_cluster_size =
+            (sizeof(unsigned) + 3 * sizeof(half_t) + sizeof(int16_t)) / sizeof(int16_t);
 
           const half_t* m_base_pointer = nullptr;
           unsigned m_index = 0;
