@@ -36,6 +36,14 @@ struct GlobalDescriptors {
     cudnnConvolutionDescriptor_t  conv_up1_t   = nullptr;
     cudnnFilterDescriptor_t       filter_up2_t = nullptr;
     cudnnConvolutionDescriptor_t  conv_up2_t   = nullptr;
+
+    // ConvTranspose algorithm + workspace (selected by cudnnGetConvolutionBackwardDataAlgorithm_v7)
+    cudnnConvolutionBwdDataAlgo_t  algo_up1_t   = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
+    cudnnConvolutionBwdDataAlgo_t  algo_up2_t   = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
+    void*                          ws_up1_t     = nullptr;
+    void*                          ws_up2_t     = nullptr;
+    size_t                         ws_up1_bytes = 0;
+    size_t                         ws_up2_bytes = 0;
 };
 
 static GlobalDescriptors s_desc;
@@ -69,6 +77,62 @@ static void init_global_descriptors(cudnnHandle_t handle)
     ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t));
     ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
         s_desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+
+    // Algorithm sweep for ConvTranspose (cudnnConvolutionBackwardData)
+    // Uses temporary tensor descriptors for the query — not stored, as operator()
+    // creates per-call thread-local descriptors.
+    static constexpr size_t kBwdBudget  = 64ul * 1024 * 1024;
+    static constexpr int    kBwdMaxAlgo = 8;
+
+    // up1_t: dy=[N, N_FEAT, 1, W_QTR], dx=[N, N_FEAT, 1, W_HALF]
+    {
+        cudnnTensorDescriptor_t dy_desc, dx_desc;
+        cudnnCreateTensorDescriptor(&dy_desc);
+        cudnnCreateTensorDescriptor(&dx_desc);
+        cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_QTR);
+        cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_HALF);
+        int returned = 0;
+        cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
+        if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
+                handle, s_desc.filter_up1_t, dy_desc, s_desc.conv_up1_t, dx_desc,
+                kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
+            for (int i = 0; i < returned; ++i) {
+                if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
+                    s_desc.algo_up1_t   = perf[i].algo;
+                    s_desc.ws_up1_bytes = perf[i].memory;
+                    if (s_desc.ws_up1_bytes > 0) cudaMalloc(&s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                    break;
+                }
+            }
+        }
+        cudnnDestroyTensorDescriptor(dy_desc);
+        cudnnDestroyTensorDescriptor(dx_desc);
+    }
+
+    // up2_t: dy=[N, N_FEAT*2, 1, W_HALF], dx=[N, N_FEAT, 1, W_IN]
+    {
+        cudnnTensorDescriptor_t dy_desc, dx_desc;
+        cudnnCreateTensorDescriptor(&dy_desc);
+        cudnnCreateTensorDescriptor(&dx_desc);
+        cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT*2, 1, W_HALF);
+        cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_IN);
+        int returned = 0;
+        cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
+        if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
+                handle, s_desc.filter_up2_t, dy_desc, s_desc.conv_up2_t, dx_desc,
+                kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
+            for (int i = 0; i < returned; ++i) {
+                if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
+                    s_desc.algo_up2_t   = perf[i].algo;
+                    s_desc.ws_up2_bytes = perf[i].memory;
+                    if (s_desc.ws_up2_bytes > 0) cudaMalloc(&s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                    break;
+                }
+            }
+        }
+        cudnnDestroyTensorDescriptor(dy_desc);
+        cudnnDestroyTensorDescriptor(dx_desc);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -374,7 +438,7 @@ void pvfinder_unet_t::run_conv(
         launch_bias_add(output, bias_ptr, C_out, W, N, block, ctx);
 }
 
-// ConvTranspose1d via cudnnConvolutionBackwardData. ALGO_0: zero workspace for k=2,s=2.
+// ConvTranspose1d via cudnnConvolutionBackwardData. Algorithm selected at init time.
 void pvfinder_unet_t::run_conv_transpose(
     const float* input, float* output,
     cudnnFilterDescriptor_t filter_desc,
@@ -384,7 +448,9 @@ void pvfinder_unet_t::run_conv_transpose(
     const float* w_ptr, const float* bias_ptr,
     int N, int C_out, int W_out,
     const dim3& block, const Allen::Context& ctx,
-    cudnnHandle_t handle) const
+    cudnnHandle_t handle,
+    cudnnConvolutionBwdDataAlgo_t algo,
+    void* workspace, size_t ws_bytes) const
 {
     const float alpha = 1.f, beta = 0.f;
     ALLEN_CUDNN_CHECK(cudnnConvolutionBackwardData(
@@ -392,8 +458,8 @@ void pvfinder_unet_t::run_conv_transpose(
         filter_desc, w_ptr,
         in_desc,     input,
         conv_desc,
-        CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
-        nullptr, 0,
+        algo,
+        workspace, ws_bytes,
         &beta,
         out_desc, output));
     launch_bias_add(output, bias_ptr, C_out, W_out, N, block, ctx);
@@ -490,7 +556,8 @@ void pvfinder_unet_t::operator()(
         run_conv_transpose(x3, up2,
             s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
             s_wb.w_up1t_w, s_wb.w_up1t_b,
-            N, N_FEAT, W_HALF, block, context, handle);
+            N, N_FEAT, W_HALF, block, context, handle,
+            s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
         run_convbnrelu(s_desc.up1_c, up2, up1,
             s_wb.w_up1c_w, s_wb.w_up1c_b,
             s_wb.w_up1c_gamma, s_wb.w_up1c_beta,
@@ -501,7 +568,8 @@ void pvfinder_unet_t::operator()(
         run_conv_transpose(cat2, logits,
             s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
             s_wb.w_up2t_w, s_wb.w_up2t_b,
-            N, N_FEAT, W_IN, block, context, handle);
+            N, N_FEAT, W_IN, block, context, handle,
+            s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
         run_convbnrelu(s_desc.up2_c, logits, up2,
             s_wb.w_up2c_w, s_wb.w_up2c_b,
             s_wb.w_up2c_gamma, s_wb.w_up2c_beta,

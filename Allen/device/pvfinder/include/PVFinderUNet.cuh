@@ -116,7 +116,9 @@ private:
         const float* w_ptr, const float* bias_ptr,
         int N, int C_out, int W_out,
         const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle) const;
+        cudnnHandle_t handle,
+        cudnnConvolutionBwdDataAlgo_t algo,
+        void* workspace, size_t ws_bytes) const;
 #endif
 };
 
