@@ -53,7 +53,7 @@ static std::once_flag    s_desc_init_flag;
 static void init_global_descriptors(cudnnHandle_t handle)
 {
     constexpr int N = N_CHUNK_INTERVALS;
-    // Forward convs: algorithm selected at create() time via cudnnGetConvolutionForwardAlgorithm_v7.
+    // Forward convs: algorithm selected at create() time via cudnnFindConvolutionForwardAlgorithmEx (timed).
     s_desc.rcbn1.create(    handle, {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
     s_desc.rcbn2.create(    handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
     s_desc.rcbn3.create(    handle, {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});

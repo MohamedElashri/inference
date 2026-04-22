@@ -96,23 +96,49 @@ namespace Allen::CuDNN {
 
       m_created = true;
 
-      // Select fastest algorithm within workspace budget.
-      static constexpr size_t kBudget = 64ul * 1024 * 1024;
+      // Select fastest algorithm by benchmarking all candidates on the actual
+      // hardware (Find variant). One-time startup cost; returns measured timings
+      // rather than heuristic lookup. Allocate kBudget as search workspace, run
+      // Find, record the winner, then free the search buffer and reallocate only
+      // the winning workspace size.
+      static constexpr size_t kBudget  = 64ul * 1024 * 1024;
       static constexpr int    kMaxAlgos = 8;
+
+      size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
+      size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
+      size_t out_elems  = (size_t)on * oc * oh * ow;
+
+      float *tmp_in = nullptr, *tmp_filt = nullptr, *tmp_out = nullptr;
+      void  *search_ws = nullptr;
+      cudaMalloc(&tmp_in,    in_elems   * sizeof(float));
+      cudaMalloc(&tmp_filt,  filt_elems * sizeof(float));
+      cudaMalloc(&tmp_out,   out_elems  * sizeof(float));
+      cudaMalloc(&search_ws, kBudget);
+
       int returned = 0;
       cudnnConvolutionFwdAlgoPerf_t perf[kMaxAlgos];
-      if (cudnnGetConvolutionForwardAlgorithm_v7(
-              handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc,
-              kMaxAlgos, &returned, perf) == CUDNN_STATUS_SUCCESS) {
+      if (cudnnFindConvolutionForwardAlgorithmEx(
+              handle,
+              m_input_desc,  tmp_in,
+              m_filter_desc, tmp_filt,
+              m_conv_desc,
+              m_output_desc, tmp_out,
+              kMaxAlgos, &returned, perf,
+              search_ws, kBudget) == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBudget) {
-            m_algo    = perf[i].algo;
+            m_algo     = perf[i].algo;
             m_ws_bytes = perf[i].memory;
-            if (m_ws_bytes > 0) cudaMalloc(&m_workspace, m_ws_bytes);
             break;
           }
         }
       }
+
+      cudaFree(tmp_in);
+      cudaFree(tmp_filt);
+      cudaFree(tmp_out);
+      cudaFree(search_ws);
+      if (m_ws_bytes > 0) cudaMalloc(&m_workspace, m_ws_bytes);
     }
 
     size_t workspace_bytes() const { return m_ws_bytes; }
