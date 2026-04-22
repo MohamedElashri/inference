@@ -577,27 +577,25 @@ void pvfinder_unet_t::operator()(
             N, N_FEAT, W_IN, block, context, handle);
 
         // ---- Output ----
-        // Safe sequence: read x1 skip → logits first, then overwrite x1 (=oint) with half-a.
+        // oint_half: accumulate both halves into logits using cuDNN beta=1 on the
+        // second conv, eliminating the standalone accumulate_add_kernel.
+        // logits = conv_b(x1);  logits += conv_a(up2)  (beta=1 does the accumulate)
+        // outc then reads logits and writes to oint (x1 is free at this point).
         run_conv(s_desc.oint_half, x1, logits,
             s_wb.w_oint_b_w, nullptr,
             N, N_FEAT, W_IN, block, context, handle, 0.f);
-        run_conv(s_desc.oint_half, up2, oint,
+        run_conv(s_desc.oint_half, up2, logits,
             s_wb.w_oint_a_w, nullptr,
-            N, N_FEAT, W_IN, block, context, handle, 0.f);
-        {
-            const unsigned total = (unsigned)(N * N_FEAT * W_IN);
-            const unsigned grid  = (total + block.x - 1) / block.x;
-            accumulate_add_kernel<<<grid, block, 0, context.stream()>>>(oint, logits, total);
-            launch_bias_add(oint, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
-        }
-        run_conv(s_desc.outc, oint, logits,
+            N, N_FEAT, W_IN, block, context, handle, 1.f);
+        launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+        run_conv(s_desc.outc, logits, oint,
             s_wb.w_outc_w, s_wb.w_outc_b,
             N, 1, W_IN, block, context, handle, 0.f);
 
-        launch_softplus_scale(logits, KDE_SCALE, N * W_IN, block, context);
+        launch_softplus_scale(oint, KDE_SCALE, N * W_IN, block, context);
         squeeze_copy_kernel<<<
             ((unsigned)(N * W_IN) + block.x - 1) / block.x, block,
-            0, context.stream()>>>(logits, kde, N * W_IN);
+            0, context.stream()>>>(oint, kde, N * W_IN);
     }
 
     cudnnDestroyTensorDescriptor(td_up1_in);
