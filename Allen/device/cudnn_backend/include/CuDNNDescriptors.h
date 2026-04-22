@@ -84,6 +84,8 @@ namespace Allen::CuDNN {
         m_conv_desc,
         pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1],
         CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+      // CUDNN_TENSOR_OP_MATH: no-op on SM < 8.0; enables TF32 Tensor Core path on Ampere+.
+      ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(m_conv_desc, CUDNN_TENSOR_OP_MATH));
 
       // Derive and store output descriptor — fixed for this shape.
       int on, oc, oh, ow;

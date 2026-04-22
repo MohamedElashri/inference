@@ -70,6 +70,7 @@ static void init_global_descriptors(cudnnHandle_t handle)
     ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up1_t));
     ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
         s_desc.conv_up1_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up1_t, CUDNN_TENSOR_OP_MATH));
 
     ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up2_t));
     ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
@@ -77,6 +78,7 @@ static void init_global_descriptors(cudnnHandle_t handle)
     ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t));
     ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
         s_desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up2_t, CUDNN_TENSOR_OP_MATH));
 
     // Algorithm sweep for ConvTranspose (cudnnConvolutionBackwardData)
     // Uses temporary tensor descriptors for the query — not stored, as operator()
