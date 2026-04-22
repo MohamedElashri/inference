@@ -564,17 +564,17 @@ histos:
       stdDevX: 1.893234
   gather_selections:
     line_passes:
-      nEntries: 24906.0
+      nEntries: 17430.0
       title: line passes
-      sum: 24906
-      meanX: 91.416767
-      stdDevX: 20.777941
+      sum: 17430
+      meanX: 86.234079
+      stdDevX: 22.965444
     line_rates:
-      nEntries: 8170.0
+      nEntries: 694.0
       title: line rates
-      sum: 8170
-      meanX: 101.46683
-      stdDevX: 11.621963
+      sum: 694
+      meanX: 79.564841
+      stdDevX: 32.647539
   is_muon:
     n_muons:
       nEntries: 461104.0
@@ -1051,10 +1051,6 @@ counters:
       nEntries: 255.0
     Hlt1TwoTrackMVARate:
       nEntries: 255.0
-    Hlt1VeloLargeClustersPass:
-      nEntries: 7476.0
-    Hlt1VeloLargeClustersRate:
-      nEntries: 7476.0
     Hlt1VeloMicroBiasPass:
       nEntries: 9997.0
     Hlt1VeloMicroBiasRate:
