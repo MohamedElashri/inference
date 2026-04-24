@@ -132,11 +132,10 @@ std::tuple<bool, bool, std::span<const char>> MDF::read_banks(
   size_t raw_size = LHCb::MDFHeader::sizeOf(h.headerVersion());
   unsigned int checksum = h.checkSum();
   int compress = h.compression() & 0xF;
-  int expand = (h.compression() >> 4) + 1;
   int hdrSize = h.subheaderLength();
   size_t readSize = h.recordSize() - raw_size;
   int chkSize = h.recordSize() - 4 * sizeof(int);
-  int alloc_len = (2 * raw_size + readSize + sizeof(LHCb::RawBank) + sizeof(int) + (compress ? expand * readSize : 0));
+  const auto required_size = MDF::read_banks_buffer_size(h);
 
   // Build the DAQ status bank that contains the header
   auto build_bank = [raw_size, &h](char* address) {
@@ -156,9 +155,8 @@ std::tuple<bool, bool, std::span<const char>> MDF::read_banks(
   }
 
   // accomodate for potential padding of MDF header bank!
-  if (static_cast<size_t>(buffer.size()) < alloc_len + sizeof(int) + sizeof(LHCb::RawBank)) {
-    cerr << "Failed to read banks: buffer too small " << buffer.size() << " "
-         << alloc_len + sizeof(int) + sizeof(LHCb::RawBank) << "\n";
+  if (static_cast<size_t>(buffer.size()) < required_size) {
+    cerr << "Failed to read banks: buffer too small " << buffer.size() << " " << required_size << "\n";
     return {false, true, {}};
   }
 
