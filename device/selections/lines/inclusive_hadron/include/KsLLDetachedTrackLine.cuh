@@ -207,7 +207,7 @@ namespace ks_ll_detached_track_line {
     Allen::Property<float> m_SUMPT_min {
       this,
       "SUMPT_min",
-      2.5f * Allen::Units::GeV,
+      2500.f * Allen::Units::MeV,
       "sum of Ks and track pT"}; // modified wrt LambdaLLDetachedTrackLine(Allen/v7r6p2)
 
     Allen::Monitoring::Histogram<> m_histogram_Ks_mass {this,

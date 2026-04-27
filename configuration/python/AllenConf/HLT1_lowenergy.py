@@ -51,7 +51,6 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
     v0_pairs = reconstructed_objects["v0_pairs"]
     v0_hh_pairs = reconstructed_objects["v0_hh_pairs"]
     muon_stubs = reconstructed_objects["muon_stubs"]
-    ks_track_from_c = reconstructed_objects["ks_track_from_c"]
 
     lines = [
         make_track_mva_line(
@@ -122,6 +121,10 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
             make_ks_ll_detached_track_line(
                 ks_track_from_c,
                 name="Hlt1KsLLDetachedTrack",
+                pi_PT_min=300,
+                Ks_PT_min=700,
+                h_PT_min=400,
+                SUMPT_min=1000,
                 enable_tupling=enable_tupling)
         ]
 
