@@ -861,21 +861,18 @@ def default_bgi_activity_lines(pvs,
             make_beam_line(
                 name="Hlt1BGIPseudoPVsIRBeamBeam",
                 beam_crossing_type=3,
-                pre_scaler=1. if enableBGI_full else 4e-5,
+                pre_scaler=0.1 if enableBGI_full else 4e-5,
                 post_scaler=1.,
                 enable_tupling=enable_tupling),
             prefilter=prefilter + [velo_states_z_ir])
     ]
-
-    if not enableBGI_full:
-        return lines
 
     lines += [
         line_maker(
             make_beam_line(
                 name="Hlt1BGIPVsCylNoBeam",
                 beam_crossing_type=0,
-                pre_scaler=1.,
+                pre_scaler=1. if enableBGI_full else 0.,
                 post_scaler=1.,
                 enable_tupling=enable_tupling),
             prefilter=prefilter + [bx_NoBB, pvs_z_all]),
@@ -883,7 +880,7 @@ def default_bgi_activity_lines(pvs,
             make_beam_line(
                 name="Hlt1BGIPVsCylBeamOne",
                 beam_crossing_type=1,
-                pre_scaler=1.,
+                pre_scaler=1. if enableBGI_full else 0.,
                 post_scaler=1.,
                 enable_tupling=enable_tupling),
             prefilter=prefilter + [bx_NoBB, pvs_z_all]),
@@ -891,7 +888,7 @@ def default_bgi_activity_lines(pvs,
             make_beam_line(
                 name="Hlt1BGIPVsCylBeamTwo",
                 beam_crossing_type=2,
-                pre_scaler=1.,
+                pre_scaler=1. if enableBGI_full else 0.,
                 post_scaler=1.,
                 enable_tupling=enable_tupling),
             prefilter=prefilter + [bx_NoBB, pvs_z_all])
@@ -909,7 +906,7 @@ def default_bgi_activity_lines(pvs,
             make_beam_line(
                 name="Hlt1BGIPVsCylUpBeamBeam",
                 beam_crossing_type=3,
-                pre_scaler=1.,
+                pre_scaler=1. if enableBGI_full else 0.,
                 post_scaler=1.,
                 enable_tupling=enable_tupling),
             prefilter=prefilter + [pvs_z_up])
@@ -927,7 +924,7 @@ def default_bgi_activity_lines(pvs,
             make_beam_line(
                 name="Hlt1BGIPVsCylDownBeamBeam",
                 beam_crossing_type=3,
-                pre_scaler=1.,
+                pre_scaler=1. if enableBGI_full else 0.,
                 post_scaler=1.,
                 enable_tupling=enable_tupling),
             prefilter=prefilter + [pvs_z_down])
