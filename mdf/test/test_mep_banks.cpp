@@ -99,12 +99,16 @@ IInputProvider* mep_provider()
   auto prop = app.as<IProperty>();
   bool sc = prop->setProperty("ExtSvc", "[\"AllenConfiguration\", \"MEPProvider\"]").isSuccess();
   sc &= prop->setProperty("JobOptionsType", "\"NONE\"");
+  if (s_config.debug) {
+    sc &= prop->setProperty("OutputLevel", MSG::DEBUG);
+  }
   sc &= app->configure();
 
   auto sloc = app.as<ISvcLocator>();
 
   auto allen_conf = sloc->service<IService>("AllenConfiguration");
   if (!allen_conf) return nullptr;
+
   auto allen_conf_prop = allen_conf.as<IProperty>();
   sc &= allen_conf_prop->setProperty("JSON", "{}").isSuccess();
 
@@ -120,7 +124,7 @@ IInputProvider* mep_provider()
   sc &= provider_prop->setProperty("Source", "\"Files\"");
   sc &= provider_prop->setProperty("BufferConfig", "(2, 2)");
   sc &= provider_prop->setProperty("TransposeMEPs", std::to_string(s_config.transpose_mep));
-  sc &= provider_prop->setProperty("OutputLevel", s_config.debug ? "2" : "3");
+  sc &= provider_prop->setProperty("OutputLevel", s_config.debug ? MSG::DEBUG : MSG::INFO);
 
   auto mep_files = split_string(s_config.mep_files, ",");
   std::stringstream ss;
@@ -135,6 +139,7 @@ IInputProvider* mep_provider()
   sc &= app->initialize();
   sc &= app->start();
   sc &= app->stop();
+
   return dynamic_cast<IInputProvider*>(provider.get());
 }
 
@@ -205,7 +210,7 @@ int main(int argc, char* argv[])
     }
 
     mep = mep_provider();
-    if (mep == nullptr) {
+    if (!mep) {
       std::cerr << "Failed to obtain MEPProvider\n";
       return 1;
     }
@@ -237,20 +242,25 @@ int main(int argc, char* argv[])
     }
   }
 
+  std::cout << "Running Session" << std::endl;
   auto r = session.run();
 
+  std::cout << "Freeing MDF slices" << std::endl;
   for (auto [id, slice_mdf] : s_config.mdf_slices) {
     mdf->slice_free(slice_mdf);
   }
 
+  std::cout << "Freeing MEP slices" << std::endl;
   for (auto [id, slice_mep] : s_config.mep_slices) {
     mep->slice_free(slice_mep);
   }
 
+  std::cout << "Finalising" << std::endl;
   mdf.reset();
   if (app) {
     app->finalize().ignore();
   }
+
   return r;
 }
 
