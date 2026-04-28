@@ -1108,8 +1108,8 @@ def setup_hlt1_node(enablePhysics=True,
                     reconstructed_objects["velo_states"],
                     name="Hlt1VeloLargeClusters",
                     min_eta=5.,
-                    min_cluster_size=5,
-                    min_n_hits=6,
+                    min_cluster_size=4,
+                    min_n_hits=5,
                     enable_tupling=enableTupling))
         ]
 
