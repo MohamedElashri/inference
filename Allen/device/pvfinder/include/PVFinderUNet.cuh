@@ -90,13 +90,11 @@ private:
     // Per-layer helpers — use global descriptor set + thread_local handle
     void run_convbnrelu(
         const Allen::CuDNN::ConvDescriptors& desc,
-        const float* input,  float* output,
-        const float* w_ptr,  const float* bias_ptr,
-        const float* bn_gamma, const float* bn_beta,
-        const float* bn_mean,  const float* bn_var, float bn_eps,
-        int N, int C_out, int W,
-        const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle) const;
+        const float* input, float* output,
+        const float* w_fused, const float* b_fused,
+        int K, int W_out, int N,
+        cudnnHandle_t handle,
+        const dim3& block, const Allen::Context& ctx) const;
 
     void run_conv(
         const Allen::CuDNN::ConvDescriptors& desc,

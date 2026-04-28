@@ -139,6 +139,54 @@ __global__ void accumulate_add_kernel(
 }
 
 // ---------------------------------------------------------------------------
+// Bias add + ReLU: y = relu(tensor + bias[c])
+// Used after BN-folded convolutions — BN absorbed into weights at init,
+// so only bias + ReLU remain at runtime. Avoids the 4 extra per-channel
+// reads (gamma/beta/mean/var) of bias_bn_relu_kernel.
+// ---------------------------------------------------------------------------
+__global__ void bias_relu_kernel(
+    float* __restrict__ tensor,
+    const float* __restrict__ bias,
+    int C, int W, int total)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    int c = (i / W) % C;
+    float v = tensor[i] + bias[c];
+    tensor[i] = v > 0.f ? v : 0.f;
+}
+
+// ---------------------------------------------------------------------------
+// BN weight folding: fuse BN into conv weights + bias at init time.
+// After folding, inference is y = relu(conv(x, w_fused) + b_fused) — no
+// separate BN kernel needed at runtime.
+//
+// scale[k] = gamma[k] / sqrt(var[k] + eps)
+// w_fused[k,...] = scale[k] * w[k,...]
+// b_fused[k]     = scale[k] * (b[k] - mean[k]) + beta[k]
+//
+// Launch: <<<K, 256>>> where K = number of output channels.
+// ---------------------------------------------------------------------------
+__global__ void fold_bn_into_conv_kernel(
+    float* __restrict__ w_fused,
+    float* __restrict__ b_fused,
+    const float* __restrict__ w,
+    const float* __restrict__ b,
+    const float* __restrict__ gamma,
+    const float* __restrict__ beta,
+    const float* __restrict__ mean,
+    const float* __restrict__ var,
+    float eps, int K, int CxHxW)
+{
+    int k = blockIdx.x;
+    if (k >= K) return;
+    float scale = gamma[k] * rsqrtf(var[k] + eps);
+    if (threadIdx.x == 0) b_fused[k] = scale * (b[k] - mean[k]) + beta[k];
+    for (int i = threadIdx.x; i < CxHxW; i += blockDim.x)
+        w_fused[k * CxHxW + i] = scale * w[k * CxHxW + i];
+}
+
+// ---------------------------------------------------------------------------
 // Fused bias + BN + ReLU: one global-memory pass instead of three.
 // y[i] = max(0, gamma[c] * ((x[i] + bias[c]) - mean[c]) * rsqrt(var[c]+eps) + beta[c])
 // ---------------------------------------------------------------------------
@@ -163,6 +211,17 @@ __global__ void bias_bn_relu_kernel(
 // ---------------------------------------------------------------------------
 // Convenience: launch helpers called from host code
 // ---------------------------------------------------------------------------
+inline void launch_bias_relu(
+    float* tensor, const float* bias,
+    int C, int W, int N,
+    const dim3& block, const Allen::Context& ctx)
+{
+    int total = N * C * W;
+    dim3 grid((total + block.x - 1) / block.x);
+    bias_relu_kernel<<<grid, block, 0, ctx.stream()>>>(
+        tensor, bias, C, W, total);
+}
+
 inline void launch_bias_bn_relu(
     float* tensor, const float* bias,
     const float* gamma, const float* beta,

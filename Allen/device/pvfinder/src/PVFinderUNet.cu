@@ -23,13 +23,23 @@ static constexpr int N_CHUNK_INTERVALS = B_EVENTS_MAX * N_INTERVALS;
 // Shapes are compile-time constants so no synchronisation is needed after init.
 // ---------------------------------------------------------------------------
 struct GlobalDescriptors {
-    Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→64,  k=25, pad=12)
-    Allen::CuDNN::ConvDescriptors rcbn2;    // Conv(64→64, k=7,  pad=3)
-    Allen::CuDNN::ConvDescriptors rcbn3;    // Conv(64→64, k=5,  pad=2)
-    Allen::CuDNN::ConvDescriptors up1_c;    // Conv(64→64, k=5,  pad=2) after ConvTranspose
-    Allen::CuDNN::ConvDescriptors up2_c;    // Conv(64→64, k=5,  pad=2)
-    Allen::CuDNN::ConvDescriptors oint_half;// Conv(64→64, k=5,  pad=2) — two halves
-    Allen::CuDNN::ConvDescriptors outc;     // Conv(64→1,  k=5,  pad=2)
+    // CBR layers: fused Conv+BiasAdd+ReLU via cudnnConvolutionBiasActivationForward.
+    // BN folded into weights/bias at init time (fold_bn lambda).
+    Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→16,  k=25, pad=12)
+    Allen::CuDNN::ConvDescriptors rcbn2;    // Conv(16→16, k=7,  pad=3)
+    Allen::CuDNN::ConvDescriptors rcbn3;    // Conv(16→16, k=5,  pad=2)
+    Allen::CuDNN::ConvDescriptors up1_c;   // Conv(16→16, k=5,  pad=2) after ConvTranspose
+    Allen::CuDNN::ConvDescriptors up2_c;   // Conv(16→16, k=5,  pad=2)
+    // Non-CBR paths: plain conv (no BN/ReLU fusion).
+    Allen::CuDNN::ConvDescriptors oint_half;// Conv(16→16, k=5,  pad=2) — two halves
+    Allen::CuDNN::ConvDescriptors outc;     // Conv(16→1,  k=5,  pad=2)
+
+    // BN-folded weights and biases for each CBR layer (device pointers, owned here).
+    float* rcbn1_w_f = nullptr; float* rcbn1_b_f = nullptr;
+    float* rcbn2_w_f = nullptr; float* rcbn2_b_f = nullptr;
+    float* rcbn3_w_f = nullptr; float* rcbn3_b_f = nullptr;
+    float* up1c_w_f  = nullptr; float* up1c_b_f  = nullptr;
+    float* up2c_w_f  = nullptr; float* up2c_b_f  = nullptr;
 
     // ConvTranspose descriptors (filter + conv only; tensor descs are local in operator())
     cudnnFilterDescriptor_t       filter_up1_t = nullptr;
@@ -50,17 +60,109 @@ static GlobalDescriptors s_desc;
 static std::once_flag    s_init_flag;
 static std::once_flag    s_desc_init_flag;
 
-static void init_global_descriptors(cudnnHandle_t handle)
+// Weight blob: device pointers per layer (filled in init(), used in operator()).
+struct WeightBlob {
+    const float* w_rcbn1_w;  const float* w_rcbn1_b;
+    const float* w_rcbn1_gamma; const float* w_rcbn1_beta;
+    const float* w_rcbn1_mean;  const float* w_rcbn1_var;
+    float rcbn1_eps;
+
+    const float* w_rcbn2_w;  const float* w_rcbn2_b;
+    const float* w_rcbn2_gamma; const float* w_rcbn2_beta;
+    const float* w_rcbn2_mean;  const float* w_rcbn2_var;
+    float rcbn2_eps;
+
+    const float* w_rcbn3_w;  const float* w_rcbn3_b;
+    const float* w_rcbn3_gamma; const float* w_rcbn3_beta;
+    const float* w_rcbn3_mean;  const float* w_rcbn3_var;
+    float rcbn3_eps;
+
+    const float* w_up1t_w;   const float* w_up1t_b;
+    const float* w_up1c_w;   const float* w_up1c_b;
+    const float* w_up1c_gamma; const float* w_up1c_beta;
+    const float* w_up1c_mean;  const float* w_up1c_var;
+    float up1c_eps;
+
+    const float* w_up2t_w;   const float* w_up2t_b;
+    const float* w_up2c_w;   const float* w_up2c_b;
+    const float* w_up2c_gamma; const float* w_up2c_beta;
+    const float* w_up2c_mean;  const float* w_up2c_var;
+    float up2c_eps;
+
+    const float* w_oint_a_w;
+    const float* w_oint_b_w;
+    const float* w_oint_b;
+    const float* w_outc_w;   const float* w_outc_b;
+};
+static WeightBlob s_wb {};
+static bool s_wb_loaded = false;
+
+static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
 {
     constexpr int N = N_CHUNK_INTERVALS;
-    // Forward convs: algorithm selected at create() time via cudnnFindConvolutionForwardAlgorithmEx (timed).
-    s_desc.rcbn1.create(    handle, {N, N_BATCH_CHANNELS, 1, W_IN},  {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
-    s_desc.rcbn2.create(    handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  7}, {0, 3});
-    s_desc.rcbn3.create(    handle, {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.up1_c.create(    handle, {N, N_FEAT,            1, W_HALF},{N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.up2_c.create(    handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.oint_half.create(handle, {N, N_FEAT,            1, W_IN},  {N_FEAT, N_FEAT,            1,  5}, {0, 2});
-    s_desc.outc.create(     handle, {N, N_FEAT,            1, W_IN},  {1,      N_FEAT,            1,  5}, {0, 2});
+
+    // Helper: allocate device buffer for fused weights/bias and launch the
+    // BN-folding kernel.
+    // scale[k] = gamma[k]/sqrt(var[k]+eps), w_f[k,...]=scale[k]*w[k,...],
+    // b_f[k] = scale[k]*(b[k]-mean[k])+beta[k].
+    auto fold_bn = [](const float* w, const float* b,
+                      const float* gamma, const float* beta,
+                      const float* mean,  const float* var, float eps,
+                      int K, int CxHxW,
+                      float*& w_f, float*& b_f,
+                      cudaStream_t stream)
+    {
+        cudaMalloc(&w_f, (size_t)K * CxHxW * sizeof(float));
+        cudaMalloc(&b_f, (size_t)K * sizeof(float));
+        fold_bn_into_conv_kernel<<<K, dim3(256), 0, stream>>>(
+            w_f, b_f, w, b, gamma, beta, mean, var, eps, K, CxHxW);
+    };
+
+    // Fold BN into conv weights for each CBR layer, then build the fused graph.
+    // All fold kernels run on stream 0 (init is single-threaded here).
+    fold_bn(wb.w_rcbn1_w, wb.w_rcbn1_b,
+            wb.w_rcbn1_gamma, wb.w_rcbn1_beta,
+            wb.w_rcbn1_mean,  wb.w_rcbn1_var, wb.rcbn1_eps,
+            N_FEAT, N_BATCH_CHANNELS * 25,
+            s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
+
+    fold_bn(wb.w_rcbn2_w, wb.w_rcbn2_b,
+            wb.w_rcbn2_gamma, wb.w_rcbn2_beta,
+            wb.w_rcbn2_mean,  wb.w_rcbn2_var, wb.rcbn2_eps,
+            N_FEAT, N_FEAT * 7,
+            s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3});
+
+    fold_bn(wb.w_rcbn3_w, wb.w_rcbn3_b,
+            wb.w_rcbn3_gamma, wb.w_rcbn3_beta,
+            wb.w_rcbn3_mean,  wb.w_rcbn3_var, wb.rcbn3_eps,
+            N_FEAT, N_FEAT * 5,
+            s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+
+    fold_bn(wb.w_up1c_w, wb.w_up1c_b,
+            wb.w_up1c_gamma, wb.w_up1c_beta,
+            wb.w_up1c_mean,  wb.w_up1c_var, wb.up1c_eps,
+            N_FEAT, N_FEAT * 5,
+            s_desc.up1c_w_f, s_desc.up1c_b_f, 0);
+    cudaDeviceSynchronize();
+    s_desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+
+    fold_bn(wb.w_up2c_w, wb.w_up2c_b,
+            wb.w_up2c_gamma, wb.w_up2c_beta,
+            wb.w_up2c_mean,  wb.w_up2c_var, wb.up2c_eps,
+            N_FEAT, N_FEAT * 5,
+            s_desc.up2c_w_f, s_desc.up2c_b_f, 0);
+    cudaDeviceSynchronize();
+    s_desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+
+    // Non-CBR paths keep the existing Find-based ConvDescriptors.
+    s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2});
 
     // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
     // Tensor descriptors for in/out are created as locals in operator() per-call.
@@ -149,42 +251,6 @@ static void init_global_descriptors(cudnnHandle_t handle)
 //   conv(128→64,k=5): out_intermediate
 //   conv(64→1,k=5):   outc
 // ---------------------------------------------------------------------------
-struct WeightBlob {
-    // Per-layer device pointers into WeightRegistry
-    // Naming: w_<layer>_<weight/bias/gamma/beta/mean/var>
-    const float* w_rcbn1_w;  const float* w_rcbn1_b;
-    const float* w_rcbn1_gamma; const float* w_rcbn1_beta;
-    const float* w_rcbn1_mean;  const float* w_rcbn1_var;
-    float rcbn1_eps;
-
-    const float* w_rcbn2_w;  const float* w_rcbn2_b;
-    const float* w_rcbn2_gamma; const float* w_rcbn2_beta;
-    const float* w_rcbn2_mean;  const float* w_rcbn2_var;
-    float rcbn2_eps;
-
-    const float* w_rcbn3_w;  const float* w_rcbn3_b;
-    const float* w_rcbn3_gamma; const float* w_rcbn3_beta;
-    const float* w_rcbn3_mean;  const float* w_rcbn3_var;
-    float rcbn3_eps;
-
-    const float* w_up1t_w;   const float* w_up1t_b;     // ConvTranspose
-    const float* w_up1c_w;   const float* w_up1c_b;     // Conv after transpose
-    const float* w_up1c_gamma; const float* w_up1c_beta;
-    const float* w_up1c_mean;  const float* w_up1c_var;
-    float up1c_eps;
-
-    const float* w_up2t_w;   const float* w_up2t_b;
-    const float* w_up2c_w;   const float* w_up2c_b;
-    const float* w_up2c_gamma; const float* w_up2c_beta;
-    const float* w_up2c_mean;  const float* w_up2c_var;
-    float up2c_eps;
-
-    // out_intermediate: split into two 64-channel halves to avoid cat_out[N,128,100] buffer
-    const float* w_oint_a_w; // [64, 64, 1, 5] — input channels 0:64  (from up2)
-    const float* w_oint_b_w; // [64, 64, 1, 5] — input channels 64:128 (from x1)
-    const float* w_oint_b;   // bias [64] — added after both halves
-    const float* w_outc_w;   const float* w_outc_b;
-};
 
 // ---------------------------------------------------------------------------
 // Read a block of floats from a host buffer at a given byte offset.
@@ -357,11 +423,6 @@ static WeightBlob load_weights(const std::string& path)
     return wb;
 }
 
-// ---------------------------------------------------------------------------
-// Static weight blob (filled once at init())
-// ---------------------------------------------------------------------------
-static WeightBlob s_wb {};
-static bool s_wb_loaded = false;
 #endif // ALLEN_CUDNN_BACKEND_CUDA
 
 // ---------------------------------------------------------------------------
@@ -407,21 +468,19 @@ void pvfinder_unet_t::set_arguments_size(
 // ---------------------------------------------------------------------------
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-// Conv1d + bias + BN + ReLU.
+// Conv1d + bias + ReLU (BN folded into w_fused/b_fused at init).
+// Uses cudnnConvolutionForward with the Phase K timed algorithm, then
+// launches bias_relu_kernel (no BN math — BN already in w_fused/b_fused).
 void pvfinder_unet_t::run_convbnrelu(
     const Allen::CuDNN::ConvDescriptors& desc,
     const float* input, float* output,
-    const float* w_ptr,  const float* bias_ptr,
-    const float* bn_gamma, const float* bn_beta,
-    const float* bn_mean,  const float* bn_var, float bn_eps,
-    int N, int C_out, int W,
-    const dim3& block, const Allen::Context& ctx,
-    cudnnHandle_t handle) const
+    const float* w_fused, const float* b_fused,
+    int K, int W_out, int N,
+    cudnnHandle_t handle,
+    const dim3& block, const Allen::Context& ctx) const
 {
-    const float alpha = 1.f, beta = 0.f;
-    desc.forward(handle, alpha, beta, input, w_ptr, output);
-    launch_bias_bn_relu(output, bias_ptr, bn_gamma, bn_beta, bn_mean, bn_var, bn_eps,
-                        C_out, W, N, block, ctx);
+    desc.forward(handle, 1.f, 0.f, input, w_fused, output);
+    launch_bias_relu(output, b_fused, K, W_out, N, block, ctx);
 }
 
 // Conv1d only (no BN/ReLU).
@@ -487,7 +546,7 @@ void pvfinder_unet_t::operator()(
 
     // Descriptor creation needs a live handle (for algorithm selection), so it runs
     // here on first operator() call rather than in init().
-    std::call_once(s_desc_init_flag, init_global_descriptors, handle);
+    std::call_once(s_desc_init_flag, [handle]() { init_global_descriptors(handle, s_wb); });
 
     const dim3 block = m_block_dim;
     constexpr int N = N_CHUNK_INTERVALS;  // batch size = 20 * 40 = 800
@@ -534,24 +593,11 @@ void pvfinder_unet_t::operator()(
         float*       kde = kde_base + chunk_start * kde_stride;
 
         // ---- Downsampling ----
-        run_convbnrelu(s_desc.rcbn1, ncw, x1,
-            s_wb.w_rcbn1_w, s_wb.w_rcbn1_b,
-            s_wb.w_rcbn1_gamma, s_wb.w_rcbn1_beta,
-            s_wb.w_rcbn1_mean,  s_wb.w_rcbn1_var, s_wb.rcbn1_eps,
-            N, N_FEAT, W_IN, block, context, handle);
-
-        run_convbnrelu(s_desc.rcbn2, x1, up2,
-            s_wb.w_rcbn2_w, s_wb.w_rcbn2_b,
-            s_wb.w_rcbn2_gamma, s_wb.w_rcbn2_beta,
-            s_wb.w_rcbn2_mean,  s_wb.w_rcbn2_var, s_wb.rcbn2_eps,
-            N, N_FEAT, W_IN, block, context, handle);
+        run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
+        run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
         launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
 
-        run_convbnrelu(s_desc.rcbn3, x2, up2,
-            s_wb.w_rcbn3_w, s_wb.w_rcbn3_b,
-            s_wb.w_rcbn3_gamma, s_wb.w_rcbn3_beta,
-            s_wb.w_rcbn3_mean,  s_wb.w_rcbn3_var, s_wb.rcbn3_eps,
-            N, N_FEAT, W_HALF, block, context, handle);
+        run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
         launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
         // ---- Upsampling ----
@@ -560,11 +606,7 @@ void pvfinder_unet_t::operator()(
             s_wb.w_up1t_w, s_wb.w_up1t_b,
             N, N_FEAT, W_HALF, block, context, handle,
             s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
-        run_convbnrelu(s_desc.up1_c, up2, up1,
-            s_wb.w_up1c_w, s_wb.w_up1c_b,
-            s_wb.w_up1c_gamma, s_wb.w_up1c_beta,
-            s_wb.w_up1c_mean,  s_wb.w_up1c_var, s_wb.up1c_eps,
-            N, N_FEAT, W_HALF, block, context, handle);
+        run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
 
         launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
         run_conv_transpose(cat2, logits,
@@ -572,11 +614,7 @@ void pvfinder_unet_t::operator()(
             s_wb.w_up2t_w, s_wb.w_up2t_b,
             N, N_FEAT, W_IN, block, context, handle,
             s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
-        run_convbnrelu(s_desc.up2_c, logits, up2,
-            s_wb.w_up2c_w, s_wb.w_up2c_b,
-            s_wb.w_up2c_gamma, s_wb.w_up2c_beta,
-            s_wb.w_up2c_mean,  s_wb.w_up2c_var, s_wb.up2c_eps,
-            N, N_FEAT, W_IN, block, context, handle);
+        run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN,  N, handle, block, context);
 
         // ---- Output ----
         // oint_half: accumulate both halves into logits using cuDNN beta=1 on the
