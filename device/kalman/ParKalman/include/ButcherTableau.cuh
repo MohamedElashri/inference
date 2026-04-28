@@ -51,41 +51,58 @@ namespace ButcherTableau {
   template<typename ftype = float>
   struct HeunEuler {
     static constexpr int N_stages = 2;
-    a_table(1.) b_table(1., 0.) b_star_table(1. / 2., 1. / 2.)
+    a_table(1.) b_table(1., 0.) b_star_table(static_cast<ftype>(1. / 2.), static_cast<ftype>(1. / 2.))
   };
 
   template<typename ftype = float>
   struct RK4 {
     static constexpr int N_stages = 4;
     a_table(
-      1. / 2., //
-      0.,
-      1. / 2., //
-      0.,
-      0.,
-      1. //
-      ) b_table(1. / 6., 1. / 3., 1. / 3., 1. / 6.)
+      static_cast<ftype>(1. / 2.),
+      static_cast<ftype>(0.),
+      static_cast<ftype>(1. / 2.),
+      static_cast<ftype>(0.),
+      static_cast<ftype>(0.),
+      static_cast<ftype>(1))
+      b_table(
+        static_cast<ftype>(1. / 6.),
+        static_cast<ftype>(1. / 3.),
+        static_cast<ftype>(1. / 3.),
+        static_cast<ftype>(1. / 6.))
   };
 
   template<typename ftype = float>
   struct CashKarp {
     static constexpr int N_stages = 6;
     a_table(
-      1. / 5., //
-      3. / 40.,
-      9. / 40., //
-      3. / 10.,
-      -9. / 10.,
-      6. / 5., //
-      -11. / 54.,
-      5. / 2.,
-      -70. / 27.,
-      35. / 27., //
-      1631. / 55296.,
-      175. / 512.,
-      575. / 13824.,
-      44275. / 110592.,
-      253. / 4096.) b_table(37. / 378., 0., 250. / 621., 125. / 594., 0., 512. / 1771.)
-      b_star_table(2825. / 27648., 0., 18575. / 48384., 13525. / 55296., 277. / 14336., 1. / 4.)
+      static_cast<ftype>(1. / 5.), //
+      static_cast<ftype>(3. / 40.),
+      static_cast<ftype>(9. / 40.), //
+      static_cast<ftype>(3. / 10.),
+      static_cast<ftype>(-9. / 10.),
+      static_cast<ftype>(6. / 5.), //
+      static_cast<ftype>(-11. / 54.),
+      static_cast<ftype>(5. / 2.),
+      static_cast<ftype>(-70. / 27.),
+      static_cast<ftype>(35. / 27.), //
+      static_cast<ftype>(1631. / 55296.),
+      static_cast<ftype>(175. / 512.),
+      static_cast<ftype>(575. / 13824.),
+      static_cast<ftype>(44275. / 110592.),
+      static_cast<ftype>(253. / 4096.))
+      b_table(
+        static_cast<ftype>(37. / 378.),
+        static_cast<ftype>(0.),
+        static_cast<ftype>(250. / 621.),
+        static_cast<ftype>(125. / 594.),
+        static_cast<ftype>(0.),
+        static_cast<ftype>(512. / 1771.))
+        b_star_table(
+          static_cast<ftype>(2825. / 27648.),
+          static_cast<ftype>(0.),
+          static_cast<ftype>(18575. / 48384.),
+          static_cast<ftype>(13525. / 55296.),
+          static_cast<ftype>(277. / 14336.),
+          static_cast<ftype>(1. / 4.))
   };
 } // namespace ButcherTableau
