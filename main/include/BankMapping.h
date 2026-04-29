@@ -32,8 +32,10 @@ namespace Allen {
     {LHCb::Event::Enum::RawBank::BankType::Rich, {BankTypes::Rich1, BankTypes::Rich2}},
     {LHCb::Event::Enum::RawBank::BankType::OTError, {BankTypes::MCVertices}}, // used for PV MC info
     {LHCb::Event::Enum::RawBank::BankType::OTRaw, {BankTypes::MCTracks}},
-    {LHCb::Event::Enum::RawBank::BankType::OTError, {BankTypes::Gen}},  // used for beam crossing angles Gen info
-    {LHCb::Event::Enum::RawBank::BankType::Plume, {BankTypes::Plume}}}; // used for track MC info
+    {LHCb::Event::Enum::RawBank::BankType::OTError, {BankTypes::Gen}}, // used for beam crossing angles Gen info
+    {LHCb::Event::Enum::RawBank::BankType::Plume, {BankTypes::Plume}}, // used for track MC info
+    {LHCb::Event::Enum::RawBank::BankType::CODEX, {BankTypes::CODEX}},
+    {LHCb::Event::Enum::RawBank::BankType::CODEXError, {BankTypes::CODEX}}};
 
   const std::unordered_map<SourceIdSys, BankTypes> subdetectors = {{SourceIdSys::SourceIdSys_ODIN, BankTypes::ODIN},
                                                                    {SourceIdSys::SourceIdSys_VELO_A, BankTypes::VP},
@@ -48,7 +50,8 @@ namespace Allen {
                                                                    {SourceIdSys::SourceIdSys_MUON_C, BankTypes::MUON},
                                                                    {SourceIdSys::SourceIdSys_HCAL, BankTypes::HCal},
                                                                    {SourceIdSys::SourceIdSys_ECAL, BankTypes::ECal},
-                                                                   {SourceIdSys::SourceIdSys_PLUME, BankTypes::Plume}};
+                                                                   {SourceIdSys::SourceIdSys_PLUME, BankTypes::Plume},
+                                                                   {SourceIdSys::SourceIdSys_CODEX, BankTypes::CODEX}};
 
   const unsigned NSourceIdSys = to_integral(SourceIdSys::SourceIdSys_TDET) + 1;
 } // namespace Allen

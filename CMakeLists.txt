@@ -748,6 +748,7 @@ target_link_libraries(AllenLib
     PVChecking
     PV_beamline
     Plume
+    codex
     SciFi
     SelChecking
     Selections

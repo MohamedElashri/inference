@@ -24,6 +24,7 @@ from AllenConf.hlt1_smog2_lines import *
 from AllenConf.hlt1_downstream_lines import *
 from AllenConf.filters import *
 from AllenConf.hlt1_charged_kaon_lines import *
+from AllenConf.codex_lines import make_codex_passthrough_line, make_codex_coincidence_line
 
 from AllenConf.hlt1_photon_lines import make_diphotonhighmass_line
 from AllenConf.persistency import make_persistency
@@ -1479,6 +1480,22 @@ def default_bgi_activity_lines(pvs,
     return lines
 
 
+@configurable
+def codex_lines():
+    lines = []
+    lines += [
+        line_maker(
+            make_codex_passthrough_line(
+                name="Hlt1CodexPassthrough", pre_scaler=1.), )
+    ]
+    lines += [
+        line_maker(
+            make_codex_coincidence_line(
+                name="Hlt1CodexCoincidence", pre_scaler=1.), )
+    ]
+    return lines
+
+
 def setup_hlt1_node(enablePhysics=True,
                     withMCChecking=False,
                     EnableGEC=True,
@@ -1511,7 +1528,8 @@ def setup_hlt1_node(enablePhysics=True,
                     passthrough_pre_scaler=0.0001,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[],
-                    user_hooks=False):
+                    user_hooks=False,
+                    withCODEX=False):
 
     if with_fullKF:
         from AllenConf.secondary_vertex_reconstruction import ParKF_cuts as chi2_cuts
@@ -1772,6 +1790,10 @@ def setup_hlt1_node(enablePhysics=True,
         SMOG2=smog2_lines,
         Technical=technical_lines,
     )
+
+    if withCODEX:
+        grouped_lines["CODEX"] = codex_lines()
+
     grouped_line_algs = {
         key: [tup[0] for tup in lines]
         for key, lines in grouped_lines.items()
@@ -1785,6 +1807,7 @@ def setup_hlt1_node(enablePhysics=True,
     ]
 
     line_nodes = [tup[1] for tup in itertools.chain(*grouped_lines.values())]
+
     lines = CompositeNode(
         "SetupAllLines", line_nodes, NodeLogic.NONLAZY_OR, force_order=False)
 
