@@ -1,8 +1,8 @@
 ###############################################################################
-# (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      #
+# (c) Copyright 2025 CERN for the benefit of the LHCb Collaboration           #
 #                                                                             #
 # This software is distributed under the terms of the Apache License          #
-# version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
+# version 2 (Apache-2.0), copied verbatim in the file "COPYING".              #
 #                                                                             #
 # In applying this licence, CERN does not waive the privileges and immunities #
 # granted to it by virtue of its status as an Intergovernmental Organization  #
@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB selections_src "Hlt1/src/*cu")
 file(GLOB filters_src "filters/src/*cu")
-file(GLOB lines_src "lines/calibration/src/*cu" "lines/charm/src/*cu" "lines/inclusive_hadron/src/*cu" "lines/downstream/src/*cu" "lines/inclusive_hadron/src/*cpp" "lines/muon/src/*cu" "lines/photon/src/*cu" "lines/electron/src/*cu" "lines/monitoring/src/*cu" "lines/SMOG2/src/*cu" "lines/heavy_ions/src/*cu" "lines/exclusive_strange/src/*cu" "lines/ttracks/src/*cu")
+file(GLOB lines_src "lines/calibration/src/*cu" "lines/charm/src/*cu" "lines/inclusive_hadron/src/*cu" "lines/downstream/src/*cu" "lines/inclusive_hadron/src/*cpp" "lines/muon/src/*cu" "lines/photon/src/*cu" "lines/electron/src/*cu" "lines/monitoring/src/*cu" "lines/SMOG2/src/*cu" "lines/heavy_ions/src/*cu" "lines/exclusive_strange/src/*cu" "lines/ttracks/src/*cu" "lines/codex/src/*cu")
 
 if(SEPARABLE_COMPILATION)
   allen_add_device_library(Selections STATIC
@@ -58,4 +58,6 @@ target_include_directories(Selections PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lines/SMOG2/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lines/heavy_ions/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lines/ttracks/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lines/exclusive_strange/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lines/exclusive_strange/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lines/codex/include>
+)

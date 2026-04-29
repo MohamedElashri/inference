@@ -28,7 +28,8 @@ namespace {
                                                       {"Plume", BankTypes::Plume},
                                                       {"tracks", BankTypes::MCTracks},
                                                       {"PVs", BankTypes::MCVertices},
-                                                      {"Gen", BankTypes::Gen}};
+                                                      {"Gen", BankTypes::Gen},
+                                                      {"CODEX", BankTypes::CODEX}};
 }
 
 std::string bank_name(BankTypes bank_type)

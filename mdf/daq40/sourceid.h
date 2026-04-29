@@ -23,7 +23,7 @@ extern "C" {
 
 typedef enum {
   SourceIdSys_ODIN = 0,
-  // 1 ?
+  SourceIdSys_CODEX = 1,
   SourceIdSys_VELO_A = 2,
   SourceIdSys_VELO_C = 3,
   SourceIdSys_RICH_1 = 4,
@@ -51,6 +51,7 @@ inline const char* SourceId_sysstr(uint16_t bits)
 {
   switch (SourceId_sys(bits)) {
   case SourceIdSys_ODIN: return "ODIN";
+  case SourceIdSys_CODEX: return "CODEX";
   case SourceIdSys_VELO_A: return "VELO_A";
   case SourceIdSys_VELO_C: return "VELO_C";
   case SourceIdSys_RICH_1: return "RICH_1";

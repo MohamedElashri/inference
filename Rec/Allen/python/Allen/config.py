@@ -185,8 +185,10 @@ def setup_allen_non_event_data_service(allen_event_loop=False,
         # Configure those detectors that we need
         from Configurables import LHCb__Det__LbDD4hep__DD4hepSvc as DD4hepSvc
         DD4hepSvc().DetectorList = ["/world"] + list(
-            filter(lambda d: d is not None,
-                   [detector_names.get(det, det) for det in bank_types]))
+            filter(lambda d: d is not None, [
+                detector_names.get(det, det)
+                for det in bank_types if det != "CODEX"
+            ]))
 
     data_bank_types = bank_types.copy()
     data_bank_types.remove('Magnet')
