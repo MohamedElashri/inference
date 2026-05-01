@@ -23,6 +23,8 @@ with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
         with_ut=True,
         enableDownstream=True,
         with_fullKF=True,
+        with_downstream_KF=True,
+        with_ttracks=True,
         withCODEX=True,
     )
 
