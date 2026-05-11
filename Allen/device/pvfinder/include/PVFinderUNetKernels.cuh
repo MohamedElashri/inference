@@ -1,6 +1,7 @@
 #pragma once
 #include "AlgorithmTypes.cuh"
 #include <cmath>
+#include <cuda_fp16.h>
 
 // ---------------------------------------------------------------------------
 // Lightweight CUDA kernels for UNet layer primitives.
@@ -295,6 +296,115 @@ inline void launch_softplus_scale(
 {
     dim3 grid((total + block.x - 1) / block.x);
     softplus_scale_kernel<<<grid, block, 0, ctx.stream()>>>(x, scale, total);
+}
+
+// ---------------------------------------------------------------------------
+// Phase M FP16 kernels — used when m_use_fp16=true for Tensor Core benchmarking.
+// All weights/biases must be __half (converted from FP32 BN-folded weights at init).
+// ---------------------------------------------------------------------------
+
+__global__ void f32_to_f16_kernel(__half* __restrict__ dst, const float* __restrict__ src, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    dst[i] = __float2half(src[i]);
+}
+
+__global__ void f16_to_f32_kernel(float* __restrict__ dst, const __half* __restrict__ src, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    dst[i] = __half2float(src[i]);
+}
+
+__global__ void bias_relu_half_kernel(
+    __half* __restrict__ tensor,
+    const __half* __restrict__ bias,
+    int C, int W, int total)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    int c = (i / W) % C;
+    float v = __half2float(tensor[i]) + __half2float(bias[c]);
+    tensor[i] = __float2half(v > 0.f ? v : 0.f);
+}
+
+__global__ void maxpool1d_2_half_kernel(
+    const __half* __restrict__ src,
+    __half* __restrict__ dst,
+    int N, int C, int W_in)
+{
+    int W_out = W_in / 2;
+    int total = N * C * W_out;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    int w_out = i % W_out;
+    int c     = (i / W_out) % C;
+    int n     = i / (C * W_out);
+    int base  = (n * C + c) * W_in + w_out * 2;
+    dst[i] = __hgt(src[base], src[base + 1]) ? src[base] : src[base + 1];
+}
+
+__global__ void concat_channels_half_kernel(
+    const __half* __restrict__ a,
+    const __half* __restrict__ b,
+    __half* __restrict__ dst,
+    int N, int C1, int C2, int W)
+{
+    int C_out = C1 + C2;
+    int total = N * C_out * W;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    int w = i % W;
+    int c = (i / W) % C_out;
+    int n = i / (C_out * W);
+    if (c < C1) dst[i] = a[(n * C1 + c) * W + w];
+    else        dst[i] = b[(n * C2 + (c - C1)) * W + w];
+}
+
+inline void launch_f32_to_f16(
+    __half* dst, const float* src, int n,
+    const dim3& block, const Allen::Context& ctx)
+{
+    dim3 grid((n + block.x - 1) / block.x);
+    f32_to_f16_kernel<<<grid, block, 0, ctx.stream()>>>(dst, src, n);
+}
+
+inline void launch_f16_to_f32(
+    float* dst, const __half* src, int n,
+    const dim3& block, const Allen::Context& ctx)
+{
+    dim3 grid((n + block.x - 1) / block.x);
+    f16_to_f32_kernel<<<grid, block, 0, ctx.stream()>>>(dst, src, n);
+}
+
+inline void launch_bias_relu_half(
+    __half* tensor, const __half* bias,
+    int C, int W, int N,
+    const dim3& block, const Allen::Context& ctx)
+{
+    int total = N * C * W;
+    dim3 grid((total + block.x - 1) / block.x);
+    bias_relu_half_kernel<<<grid, block, 0, ctx.stream()>>>(tensor, bias, C, W, total);
+}
+
+inline void launch_maxpool_half(
+    const __half* src, __half* dst,
+    int N, int C, int W_in,
+    const dim3& block, const Allen::Context& ctx)
+{
+    int W_out = W_in / 2;
+    int total = N * C * W_out;
+    dim3 grid((total + block.x - 1) / block.x);
+    maxpool1d_2_half_kernel<<<grid, block, 0, ctx.stream()>>>(src, dst, N, C, W_in);
+}
+
+inline void launch_concat_half(
+    const __half* a, const __half* b, __half* dst,
+    int N, int C1, int C2, int W,
+    const dim3& block, const Allen::Context& ctx)
+{
+    int total = N * (C1 + C2) * W;
+    dim3 grid((total + block.x - 1) / block.x);
+    concat_channels_half_kernel<<<grid, block, 0, ctx.stream()>>>(a, b, dst, N, C1, C2, W);
 }
 
 } // namespace pvfinder_unet

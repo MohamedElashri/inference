@@ -3,6 +3,9 @@
 #include "CuDNNHandle.h"
 #include <cstddef>
 #include <array>
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#include <cuda_fp16.h>
+#endif
 
 namespace Allen::CuDNN {
 
@@ -56,16 +59,19 @@ namespace Allen::CuDNN {
     ConvDescriptors& operator=(const ConvDescriptors&) = delete;
 
     // Create descriptors with fixed input shape. Selects the fastest algorithm
-    // within a 64 MB workspace budget via cudnnGetConvolutionForwardAlgorithm_v7.
+    // within a 64 MB workspace budget via cudnnFindConvolutionForwardAlgorithmEx.
     // Falls back to IMPLICIT_GEMM (zero workspace) if the query fails or returns
     // no suitable algorithm.
+    // dtype: CUDNN_DATA_FLOAT (default) or CUDNN_DATA_HALF for FP16 Tensor Core path.
+    // Compute type is always CUDNN_DATA_FLOAT (FP32 accumulation) for both dtypes.
     void create(
       cudnnHandle_t     handle,
       std::array<int,4> input_shape,            // {N, C_in, H, W} — fixed
       std::array<int,4> filter_shape,           // {K, C_in, R, S}
       std::array<int,2> pad      = {0, 0},
       std::array<int,2> stride   = {1, 1},
-      std::array<int,2> dilation = {1, 1})
+      std::array<int,2> dilation = {1, 1},
+      cudnnDataType_t   dtype    = CUDNN_DATA_FLOAT)
     {
       ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&m_input_desc));
       ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&m_filter_desc));
@@ -73,18 +79,19 @@ namespace Allen::CuDNN {
       ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&m_output_desc));
 
       ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        m_input_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT,
+        m_input_desc, CUDNN_TENSOR_NCHW, dtype,
         input_shape[0], input_shape[1], input_shape[2], input_shape[3]));
 
       ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        m_filter_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW,
+        m_filter_desc, dtype, CUDNN_TENSOR_NCHW,
         filter_shape[0], filter_shape[1], filter_shape[2], filter_shape[3]));
 
       ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
         m_conv_desc,
         pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1],
         CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-      // CUDNN_TENSOR_OP_MATH: no-op on SM < 8.0; enables TF32 Tensor Core path on Ampere+.
+      // CUDNN_TENSOR_OP_MATH: enables TF32 on Ampere+ for FP32, and Tensor Core on all
+      // supported GPUs for FP16 (wmma on SM 7.x, HMMA on SM 8.x+).
       ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(m_conv_desc, CUDNN_TENSOR_OP_MATH));
 
       // Derive and store output descriptor — fixed for this shape.
@@ -92,7 +99,7 @@ namespace Allen::CuDNN {
       ALLEN_CUDNN_CHECK(cudnnGetConvolution2dForwardOutputDim(
         m_conv_desc, m_input_desc, m_filter_desc, &on, &oc, &oh, &ow));
       ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        m_output_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, on, oc, oh, ow));
+        m_output_desc, CUDNN_TENSOR_NCHW, dtype, on, oc, oh, ow));
 
       m_created = true;
 
@@ -104,15 +111,16 @@ namespace Allen::CuDNN {
       static constexpr size_t kBudget  = 64ul * 1024 * 1024;
       static constexpr int    kMaxAlgos = 8;
 
+      const size_t dtype_bytes = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
       size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
       size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
       size_t out_elems  = (size_t)on * oc * oh * ow;
 
-      float *tmp_in = nullptr, *tmp_filt = nullptr, *tmp_out = nullptr;
-      void  *search_ws = nullptr;
-      cudaMalloc(&tmp_in,    in_elems   * sizeof(float));
-      cudaMalloc(&tmp_filt,  filt_elems * sizeof(float));
-      cudaMalloc(&tmp_out,   out_elems  * sizeof(float));
+      void *tmp_in = nullptr, *tmp_filt = nullptr, *tmp_out = nullptr;
+      void *search_ws = nullptr;
+      cudaMalloc(&tmp_in,    in_elems   * dtype_bytes);
+      cudaMalloc(&tmp_filt,  filt_elems * dtype_bytes);
+      cudaMalloc(&tmp_out,   out_elems  * dtype_bytes);
       cudaMalloc(&search_ws, kBudget);
 
       int returned = 0;
@@ -174,15 +182,38 @@ namespace Allen::CuDNN {
       forward(handle.get(), alpha, beta, dev_input, dev_filter, dev_output);
     }
 
+    // FP16 forward: for descriptors created with dtype=CUDNN_DATA_HALF.
+    // Alpha/beta are float (cuDNN convention for FP16 tensors with FP32 accumulation).
+    void forward_half(
+      cudnnHandle_t   handle,
+      const float     alpha, const float beta,
+      const __half*   dev_input,
+      const __half*   dev_filter,
+      __half*         dev_output) const
+    {
+      ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
+        handle,
+        &alpha,
+        m_input_desc,  dev_input,
+        m_filter_desc, dev_filter,
+        m_conv_desc,
+        m_algo,
+        m_workspace, m_ws_bytes,
+        &beta,
+        m_output_desc, dev_output));
+    }
+
 #else
     void create(cudnnHandle_t, std::array<int,4>, std::array<int,4>,
                 std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
-                std::array<int,2> = {1,1}) {}
+                std::array<int,2> = {1,1}, cudnnDataType_t = CUDNN_DATA_FLOAT) {}
     size_t workspace_bytes() const { return 0; }
     void forward(cudnnHandle_t, float, float,
                  const float*, const float*, float*) const {}
     void forward(const Handle&, float, float,
                  const float*, const float*, float*) const {}
+    void forward_half(cudnnHandle_t, float, float,
+                      const void*, const void*, void*) const {}
 #endif
   };
 

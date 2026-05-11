@@ -41,6 +41,25 @@ struct GlobalDescriptors {
     float* up1c_w_f  = nullptr; float* up1c_b_f  = nullptr;
     float* up2c_w_f  = nullptr; float* up2c_b_f  = nullptr;
 
+    // Phase M: FP16 CBR descriptors and weights (CUDNN_DATA_HALF, BN-folded at init).
+    Allen::CuDNN::ConvDescriptors rcbn1_h, rcbn2_h, rcbn3_h, up1c_h, up2c_h;
+    __half* rcbn1_w_h = nullptr; __half* rcbn1_b_h = nullptr;
+    __half* rcbn2_w_h = nullptr; __half* rcbn2_b_h = nullptr;
+    __half* rcbn3_w_h = nullptr; __half* rcbn3_b_h = nullptr;
+    __half* up1c_w_h  = nullptr; __half* up1c_b_h  = nullptr;
+    __half* up2c_w_h  = nullptr; __half* up2c_b_h  = nullptr;
+
+    // FP16 activation pool: contiguous allocation, partitioned per-layer.
+    // Offsets: ncw, x1, x2, x3, up1, cat2, up2 (cat2 also reused for up2_c output).
+    __half* fp16_pool = nullptr;
+    __half* fp16_ncw  = nullptr;  // [N, N_BATCH_CHANNELS, W_IN]
+    __half* fp16_x1   = nullptr;  // [N, N_FEAT, W_IN]        — rcbn1 skip preserved
+    __half* fp16_x2   = nullptr;  // [N, N_FEAT, W_HALF]
+    __half* fp16_x3   = nullptr;  // [N, N_FEAT, W_QTR]
+    __half* fp16_up1  = nullptr;  // [N, N_FEAT, W_HALF]
+    __half* fp16_cat2 = nullptr;  // [N, 2*N_FEAT, W_HALF]    — also up2_c output
+    __half* fp16_up2  = nullptr;  // [N, N_FEAT, W_IN]
+
     // ConvTranspose descriptors (filter + conv only; tensor descs are local in operator())
     cudnnFilterDescriptor_t       filter_up1_t = nullptr;
     cudnnConvolutionDescriptor_t  conv_up1_t   = nullptr;
@@ -118,6 +137,17 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             w_f, b_f, w, b, gamma, beta, mean, var, eps, K, CxHxW);
     };
 
+    // Helper: convert FP32 BN-folded weights to FP16 (for Phase M Tensor Core path).
+    auto to_half = [](const float* w_f, const float* b_f, int K, int CxHxW,
+                      __half*& w_h, __half*& b_h, cudaStream_t stream) {
+        size_t wn = (size_t)K * CxHxW;
+        cudaMalloc(&w_h, wn * sizeof(__half));
+        cudaMalloc(&b_h, (size_t)K * sizeof(__half));
+        int threads = 256;
+        f32_to_f16_kernel<<<((wn + threads - 1) / threads), threads, 0, stream>>>(w_h, w_f, (int)wn);
+        f32_to_f16_kernel<<<((K  + threads - 1) / threads), threads, 0, stream>>>(b_h, b_f, K);
+    };
+
     // Fold BN into conv weights for each CBR layer, then build the fused graph.
     // All fold kernels run on stream 0 (init is single-threaded here).
     fold_bn(wb.w_rcbn1_w, wb.w_rcbn1_b,
@@ -127,6 +157,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, 0);
     cudaDeviceSynchronize();
     s_desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
+    to_half(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
+            s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn1_h.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
+                          {1,1}, {1,1}, CUDNN_DATA_HALF);
 
     fold_bn(wb.w_rcbn2_w, wb.w_rcbn2_b,
             wb.w_rcbn2_gamma, wb.w_rcbn2_beta,
@@ -135,6 +170,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, 0);
     cudaDeviceSynchronize();
     s_desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3});
+    to_half(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
+            s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn2_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
+                          {1,1}, {1,1}, CUDNN_DATA_HALF);
 
     fold_bn(wb.w_rcbn3_w, wb.w_rcbn3_b,
             wb.w_rcbn3_gamma, wb.w_rcbn3_beta,
@@ -143,6 +183,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, 0);
     cudaDeviceSynchronize();
     s_desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    to_half(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
+            s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn3_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+                          {1,1}, {1,1}, CUDNN_DATA_HALF);
 
     fold_bn(wb.w_up1c_w, wb.w_up1c_b,
             wb.w_up1c_gamma, wb.w_up1c_beta,
@@ -151,6 +196,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             s_desc.up1c_w_f, s_desc.up1c_b_f, 0);
     cudaDeviceSynchronize();
     s_desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    to_half(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
+            s_desc.up1c_w_h, s_desc.up1c_b_h, 0);
+    cudaDeviceSynchronize();
+    s_desc.up1c_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+                         {1,1}, {1,1}, CUDNN_DATA_HALF);
 
     fold_bn(wb.w_up2c_w, wb.w_up2c_b,
             wb.w_up2c_gamma, wb.w_up2c_beta,
@@ -159,6 +209,34 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             s_desc.up2c_w_f, s_desc.up2c_b_f, 0);
     cudaDeviceSynchronize();
     s_desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    to_half(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
+            s_desc.up2c_w_h, s_desc.up2c_b_h, 0);
+    cudaDeviceSynchronize();
+    s_desc.up2c_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+                         {1,1}, {1,1}, CUDNN_DATA_HALF);
+
+    // Allocate dedicated FP16 activation pool for Phase M benchmark.
+    // Layout: ncw | x1 | x2 | x3 | up1 | cat2 | up2
+    // cat2 slot is also reused as up2_c output (same element count).
+    {
+        size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
+        size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
+        size_t sz_x2   = (size_t)N * N_FEAT * W_HALF;
+        size_t sz_x3   = (size_t)N * N_FEAT * W_QTR;
+        size_t sz_up1  = (size_t)N * N_FEAT * W_HALF;
+        size_t sz_cat2 = (size_t)N * N_FEAT * 2 * W_HALF;
+        size_t sz_up2  = (size_t)N * N_FEAT * W_IN;
+        size_t total   = sz_ncw + sz_x1 + sz_x2 + sz_x3 + sz_up1 + sz_cat2 + sz_up2;
+        cudaMalloc(&s_desc.fp16_pool, total * sizeof(__half));
+        __half* p = s_desc.fp16_pool;
+        s_desc.fp16_ncw  = p; p += sz_ncw;
+        s_desc.fp16_x1   = p; p += sz_x1;
+        s_desc.fp16_x2   = p; p += sz_x2;
+        s_desc.fp16_x3   = p; p += sz_x3;
+        s_desc.fp16_up1  = p; p += sz_up1;
+        s_desc.fp16_cat2 = p; p += sz_cat2;
+        s_desc.fp16_up2  = p;
+    }
 
     // Non-CBR paths keep the existing Find-based ConvDescriptors.
     s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
@@ -483,6 +561,19 @@ void pvfinder_unet_t::run_convbnrelu(
     launch_bias_relu(output, b_fused, K, W_out, N, block, ctx);
 }
 
+// FP16 variant: Tensor Core conv (CUDNN_DATA_HALF desc) + FP16 bias+relu kernel.
+void pvfinder_unet_t::run_convbnrelu_half(
+    const Allen::CuDNN::ConvDescriptors& desc,
+    const __half* input, __half* output,
+    const __half* w_fused, const __half* b_fused,
+    int K, int W_out, int N,
+    cudnnHandle_t handle,
+    const dim3& block, const Allen::Context& ctx) const
+{
+    desc.forward_half(handle, 1.f, 0.f, input, w_fused, output);
+    launch_bias_relu_half(output, b_fused, K, W_out, N, block, ctx);
+}
+
 // Conv1d only (no BN/ReLU).
 void pvfinder_unet_t::run_conv(
     const Allen::CuDNN::ConvDescriptors& desc,
@@ -588,49 +679,116 @@ void pvfinder_unet_t::operator()(
 
     const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
 
+    const bool use_fp16 = m_use_fp16.value();
+
+    // FP16 pool pointers (only used when use_fp16 is true)
+    __half* fp16_ncw  = s_desc.fp16_ncw;
+    __half* fp16_x1   = s_desc.fp16_x1;
+    __half* fp16_x2   = s_desc.fp16_x2;
+    __half* fp16_x3   = s_desc.fp16_x3;
+    __half* fp16_up1  = s_desc.fp16_up1;
+    __half* fp16_cat2 = s_desc.fp16_cat2;
+    __half* fp16_up2  = s_desc.fp16_up2;
+
     for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += B_EVENTS_MAX) {
         const float* ncw = ncw_base + chunk_start * ncw_stride;
         float*       kde = kde_base + chunk_start * kde_stride;
 
-        // ---- Downsampling ----
-        run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
-        run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
-        launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
+        if (!use_fp16) {
+            // ---- FP32 path (Phase L baseline) ----
+            run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
+            run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
+            launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
 
-        run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
-        launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
+            run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
+            launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
-        // ---- Upsampling ----
-        run_conv_transpose(x3, up2,
-            s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
-            s_wb.w_up1t_w, s_wb.w_up1t_b,
-            N, N_FEAT, W_HALF, block, context, handle,
-            s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
-        run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
+            run_conv_transpose(x3, up2,
+                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
+                s_wb.w_up1t_w, s_wb.w_up1t_b,
+                N, N_FEAT, W_HALF, block, context, handle,
+                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+            run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
 
-        launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
-        run_conv_transpose(cat2, logits,
-            s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
-            s_wb.w_up2t_w, s_wb.w_up2t_b,
-            N, N_FEAT, W_IN, block, context, handle,
-            s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
-        run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN,  N, handle, block, context);
+            launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
+            run_conv_transpose(cat2, logits,
+                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
+                s_wb.w_up2t_w, s_wb.w_up2t_b,
+                N, N_FEAT, W_IN, block, context, handle,
+                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+            run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
 
-        // ---- Output ----
-        // oint_half: accumulate both halves into logits using cuDNN beta=1 on the
-        // second conv, eliminating the standalone accumulate_add_kernel.
-        // logits = conv_b(x1);  logits += conv_a(up2)  (beta=1 does the accumulate)
-        // outc then reads logits and writes to oint (x1 is free at this point).
-        run_conv(s_desc.oint_half, x1, logits,
-            s_wb.w_oint_b_w, nullptr,
-            N, N_FEAT, W_IN, block, context, handle, 0.f);
-        run_conv(s_desc.oint_half, up2, logits,
-            s_wb.w_oint_a_w, nullptr,
-            N, N_FEAT, W_IN, block, context, handle, 1.f);
-        launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
-        run_conv(s_desc.outc, logits, oint,
-            s_wb.w_outc_w, s_wb.w_outc_b,
-            N, 1, W_IN, block, context, handle, 0.f);
+            run_conv(s_desc.oint_half, x1, logits,
+                s_wb.w_oint_b_w, nullptr,
+                N, N_FEAT, W_IN, block, context, handle, 0.f);
+            run_conv(s_desc.oint_half, up2, logits,
+                s_wb.w_oint_a_w, nullptr,
+                N, N_FEAT, W_IN, block, context, handle, 1.f);
+            launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+            run_conv(s_desc.outc, logits, oint,
+                s_wb.w_outc_w, s_wb.w_outc_b,
+                N, 1, W_IN, block, context, handle, 0.f);
+        } else {
+            // ---- FP16 path (Phase M benchmark) ----
+            // CBR layers run as Tensor Core FP16 convs; ConvTranspose and output
+            // layers stay FP32. Explicit F32↔F16 conversions at the boundaries.
+
+            // Encoder
+            launch_f32_to_f16(fp16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
+            run_convbnrelu_half(s_desc.rcbn1_h, fp16_ncw, fp16_x1,
+                s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_half(s_desc.rcbn2_h, fp16_x1, fp16_up2,
+                s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, N_FEAT, W_IN, N, handle, block, context);
+            launch_maxpool_half(fp16_up2, fp16_x2, N, N_FEAT, W_IN, block, context);
+
+            run_convbnrelu_half(s_desc.rcbn3_h, fp16_x2, fp16_up2,
+                s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, N_FEAT, W_HALF, N, handle, block, context);
+            launch_maxpool_half(fp16_up2, fp16_x3, N, N_FEAT, W_HALF, block, context);
+
+            // ConvTranspose1: needs FP32. Convert fp16_x3 → x3.
+            launch_f16_to_f32(x3, fp16_x3, N * N_FEAT * W_QTR, block, context);
+            run_conv_transpose(x3, up2,
+                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
+                s_wb.w_up1t_w, s_wb.w_up1t_b,
+                N, N_FEAT, W_HALF, block, context, handle,
+                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+
+            // up1_c FP16: convert FP32 up2 → fp16_up2, then conv.
+            launch_f32_to_f16(fp16_up2, up2, N * N_FEAT * W_HALF, block, context);
+            run_convbnrelu_half(s_desc.up1c_h, fp16_up2, fp16_up1,
+                s_desc.up1c_w_h, s_desc.up1c_b_h, N_FEAT, W_HALF, N, handle, block, context);
+
+            // Concat FP16: fp16_up1 + fp16_x2 → fp16_cat2.
+            launch_concat_half(fp16_up1, fp16_x2, fp16_cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
+
+            // ConvTranspose2: needs FP32. Convert fp16_cat2 → cat2.
+            launch_f16_to_f32(cat2, fp16_cat2, N * N_FEAT * 2 * W_HALF, block, context);
+            run_conv_transpose(cat2, logits,
+                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
+                s_wb.w_up2t_w, s_wb.w_up2t_b,
+                N, N_FEAT, W_IN, block, context, handle,
+                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+
+            // up2_c FP16: convert FP32 logits → fp16_up2, conv → fp16_cat2 (reused).
+            launch_f32_to_f16(fp16_up2, logits, N * N_FEAT * W_IN, block, context);
+            run_convbnrelu_half(s_desc.up2c_h, fp16_up2, fp16_cat2,
+                s_desc.up2c_w_h, s_desc.up2c_b_h, N_FEAT, W_IN, N, handle, block, context);
+
+            // Output stage: FP32. Convert fp16_x1 (rcbn1 skip) → x1, fp16_cat2 → up2.
+            launch_f16_to_f32(x1, fp16_x1, N * N_FEAT * W_IN, block, context);
+            launch_f16_to_f32(up2, fp16_cat2, N * N_FEAT * W_IN, block, context);
+
+            run_conv(s_desc.oint_half, x1, logits,
+                s_wb.w_oint_b_w, nullptr,
+                N, N_FEAT, W_IN, block, context, handle, 0.f);
+            run_conv(s_desc.oint_half, up2, logits,
+                s_wb.w_oint_a_w, nullptr,
+                N, N_FEAT, W_IN, block, context, handle, 1.f);
+            launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+            run_conv(s_desc.outc, logits, oint,
+                s_wb.w_outc_w, s_wb.w_outc_b,
+                N, 1, W_IN, block, context, handle, 0.f);
+        }
 
         launch_softplus_scale(oint, KDE_SCALE, N * W_IN, block, context);
         squeeze_copy_kernel<<<

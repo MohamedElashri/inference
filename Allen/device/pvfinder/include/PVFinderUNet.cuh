@@ -3,6 +3,7 @@
 #include "AlgorithmTypes.cuh"
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
+#include <cuda_fp16.h>
 #endif
 
 // ---------------------------------------------------------------------------
@@ -82,6 +83,10 @@ private:
         this, "dump_validation", "",
         "if non-empty, dump NCW input + KDE output of the first slice to this directory"};
 
+    Allen::Property<bool> m_use_fp16 {
+        this, "use_fp16", false,
+        "Phase M benchmark: use FP16 Tensor Core path for CBR layers (physics approximate)"};
+
     // m_init_done: set to true after init() completes. Guards call_once.
     mutable bool m_init_done = false;
     mutable bool m_dump_done = false;
@@ -92,6 +97,14 @@ private:
         const Allen::CuDNN::ConvDescriptors& desc,
         const float* input, float* output,
         const float* w_fused, const float* b_fused,
+        int K, int W_out, int N,
+        cudnnHandle_t handle,
+        const dim3& block, const Allen::Context& ctx) const;
+
+    void run_convbnrelu_half(
+        const Allen::CuDNN::ConvDescriptors& desc,
+        const __half* input, __half* output,
+        const __half* w_fused, const __half* b_fused,
         int K, int W_out, int N,
         cudnnHandle_t handle,
         const dim3& block, const Allen::Context& ctx) const;
