@@ -13,3 +13,4 @@ Sequence.json
 *.nsys-rep
 *.sqlite
 slides
+benchmark_results
