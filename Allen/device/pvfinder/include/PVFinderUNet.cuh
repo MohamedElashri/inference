@@ -16,8 +16,10 @@
 //   - All tensor shapes are compile-time constants — descriptors created once globally.
 //   - One thread_local cudnnHandle_t per OS thread, created lazily via
 //     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
-//   - IMPLICIT_GEMM algorithm pinned everywhere → zero workspace.
-//   - Weight tensors loaded once into WeightRegistry via std::call_once.
+//   - cuDNN plans make algorithm selection and workspace ownership explicit.
+//     The current production path uses timed forward-conv selection, heuristic
+//     backward-data selection, and init-time owned workspaces.
+//   - Weight tensors loaded once through the Allen::CuDNN::DeviceWeights facade via std::call_once.
 // ---------------------------------------------------------------------------
 
 namespace pvfinder_unet {
@@ -48,7 +50,8 @@ struct Parameters {
     DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, 64, 100] (also logits)
     DEVICE_OUTPUT(dev_unet_up1_t,     float) dev_unet_up1;   // [N, 64, 50]
     DEVICE_OUTPUT(dev_unet_cat2_t,    float) dev_unet_cat2;  // [N, 128, 50] (also up2[N,64,100])
-    // conv_ws: IMPLICIT_GEMM needs 0 workspace; allocate 1 float as Allen requires non-zero size.
+    // conv_ws: retained as a parser-visible Allen buffer for compatibility.
+    // Current cuDNN plans own any init-time workspace internally.
     DEVICE_OUTPUT(dev_unet_conv_ws_t, float) dev_unet_conv_ws;
 
     // Final KDE output: [n_events * 40 * 100] floats
@@ -85,7 +88,7 @@ private:
 
     Allen::Property<bool> m_use_fp16 {
         this, "use_fp16", false,
-        "Phase M benchmark: use FP16 Tensor Core path for CBR layers (physics approximate)"};
+        "Experimental validation-gated FP16 Tensor Core path for CBR layers (physics approximate)"};
 
     // m_init_done: set to true after init() completes. Guards call_once.
     mutable bool m_init_done = false;
@@ -94,7 +97,7 @@ private:
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     // Per-layer helpers — use global descriptor set + thread_local handle
     void run_convbnrelu(
-        const Allen::CuDNN::ConvDescriptors& desc,
+        const Allen::CuDNN::ForwardConvPlan& desc,
         const float* input, float* output,
         const float* w_fused, const float* b_fused,
         int K, int W_out, int N,
@@ -102,7 +105,7 @@ private:
         const dim3& block, const Allen::Context& ctx) const;
 
     void run_convbnrelu_half(
-        const Allen::CuDNN::ConvDescriptors& desc,
+        const Allen::CuDNN::ForwardConvPlan& desc,
         const __half* input, __half* output,
         const __half* w_fused, const __half* b_fused,
         int K, int W_out, int N,
@@ -110,7 +113,7 @@ private:
         const dim3& block, const Allen::Context& ctx) const;
 
     void run_conv(
-        const Allen::CuDNN::ConvDescriptors& desc,
+        const Allen::CuDNN::ForwardConvPlan& desc,
         const float* input,  float* output,
         const float* w_ptr,  const float* bias_ptr,
         int N, int C_out, int W,
@@ -120,16 +123,11 @@ private:
 
     void run_conv_transpose(
         const float* input, float* output,
-        cudnnFilterDescriptor_t filter_desc,
-        cudnnConvolutionDescriptor_t conv_desc,
-        cudnnTensorDescriptor_t in_desc,
-        cudnnTensorDescriptor_t out_desc,
+        const Allen::CuDNN::BackwardDataConvPlan& plan,
         const float* w_ptr, const float* bias_ptr,
         int N, int C_out, int W_out,
         const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle,
-        cudnnConvolutionBwdDataAlgo_t algo,
-        void* workspace, size_t ws_bytes) const;
+        cudnnHandle_t handle) const;
 #endif
 };
 

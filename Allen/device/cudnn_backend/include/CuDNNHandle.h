@@ -87,8 +87,23 @@ namespace Allen::CuDNN {
     ALLEN_CUDNN_CHECK(cudnnSetStream(tl_handle, stream));
     return tl_handle;
   }
+
+  /**
+   * @brief Default Allen cuDNN handle provider.
+   *
+   * Handles are thread-local infrastructure, created lazily, rebound to the
+   * caller's stream on every request, and intentionally left alive until process
+   * shutdown. Allen may reset the CUDA device during teardown, so destroying
+   * thread-local cuDNN handles from C++ static destructors is not reliable.
+   */
+  struct HandleProvider {
+    static cudnnHandle_t get(cudaStream_t stream) { return get_thread_local_handle(stream); }
+  };
 #else
   inline void* get_thread_local_handle(void*) { return nullptr; }
+  struct HandleProvider {
+    static void* get(void*) { return nullptr; }
+  };
 #endif
 
 } // namespace Allen::CuDNN

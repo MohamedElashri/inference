@@ -23,16 +23,16 @@ static constexpr int N_CHUNK_INTERVALS = B_EVENTS_MAX * N_INTERVALS;
 // Shapes are compile-time constants so no synchronisation is needed after init.
 // ---------------------------------------------------------------------------
 struct GlobalDescriptors {
-    // CBR layers: fused Conv+BiasAdd+ReLU via cudnnConvolutionBiasActivationForward.
+    // CBR layers: cuDNN conv + PVFinder bias/ReLU, with BN folded into weights/bias at init.
     // BN folded into weights/bias at init time (fold_bn lambda).
-    Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→16,  k=25, pad=12)
-    Allen::CuDNN::ConvDescriptors rcbn2;    // Conv(16→16, k=7,  pad=3)
-    Allen::CuDNN::ConvDescriptors rcbn3;    // Conv(16→16, k=5,  pad=2)
-    Allen::CuDNN::ConvDescriptors up1_c;   // Conv(16→16, k=5,  pad=2) after ConvTranspose
-    Allen::CuDNN::ConvDescriptors up2_c;   // Conv(16→16, k=5,  pad=2)
+    Allen::CuDNN::ForwardConvPlan rcbn1;    // Conv(8→N_FEAT,      k=25, pad=12)
+    Allen::CuDNN::ForwardConvPlan rcbn2;    // Conv(N_FEAT→N_FEAT, k=7,  pad=3)
+    Allen::CuDNN::ForwardConvPlan rcbn3;    // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
+    Allen::CuDNN::ForwardConvPlan up1_c;    // Conv(N_FEAT→N_FEAT, k=5,  pad=2) after ConvTranspose
+    Allen::CuDNN::ForwardConvPlan up2_c;    // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
     // Non-CBR paths: plain conv (no BN/ReLU fusion).
-    Allen::CuDNN::ConvDescriptors oint_half;// Conv(16→16, k=5,  pad=2) — two halves
-    Allen::CuDNN::ConvDescriptors outc;     // Conv(16→1,  k=5,  pad=2)
+    Allen::CuDNN::ForwardConvPlan oint_half;// Conv(N_FEAT→N_FEAT, k=5, pad=2) — two halves
+    Allen::CuDNN::ForwardConvPlan outc;     // Conv(N_FEAT→1,      k=5, pad=2)
 
     // BN-folded weights and biases for each CBR layer (device pointers, owned here).
     float* rcbn1_w_f = nullptr; float* rcbn1_b_f = nullptr;
@@ -42,7 +42,7 @@ struct GlobalDescriptors {
     float* up2c_w_f  = nullptr; float* up2c_b_f  = nullptr;
 
     // Phase M: FP16 CBR descriptors and weights (CUDNN_DATA_HALF, BN-folded at init).
-    Allen::CuDNN::ConvDescriptors rcbn1_h, rcbn2_h, rcbn3_h, up1c_h, up2c_h;
+    Allen::CuDNN::ForwardConvPlan rcbn1_h, rcbn2_h, rcbn3_h, up1c_h, up2c_h;
     __half* rcbn1_w_h = nullptr; __half* rcbn1_b_h = nullptr;
     __half* rcbn2_w_h = nullptr; __half* rcbn2_b_h = nullptr;
     __half* rcbn3_w_h = nullptr; __half* rcbn3_b_h = nullptr;
@@ -60,19 +60,8 @@ struct GlobalDescriptors {
     __half* fp16_cat2 = nullptr;  // [N, 2*N_FEAT, W_HALF]    — also up2_c output
     __half* fp16_up2  = nullptr;  // [N, N_FEAT, W_IN]
 
-    // ConvTranspose descriptors (filter + conv only; tensor descs are local in operator())
-    cudnnFilterDescriptor_t       filter_up1_t = nullptr;
-    cudnnConvolutionDescriptor_t  conv_up1_t   = nullptr;
-    cudnnFilterDescriptor_t       filter_up2_t = nullptr;
-    cudnnConvolutionDescriptor_t  conv_up2_t   = nullptr;
-
-    // ConvTranspose algorithm + workspace (selected by cudnnGetConvolutionBackwardDataAlgorithm_v7)
-    cudnnConvolutionBwdDataAlgo_t  algo_up1_t   = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-    cudnnConvolutionBwdDataAlgo_t  algo_up2_t   = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-    void*                          ws_up1_t     = nullptr;
-    void*                          ws_up2_t     = nullptr;
-    size_t                         ws_up1_bytes = 0;
-    size_t                         ws_up2_bytes = 0;
+    Allen::CuDNN::BackwardDataConvPlan up1_t;
+    Allen::CuDNN::BackwardDataConvPlan up2_t;
 };
 
 static GlobalDescriptors s_desc;
@@ -238,83 +227,26 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
         s_desc.fp16_up2  = p;
     }
 
-    // Non-CBR paths keep the existing Find-based ConvDescriptors.
+    // Non-CBR paths keep the existing timed forward-conv plan selection.
     s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
     s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2});
 
-    // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
-    // Tensor descriptors for in/out are created as locals in operator() per-call.
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up1_t));
-    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up1_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up1_t));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up1_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up1_t, CUDNN_TENSOR_OP_MATH));
+    Allen::CuDNN::ConvPlanOptions bwd_options {};
+    bwd_options.algorithm_policy = Allen::CuDNN::AlgorithmSelectionPolicy::Heuristic;
+    bwd_options.workspace_policy = Allen::CuDNN::WorkspacePolicy::OwnedInitTime;
 
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up2_t));
-    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up2_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT*2, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up2_t, CUDNN_TENSOR_OP_MATH));
-
-    // Algorithm sweep for ConvTranspose (cudnnConvolutionBackwardData)
-    // Uses temporary tensor descriptors for the query — not stored, as operator()
-    // creates per-call thread-local descriptors.
-    static constexpr size_t kBwdBudget  = 64ul * 1024 * 1024;
-    static constexpr int    kBwdMaxAlgo = 8;
-
-    // up1_t: dy=[N, N_FEAT, 1, W_QTR], dx=[N, N_FEAT, 1, W_HALF]
-    {
-        cudnnTensorDescriptor_t dy_desc, dx_desc;
-        cudnnCreateTensorDescriptor(&dy_desc);
-        cudnnCreateTensorDescriptor(&dx_desc);
-        cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_QTR);
-        cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_HALF);
-        int returned = 0;
-        cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
-        if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
-                handle, s_desc.filter_up1_t, dy_desc, s_desc.conv_up1_t, dx_desc,
-                kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
-            for (int i = 0; i < returned; ++i) {
-                if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
-                    s_desc.algo_up1_t   = perf[i].algo;
-                    s_desc.ws_up1_bytes = perf[i].memory;
-                    if (s_desc.ws_up1_bytes > 0) cudaMalloc(&s_desc.ws_up1_t, s_desc.ws_up1_bytes);
-                    break;
-                }
-            }
-        }
-        cudnnDestroyTensorDescriptor(dy_desc);
-        cudnnDestroyTensorDescriptor(dx_desc);
-    }
-
-    // up2_t: dy=[N, N_FEAT*2, 1, W_HALF], dx=[N, N_FEAT, 1, W_IN]
-    {
-        cudnnTensorDescriptor_t dy_desc, dx_desc;
-        cudnnCreateTensorDescriptor(&dy_desc);
-        cudnnCreateTensorDescriptor(&dx_desc);
-        cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT*2, 1, W_HALF);
-        cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_IN);
-        int returned = 0;
-        cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
-        if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
-                handle, s_desc.filter_up2_t, dy_desc, s_desc.conv_up2_t, dx_desc,
-                kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
-            for (int i = 0; i < returned; ++i) {
-                if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
-                    s_desc.algo_up2_t   = perf[i].algo;
-                    s_desc.ws_up2_bytes = perf[i].memory;
-                    if (s_desc.ws_up2_bytes > 0) cudaMalloc(&s_desc.ws_up2_t, s_desc.ws_up2_bytes);
-                    break;
-                }
-            }
-        }
-        cudnnDestroyTensorDescriptor(dy_desc);
-        cudnnDestroyTensorDescriptor(dx_desc);
-    }
+    s_desc.up1_t.create(
+        handle,
+        {N_FEAT, N_FEAT, 1, 2},
+        {N, N_FEAT, 1, W_QTR},
+        {N, N_FEAT, 1, W_HALF},
+        {0, 0}, {1, 2}, {1, 1}, bwd_options);
+    s_desc.up2_t.create(
+        handle,
+        {N_FEAT * 2, N_FEAT, 1, 2},
+        {N, N_FEAT * 2, 1, W_HALF},
+        {N, N_FEAT, 1, W_IN},
+        {0, 0}, {1, 2}, {1, 1}, bwd_options);
 }
 
 // ---------------------------------------------------------------------------
@@ -355,7 +287,8 @@ static size_t read_float32(const std::vector<char>& buf, size_t offset, float& v
 }
 
 // ---------------------------------------------------------------------------
-// Load weights from binary file into WeightRegistry and fill WeightBlob.
+// Load weights from binary file into AllenCuDNN's process-lifetime DeviceWeights
+// facade and fill WeightBlob.
 // ---------------------------------------------------------------------------
 static WeightBlob load_weights(const std::string& path)
 {
@@ -381,8 +314,8 @@ static WeightBlob load_weights(const std::string& path)
         throw std::runtime_error("PVFinderUNet: bad magic in weight file");
     }
 
-    auto& reg = Allen::CuDNN::WeightRegistry::instance();
     WeightBlob wb {};
+    auto& weights = Allen::CuDNN::WeightRegistry::instance();
 
     // Helper lambdas
     auto load_conv = [&](const std::string& key_w, const std::string& key_b,
@@ -395,13 +328,13 @@ static WeightBlob load_weights(const std::string& path)
         // Load weight block
         std::vector<float> w_host(wcount);
         off = read_float_block(buf, off, w_host.data(), wcount);
-        if (!reg.contains(key_w)) reg.load_from_buffer(key_w, w_host.data(), wcount * sizeof(float));
-        out_w = reg.get<float>(key_w);
+        if (!weights.contains(key_w)) weights.load_from_buffer(key_w, w_host.data(), wcount * sizeof(float));
+        out_w = weights.get<float>(key_w);
         // Load bias block
         std::vector<float> b_host(out_c);
         off = read_float_block(buf, off, b_host.data(), out_c);
-        if (!reg.contains(key_b)) reg.load_from_buffer(key_b, b_host.data(), out_c * sizeof(float));
-        out_b = reg.get<float>(key_b);
+        if (!weights.contains(key_b)) weights.load_from_buffer(key_b, b_host.data(), out_c * sizeof(float));
+        out_b = weights.get<float>(key_b);
     };
 
     auto load_bn = [&](const std::string& prefix,
@@ -416,8 +349,8 @@ static WeightBlob load_weights(const std::string& path)
         off = read_float_block(buf, off, m.data(), features);
         off = read_float_block(buf, off, v.data(), features);
         auto ld = [&](const std::string& k, const std::vector<float>& d, const float*& ptr) {
-            if (!reg.contains(k)) reg.load_from_buffer(k, d.data(), d.size() * sizeof(float));
-            ptr = reg.get<float>(k);
+            if (!weights.contains(k)) weights.load_from_buffer(k, d.data(), d.size() * sizeof(float));
+            ptr = weights.get<float>(k);
         };
         ld(prefix + ".gamma", g, gamma);
         ld(prefix + ".beta",  b, beta);
@@ -435,12 +368,12 @@ static WeightBlob load_weights(const std::string& path)
         size_t wcount = (size_t)in_c * out_c * k;
         std::vector<float> w_host(wcount);
         off = read_float_block(buf, off, w_host.data(), wcount);
-        if (!reg.contains(key_w)) reg.load_from_buffer(key_w, w_host.data(), wcount * sizeof(float));
-        out_w = reg.get<float>(key_w);
+        if (!weights.contains(key_w)) weights.load_from_buffer(key_w, w_host.data(), wcount * sizeof(float));
+        out_w = weights.get<float>(key_w);
         std::vector<float> b_host(out_c);
         off = read_float_block(buf, off, b_host.data(), out_c);
-        if (!reg.contains(key_b)) reg.load_from_buffer(key_b, b_host.data(), out_c * sizeof(float));
-        out_b = reg.get<float>(key_b);
+        if (!weights.contains(key_b)) weights.load_from_buffer(key_b, b_host.data(), out_c * sizeof(float));
+        out_b = weights.get<float>(key_b);
     };
 
     // rcbn1
@@ -485,15 +418,15 @@ static WeightBlob load_weights(const std::string& path)
                 }
             }
         }
-        if (!reg.contains("oint.a.w")) reg.load_from_buffer("oint.a.w", w_a.data(), half_elems * sizeof(float));
-        if (!reg.contains("oint.b.w")) reg.load_from_buffer("oint.b.w", w_b.data(), half_elems * sizeof(float));
-        wb.w_oint_a_w = reg.get<float>("oint.a.w");
-        wb.w_oint_b_w = reg.get<float>("oint.b.w");
+        if (!weights.contains("oint.a.w")) weights.load_from_buffer("oint.a.w", w_a.data(), half_elems * sizeof(float));
+        if (!weights.contains("oint.b.w")) weights.load_from_buffer("oint.b.w", w_b.data(), half_elems * sizeof(float));
+        wb.w_oint_a_w = weights.get<float>("oint.a.w");
+        wb.w_oint_b_w = weights.get<float>("oint.b.w");
         // Bias [out_c]
         std::vector<float> bias(out_c);
         off = read_float_block(buf, off, bias.data(), out_c);
-        if (!reg.contains("oint.b")) reg.load_from_buffer("oint.b", bias.data(), out_c * sizeof(float));
-        wb.w_oint_b = reg.get<float>("oint.b");
+        if (!weights.contains("oint.b")) weights.load_from_buffer("oint.b", bias.data(), out_c * sizeof(float));
+        wb.w_oint_b = weights.get<float>("oint.b");
     }
     // outc
     load_conv("outc.w", "outc.b", wb.w_outc_w, wb.w_outc_b);
@@ -520,8 +453,8 @@ void pvfinder_unet_t::init()
 
 // ---------------------------------------------------------------------------
 // set_arguments_size
-// Workspace for cuDNN is owned per ConvDescriptors (cudaMalloc'd at init).
-// dev_unet_conv_ws_t is kept at 1 float as Allen requires a non-zero allocation.
+// Workspace for cuDNN is owned per plan at init time. dev_unet_conv_ws_t is kept
+// at 1 float as Allen requires a non-zero allocation for declared buffers.
 // ---------------------------------------------------------------------------
 void pvfinder_unet_t::set_arguments_size(
     ArgumentReferences<Parameters> arguments,
@@ -532,12 +465,12 @@ void pvfinder_unet_t::set_arguments_size(
     const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
     constexpr unsigned N_batch = N_CHUNK_INTERVALS;
 
-    set_size<dev_unet_x1_t>   (arguments, N_batch * N_FEAT * W_IN);       
-    set_size<dev_unet_x2_t>   (arguments, N_batch * N_FEAT * W_HALF);     
-    set_size<dev_unet_x3_t>   (arguments, N_batch * N_FEAT * W_IN);       
-    set_size<dev_unet_up1_t>  (arguments, N_batch * N_FEAT * W_HALF);     
-    set_size<dev_unet_cat2_t> (arguments, N_batch * N_FEAT * 2 * W_HALF); 
-    set_size<dev_unet_conv_ws_t>(arguments, 1u);                    
+    set_size<dev_unet_x1_t>   (arguments, N_batch * N_FEAT * W_IN);
+    set_size<dev_unet_x2_t>   (arguments, N_batch * N_FEAT * W_HALF);
+    set_size<dev_unet_x3_t>   (arguments, N_batch * N_FEAT * W_IN);
+    set_size<dev_unet_up1_t>  (arguments, N_batch * N_FEAT * W_HALF);
+    set_size<dev_unet_cat2_t> (arguments, N_batch * N_FEAT * 2 * W_HALF);
+    set_size<dev_unet_conv_ws_t>(arguments, 1u);
     set_size<dev_pvfinder_kde_output_t>(arguments, padded_events * N_INTERVALS * W_IN);
 }
 
@@ -550,7 +483,7 @@ void pvfinder_unet_t::set_arguments_size(
 // Uses cudnnConvolutionForward with the Phase K timed algorithm, then
 // launches bias_relu_kernel (no BN math — BN already in w_fused/b_fused).
 void pvfinder_unet_t::run_convbnrelu(
-    const Allen::CuDNN::ConvDescriptors& desc,
+    const Allen::CuDNN::ForwardConvPlan& desc,
     const float* input, float* output,
     const float* w_fused, const float* b_fused,
     int K, int W_out, int N,
@@ -563,7 +496,7 @@ void pvfinder_unet_t::run_convbnrelu(
 
 // FP16 variant: Tensor Core conv (CUDNN_DATA_HALF desc) + FP16 bias+relu kernel.
 void pvfinder_unet_t::run_convbnrelu_half(
-    const Allen::CuDNN::ConvDescriptors& desc,
+    const Allen::CuDNN::ForwardConvPlan& desc,
     const __half* input, __half* output,
     const __half* w_fused, const __half* b_fused,
     int K, int W_out, int N,
@@ -576,7 +509,7 @@ void pvfinder_unet_t::run_convbnrelu_half(
 
 // Conv1d only (no BN/ReLU).
 void pvfinder_unet_t::run_conv(
-    const Allen::CuDNN::ConvDescriptors& desc,
+    const Allen::CuDNN::ForwardConvPlan& desc,
     const float* input,  float* output,
     const float* w_ptr,  const float* bias_ptr,
     int N, int C_out, int W,
@@ -590,30 +523,17 @@ void pvfinder_unet_t::run_conv(
         launch_bias_add(output, bias_ptr, C_out, W, N, block, ctx);
 }
 
-// ConvTranspose1d via cudnnConvolutionBackwardData. Algorithm selected at init time.
+// ConvTranspose1d via AllenCuDNN backward-data plan. Algorithm selected at init time.
 void pvfinder_unet_t::run_conv_transpose(
     const float* input, float* output,
-    cudnnFilterDescriptor_t filter_desc,
-    cudnnConvolutionDescriptor_t conv_desc,
-    cudnnTensorDescriptor_t in_desc,
-    cudnnTensorDescriptor_t out_desc,
+    const Allen::CuDNN::BackwardDataConvPlan& plan,
     const float* w_ptr, const float* bias_ptr,
     int N, int C_out, int W_out,
     const dim3& block, const Allen::Context& ctx,
-    cudnnHandle_t handle,
-    cudnnConvolutionBwdDataAlgo_t algo,
-    void* workspace, size_t ws_bytes) const
+    cudnnHandle_t handle) const
 {
     const float alpha = 1.f, beta = 0.f;
-    ALLEN_CUDNN_CHECK(cudnnConvolutionBackwardData(
-        handle, &alpha,
-        filter_desc, w_ptr,
-        in_desc,     input,
-        conv_desc,
-        algo,
-        workspace, ws_bytes,
-        &beta,
-        out_desc, output));
+    plan.backward_data(handle, alpha, beta, w_ptr, input, output);
     launch_bias_add(output, bias_ptr, C_out, W_out, N, block, ctx);
 }
 #endif // ALLEN_CUDNN_BACKEND_CUDA
@@ -657,23 +577,6 @@ void pvfinder_unet_t::operator()(
     constexpr unsigned ncw_stride = N_INTERVALS * N_BATCH_CHANNELS * W_IN;
     constexpr unsigned kde_stride = N_INTERVALS * W_IN;
 
-    // ConvTranspose tensor descriptors — local per operator() call so concurrent
-    // threads each have their own (cudnnSetTensor4dDescriptor is not thread-safe on shared).
-    cudnnTensorDescriptor_t td_up1_in = nullptr, td_up1_out = nullptr;
-    cudnnTensorDescriptor_t td_up2_in = nullptr, td_up2_out = nullptr;
-    ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up1_in));
-    ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up1_out));
-    ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up2_in));
-    ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up2_out));
-    ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        td_up1_in,  CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_QTR));
-    ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        td_up1_out, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_HALF));
-    ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        td_up2_in,  CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT*2, 1, W_HALF));
-    ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        td_up2_out, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_IN));
-
     const float* ncw_base = data<dev_pvfinder_interval_features_t>(arguments);
     float*       kde_base = data<dev_pvfinder_kde_output_t>(arguments);
 
@@ -704,18 +607,16 @@ void pvfinder_unet_t::operator()(
             launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
             run_conv_transpose(x3, up2,
-                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
+                s_desc.up1_t,
                 s_wb.w_up1t_w, s_wb.w_up1t_b,
-                N, N_FEAT, W_HALF, block, context, handle,
-                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                N, N_FEAT, W_HALF, block, context, handle);
             run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
 
             launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
             run_conv_transpose(cat2, logits,
-                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
+                s_desc.up2_t,
                 s_wb.w_up2t_w, s_wb.w_up2t_b,
-                N, N_FEAT, W_IN, block, context, handle,
-                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                N, N_FEAT, W_IN, block, context, handle);
             run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
 
             run_conv(s_desc.oint_half, x1, logits,
@@ -748,10 +649,9 @@ void pvfinder_unet_t::operator()(
             // ConvTranspose1: needs FP32. Convert fp16_x3 → x3.
             launch_f16_to_f32(x3, fp16_x3, N * N_FEAT * W_QTR, block, context);
             run_conv_transpose(x3, up2,
-                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
+                s_desc.up1_t,
                 s_wb.w_up1t_w, s_wb.w_up1t_b,
-                N, N_FEAT, W_HALF, block, context, handle,
-                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                N, N_FEAT, W_HALF, block, context, handle);
 
             // up1_c FP16: convert FP32 up2 → fp16_up2, then conv.
             launch_f32_to_f16(fp16_up2, up2, N * N_FEAT * W_HALF, block, context);
@@ -764,10 +664,9 @@ void pvfinder_unet_t::operator()(
             // ConvTranspose2: needs FP32. Convert fp16_cat2 → cat2.
             launch_f16_to_f32(cat2, fp16_cat2, N * N_FEAT * 2 * W_HALF, block, context);
             run_conv_transpose(cat2, logits,
-                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
+                s_desc.up2_t,
                 s_wb.w_up2t_w, s_wb.w_up2t_b,
-                N, N_FEAT, W_IN, block, context, handle,
-                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                N, N_FEAT, W_IN, block, context, handle);
 
             // up2_c FP16: convert FP32 logits → fp16_up2, conv → fp16_cat2 (reused).
             launch_f32_to_f16(fp16_up2, logits, N * N_FEAT * W_IN, block, context);
@@ -795,11 +694,6 @@ void pvfinder_unet_t::operator()(
             ((unsigned)(N * W_IN) + block.x - 1) / block.x, block,
             0, context.stream()>>>(oint, kde, N * W_IN);
     }
-
-    cudnnDestroyTensorDescriptor(td_up1_in);
-    cudnnDestroyTensorDescriptor(td_up1_out);
-    cudnnDestroyTensorDescriptor(td_up2_in);
-    cudnnDestroyTensorDescriptor(td_up2_out);
 
     // Validation dump (first slice only, when dump_dir property is set)
     const std::string& dump_dir = m_dump_dir.value();

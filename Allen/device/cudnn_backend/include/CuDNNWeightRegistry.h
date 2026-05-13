@@ -1,7 +1,6 @@
 #pragma once
+#include "CuDNNDeviceWeights.h"
 #include <string>
-#include <unordered_map>
-#include <stdexcept>
 #include <cstddef>
 
 #ifdef ALLEN_WITH_CUDNN
@@ -18,45 +17,31 @@ namespace Allen::CuDNN {
    */
   class WeightRegistry {
   public:
-    static WeightRegistry& instance() {
-      static WeightRegistry s_instance;
-      return s_instance;
-    }
+    static WeightRegistry& instance();
 
     void load(const std::string& key, const std::string& file_path);
     void load_from_buffer(const std::string& key, const void* host_data, size_t bytes);
 
     template<typename T>
     const T* get(const std::string& key) const {
-      auto it = m_registry.find(key);
-      if (it == m_registry.end()) {
-        throw std::runtime_error("WeightRegistry: key not found: " + key);
-      }
-      return static_cast<const T*>(it->second.dev_ptr);
+      return m_weights.get<T>(key);
     }
 
     size_t size_bytes(const std::string& key) const {
-      auto it = m_registry.find(key);
-      if (it == m_registry.end()) return 0;
-      return it->second.bytes;
+      return m_weights.size_bytes(key);
     }
 
     bool contains(const std::string& key) const {
-      return m_registry.find(key) != m_registry.end();
+      return m_weights.contains(key);
     }
 
     WeightRegistry(const WeightRegistry&) = delete;
     WeightRegistry& operator=(const WeightRegistry&) = delete;
 
   private:
-    WeightRegistry() = default;
+    WeightRegistry();
 
-    struct Entry {
-      void*  dev_ptr = nullptr;
-      size_t bytes   = 0;
-    };
-
-    std::unordered_map<std::string, Entry> m_registry;
+    DeviceWeights m_weights;
   };
 
 } // namespace Allen::CuDNN
