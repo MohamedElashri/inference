@@ -1,8 +1,10 @@
 #include "CuDNNWeightRegistry.h"
 
+#include <algorithm>
 #include <cstring>
 #include <cstdlib>
 #include <fstream>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -18,118 +20,188 @@
 #endif
 
 namespace Allen::CuDNN {
-
-  struct DeviceWeights::State {
-    std::string key_namespace;
-  };
-
   namespace {
-    struct RegistryEntry {
-      char* key = nullptr;
-      void* dev_ptr = nullptr;
+    struct WeightEntry {
+      std::string key;
+      void* device_ptr = nullptr;
       size_t bytes = 0;
+      DeviceWeightOwnership ownership = DeviceWeightOwnership::ProcessLifetime;
     };
 
-    struct GlobalRegistry {
-      RegistryEntry* entries = nullptr;
-      size_t entries_size = 0;
-      size_t entries_capacity = 0;
-    };
-
-    GlobalRegistry& global_registry()
-    {
-      static auto* registry = new GlobalRegistry {};
-      return *registry;
-    }
-
-    char* copy_c_string(const std::string& value)
-    {
-      auto* copy = static_cast<char*>(std::malloc(value.size() + 1));
-      if (copy == nullptr) {
-        throw std::runtime_error("DeviceWeights: host key allocation failed");
+    class WeightStore {
+    public:
+      bool contains(const std::string& key) const
+      {
+        const std::lock_guard<std::mutex> lock {m_mutex};
+        return find_entry(key) != m_entries.end();
       }
-      std::memcpy(copy, value.c_str(), value.size() + 1);
-      return copy;
-    }
 
-    void append_entry(const std::string& key, void* dev_ptr, size_t bytes)
-    {
-      auto& registry = global_registry();
-      if (registry.entries_size == registry.entries_capacity) {
-        const size_t new_capacity = registry.entries_capacity == 0 ? 32 : registry.entries_capacity * 2;
-        auto* new_entries = static_cast<RegistryEntry*>(
-          std::realloc(registry.entries, new_capacity * sizeof(RegistryEntry)));
-        if (new_entries == nullptr) {
-          throw std::runtime_error("DeviceWeights: host registry allocation failed");
+      size_t size_bytes(const std::string& key) const
+      {
+        const std::lock_guard<std::mutex> lock {m_mutex};
+        auto it = find_entry(key);
+        return it == m_entries.end() ? 0 : it->bytes;
+      }
+
+      const void* get(const std::string& key) const
+      {
+        const std::lock_guard<std::mutex> lock {m_mutex};
+        auto it = find_entry(key);
+        if (it == m_entries.end()) {
+          throw std::runtime_error("DeviceWeights: key not found: " + key);
         }
-        registry.entries = new_entries;
-        registry.entries_capacity = new_capacity;
+        return it->device_ptr;
       }
-      registry.entries[registry.entries_size++] = RegistryEntry {copy_c_string(key), dev_ptr, bytes};
+
+      void load_from_host(
+        const std::string& key,
+        const void* host_data,
+        size_t bytes,
+        size_t expected_bytes,
+        DuplicateKeyPolicy duplicate_policy)
+      {
+        validate_input(key, host_data, bytes, expected_bytes);
+
+        void* device_ptr = nullptr;
+#ifdef ALLEN_WITH_CUDNN
+        ALLEN_CUDNN_CUDA_CHECK(cudaMalloc(&device_ptr, bytes));
+        ALLEN_CUDNN_CUDA_CHECK(cudaMemcpy(device_ptr, host_data, bytes, cudaMemcpyHostToDevice));
+#else
+        device_ptr = std::malloc(bytes);
+        if (device_ptr == nullptr && bytes != 0) {
+          throw std::runtime_error("DeviceWeights: host allocation failed for key: " + key);
+        }
+        std::memcpy(device_ptr, host_data, bytes);
+#endif
+
+        try {
+          const bool adopted =
+            insert_or_update(key, device_ptr, bytes, DeviceWeightOwnership::ProcessLifetime, duplicate_policy);
+          if (!adopted) {
+            release_owned(device_ptr);
+          }
+        }
+        catch (...) {
+          release_owned(device_ptr);
+          throw;
+        }
+      }
+
+      void register_external(
+        const std::string& key,
+        const void* device_data,
+        size_t bytes,
+        size_t expected_bytes,
+        DuplicateKeyPolicy duplicate_policy)
+      {
+        validate_input(key, device_data, bytes, expected_bytes);
+        insert_or_update(
+          key,
+          const_cast<void*>(device_data),
+          bytes,
+          DeviceWeightOwnership::ExternalDevicePointer,
+          duplicate_policy);
+      }
+
+    private:
+      using EntryIterator = std::vector<WeightEntry>::iterator;
+      using ConstEntryIterator = std::vector<WeightEntry>::const_iterator;
+
+      ConstEntryIterator find_entry(const std::string& key) const
+      {
+        return std::find_if(m_entries.begin(), m_entries.end(), [&](const auto& entry) { return entry.key == key; });
+      }
+
+      EntryIterator find_entry(const std::string& key)
+      {
+        return std::find_if(m_entries.begin(), m_entries.end(), [&](const auto& entry) { return entry.key == key; });
+      }
+
+      void validate_input(const std::string& key, const void* data, size_t bytes, size_t expected_bytes) const
+      {
+        if (key.empty()) {
+          throw std::runtime_error("DeviceWeights: empty key");
+        }
+        if (data == nullptr && bytes != 0) {
+          throw std::runtime_error("DeviceWeights: null data for non-empty key: " + key);
+        }
+        if (expected_bytes != 0 && bytes != expected_bytes) {
+          throw std::runtime_error("DeviceWeights: unexpected byte count for key: " + key);
+        }
+      }
+
+      bool insert_or_update(
+        const std::string& key,
+        void* device_ptr,
+        size_t bytes,
+        DeviceWeightOwnership ownership,
+        DuplicateKeyPolicy duplicate_policy)
+      {
+        const std::lock_guard<std::mutex> lock {m_mutex};
+        auto it = find_entry(key);
+        if (it != m_entries.end()) {
+          if (duplicate_policy == DuplicateKeyPolicy::ReuseExisting) return false;
+          if (duplicate_policy == DuplicateKeyPolicy::Reject) {
+            throw std::runtime_error("DeviceWeights: key already registered: " + key);
+          }
+          release_if_owned(*it);
+          it->device_ptr = device_ptr;
+          it->bytes = bytes;
+          it->ownership = ownership;
+          return true;
+        }
+        m_entries.push_back(WeightEntry {key, device_ptr, bytes, ownership});
+        return true;
+      }
+
+      static void release_owned(void* ptr)
+      {
+        if (ptr == nullptr) return;
+#ifdef ALLEN_WITH_CUDNN
+        cudaFree(ptr);
+#else
+        std::free(ptr);
+#endif
+      }
+
+      static void release_if_owned(const WeightEntry& entry)
+      {
+        if (entry.ownership == DeviceWeightOwnership::ProcessLifetime) {
+          release_owned(entry.device_ptr);
+        }
+      }
+
+      mutable std::mutex m_mutex;
+      std::vector<WeightEntry> m_entries;
+    };
+
+    WeightStore& global_weight_store()
+    {
+      static auto* store = new WeightStore {};
+      return *store;
     }
   } // namespace
 
-  DeviceWeights::DeviceWeights(std::string key_namespace)
-  {
-    state().key_namespace = std::move(key_namespace);
-  }
-
-  DeviceWeights::State& DeviceWeights::state()
-  {
-    if (m_state == nullptr) {
-      m_state = new State {};
-    }
-    return *m_state;
-  }
-
-  const DeviceWeights::State* DeviceWeights::state_if_created() const
-  {
-    return m_state;
-  }
+  DeviceWeights::DeviceWeights(std::string key_namespace) : m_namespace(std::move(key_namespace)) {}
 
   std::string DeviceWeights::full_key(const std::string& key) const
   {
-    const auto* st = state_if_created();
-    if (st == nullptr || st->key_namespace.empty()) return key;
-    return st->key_namespace + "." + key;
+    return m_namespace.empty() ? key : (m_namespace + "." + key);
   }
 
   bool DeviceWeights::contains(const std::string& key) const
   {
-    auto& registry = global_registry();
-    const auto full = full_key(key);
-    for (size_t i = 0; i < registry.entries_size; ++i) {
-      if (std::strcmp(registry.entries[i].key, full.c_str()) == 0) return true;
-    }
-    return false;
+    return global_weight_store().contains(full_key(key));
   }
 
   size_t DeviceWeights::size_bytes(const std::string& key) const
   {
-    auto& registry = global_registry();
-    const auto full = full_key(key);
-    for (size_t i = 0; i < registry.entries_size; ++i) {
-      if (std::strcmp(registry.entries[i].key, full.c_str()) == 0) return registry.entries[i].bytes;
-    }
-    return 0;
+    return global_weight_store().size_bytes(full_key(key));
   }
 
   const void* DeviceWeights::get_raw(const std::string& key) const
   {
-    auto& registry = global_registry();
-    const auto full = full_key(key);
-    for (size_t i = 0; i < registry.entries_size; ++i) {
-      if (std::strcmp(registry.entries[i].key, full.c_str()) == 0) return registry.entries[i].dev_ptr;
-    }
-    throw std::runtime_error("DeviceWeights: key not found: " + full);
-  }
-
-  WeightRegistry::WeightRegistry() : m_weights("legacy") {}
-
-  WeightRegistry& WeightRegistry::instance()
-  {
-    static WeightRegistry s_instance;
-    return s_instance;
+    return global_weight_store().get(full_key(key));
   }
 
   void DeviceWeights::load_file(
@@ -156,33 +228,25 @@ namespace Allen::CuDNN {
     size_t expected_bytes,
     DuplicateKeyPolicy duplicate_policy)
   {
-    if (host_data == nullptr && bytes != 0) {
-      throw std::runtime_error("DeviceWeights: null host data for non-empty key: " + full_key(key));
-    }
-    if (expected_bytes != 0 && bytes != expected_bytes) {
-      throw std::runtime_error("DeviceWeights: unexpected byte count for key: " + full_key(key));
-    }
+    global_weight_store().load_from_host(full_key(key), host_data, bytes, expected_bytes, duplicate_policy);
+  }
 
-    (void) state();
-    auto& registry = global_registry();
-    const auto full = full_key(key);
-    for (size_t i = 0; i < registry.entries_size; ++i) {
-      if (std::strcmp(registry.entries[i].key, full.c_str()) == 0) {
-        if (duplicate_policy == DuplicateKeyPolicy::ReuseExisting) return;
-        throw std::runtime_error("DeviceWeights: key already registered: " + full);
-      }
-    }
+  void DeviceWeights::register_device_pointer(
+    const std::string& key,
+    const void* device_data,
+    size_t bytes,
+    size_t expected_bytes,
+    DuplicateKeyPolicy duplicate_policy)
+  {
+    global_weight_store().register_external(full_key(key), device_data, bytes, expected_bytes, duplicate_policy);
+  }
 
-#ifdef ALLEN_WITH_CUDNN
-    void* dev_ptr = nullptr;
-    ALLEN_CUDNN_CUDA_CHECK(cudaMalloc(&dev_ptr, bytes));
-    ALLEN_CUDNN_CUDA_CHECK(cudaMemcpy(dev_ptr, host_data, bytes, cudaMemcpyHostToDevice));
-    append_entry(full, dev_ptr, bytes);
-#else
-    void* host_copy = std::malloc(bytes);
-    std::memcpy(host_copy, host_data, bytes);
-    append_entry(full, host_copy, bytes);
-#endif
+  WeightRegistry::WeightRegistry() : m_weights("legacy") {}
+
+  WeightRegistry& WeightRegistry::instance()
+  {
+    static WeightRegistry s_instance;
+    return s_instance;
   }
 
   void WeightRegistry::load(const std::string& key, const std::string& file_path) {

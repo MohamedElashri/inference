@@ -3,17 +3,18 @@
 #include <cstddef>
 #include <stdexcept>
 #include <string>
-#include <utility>
-
-#ifdef ALLEN_WITH_CUDNN
-#include <cuda_runtime.h>
-#endif
 
 namespace Allen::CuDNN {
 
   enum class DuplicateKeyPolicy {
     Reject,
-    ReuseExisting
+    ReuseExisting,
+    ReplaceExisting
+  };
+
+  enum class DeviceWeightOwnership {
+    ProcessLifetime,
+    ExternalDevicePointer
   };
 
   class DeviceWeights {
@@ -33,6 +34,13 @@ namespace Allen::CuDNN {
       size_t expected_bytes = 0,
       DuplicateKeyPolicy duplicate_policy = DuplicateKeyPolicy::Reject);
 
+    void register_device_pointer(
+      const std::string& key,
+      const void* device_data,
+      size_t bytes,
+      size_t expected_bytes = 0,
+      DuplicateKeyPolicy duplicate_policy = DuplicateKeyPolicy::Reject);
+
     template<typename T>
     const T* get(const std::string& key) const {
       if (size_bytes(key) % sizeof(T) != 0) {
@@ -44,18 +52,15 @@ namespace Allen::CuDNN {
     size_t size_bytes(const std::string& key) const;
     bool contains(const std::string& key) const;
     std::string full_key(const std::string& key) const;
+    const std::string& key_namespace() const { return m_namespace; }
 
     DeviceWeights(const DeviceWeights&) = delete;
     DeviceWeights& operator=(const DeviceWeights&) = delete;
 
   private:
-    struct State;
-
-    State& state();
-    const State* state_if_created() const;
     const void* get_raw(const std::string& key) const;
 
-    mutable State* m_state = nullptr;
+    std::string m_namespace;
   };
 
 } // namespace Allen::CuDNN

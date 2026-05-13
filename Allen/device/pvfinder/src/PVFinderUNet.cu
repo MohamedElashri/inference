@@ -105,6 +105,12 @@ struct WeightBlob {
 static WeightBlob s_wb {};
 static bool s_wb_loaded = false;
 
+static Allen::CuDNN::DeviceWeights& unet_weights()
+{
+    static Allen::CuDNN::DeviceWeights weights {"pvfinder_unet"};
+    return weights;
+}
+
 static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
 {
     constexpr int N = N_CHUNK_INTERVALS;
@@ -315,7 +321,7 @@ static WeightBlob load_weights(const std::string& path)
     }
 
     WeightBlob wb {};
-    auto& weights = Allen::CuDNN::WeightRegistry::instance();
+    auto& weights = unet_weights();
 
     // Helper lambdas
     auto load_conv = [&](const std::string& key_w, const std::string& key_b,

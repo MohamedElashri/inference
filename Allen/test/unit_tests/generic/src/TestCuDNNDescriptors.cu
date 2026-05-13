@@ -62,11 +62,13 @@ TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
 }
 
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
-  Allen::CuDNN::DeviceWeights weights {"unit"};
+  Allen::CuDNN::DeviceWeights weights {"unit_phase2"};
   const float host_values[4] = {1.f, 2.f, 3.f, 4.f};
+  const float replacement_values[2] = {5.f, 6.f};
 
   weights.load_from_buffer("weights", host_values, sizeof(host_values), sizeof(host_values));
   REQUIRE(weights.contains("weights"));
+  REQUIRE(weights.full_key("weights") == "unit_phase2.weights");
   REQUIRE(weights.size_bytes("weights") == sizeof(host_values));
   REQUIRE(weights.get<float>("weights") != nullptr);
 
@@ -76,7 +78,19 @@ TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
     sizeof(host_values),
     sizeof(host_values),
     Allen::CuDNN::DuplicateKeyPolicy::ReuseExisting);
+  REQUIRE(weights.size_bytes("weights") == sizeof(host_values));
+  weights.load_from_buffer(
+    "weights",
+    replacement_values,
+    sizeof(replacement_values),
+    sizeof(replacement_values),
+    Allen::CuDNN::DuplicateKeyPolicy::ReplaceExisting);
+  REQUIRE(weights.size_bytes("weights") == sizeof(replacement_values));
   REQUIRE_THROWS(weights.load_from_buffer("bad_size", host_values, sizeof(host_values), sizeof(host_values) + 4));
+
+  weights.register_device_pointer("external", host_values, sizeof(host_values), sizeof(host_values));
+  REQUIRE(weights.contains("external"));
+  REQUIRE(weights.size_bytes("external") == sizeof(host_values));
 }
 #else
 TEST_CASE("cudnn.wrapper_stubs.compile", "[AllenCuDNN]") {
