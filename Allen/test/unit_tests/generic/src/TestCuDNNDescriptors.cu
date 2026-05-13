@@ -18,7 +18,26 @@
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 
+#include <cuda_runtime.h>
+
+namespace {
+  bool has_cuda_device()
+  {
+    int device_count = 0;
+    return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
+  }
+
+#define REQUIRE_CUDA_DEVICE()                                                                      \
+  do {                                                                                             \
+    if (!has_cuda_device()) {                                                                      \
+      SUCCEED("Skipping CUDA/cuDNN runtime test: no CUDA-capable device is available");             \
+      return;                                                                                      \
+    }                                                                                              \
+  } while (false)
+} // namespace
+
 TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
   Allen::CuDNN::ConvPlanOptions options {};
@@ -49,6 +68,7 @@ TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
 }
 
 TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
   Allen::CuDNN::ConvPlanOptions options {};
@@ -67,6 +87,7 @@ TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
 }
 
 TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
   Allen::CuDNN::ForwardConvPlan plan;
@@ -79,6 +100,7 @@ TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
 }
 
 TEST_CASE("cudnn.precision_policy.validation", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
   Allen::CuDNN::ConvPlanOptions fp16_options {};
@@ -107,6 +129,7 @@ TEST_CASE("cudnn.precision_policy.validation", "[AllenCuDNN]") {
 }
 
 TEST_CASE("cudnn.workspace_policy.validation", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
   Allen::CuDNN::ConvPlanOptions invalid_options {};
@@ -167,6 +190,7 @@ TEST_CASE("cudnn.activation_plan.metadata", "[AllenCuDNN]") {
 }
 
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
   Allen::CuDNN::DeviceWeights weights {"unit_phase2"};
   const float host_values[4] = {1.f, 2.f, 3.f, 4.f};
   const float replacement_values[2] = {5.f, 6.f};
