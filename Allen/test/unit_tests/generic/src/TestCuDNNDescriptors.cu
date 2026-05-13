@@ -122,6 +122,50 @@ TEST_CASE("cudnn.workspace_policy.validation", "[AllenCuDNN]") {
   REQUIRE_THROWS(external.require(1, "unit"));
 }
 
+TEST_CASE("cudnn.bias_add_plan.metadata", "[AllenCuDNN]") {
+  const Allen::CuDNN::TensorShape tensor_shape {2, 3, 4, 5};
+  const Allen::CuDNN::TensorShape bias_shape {1, 3, 1, 1};
+
+  Allen::CuDNN::BiasAddPlan plan;
+  plan.create(tensor_shape);
+
+  REQUIRE(plan.is_created());
+  REQUIRE(plan.tensor_shape() == tensor_shape);
+  REQUIRE(plan.bias_shape() == bias_shape);
+  REQUIRE(plan.data_type() == CUDNN_DATA_FLOAT);
+
+  const auto metadata = plan.metadata();
+  REQUIRE(metadata.created);
+  REQUIRE(metadata.layout == Allen::CuDNN::TensorLayout::NCHW);
+  REQUIRE(metadata.tensor_shape == tensor_shape);
+  REQUIRE(metadata.bias_shape == bias_shape);
+  REQUIRE(metadata.precision.input_output_type == CUDNN_DATA_FLOAT);
+}
+
+TEST_CASE("cudnn.activation_plan.metadata", "[AllenCuDNN]") {
+  const Allen::CuDNN::TensorShape tensor_shape {2, 3, 4, 5};
+  Allen::CuDNN::ActivationOptions options {};
+  options.mode = Allen::CuDNN::ActivationMode::ClippedRelu;
+  options.coefficient = 6.0;
+
+  Allen::CuDNN::ActivationPlan plan;
+  plan.create(tensor_shape, options);
+
+  REQUIRE(plan.is_created());
+  REQUIRE(plan.mode() == Allen::CuDNN::ActivationMode::ClippedRelu);
+  REQUIRE(plan.coefficient() == 6.0);
+  REQUIRE(plan.tensor_shape() == tensor_shape);
+  REQUIRE(plan.data_type() == CUDNN_DATA_FLOAT);
+  REQUIRE(std::string(Allen::CuDNN::to_string(plan.mode())) == "ClippedRelu");
+
+  const auto metadata = plan.metadata();
+  REQUIRE(metadata.created);
+  REQUIRE(metadata.mode == Allen::CuDNN::ActivationMode::ClippedRelu);
+  REQUIRE(metadata.coefficient == 6.0);
+  REQUIRE(metadata.layout == Allen::CuDNN::TensorLayout::NCHW);
+  REQUIRE(metadata.tensor_shape == tensor_shape);
+}
+
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
   Allen::CuDNN::DeviceWeights weights {"unit_phase2"};
   const float host_values[4] = {1.f, 2.f, 3.f, 4.f};

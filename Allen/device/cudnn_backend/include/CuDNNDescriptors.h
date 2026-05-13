@@ -42,6 +42,14 @@ namespace Allen::CuDNN {
     NCHW
   };
 
+  enum class ActivationMode {
+    Relu,
+    Sigmoid,
+    Tanh,
+    ClippedRelu,
+    Elu
+  };
+
   struct TensorShape {
     int n = 0, c = 0, h = 0, w = 0;
     std::array<int, 4> dims() const { return {n, c, h, w}; }
@@ -180,6 +188,35 @@ namespace Allen::CuDNN {
 #endif
   };
 
+  struct BiasAddOptions {
+    TensorLayout layout = TensorLayout::NCHW;
+    PrecisionPolicy precision {};
+  };
+
+  struct BiasAddMetadata {
+    bool created = false;
+    TensorLayout layout = TensorLayout::NCHW;
+    TensorShape tensor_shape {};
+    TensorShape bias_shape {};
+    PrecisionPolicy precision {};
+  };
+
+  struct ActivationOptions {
+    ActivationMode mode = ActivationMode::Relu;
+    double coefficient = 0.0;
+    TensorLayout layout = TensorLayout::NCHW;
+    PrecisionPolicy precision {};
+  };
+
+  struct ActivationMetadata {
+    bool created = false;
+    ActivationMode mode = ActivationMode::Relu;
+    double coefficient = 0.0;
+    TensorLayout layout = TensorLayout::NCHW;
+    TensorShape tensor_shape {};
+    PrecisionPolicy precision {};
+  };
+
   inline const char* to_string(AlgorithmSelectionPolicy policy) {
     switch (policy) {
     case AlgorithmSelectionPolicy::ZeroWorkspace: return "ZeroWorkspace";
@@ -212,6 +249,17 @@ namespace Allen::CuDNN {
   inline const char* to_string(TensorLayout layout) {
     switch (layout) {
     case TensorLayout::NCHW: return "NCHW";
+    }
+    return "Unknown";
+  }
+
+  inline const char* to_string(ActivationMode mode) {
+    switch (mode) {
+    case ActivationMode::Relu: return "Relu";
+    case ActivationMode::Sigmoid: return "Sigmoid";
+    case ActivationMode::Tanh: return "Tanh";
+    case ActivationMode::ClippedRelu: return "ClippedRelu";
+    case ActivationMode::Elu: return "Elu";
     }
     return "Unknown";
   }
@@ -277,6 +325,19 @@ namespace Allen::CuDNN {
     }
     if (shape.filter.c != shape.output.c) {
       throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter input channels do not match output channels");
+    }
+  }
+
+  inline TensorShape channel_bias_shape(TensorShape tensor_shape) {
+    return {1, tensor_shape.c, 1, 1};
+  }
+
+  inline void validate_bias_shape(TensorShape tensor_shape, TensorShape bias_shape, TensorLayout layout, const char* owner) {
+    validate_layout(layout, owner);
+    validate_tensor_shape(tensor_shape, (std::string(owner) + " tensor_shape").c_str());
+    validate_tensor_shape(bias_shape, (std::string(owner) + " bias_shape").c_str());
+    if (bias_shape.n != 1 || bias_shape.c != tensor_shape.c || bias_shape.h != 1 || bias_shape.w != 1) {
+      throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " bias_shape must be {1, C, 1, 1}");
     }
   }
 
@@ -349,6 +410,17 @@ namespace Allen::CuDNN {
     case CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED";
     }
     return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_UNKNOWN";
+  }
+
+  inline cudnnActivationMode_t to_cudnn_activation_mode(ActivationMode mode) {
+    switch (mode) {
+    case ActivationMode::Relu: return CUDNN_ACTIVATION_RELU;
+    case ActivationMode::Sigmoid: return CUDNN_ACTIVATION_SIGMOID;
+    case ActivationMode::Tanh: return CUDNN_ACTIVATION_TANH;
+    case ActivationMode::ClippedRelu: return CUDNN_ACTIVATION_CLIPPED_RELU;
+    case ActivationMode::Elu: return CUDNN_ACTIVATION_ELU;
+    }
+    return CUDNN_ACTIVATION_RELU;
   }
 
   inline bool plan_creation_logging_enabled(const ConvPlanOptions& options) {
@@ -523,6 +595,44 @@ namespace Allen::CuDNN {
     void reset() {}
     void create() {}
     void set_2d(std::array<int, 2>, std::array<int, 2>, std::array<int, 2>, int, int) {}
+    void* get() const { return nullptr; }
+#endif
+  };
+
+  struct ActivationDescriptor {
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+  private:
+    cudnnActivationDescriptor_t m_desc = nullptr;
+
+  public:
+    ActivationDescriptor() = default;
+    ~ActivationDescriptor() { reset(); }
+    ActivationDescriptor(const ActivationDescriptor&) = delete;
+    ActivationDescriptor& operator=(const ActivationDescriptor&) = delete;
+
+    void reset() {
+      if (m_desc) {
+        cudnnDestroyActivationDescriptor(m_desc);
+        m_desc = nullptr;
+      }
+    }
+
+    void create() {
+      reset();
+      ALLEN_CUDNN_CHECK(cudnnCreateActivationDescriptor(&m_desc));
+    }
+
+    void set(ActivationMode mode, double coefficient) {
+      if (!m_desc) create();
+      ALLEN_CUDNN_CHECK(cudnnSetActivationDescriptor(
+        m_desc, to_cudnn_activation_mode(mode), CUDNN_NOT_PROPAGATE_NAN, coefficient));
+    }
+
+    cudnnActivationDescriptor_t get() const { return m_desc; }
+#else
+    void reset() {}
+    void create() {}
+    void set(ActivationMode, double) {}
     void* get() const { return nullptr; }
 #endif
   };
@@ -1106,6 +1216,194 @@ namespace Allen::CuDNN {
     ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
     void backward_data(void*, float, float, const void*, const void*, void*, Workspace) const {}
+#endif
+  };
+
+  struct BiasAddPlan {
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+  private:
+    TensorDescriptor m_bias_desc;
+    TensorDescriptor m_tensor_desc;
+    BiasAddOptions m_options {};
+    TensorShape m_tensor_shape {};
+    TensorShape m_bias_shape {};
+    bool m_created = false;
+
+  public:
+    BiasAddPlan() = default;
+    BiasAddPlan(const BiasAddPlan&) = delete;
+    BiasAddPlan& operator=(const BiasAddPlan&) = delete;
+
+    void create(TensorShape tensor_shape, BiasAddOptions options = {}) {
+      options.precision = normalize_precision_policy(options.precision);
+      validate_precision_policy(options.precision, "BiasAddPlan");
+      const TensorShape bias_shape = channel_bias_shape(tensor_shape);
+      validate_bias_shape(tensor_shape, bias_shape, options.layout, "BiasAddPlan");
+
+      m_options = options;
+      m_tensor_shape = tensor_shape;
+      m_bias_shape = bias_shape;
+      m_bias_desc.set_4d(m_bias_shape.dims(), m_options.precision.input_output_type);
+      m_tensor_desc.set_4d(m_tensor_shape.dims(), m_options.precision.input_output_type);
+      m_created = true;
+    }
+
+    void create(std::array<int, 4> tensor_shape, BiasAddOptions options = {}) {
+      create(make_tensor_shape(tensor_shape), options);
+    }
+
+    bool is_created() const { return m_created; }
+    TensorShape tensor_shape() const { return m_tensor_shape; }
+    TensorShape bias_shape() const { return m_bias_shape; }
+    const PrecisionPolicy& precision_policy() const { return m_options.precision; }
+    cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
+
+    BiasAddMetadata metadata() const {
+      BiasAddMetadata info {};
+      info.created = m_created;
+      info.layout = m_options.layout;
+      info.tensor_shape = m_tensor_shape;
+      info.bias_shape = m_bias_shape;
+      info.precision = m_options.precision;
+      return info;
+    }
+
+    void add(
+      cudnnHandle_t handle,
+      const float alpha,
+      const void* dev_bias,
+      const float beta,
+      void* dev_tensor) const
+    {
+      ALLEN_CUDNN_CHECK(cudnnAddTensor(
+        handle,
+        &alpha,
+        m_bias_desc.get(), dev_bias,
+        &beta,
+        m_tensor_desc.get(), dev_tensor));
+    }
+
+    void add(cudnnHandle_t handle, const float alpha, const float* dev_bias, const float beta, float* dev_tensor) const {
+      add(handle, alpha, (const void*) dev_bias, beta, (void*) dev_tensor);
+    }
+
+    void add_half(
+      cudnnHandle_t handle,
+      const float alpha,
+      const __half* dev_bias,
+      const float beta,
+      __half* dev_tensor) const
+    {
+      add(handle, alpha, (const void*) dev_bias, beta, (void*) dev_tensor);
+    }
+#else
+    void create(TensorShape, BiasAddOptions = {}) {}
+    void create(std::array<int, 4>, BiasAddOptions = {}) {}
+    bool is_created() const { return false; }
+    TensorShape tensor_shape() const { return {}; }
+    TensorShape bias_shape() const { return {}; }
+    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    int data_type() const { return 0; }
+    BiasAddMetadata metadata() const { return {}; }
+    void add(void*, float, const void*, float, void*) const {}
+    void add(void*, float, const float*, float, float*) const {}
+    void add_half(void*, float, const void*, float, void*) const {}
+#endif
+  };
+
+  struct ActivationPlan {
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+  private:
+    TensorDescriptor m_input_desc;
+    TensorDescriptor m_output_desc;
+    ActivationDescriptor m_activation_desc;
+    ActivationOptions m_options {};
+    TensorShape m_tensor_shape {};
+    bool m_created = false;
+
+  public:
+    ActivationPlan() = default;
+    ActivationPlan(const ActivationPlan&) = delete;
+    ActivationPlan& operator=(const ActivationPlan&) = delete;
+
+    void create(TensorShape tensor_shape, ActivationOptions options = {}) {
+      validate_layout(options.layout, "ActivationPlan");
+      validate_tensor_shape(tensor_shape, "ActivationPlan tensor_shape");
+      options.precision = normalize_precision_policy(options.precision);
+      validate_precision_policy(options.precision, "ActivationPlan");
+
+      m_options = options;
+      m_tensor_shape = tensor_shape;
+      m_input_desc.set_4d(m_tensor_shape.dims(), m_options.precision.input_output_type);
+      m_output_desc.set_4d(m_tensor_shape.dims(), m_options.precision.input_output_type);
+      m_activation_desc.set(m_options.mode, m_options.coefficient);
+      m_created = true;
+    }
+
+    void create(std::array<int, 4> tensor_shape, ActivationOptions options = {}) {
+      create(make_tensor_shape(tensor_shape), options);
+    }
+
+    bool is_created() const { return m_created; }
+    ActivationMode mode() const { return m_options.mode; }
+    double coefficient() const { return m_options.coefficient; }
+    TensorShape tensor_shape() const { return m_tensor_shape; }
+    const PrecisionPolicy& precision_policy() const { return m_options.precision; }
+    cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
+
+    ActivationMetadata metadata() const {
+      ActivationMetadata info {};
+      info.created = m_created;
+      info.mode = m_options.mode;
+      info.coefficient = m_options.coefficient;
+      info.layout = m_options.layout;
+      info.tensor_shape = m_tensor_shape;
+      info.precision = m_options.precision;
+      return info;
+    }
+
+    void forward(
+      cudnnHandle_t handle,
+      const float alpha,
+      const void* dev_input,
+      const float beta,
+      void* dev_output) const
+    {
+      ALLEN_CUDNN_CHECK(cudnnActivationForward(
+        handle,
+        m_activation_desc.get(),
+        &alpha,
+        m_input_desc.get(), dev_input,
+        &beta,
+        m_output_desc.get(), dev_output));
+    }
+
+    void forward(cudnnHandle_t handle, const float alpha, const float* dev_input, const float beta, float* dev_output) const {
+      forward(handle, alpha, (const void*) dev_input, beta, (void*) dev_output);
+    }
+
+    void forward_half(
+      cudnnHandle_t handle,
+      const float alpha,
+      const __half* dev_input,
+      const float beta,
+      __half* dev_output) const
+    {
+      forward(handle, alpha, (const void*) dev_input, beta, (void*) dev_output);
+    }
+#else
+    void create(TensorShape, ActivationOptions = {}) {}
+    void create(std::array<int, 4>, ActivationOptions = {}) {}
+    bool is_created() const { return false; }
+    ActivationMode mode() const { return ActivationMode::Relu; }
+    double coefficient() const { return 0.0; }
+    TensorShape tensor_shape() const { return {}; }
+    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    int data_type() const { return 0; }
+    ActivationMetadata metadata() const { return {}; }
+    void forward(void*, float, const void*, float, void*) const {}
+    void forward(void*, float, const float*, float, float*) const {}
+    void forward_half(void*, float, const void*, float, void*) const {}
 #endif
   };
 
