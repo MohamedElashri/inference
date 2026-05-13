@@ -61,6 +61,21 @@ TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
   REQUIRE_THROWS(plan.create(handle, {1, 2, 1, 8}, {1, 1, 1, 3}, {0, 1}));
 }
 
+TEST_CASE("cudnn.workspace_policy.validation", "[AllenCuDNN]") {
+  auto handle = Allen::CuDNN::HandleProvider::get(0);
+
+  Allen::CuDNN::ConvPlanOptions invalid_options {};
+  invalid_options.algorithm_policy = Allen::CuDNN::AlgorithmSelectionPolicy::Heuristic;
+  invalid_options.workspace_policy = Allen::CuDNN::WorkspacePolicy::ZeroOnly;
+
+  Allen::CuDNN::ForwardConvPlan plan;
+  REQUIRE_THROWS(plan.create(handle, {1, 1, 1, 8}, {1, 1, 1, 3}, {0, 1}, {1, 1}, {1, 1}, invalid_options));
+
+  Allen::CuDNN::Workspace external {nullptr, 0};
+  REQUIRE_NOTHROW(external.require(0, "unit"));
+  REQUIRE_THROWS(external.require(1, "unit"));
+}
+
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
   Allen::CuDNN::DeviceWeights weights {"unit_phase2"};
   const float host_values[4] = {1.f, 2.f, 3.f, 4.f};

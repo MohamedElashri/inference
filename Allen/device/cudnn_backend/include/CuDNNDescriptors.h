@@ -2,6 +2,7 @@
 
 #include "CuDNNCheck.h"
 #include "CuDNNHandle.h"
+#include "CuDNNWorkspace.h"
 
 #include <array>
 #include <cstddef>
@@ -109,6 +110,14 @@ namespace Allen::CuDNN {
       if ((allow_zero && dim < 0) || (!allow_zero && dim <= 0)) {
         throw std::invalid_argument(std::string("AllenCuDNN: invalid 2D parameter in ") + name);
       }
+    }
+  }
+
+  inline void validate_workspace_options(const ConvPlanOptions& options, const char* owner) {
+    if (options.workspace_policy == WorkspacePolicy::ZeroOnly &&
+        options.algorithm_policy != AlgorithmSelectionPolicy::ZeroWorkspace) {
+      throw std::invalid_argument(
+        std::string("AllenCuDNN: ") + owner + " ZeroOnly workspace requires ZeroWorkspace algorithm policy");
     }
   }
 
@@ -274,9 +283,7 @@ namespace Allen::CuDNN {
     void set_workspace(size_t bytes) {
       m_ws_bytes = bytes;
       if (m_options.workspace_policy == WorkspacePolicy::ZeroOnly && bytes != 0) {
-        m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
-        m_ws_bytes = 0;
-        m_selection_source = AlgorithmSelectionSource::Fallback;
+        throw std::runtime_error("ForwardConvPlan selected an algorithm that violates ZeroOnly workspace policy");
       }
       if (m_options.workspace_policy == WorkspacePolicy::OwnedInitTime && m_ws_bytes > 0) {
         detail::cuda_check(cudaMalloc(&m_workspace, m_ws_bytes), "ForwardConvPlan workspace allocation failed");
@@ -374,6 +381,7 @@ namespace Allen::CuDNN {
       if (input_shape[1] != filter_shape[1]) {
         throw std::invalid_argument("AllenCuDNN: ForwardConvPlan input channels do not match filter channels");
       }
+      validate_workspace_options(options, "ForwardConvPlan");
       release_workspace();
       m_options = options;
       m_selection_source = AlgorithmSelectionSource::Default;
@@ -450,8 +458,9 @@ namespace Allen::CuDNN {
       void* dev_output,
       void* external_workspace = nullptr) const
     {
-      if (m_options.workspace_policy == WorkspacePolicy::AllenExternal && m_ws_bytes > 0 && external_workspace == nullptr) {
-        throw std::runtime_error("ForwardConvPlan requires external workspace");
+      if (m_options.workspace_policy == WorkspacePolicy::AllenExternal) {
+        Workspace {external_workspace, external_workspace == nullptr ? 0 : m_ws_bytes}.require(
+          m_ws_bytes, "ForwardConvPlan");
       }
       void* workspace = m_options.workspace_policy == WorkspacePolicy::AllenExternal ? external_workspace : m_workspace;
       ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
@@ -464,6 +473,19 @@ namespace Allen::CuDNN {
         workspace, m_ws_bytes,
         &beta,
         m_output_desc.get(), dev_output));
+    }
+
+    void forward(
+      cudnnHandle_t handle,
+      const float alpha,
+      const float beta,
+      const void* dev_input,
+      const void* dev_filter,
+      void* dev_output,
+      Workspace external_workspace) const
+    {
+      external_workspace.require(m_ws_bytes, "ForwardConvPlan");
+      forward(handle, alpha, beta, dev_input, dev_filter, dev_output, external_workspace.ptr);
     }
 
     void forward(
@@ -502,6 +524,7 @@ namespace Allen::CuDNN {
     ConvPlanMetadata metadata() const { return {}; }
     void forward(void*, float, float, const float*, const float*, float*) const {}
     void forward(const Handle&, float, float, const float*, const float*, float*) const {}
+    void forward(void*, float, float, const void*, const void*, void*, Workspace) const {}
     void forward_half(void*, float, float, const void*, const void*, void*) const {}
 #endif
   };
@@ -533,9 +556,7 @@ namespace Allen::CuDNN {
     void set_workspace(size_t bytes) {
       m_ws_bytes = bytes;
       if (m_options.workspace_policy == WorkspacePolicy::ZeroOnly && bytes != 0) {
-        m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-        m_ws_bytes = 0;
-        m_selection_source = AlgorithmSelectionSource::Fallback;
+        throw std::runtime_error("BackwardDataConvPlan selected an algorithm that violates ZeroOnly workspace policy");
       }
       if (m_options.workspace_policy == WorkspacePolicy::OwnedInitTime && m_ws_bytes > 0) {
         detail::cuda_check(cudaMalloc(&m_workspace, m_ws_bytes), "BackwardDataConvPlan workspace allocation failed");
@@ -594,6 +615,7 @@ namespace Allen::CuDNN {
       if (filter_shape[1] != output_shape[1]) {
         throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter input channels do not match output channels");
       }
+      validate_workspace_options(options, "BackwardDataConvPlan");
       release_workspace();
       m_options = options;
       m_selection_source = AlgorithmSelectionSource::Default;
@@ -647,8 +669,9 @@ namespace Allen::CuDNN {
       void* dev_output,
       void* external_workspace = nullptr) const
     {
-      if (m_options.workspace_policy == WorkspacePolicy::AllenExternal && m_ws_bytes > 0 && external_workspace == nullptr) {
-        throw std::runtime_error("BackwardDataConvPlan requires external workspace");
+      if (m_options.workspace_policy == WorkspacePolicy::AllenExternal) {
+        Workspace {external_workspace, external_workspace == nullptr ? 0 : m_ws_bytes}.require(
+          m_ws_bytes, "BackwardDataConvPlan");
       }
       void* workspace = m_options.workspace_policy == WorkspacePolicy::AllenExternal ? external_workspace : m_workspace;
       ALLEN_CUDNN_CHECK(cudnnConvolutionBackwardData(
@@ -662,6 +685,19 @@ namespace Allen::CuDNN {
         &beta,
         m_output_desc.get(), dev_output));
     }
+
+    void backward_data(
+      cudnnHandle_t handle,
+      const float alpha,
+      const float beta,
+      const void* dev_filter,
+      const void* dev_input,
+      void* dev_output,
+      Workspace external_workspace) const
+    {
+      external_workspace.require(m_ws_bytes, "BackwardDataConvPlan");
+      backward_data(handle, alpha, beta, dev_filter, dev_input, dev_output, external_workspace.ptr);
+    }
 #else
     void create(void*, std::array<int, 4>, std::array<int, 4>, std::array<int, 4>, std::array<int, 2> = {0, 0}, std::array<int, 2> = {1, 1}, std::array<int, 2> = {1, 1}, ConvPlanOptions = {}) {}
     size_t workspace_bytes() const { return 0; }
@@ -672,6 +708,7 @@ namespace Allen::CuDNN {
     int algorithm_id() const { return 0; }
     ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
+    void backward_data(void*, float, float, const void*, const void*, void*, Workspace) const {}
 #endif
   };
 
