@@ -28,7 +28,15 @@ TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
 
   REQUIRE(plan.algorithm_policy() == Allen::CuDNN::AlgorithmSelectionPolicy::ZeroWorkspace);
   REQUIRE(plan.workspace_policy() == Allen::CuDNN::WorkspacePolicy::ZeroOnly);
+  REQUIRE(plan.selection_source() == Allen::CuDNN::AlgorithmSelectionSource::ZeroWorkspace);
   REQUIRE(plan.workspace_bytes() == 0);
+  REQUIRE(plan.is_created());
+
+  const auto metadata = plan.metadata();
+  REQUIRE(metadata.created);
+  REQUIRE(metadata.algorithm_policy == Allen::CuDNN::AlgorithmSelectionPolicy::ZeroWorkspace);
+  REQUIRE(metadata.workspace_policy == Allen::CuDNN::WorkspacePolicy::ZeroOnly);
+  REQUIRE(metadata.workspace_bytes == 0);
 }
 
 TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
@@ -42,6 +50,15 @@ TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
   plan.create(handle, {1, 1, 1, 2}, {1, 1, 1, 4}, {1, 1, 1, 8}, {0, 0}, {1, 2}, {1, 1}, options);
 
   REQUIRE(plan.workspace_bytes() == 0);
+  REQUIRE(plan.selection_source() == Allen::CuDNN::AlgorithmSelectionSource::ZeroWorkspace);
+  REQUIRE(plan.is_created());
+}
+
+TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
+  auto handle = Allen::CuDNN::HandleProvider::get(0);
+
+  Allen::CuDNN::ForwardConvPlan plan;
+  REQUIRE_THROWS(plan.create(handle, {1, 2, 1, 8}, {1, 1, 1, 3}, {0, 1}));
 }
 
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {

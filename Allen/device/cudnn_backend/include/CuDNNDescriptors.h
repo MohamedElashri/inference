@@ -27,6 +27,14 @@ namespace Allen::CuDNN {
     ZeroOnly
   };
 
+  enum class AlgorithmSelectionSource {
+    Default,
+    ZeroWorkspace,
+    Heuristic,
+    TimedFind,
+    Fallback
+  };
+
   struct TensorShape {
     int n = 0, c = 0, h = 0, w = 0;
     bool operator==(const TensorShape& o) const { return n == o.n && c == o.c && h == o.h && w == o.w; }
@@ -43,6 +51,66 @@ namespace Allen::CuDNN {
     cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH;
 #endif
   };
+
+  struct ConvPlanMetadata {
+    AlgorithmSelectionPolicy algorithm_policy = AlgorithmSelectionPolicy::TimedFind;
+    AlgorithmSelectionSource selection_source = AlgorithmSelectionSource::Default;
+    WorkspacePolicy workspace_policy = WorkspacePolicy::OwnedInitTime;
+    size_t workspace_bytes = 0;
+    size_t workspace_limit_bytes = 0;
+    bool created = false;
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+    int algorithm = 0;
+    cudnnDataType_t data_type = CUDNN_DATA_FLOAT;
+    cudnnDataType_t compute_type = CUDNN_DATA_FLOAT;
+    cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH;
+#endif
+  };
+
+  inline const char* to_string(AlgorithmSelectionPolicy policy) {
+    switch (policy) {
+    case AlgorithmSelectionPolicy::ZeroWorkspace: return "ZeroWorkspace";
+    case AlgorithmSelectionPolicy::Heuristic: return "Heuristic";
+    case AlgorithmSelectionPolicy::TimedFind: return "TimedFind";
+    }
+    return "Unknown";
+  }
+
+  inline const char* to_string(AlgorithmSelectionSource source) {
+    switch (source) {
+    case AlgorithmSelectionSource::Default: return "Default";
+    case AlgorithmSelectionSource::ZeroWorkspace: return "ZeroWorkspace";
+    case AlgorithmSelectionSource::Heuristic: return "Heuristic";
+    case AlgorithmSelectionSource::TimedFind: return "TimedFind";
+    case AlgorithmSelectionSource::Fallback: return "Fallback";
+    }
+    return "Unknown";
+  }
+
+  inline const char* to_string(WorkspacePolicy policy) {
+    switch (policy) {
+    case WorkspacePolicy::AllenExternal: return "AllenExternal";
+    case WorkspacePolicy::OwnedInitTime: return "OwnedInitTime";
+    case WorkspacePolicy::ZeroOnly: return "ZeroOnly";
+    }
+    return "Unknown";
+  }
+
+  inline void validate_shape_4d(std::array<int, 4> shape, const char* name) {
+    for (int dim : shape) {
+      if (dim <= 0) {
+        throw std::invalid_argument(std::string("AllenCuDNN: invalid non-positive dimension in ") + name);
+      }
+    }
+  }
+
+  inline void validate_pair_2d(std::array<int, 2> value, const char* name, bool allow_zero) {
+    for (int dim : value) {
+      if ((allow_zero && dim < 0) || (!allow_zero && dim <= 0)) {
+        throw std::invalid_argument(std::string("AllenCuDNN: invalid 2D parameter in ") + name);
+      }
+    }
+  }
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   namespace detail {
@@ -190,6 +258,7 @@ namespace Allen::CuDNN {
     TensorDescriptor m_output_desc;
     cudnnConvolutionFwdAlgo_t m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
     ConvPlanOptions m_options {};
+    AlgorithmSelectionSource m_selection_source = AlgorithmSelectionSource::Default;
     void* m_workspace = nullptr;
     size_t m_ws_bytes = 0;
     bool m_created = false;
@@ -207,6 +276,7 @@ namespace Allen::CuDNN {
       if (m_options.workspace_policy == WorkspacePolicy::ZeroOnly && bytes != 0) {
         m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
         m_ws_bytes = 0;
+        m_selection_source = AlgorithmSelectionSource::Fallback;
       }
       if (m_options.workspace_policy == WorkspacePolicy::OwnedInitTime && m_ws_bytes > 0) {
         detail::cuda_check(cudaMalloc(&m_workspace, m_ws_bytes), "ForwardConvPlan workspace allocation failed");
@@ -229,6 +299,7 @@ namespace Allen::CuDNN {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
             m_algo = perf[i].algo;
+            m_selection_source = AlgorithmSelectionSource::Heuristic;
             set_workspace(perf[i].memory);
             return;
           }
@@ -267,6 +338,7 @@ namespace Allen::CuDNN {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
             m_algo = perf[i].algo;
+            m_selection_source = AlgorithmSelectionSource::TimedFind;
             set_workspace(perf[i].memory);
             break;
           }
@@ -294,8 +366,17 @@ namespace Allen::CuDNN {
       std::array<int, 2> dilation = {1, 1},
       ConvPlanOptions options = {})
     {
+      validate_shape_4d(input_shape, "ForwardConvPlan input_shape");
+      validate_shape_4d(filter_shape, "ForwardConvPlan filter_shape");
+      validate_pair_2d(pad, "ForwardConvPlan pad", true);
+      validate_pair_2d(stride, "ForwardConvPlan stride", false);
+      validate_pair_2d(dilation, "ForwardConvPlan dilation", false);
+      if (input_shape[1] != filter_shape[1]) {
+        throw std::invalid_argument("AllenCuDNN: ForwardConvPlan input channels do not match filter channels");
+      }
       release_workspace();
       m_options = options;
+      m_selection_source = AlgorithmSelectionSource::Default;
 
       m_input_desc.set_4d(input_shape, m_options.data_type);
       m_filter_desc.set_4d(filter_shape, m_options.data_type);
@@ -309,6 +390,8 @@ namespace Allen::CuDNN {
 
       m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
       m_ws_bytes = 0;
+      m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
+        AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
       if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
         select_heuristic(handle);
       }
@@ -336,6 +419,27 @@ namespace Allen::CuDNN {
     size_t workspace_bytes() const { return m_ws_bytes; }
     WorkspacePolicy workspace_policy() const { return m_options.workspace_policy; }
     AlgorithmSelectionPolicy algorithm_policy() const { return m_options.algorithm_policy; }
+    AlgorithmSelectionSource selection_source() const { return m_selection_source; }
+    bool is_created() const { return m_created; }
+    int algorithm_id() const { return static_cast<int>(m_algo); }
+    cudnnDataType_t data_type() const { return m_options.data_type; }
+    cudnnDataType_t compute_type() const { return m_options.compute_type; }
+    cudnnMathType_t math_type() const { return m_options.math_type; }
+
+    ConvPlanMetadata metadata() const {
+      ConvPlanMetadata info {};
+      info.algorithm_policy = m_options.algorithm_policy;
+      info.selection_source = m_selection_source;
+      info.workspace_policy = m_options.workspace_policy;
+      info.workspace_bytes = m_ws_bytes;
+      info.workspace_limit_bytes = m_options.workspace_limit_bytes;
+      info.created = m_created;
+      info.algorithm = algorithm_id();
+      info.data_type = m_options.data_type;
+      info.compute_type = m_options.compute_type;
+      info.math_type = m_options.math_type;
+      return info;
+    }
 
     void forward(
       cudnnHandle_t handle,
@@ -392,6 +496,10 @@ namespace Allen::CuDNN {
     size_t workspace_bytes() const { return 0; }
     WorkspacePolicy workspace_policy() const { return WorkspacePolicy::ZeroOnly; }
     AlgorithmSelectionPolicy algorithm_policy() const { return AlgorithmSelectionPolicy::ZeroWorkspace; }
+    AlgorithmSelectionSource selection_source() const { return AlgorithmSelectionSource::Default; }
+    bool is_created() const { return false; }
+    int algorithm_id() const { return 0; }
+    ConvPlanMetadata metadata() const { return {}; }
     void forward(void*, float, float, const float*, const float*, float*) const {}
     void forward(const Handle&, float, float, const float*, const float*, float*) const {}
     void forward_half(void*, float, float, const void*, const void*, void*) const {}
@@ -409,6 +517,7 @@ namespace Allen::CuDNN {
     TensorDescriptor m_output_desc;
     cudnnConvolutionBwdDataAlgo_t m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
     ConvPlanOptions m_options {};
+    AlgorithmSelectionSource m_selection_source = AlgorithmSelectionSource::Default;
     void* m_workspace = nullptr;
     size_t m_ws_bytes = 0;
     bool m_created = false;
@@ -426,6 +535,7 @@ namespace Allen::CuDNN {
       if (m_options.workspace_policy == WorkspacePolicy::ZeroOnly && bytes != 0) {
         m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
         m_ws_bytes = 0;
+        m_selection_source = AlgorithmSelectionSource::Fallback;
       }
       if (m_options.workspace_policy == WorkspacePolicy::OwnedInitTime && m_ws_bytes > 0) {
         detail::cuda_check(cudaMalloc(&m_workspace, m_ws_bytes), "BackwardDataConvPlan workspace allocation failed");
@@ -448,6 +558,7 @@ namespace Allen::CuDNN {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
             m_algo = perf[i].algo;
+            m_selection_source = AlgorithmSelectionSource::Heuristic;
             set_workspace(perf[i].memory);
             return;
           }
@@ -471,8 +582,21 @@ namespace Allen::CuDNN {
       std::array<int, 2> dilation = {1, 1},
       ConvPlanOptions options = {})
     {
+      validate_shape_4d(filter_shape, "BackwardDataConvPlan filter_shape");
+      validate_shape_4d(input_shape, "BackwardDataConvPlan input_shape");
+      validate_shape_4d(output_shape, "BackwardDataConvPlan output_shape");
+      validate_pair_2d(pad, "BackwardDataConvPlan pad", true);
+      validate_pair_2d(stride, "BackwardDataConvPlan stride", false);
+      validate_pair_2d(dilation, "BackwardDataConvPlan dilation", false);
+      if (filter_shape[0] != input_shape[1]) {
+        throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter output channels do not match input channels");
+      }
+      if (filter_shape[1] != output_shape[1]) {
+        throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter input channels do not match output channels");
+      }
       release_workspace();
       m_options = options;
+      m_selection_source = AlgorithmSelectionSource::Default;
       m_filter_desc.set_4d(filter_shape, m_options.data_type);
       m_input_desc.set_4d(input_shape, m_options.data_type);
       m_output_desc.set_4d(output_shape, m_options.data_type);
@@ -480,6 +604,8 @@ namespace Allen::CuDNN {
 
       m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
       m_ws_bytes = 0;
+      m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
+        AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
       if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic ||
           m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
         select_heuristic(handle);
@@ -488,6 +614,29 @@ namespace Allen::CuDNN {
     }
 
     size_t workspace_bytes() const { return m_ws_bytes; }
+    WorkspacePolicy workspace_policy() const { return m_options.workspace_policy; }
+    AlgorithmSelectionPolicy algorithm_policy() const { return m_options.algorithm_policy; }
+    AlgorithmSelectionSource selection_source() const { return m_selection_source; }
+    bool is_created() const { return m_created; }
+    int algorithm_id() const { return static_cast<int>(m_algo); }
+    cudnnDataType_t data_type() const { return m_options.data_type; }
+    cudnnDataType_t compute_type() const { return m_options.compute_type; }
+    cudnnMathType_t math_type() const { return m_options.math_type; }
+
+    ConvPlanMetadata metadata() const {
+      ConvPlanMetadata info {};
+      info.algorithm_policy = m_options.algorithm_policy;
+      info.selection_source = m_selection_source;
+      info.workspace_policy = m_options.workspace_policy;
+      info.workspace_bytes = m_ws_bytes;
+      info.workspace_limit_bytes = m_options.workspace_limit_bytes;
+      info.created = m_created;
+      info.algorithm = algorithm_id();
+      info.data_type = m_options.data_type;
+      info.compute_type = m_options.compute_type;
+      info.math_type = m_options.math_type;
+      return info;
+    }
 
     void backward_data(
       cudnnHandle_t handle,
@@ -516,6 +665,12 @@ namespace Allen::CuDNN {
 #else
     void create(void*, std::array<int, 4>, std::array<int, 4>, std::array<int, 4>, std::array<int, 2> = {0, 0}, std::array<int, 2> = {1, 1}, std::array<int, 2> = {1, 1}, ConvPlanOptions = {}) {}
     size_t workspace_bytes() const { return 0; }
+    WorkspacePolicy workspace_policy() const { return WorkspacePolicy::ZeroOnly; }
+    AlgorithmSelectionPolicy algorithm_policy() const { return AlgorithmSelectionPolicy::ZeroWorkspace; }
+    AlgorithmSelectionSource selection_source() const { return AlgorithmSelectionSource::Default; }
+    bool is_created() const { return false; }
+    int algorithm_id() const { return 0; }
+    ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
 #endif
   };
