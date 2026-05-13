@@ -6,6 +6,8 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -46,6 +48,7 @@ namespace Allen::CuDNN {
     AlgorithmSelectionPolicy algorithm_policy = AlgorithmSelectionPolicy::TimedFind;
     WorkspacePolicy workspace_policy = WorkspacePolicy::OwnedInitTime;
     size_t workspace_limit_bytes = 64ul * 1024 * 1024;
+    bool log_plan_creation = false;
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     cudnnDataType_t data_type = CUDNN_DATA_FLOAT;
     cudnnDataType_t compute_type = CUDNN_DATA_FLOAT;
@@ -59,6 +62,8 @@ namespace Allen::CuDNN {
     WorkspacePolicy workspace_policy = WorkspacePolicy::OwnedInitTime;
     size_t workspace_bytes = 0;
     size_t workspace_limit_bytes = 0;
+    std::string algorithm_name;
+    std::string fallback_reason;
     bool created = false;
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     int algorithm = 0;
@@ -122,6 +127,56 @@ namespace Allen::CuDNN {
   }
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
+  inline const char* to_string(cudnnConvolutionFwdAlgo_t algo) {
+    switch (algo) {
+    case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM: return "CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM";
+    case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM: return "CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM";
+    case CUDNN_CONVOLUTION_FWD_ALGO_GEMM: return "CUDNN_CONVOLUTION_FWD_ALGO_GEMM";
+    case CUDNN_CONVOLUTION_FWD_ALGO_DIRECT: return "CUDNN_CONVOLUTION_FWD_ALGO_DIRECT";
+    case CUDNN_CONVOLUTION_FWD_ALGO_FFT: return "CUDNN_CONVOLUTION_FWD_ALGO_FFT";
+    case CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING: return "CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING";
+    case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD: return "CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD";
+    case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED: return "CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED";
+    }
+    return "CUDNN_CONVOLUTION_FWD_ALGO_UNKNOWN";
+  }
+
+  inline const char* to_string(cudnnConvolutionBwdDataAlgo_t algo) {
+    switch (algo) {
+    case CUDNN_CONVOLUTION_BWD_DATA_ALGO_0: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_0";
+    case CUDNN_CONVOLUTION_BWD_DATA_ALGO_1: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_1";
+    case CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT";
+    case CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING";
+    case CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD";
+    case CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED";
+    }
+    return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_UNKNOWN";
+  }
+
+  inline bool plan_creation_logging_enabled(const ConvPlanOptions& options) {
+    return options.log_plan_creation || std::getenv("ALLEN_CUDNN_VERBOSE") != nullptr;
+  }
+
+  inline void log_plan_creation(const char* plan_name, const ConvPlanMetadata& info, const ConvPlanOptions& options) {
+    if (!plan_creation_logging_enabled(options)) return;
+    std::fprintf(
+      stderr,
+      "AllenCuDNN: %s created algorithm=%s(%d) selection_policy=%s selection_source=%s "
+      "workspace_policy=%s workspace_bytes=%zu workspace_limit_bytes=%zu",
+      plan_name,
+      info.algorithm_name.c_str(),
+      info.algorithm,
+      to_string(info.algorithm_policy),
+      to_string(info.selection_source),
+      to_string(info.workspace_policy),
+      info.workspace_bytes,
+      info.workspace_limit_bytes);
+    if (!info.fallback_reason.empty()) {
+      std::fprintf(stderr, " fallback_reason=\"%s\"", info.fallback_reason.c_str());
+    }
+    std::fprintf(stderr, "\n");
+  }
+
   namespace detail {
     inline size_t dtype_size(cudnnDataType_t dtype) {
       return dtype == CUDNN_DATA_HALF ? sizeof(__half) : sizeof(float);
@@ -268,6 +323,7 @@ namespace Allen::CuDNN {
     cudnnConvolutionFwdAlgo_t m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
     ConvPlanOptions m_options {};
     AlgorithmSelectionSource m_selection_source = AlgorithmSelectionSource::Default;
+    std::string m_fallback_reason;
     void* m_workspace = nullptr;
     size_t m_ws_bytes = 0;
     bool m_created = false;
@@ -294,7 +350,7 @@ namespace Allen::CuDNN {
       static constexpr int kMaxAlgos = 8;
       int returned = 0;
       cudnnConvolutionFwdAlgoPerf_t perf[kMaxAlgos];
-      if (cudnnGetConvolutionForwardAlgorithm_v7(
+      const auto status = cudnnGetConvolutionForwardAlgorithm_v7(
             handle,
             m_input_desc.get(),
             m_filter_desc.get(),
@@ -302,7 +358,8 @@ namespace Allen::CuDNN {
             m_output_desc.get(),
             kMaxAlgos,
             &returned,
-            perf) == CUDNN_STATUS_SUCCESS) {
+            perf);
+      if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
             m_algo = perf[i].algo;
@@ -311,7 +368,12 @@ namespace Allen::CuDNN {
             return;
           }
         }
+        m_fallback_reason = "heuristic selection returned no successful algorithm within the workspace limit";
       }
+      else {
+        m_fallback_reason = std::string("cudnnGetConvolutionForwardAlgorithm_v7 failed: ") + cudnnGetErrorString(status);
+      }
+      m_selection_source = AlgorithmSelectionSource::Fallback;
     }
 
     void select_timed(
@@ -334,14 +396,15 @@ namespace Allen::CuDNN {
 
       int returned = 0;
       cudnnConvolutionFwdAlgoPerf_t perf[kMaxAlgos];
-      if (cudnnFindConvolutionForwardAlgorithmEx(
+      const auto status = cudnnFindConvolutionForwardAlgorithmEx(
             handle,
             m_input_desc.get(), tmp_in,
             m_filter_desc.get(), tmp_filt,
             m_conv_desc.get(),
             m_output_desc.get(), tmp_out,
             kMaxAlgos, &returned, perf,
-            search_ws, m_options.workspace_limit_bytes) == CUDNN_STATUS_SUCCESS) {
+            search_ws, m_options.workspace_limit_bytes);
+      if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
             m_algo = perf[i].algo;
@@ -350,6 +413,14 @@ namespace Allen::CuDNN {
             break;
           }
         }
+        if (m_selection_source != AlgorithmSelectionSource::TimedFind) {
+          m_fallback_reason = "timed find returned no successful algorithm within the workspace limit";
+          m_selection_source = AlgorithmSelectionSource::Fallback;
+        }
+      }
+      else {
+        m_fallback_reason = std::string("cudnnFindConvolutionForwardAlgorithmEx failed: ") + cudnnGetErrorString(status);
+        m_selection_source = AlgorithmSelectionSource::Fallback;
       }
 
       cudaFree(tmp_in);
@@ -385,6 +456,7 @@ namespace Allen::CuDNN {
       release_workspace();
       m_options = options;
       m_selection_source = AlgorithmSelectionSource::Default;
+      m_fallback_reason.clear();
 
       m_input_desc.set_4d(input_shape, m_options.data_type);
       m_filter_desc.set_4d(filter_shape, m_options.data_type);
@@ -408,6 +480,7 @@ namespace Allen::CuDNN {
       }
 
       m_created = true;
+      log_plan_creation("ForwardConvPlan", metadata(), m_options);
     }
 
     void create(
@@ -428,8 +501,10 @@ namespace Allen::CuDNN {
     WorkspacePolicy workspace_policy() const { return m_options.workspace_policy; }
     AlgorithmSelectionPolicy algorithm_policy() const { return m_options.algorithm_policy; }
     AlgorithmSelectionSource selection_source() const { return m_selection_source; }
+    const std::string& fallback_reason() const { return m_fallback_reason; }
     bool is_created() const { return m_created; }
     int algorithm_id() const { return static_cast<int>(m_algo); }
+    const char* algorithm_name() const { return to_string(m_algo); }
     cudnnDataType_t data_type() const { return m_options.data_type; }
     cudnnDataType_t compute_type() const { return m_options.compute_type; }
     cudnnMathType_t math_type() const { return m_options.math_type; }
@@ -441,6 +516,8 @@ namespace Allen::CuDNN {
       info.workspace_policy = m_options.workspace_policy;
       info.workspace_bytes = m_ws_bytes;
       info.workspace_limit_bytes = m_options.workspace_limit_bytes;
+      info.algorithm_name = algorithm_name();
+      info.fallback_reason = m_fallback_reason;
       info.created = m_created;
       info.algorithm = algorithm_id();
       info.data_type = m_options.data_type;
@@ -519,8 +596,10 @@ namespace Allen::CuDNN {
     WorkspacePolicy workspace_policy() const { return WorkspacePolicy::ZeroOnly; }
     AlgorithmSelectionPolicy algorithm_policy() const { return AlgorithmSelectionPolicy::ZeroWorkspace; }
     AlgorithmSelectionSource selection_source() const { return AlgorithmSelectionSource::Default; }
+    const std::string& fallback_reason() const { static const std::string empty {}; return empty; }
     bool is_created() const { return false; }
     int algorithm_id() const { return 0; }
+    const char* algorithm_name() const { return "CUDNN_CONVOLUTION_FWD_ALGO_UNKNOWN"; }
     ConvPlanMetadata metadata() const { return {}; }
     void forward(void*, float, float, const float*, const float*, float*) const {}
     void forward(const Handle&, float, float, const float*, const float*, float*) const {}
@@ -541,6 +620,7 @@ namespace Allen::CuDNN {
     cudnnConvolutionBwdDataAlgo_t m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
     ConvPlanOptions m_options {};
     AlgorithmSelectionSource m_selection_source = AlgorithmSelectionSource::Default;
+    std::string m_fallback_reason;
     void* m_workspace = nullptr;
     size_t m_ws_bytes = 0;
     bool m_created = false;
@@ -567,7 +647,7 @@ namespace Allen::CuDNN {
       static constexpr int kMaxAlgos = 8;
       int returned = 0;
       cudnnConvolutionBwdDataAlgoPerf_t perf[kMaxAlgos];
-      if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
+      const auto status = cudnnGetConvolutionBackwardDataAlgorithm_v7(
             handle,
             m_filter_desc.get(),
             m_input_desc.get(),
@@ -575,7 +655,8 @@ namespace Allen::CuDNN {
             m_output_desc.get(),
             kMaxAlgos,
             &returned,
-            perf) == CUDNN_STATUS_SUCCESS) {
+            perf);
+      if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
             m_algo = perf[i].algo;
@@ -584,7 +665,67 @@ namespace Allen::CuDNN {
             return;
           }
         }
+        m_fallback_reason = "heuristic selection returned no successful algorithm within the workspace limit";
       }
+      else {
+        m_fallback_reason =
+          std::string("cudnnGetConvolutionBackwardDataAlgorithm_v7 failed: ") + cudnnGetErrorString(status);
+      }
+      m_selection_source = AlgorithmSelectionSource::Fallback;
+    }
+
+    void select_timed(
+      cudnnHandle_t handle,
+      std::array<int, 4> filter_shape,
+      std::array<int, 4> input_shape,
+      std::array<int, 4> output_shape)
+    {
+      static constexpr int kMaxAlgos = 8;
+      const size_t dtype_bytes = detail::dtype_size(m_options.data_type);
+      const size_t filt_elems = (size_t) filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
+      const size_t in_elems = (size_t) input_shape[0] * input_shape[1] * input_shape[2] * input_shape[3];
+      const size_t out_elems = (size_t) output_shape[0] * output_shape[1] * output_shape[2] * output_shape[3];
+
+      void *tmp_filt = nullptr, *tmp_in = nullptr, *tmp_out = nullptr, *search_ws = nullptr;
+      detail::cuda_check(cudaMalloc(&tmp_filt, filt_elems * dtype_bytes), "BackwardDataConvPlan FindEx filter allocation failed");
+      detail::cuda_check(cudaMalloc(&tmp_in, in_elems * dtype_bytes), "BackwardDataConvPlan FindEx input allocation failed");
+      detail::cuda_check(cudaMalloc(&tmp_out, out_elems * dtype_bytes), "BackwardDataConvPlan FindEx output allocation failed");
+      detail::cuda_check(cudaMalloc(&search_ws, m_options.workspace_limit_bytes), "BackwardDataConvPlan FindEx search allocation failed");
+
+      int returned = 0;
+      cudnnConvolutionBwdDataAlgoPerf_t perf[kMaxAlgos];
+      const auto status = cudnnFindConvolutionBackwardDataAlgorithmEx(
+        handle,
+        m_filter_desc.get(), tmp_filt,
+        m_input_desc.get(), tmp_in,
+        m_conv_desc.get(),
+        m_output_desc.get(), tmp_out,
+        kMaxAlgos, &returned, perf,
+        search_ws, m_options.workspace_limit_bytes);
+      if (status == CUDNN_STATUS_SUCCESS) {
+        for (int i = 0; i < returned; ++i) {
+          if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
+            m_algo = perf[i].algo;
+            m_selection_source = AlgorithmSelectionSource::TimedFind;
+            set_workspace(perf[i].memory);
+            break;
+          }
+        }
+        if (m_selection_source != AlgorithmSelectionSource::TimedFind) {
+          m_fallback_reason = "timed find returned no successful algorithm within the workspace limit";
+          m_selection_source = AlgorithmSelectionSource::Fallback;
+        }
+      }
+      else {
+        m_fallback_reason =
+          std::string("cudnnFindConvolutionBackwardDataAlgorithmEx failed: ") + cudnnGetErrorString(status);
+        m_selection_source = AlgorithmSelectionSource::Fallback;
+      }
+
+      cudaFree(tmp_filt);
+      cudaFree(tmp_in);
+      cudaFree(tmp_out);
+      cudaFree(search_ws);
     }
 
   public:
@@ -619,6 +760,7 @@ namespace Allen::CuDNN {
       release_workspace();
       m_options = options;
       m_selection_source = AlgorithmSelectionSource::Default;
+      m_fallback_reason.clear();
       m_filter_desc.set_4d(filter_shape, m_options.data_type);
       m_input_desc.set_4d(input_shape, m_options.data_type);
       m_output_desc.set_4d(output_shape, m_options.data_type);
@@ -628,19 +770,24 @@ namespace Allen::CuDNN {
       m_ws_bytes = 0;
       m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
         AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
-      if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic ||
-          m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
+      if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
         select_heuristic(handle);
       }
+      else if (m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
+        select_timed(handle, filter_shape, input_shape, output_shape);
+      }
       m_created = true;
+      log_plan_creation("BackwardDataConvPlan", metadata(), m_options);
     }
 
     size_t workspace_bytes() const { return m_ws_bytes; }
     WorkspacePolicy workspace_policy() const { return m_options.workspace_policy; }
     AlgorithmSelectionPolicy algorithm_policy() const { return m_options.algorithm_policy; }
     AlgorithmSelectionSource selection_source() const { return m_selection_source; }
+    const std::string& fallback_reason() const { return m_fallback_reason; }
     bool is_created() const { return m_created; }
     int algorithm_id() const { return static_cast<int>(m_algo); }
+    const char* algorithm_name() const { return to_string(m_algo); }
     cudnnDataType_t data_type() const { return m_options.data_type; }
     cudnnDataType_t compute_type() const { return m_options.compute_type; }
     cudnnMathType_t math_type() const { return m_options.math_type; }
@@ -652,6 +799,8 @@ namespace Allen::CuDNN {
       info.workspace_policy = m_options.workspace_policy;
       info.workspace_bytes = m_ws_bytes;
       info.workspace_limit_bytes = m_options.workspace_limit_bytes;
+      info.algorithm_name = algorithm_name();
+      info.fallback_reason = m_fallback_reason;
       info.created = m_created;
       info.algorithm = algorithm_id();
       info.data_type = m_options.data_type;
@@ -704,8 +853,10 @@ namespace Allen::CuDNN {
     WorkspacePolicy workspace_policy() const { return WorkspacePolicy::ZeroOnly; }
     AlgorithmSelectionPolicy algorithm_policy() const { return AlgorithmSelectionPolicy::ZeroWorkspace; }
     AlgorithmSelectionSource selection_source() const { return AlgorithmSelectionSource::Default; }
+    const std::string& fallback_reason() const { static const std::string empty {}; return empty; }
     bool is_created() const { return false; }
     int algorithm_id() const { return 0; }
+    const char* algorithm_name() const { return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_UNKNOWN"; }
     ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
     void backward_data(void*, float, float, const void*, const void*, void*, Workspace) const {}

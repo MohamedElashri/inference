@@ -14,6 +14,8 @@
 #include "AllenCuDNN.h"
 #endif
 
+#include <string>
+
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 
 TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
@@ -29,6 +31,8 @@ TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
   REQUIRE(plan.algorithm_policy() == Allen::CuDNN::AlgorithmSelectionPolicy::ZeroWorkspace);
   REQUIRE(plan.workspace_policy() == Allen::CuDNN::WorkspacePolicy::ZeroOnly);
   REQUIRE(plan.selection_source() == Allen::CuDNN::AlgorithmSelectionSource::ZeroWorkspace);
+  REQUIRE(std::string(plan.algorithm_name()).find("CUDNN_CONVOLUTION_FWD_ALGO_") == 0);
+  REQUIRE(plan.fallback_reason().empty());
   REQUIRE(plan.workspace_bytes() == 0);
   REQUIRE(plan.is_created());
 
@@ -37,6 +41,8 @@ TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
   REQUIRE(metadata.algorithm_policy == Allen::CuDNN::AlgorithmSelectionPolicy::ZeroWorkspace);
   REQUIRE(metadata.workspace_policy == Allen::CuDNN::WorkspacePolicy::ZeroOnly);
   REQUIRE(metadata.workspace_bytes == 0);
+  REQUIRE(metadata.algorithm_name == plan.algorithm_name());
+  REQUIRE(metadata.fallback_reason.empty());
 }
 
 TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
@@ -51,6 +57,8 @@ TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
 
   REQUIRE(plan.workspace_bytes() == 0);
   REQUIRE(plan.selection_source() == Allen::CuDNN::AlgorithmSelectionSource::ZeroWorkspace);
+  REQUIRE(std::string(plan.algorithm_name()).find("CUDNN_CONVOLUTION_BWD_DATA_ALGO_") == 0);
+  REQUIRE(plan.fallback_reason().empty());
   REQUIRE(plan.is_created());
 }
 
