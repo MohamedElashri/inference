@@ -36,6 +36,8 @@ parser.add_argument("--weights",
                     help="PyTorch weight file (.pyt)")
 parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
+parser.add_argument("--unet-channels", type=int, default=64,
+                    help="Number of UNet feature channels used by the PyTorch model")
 parser.add_argument("--plot",      action="store_true",
                     help="Save comparison plots to <dump_dir>/plots/")
 args = parser.parse_args()
@@ -93,7 +95,7 @@ from utils import TrackIntervalsToKDE_HDplusUNet100 as Model
 
 nOut1 = nOut2 = nOut3 = nOut4 = nOut5 = 20
 latentChannels = 8
-nUNetChannels = 64
+nUNetChannels = args.unet_channels
 
 model = Model(nOut1, nOut2, nOut3, nOut4, nOut5,
               latentChannels=latentChannels, n=nUNetChannels)
