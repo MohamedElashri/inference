@@ -151,12 +151,14 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_BATCH_CHANNELS * 25,
             s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
+    s_desc.rcbn1.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_BATCH_CHANNELS, W_IN, N_FEAT, 25, 12));
     to_half(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
             s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn1_h.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
-                          {1,1}, {1,1}, CUDNN_DATA_HALF);
+    Allen::CuDNN::ConvPlanOptions fp16_options {};
+    fp16_options.precision = Allen::CuDNN::fp16_precision_policy();
+    s_desc.rcbn1_h.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_BATCH_CHANNELS, W_IN, N_FEAT, 25, 12),
+                          fp16_options);
 
     fold_bn(wb.w_rcbn2_w, wb.w_rcbn2_b,
             wb.w_rcbn2_gamma, wb.w_rcbn2_beta,
@@ -164,12 +166,12 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 7,
             s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3});
+    s_desc.rcbn2.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 7, 3));
     to_half(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
             s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn2_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
-                          {1,1}, {1,1}, CUDNN_DATA_HALF);
+    s_desc.rcbn2_h.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 7, 3),
+                          fp16_options);
 
     fold_bn(wb.w_rcbn3_w, wb.w_rcbn3_b,
             wb.w_rcbn3_gamma, wb.w_rcbn3_beta,
@@ -177,12 +179,12 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 5,
             s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.rcbn3.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2));
     to_half(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
             s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn3_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
-                          {1,1}, {1,1}, CUDNN_DATA_HALF);
+    s_desc.rcbn3_h.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2),
+                          fp16_options);
 
     fold_bn(wb.w_up1c_w, wb.w_up1c_b,
             wb.w_up1c_gamma, wb.w_up1c_beta,
@@ -190,12 +192,12 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 5,
             s_desc.up1c_w_f, s_desc.up1c_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.up1_c.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2));
     to_half(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
             s_desc.up1c_w_h, s_desc.up1c_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.up1c_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
-                         {1,1}, {1,1}, CUDNN_DATA_HALF);
+    s_desc.up1c_h.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2),
+                         fp16_options);
 
     fold_bn(wb.w_up2c_w, wb.w_up2c_b,
             wb.w_up2c_gamma, wb.w_up2c_beta,
@@ -203,12 +205,12 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 5,
             s_desc.up2c_w_f, s_desc.up2c_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.up2_c.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 5, 2));
     to_half(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
             s_desc.up2c_w_h, s_desc.up2c_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.up2c_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
-                         {1,1}, {1,1}, CUDNN_DATA_HALF);
+    s_desc.up2c_h.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 5, 2),
+                         fp16_options);
 
     // Allocate dedicated FP16 activation pool for Phase M benchmark.
     // Layout: ncw | x1 | x2 | x3 | up1 | cat2 | up2
@@ -234,8 +236,8 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
     }
 
     // Non-CBR paths keep the existing timed forward-conv plan selection.
-    s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
-    s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2});
+    s_desc.oint_half.create(handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 5, 2));
+    s_desc.outc.create(     handle, Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, 1,      5, 2));
 
     Allen::CuDNN::ConvPlanOptions bwd_options {};
     bwd_options.algorithm_policy = Allen::CuDNN::AlgorithmSelectionPolicy::Heuristic;
@@ -243,16 +245,12 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
 
     s_desc.up1_t.create(
         handle,
-        {N_FEAT, N_FEAT, 1, 2},
-        {N, N_FEAT, 1, W_QTR},
-        {N, N_FEAT, 1, W_HALF},
-        {0, 0}, {1, 2}, {1, 1}, bwd_options);
+        Allen::CuDNN::Conv1DShape::backward_data(N, N_FEAT, W_QTR, N_FEAT, W_HALF, 2, 0, 2),
+        bwd_options);
     s_desc.up2_t.create(
         handle,
-        {N_FEAT * 2, N_FEAT, 1, 2},
-        {N, N_FEAT * 2, 1, W_HALF},
-        {N, N_FEAT, 1, W_IN},
-        {0, 0}, {1, 2}, {1, 1}, bwd_options);
+        Allen::CuDNN::Conv1DShape::backward_data(N, N_FEAT * 2, W_HALF, N_FEAT, W_IN, 2, 0, 2),
+        bwd_options);
 }
 
 // ---------------------------------------------------------------------------
