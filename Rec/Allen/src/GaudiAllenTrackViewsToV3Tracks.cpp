@@ -19,6 +19,7 @@
 #include "Event/TrackEnums.h"
 #include "Event/UniqueIDGenerator.h"
 #include "Event/StateParameters.h"
+#include "Event/PrVeloTracks.h"
 #include <Kernel/EventLocalAllocator.h>
 
 // Allen
@@ -86,53 +87,6 @@ namespace GaudiAllen::Converters::v3 {
 
   template<typename AllenTrack>
   using v3_hit_container_t = typename v3_hit_container<AllenTrack>::type;
-
-  /**
-   * Allen-specific equivalent of LHCb::Event::conversion::update_lhcb_ids
-   * Copies LHCbIDs for an Allen track or track segment.
-   * Can probably be easily improved if the hits for a track can be accessed
-   * as a range.
-   */
-  template<typename TrackProxy, typename AllenTrack>
-  void update_seg_lhcb_ids(TrackProxy& outTrack, const AllenTrack& track)
-  {
-    const unsigned n_hits = track.number_of_ids();
-    outTrack.template field<v3_hit_container_t<AllenTrack>>().resize(n_hits);
-    for (unsigned i = 0; i < n_hits; ++i) {
-      const auto id = track.id(i);
-      const LHCb::LHCbID lhcbid {id};
-      assert(v3_hit_container<AllenTrack>::check_id(lhcbid));
-      outTrack.template field<v3_hit_container_t<AllenTrack>>()[i].template field<OutTag::LHCbID>().set(lhcbid);
-    }
-  }
-
-  /**
-   * Adapter for the heterogenous track/particle types.
-   */
-  template<typename TrackProxy, typename AllenTrack>
-  void update_lhcb_ids(TrackProxy& outTrack, const AllenTrack& track)
-  {
-    if constexpr (std::is_same_v<AllenTrack, Allen::Views::Physics::BasicParticle>) {
-      /// fan-out track segments
-      using Track = Allen::Views::Physics::Track;
-      using segment = Track::segment;
-
-      auto actual_track = static_cast<const Track&>(track.track());
-      if (actual_track.has<segment::velo>()) update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::velo>());
-      if (actual_track.has<segment::ut>()) update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::ut>());
-      if (actual_track.has<segment::scifi>())
-        update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::scifi>());
-      if (actual_track.has<segment::muon>()) update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::muon>());
-    }
-    else if constexpr (std::is_same_v<AllenTrack, Allen::Views::UT::Consolidated::VeloUTTrack>) {
-      /// include Velo segment referenced by UT Track
-      update_seg_lhcb_ids(outTrack, track);
-      update_seg_lhcb_ids(outTrack, track.velo_track());
-    }
-    else {
-      update_seg_lhcb_ids(outTrack, track);
-    }
-  }
 
   /**
    * Association from Allen Consolidated::Track types to its corresponding
@@ -349,6 +303,21 @@ namespace GaudiAllen::Converters::v3 {
     return true;
   }
 
+  template<OutTracks::StateLocation L, typename TrackProxy>
+  bool update_velo_state_pr(TrackProxy& outTrack, const KalmanVeloStateWithQoP& state)
+  {
+    outTrack.template field<LHCb::Pr::Velo::Tag::States>(outTrack.state_index(L))
+      .setPosition(state.x(), state.y(), state.z());
+    outTrack.template field<LHCb::Pr::Velo::Tag::States>(outTrack.state_index(L)).setDirection(state.tx(), state.ty());
+
+    outTrack.setStateCovXY(
+      L,
+      LHCb::LinAlg::Vec<typename TrackProxy::float_v, 3> {state.c00(), state.c20(), state.c22()},
+      LHCb::LinAlg::Vec<typename TrackProxy::float_v, 3> {state.c11(), state.c31(), state.c33()});
+
+    return true;
+  }
+
   namespace {
     /**
      * Linear state extrapolation of a KalmanVeloState.
@@ -399,6 +368,15 @@ namespace GaudiAllen::Converters::v3 {
     {
       return (update_velo_state<L>(outTrack, extrap_from_closest_state(states, z_of<L>(track, states[0]))) && ...);
     }
+
+    template<typename TrackProxy>
+    static bool update_states_impl_pr_velo(TrackProxy& outTrack, std::vector<KalmanVeloStateWithQoP> states)
+    {
+      return (
+        update_velo_state_pr<OutTracks::StateLocation::ClosestToBeam>(outTrack, states[0]) &&
+        update_velo_state_pr<OutTracks::StateLocation::EndVelo>(outTrack, states[1]));
+    }
+
   } // namespace
 
   /**
@@ -439,43 +417,6 @@ namespace GaudiAllen::Converters::v3 {
         outTrack, track, states, LHCb::Event::v3::available_states_t<OutTrackType::Long, FitHistory::VeloKalman> {});
     default: throw GaudiException("unknown v3 track type", "GaudiAllenTrackViewsToV3Tracks", StatusCode::FAILURE);
     }
-  }
-
-  /**
-   * Allen-specific equivalent of LHCb::Event::conversion::convert_track.
-   * States are not generally directly accessible from Allen tracks.
-   * They must be provided as separate input.
-   * Only a subset of the LHCb::Event::v3::TrackType currently implemented.
-   */
-  template<typename TrackProxy, typename AllenTrack>
-  void convert_track(
-    TrackProxy& newTrack,
-    const AllenTrack& track,
-    std::vector<KalmanVeloStateWithQoP> states,
-    const LHCb::UniqueIDGenerator& unique_id_gen)
-  {
-    // add hits
-    update_lhcb_ids(newTrack, track);
-
-    // track history
-    newTrack.template field<OutTag::history>().set(v3_history_v<AllenTrack>);
-
-    // identifier
-    using int_v = decltype(newTrack.template field<OutTag::UniqueID>().get());
-    newTrack.template field<OutTag::UniqueID>().set(unique_id_gen.generate<int_v>().value());
-
-    // set chi2 and ndof if available
-    if constexpr (std::is_same_v<AllenTrack, Allen::Views::Physics::BasicParticle>) {
-      newTrack.template field<OutTag::Chi2>().set(track.chi2());
-      newTrack.template field<OutTag::nDoF>().set(static_cast<int>(track.ndof()));
-    }
-    else {
-      newTrack.template field<OutTag::Chi2>().set(0.);
-      newTrack.template field<OutTag::nDoF>().set(0);
-    }
-
-    // convert states
-    update_states(newTrack, track, states);
   }
 
   namespace {
@@ -609,6 +550,9 @@ namespace GaudiAllen::Converters::v3 {
       return (std::is_same_v<InTypes, Allen::Views::Velo::Consolidated::MultiEventTracks> || ...);
     };
 
+    template<typename OutType>
+    using is_pr_velo_output = std::is_same<std::tuple_element_t<0, OutType>, LHCb::Pr::Velo::Tracks>;
+
     /**
      * One or two output containers dependent on wheter input is Velo
      */
@@ -626,19 +570,16 @@ namespace GaudiAllen::Converters::v3 {
       using type = std::tuple<OutTracks, OutTracks>;
     };
 
-    template<typename... InTypes>
-    using out_type_t = typename switched_out_type<is_velo_input<InTypes...>()>::type;
-
     /**
      * Key names for output containers
      */
     template<typename KeyValue, typename LHCbOutput>
     auto get_output_names()
     {
-      if constexpr (std::is_same_v<LHCbOutput, switched_out_type<true>::type>) {
+      if constexpr (std::tuple_size_v<LHCbOutput> == 2) {
         return std::make_tuple(KeyValue {"OutputTracksForward", ""}, KeyValue {"OutputTracksBackward", ""});
       }
-      else if constexpr (std::is_same_v<LHCbOutput, switched_out_type<false>::type>) {
+      else {
         return std::make_tuple(KeyValue {"OutputTracks", ""});
       }
     }
@@ -652,15 +593,15 @@ namespace GaudiAllen::Converters::v3 {
    * - Two track containers for Velo input (forward and backward)
    * - One track container for all other types of input
    */
-  template<typename AllenTracks, typename... AllenStates>
+  template<typename AllenTracks, typename Output_type, typename... AllenStates>
   class GaudiAllenTrackViewsToV3Tracks final
-    : public Gaudi::Functional::MultiTransformer<out_type_t<AllenTracks>(
+    : public Gaudi::Functional::MultiTransformer<Output_type(
         std::vector<AllenTracks, LHCb::Allocators::EventLocal<AllenTracks>> const&,
         std::vector<in_type_t<AllenStates>, LHCb::Allocators::EventLocal<in_type_t<AllenStates>>> const&...,
         const LHCb::UniqueIDGenerator&)> {
 
   public:
-    using OutType = out_type_t<AllenTracks>;
+    using OutType = Output_type;
     using base_class = Gaudi::Functional::MultiTransformer<OutType(
       std::vector<AllenTracks, LHCb::Allocators::EventLocal<AllenTracks>> const&,
       std::vector<in_type_t<AllenStates>, LHCb::Allocators::EventLocal<in_type_t<AllenStates>>> const&...,
@@ -700,7 +641,6 @@ namespace GaudiAllen::Converters::v3 {
         auto newTrack = get_new_out_track(output, backward);
         convert_track(newTrack, track, states, unique_id_gen);
       }
-
       assert(get_output_size(output) == number_of_tracks);
       return output;
     }
@@ -715,7 +655,10 @@ namespace GaudiAllen::Converters::v3 {
       using LHCb::Event::Enum::Track::FitHistory;
       using LHCb::Event::Enum::Track::Type;
       auto zn = Zipping::generateZipIdentifier();
-      if constexpr (std::tuple_size_v<OutType> == 2) {
+      if constexpr (is_pr_velo_output<OutType>::value) {
+        return {LHCb::Pr::Velo::Tracks(false, zn), LHCb::Pr::Velo::Tracks(true, zn)};
+      }
+      else if constexpr (std::tuple_size_v<OutType> == 2) {
         return {OutTracks(v3_track_type<AllenTrack>::value_fwd, unique_id_gen, zn),
                 OutTracks(v3_track_type<AllenTrack>::value_bwd, FitHistory::PrKalmanFilter, true, unique_id_gen, zn)};
       }
@@ -727,6 +670,111 @@ namespace GaudiAllen::Converters::v3 {
       }
       else {
         return {OutTracks(v3_track_type_v<AllenTrack>, unique_id_gen, zn)};
+      }
+    }
+
+    /**
+     * Allen-specific equivalent of LHCb::Event::conversion::update_lhcb_ids
+     * Copies LHCbIDs for an Allen track or track segment.
+     * Can probably be easily improved if the hits for a track can be accessed
+     * as a range.
+     */
+    template<typename TrackProxy, typename AllenTrack>
+    void update_seg_lhcb_ids(TrackProxy& outTrack, const AllenTrack& track) const
+    {
+      if constexpr (is_pr_velo_output<OutType>::value) {
+        const unsigned n_hits = track.number_of_ids();
+        outTrack.template field<LHCb::Pr::Velo::Tag::Hits>().resize(n_hits);
+        for (unsigned i = 0; i < n_hits; ++i) {
+          const auto id = track.id(i);
+          const LHCb::LHCbID lhcbid {id};
+          outTrack.template field<LHCb::Pr::Velo::Tag::Hits>()[i].template field<LHCb::Pr::Velo::Tag::LHCbID>().set(
+            lhcbid);
+        }
+      }
+      else {
+        const unsigned n_hits = track.number_of_ids();
+        outTrack.template field<v3_hit_container_t<AllenTrack>>().resize(n_hits);
+        for (unsigned i = 0; i < n_hits; ++i) {
+          const auto id = track.id(i);
+          const LHCb::LHCbID lhcbid {id};
+          assert(v3_hit_container<AllenTrack>::check_id(lhcbid));
+          outTrack.template field<v3_hit_container_t<AllenTrack>>()[i].template field<OutTag::LHCbID>().set(lhcbid);
+        }
+      }
+    }
+
+    /**
+     * Adapter for the heterogenous track/particle types.
+     */
+    template<typename TrackProxy, typename AllenTrack>
+    void update_lhcb_ids(TrackProxy& outTrack, const AllenTrack& track) const
+    {
+      if constexpr (std::is_same_v<AllenTrack, Allen::Views::Physics::BasicParticle>) {
+        /// fan-out track segments
+        using Track = Allen::Views::Physics::Track;
+        using segment = Track::segment;
+
+        auto actual_track = static_cast<const Track&>(track.track());
+        if (actual_track.has<segment::velo>())
+          update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::velo>());
+        if (actual_track.has<segment::ut>()) update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::ut>());
+        if (actual_track.has<segment::scifi>())
+          update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::scifi>());
+        if (actual_track.has<segment::muon>())
+          update_seg_lhcb_ids(outTrack, actual_track.track_segment<segment::muon>());
+      }
+      else if constexpr (std::is_same_v<AllenTrack, Allen::Views::UT::Consolidated::VeloUTTrack>) {
+        /// include Velo segment referenced by UT Track
+        update_seg_lhcb_ids(outTrack, track);
+        update_seg_lhcb_ids(outTrack, track.velo_track());
+      }
+      else {
+        update_seg_lhcb_ids(outTrack, track);
+      }
+    }
+
+    /**
+     * Allen-specific equivalent of LHCb::Event::conversion::convert_track.
+     * States are not generally directly accessible from Allen tracks.
+     * They must be provided as separate input.
+     * Only a subset of the LHCb::Event::v3::TrackType currently implemented.
+     */
+    template<typename TrackProxy, typename AllenTrack>
+    void convert_track(
+      TrackProxy& newTrack,
+      const AllenTrack& track,
+      std::vector<KalmanVeloStateWithQoP> states,
+      const LHCb::UniqueIDGenerator& unique_id_gen) const
+    {
+      // add hits
+      update_lhcb_ids(newTrack, track);
+
+      if constexpr (is_pr_velo_output<OutType>::value) {
+
+        update_states_impl_pr_velo(newTrack, states);
+      }
+      else {
+
+        // track history
+        newTrack.template field<OutTag::history>().set(v3_history_v<AllenTrack>);
+
+        // identifier
+        using int_v = decltype(newTrack.template field<OutTag::UniqueID>().get());
+        newTrack.template field<OutTag::UniqueID>().set(unique_id_gen.generate<int_v>().value());
+
+        // set chi2 and ndof if available
+        if constexpr (std::is_same_v<AllenTrack, Allen::Views::Physics::BasicParticle>) {
+          newTrack.template field<OutTag::Chi2>().set(track.chi2());
+          newTrack.template field<OutTag::nDoF>().set(static_cast<int>(track.ndof()));
+        }
+        else {
+          newTrack.template field<OutTag::Chi2>().set(0.);
+          newTrack.template field<OutTag::nDoF>().set(0);
+        }
+
+        // convert states
+        update_states(newTrack, track, states);
       }
     }
 
@@ -815,15 +863,25 @@ namespace GaudiAllen::Converters::v3 {
   };
 
   using GaudiAllenMEBasicParticlesToV3Tracks =
-    GaudiAllenTrackViewsToV3Tracks<Allen::Views::Physics::MultiEventBasicParticles>;
+    GaudiAllenTrackViewsToV3Tracks<Allen::Views::Physics::MultiEventBasicParticles, std::tuple<OutTracks>>;
   DECLARE_COMPONENT_WITH_ID(GaudiAllenMEBasicParticlesToV3Tracks, "GaudiAllenMEBasicParticlesToV3Tracks")
 
-  using GaudiAllenVeloToV3Tracks =
-    GaudiAllenTrackViewsToV3Tracks<Allen::Views::Velo::Consolidated::MultiEventTracks, beamline_states>;
+  using GaudiAllenVeloToV3Tracks = GaudiAllenTrackViewsToV3Tracks<
+    Allen::Views::Velo::Consolidated::MultiEventTracks,
+    std::tuple<OutTracks, OutTracks>,
+    beamline_states>;
   DECLARE_COMPONENT_WITH_ID(GaudiAllenVeloToV3Tracks, "GaudiAllenVeloToV3Tracks")
+
+  using GaudiAllenTrackViewsToPrVeloTracks = GaudiAllenTrackViewsToV3Tracks<
+    Allen::Views::Velo::Consolidated::MultiEventTracks,
+    std::tuple<LHCb::Pr::Velo::Tracks, LHCb::Pr::Velo::Tracks>,
+    beamline_states,
+    endvelo_states>;
+  DECLARE_COMPONENT_WITH_ID(GaudiAllenTrackViewsToPrVeloTracks, "GaudiAllenTrackViewsToPrVeloTracks")
 
   using GaudiAllenUTToV3Tracks = GaudiAllenTrackViewsToV3Tracks<
     Allen::Views::UT::Consolidated::MultiEventVeloUTTracks,
+    std::tuple<OutTracks>,
     beamline_states,
     endvelo_states>;
   DECLARE_COMPONENT_WITH_ID(GaudiAllenUTToV3Tracks, "GaudiAllenUTToV3Tracks")
