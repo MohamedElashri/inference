@@ -14,9 +14,12 @@ from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import decode_velo
-from AllenConf.HLT1 import default_bgi_activity_lines
+from AllenConf.hlt1_presets import MONITORING_CONFIG_PRESETS
 
-default_bgi_activity_lines.global_bind(enableBGI_full=True)
+
+def modify_presets():
+    MONITORING_CONFIG_PRESETS['pp']['enable_bgi_full'] = True
+
 
 with decode_velo.bind(retina_decoding=False), make_velo_scifi_matches.bind(
         ghost_killer_threshold=0.8):
@@ -26,6 +29,7 @@ with decode_velo.bind(retina_decoding=False), make_velo_scifi_matches.bind(
             "forward_then_matching_tuned_mu5p3_1200KHz"),
         with_fullKF=True,
         with_ut=True,
-        enableDownstream=True)
+        enableDownstream=True,
+        preset_modifiers=[modify_presets])
 
 generate(hlt1_node)

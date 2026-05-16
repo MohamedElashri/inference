@@ -17,7 +17,7 @@ from AllenConf.filters import sd_error_filter
 from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenConf.validators import rate_validation
 from AllenConf.odin import odin_error_filter, make_event_type, make_odin_orbit, tae_filter
-from AllenConf.HLT1 import odin_monitoring_lines, default_bgi_activity_lines
+from AllenConf.HLT1_common import default_bgi_activity_lines
 from AllenConf.lumi_reconstruction import lumi_reconstruction
 from AllenConf.enum_types import TrackingType, includes_matching
 

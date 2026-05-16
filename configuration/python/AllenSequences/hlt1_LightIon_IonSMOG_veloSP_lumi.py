@@ -16,6 +16,12 @@ from AllenConf.persistency import make_routingbits_writer, rb_map_LightIon
 from AllenConf.hlt1_heavy_ions_lines import make_heavy_ion_event_line
 from AllenConf.calo_reconstruction import make_ecal_clusters
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
+from AllenConf.hlt1_presets import MONITORING_CONFIG_PRESETS
+
+
+def modify_presets():
+    MONITORING_CONFIG_PRESETS['LightIon']['enable_bgi_full'] = True
+
 
 with decode_velo.bind(retina_decoding=False):
     with make_routingbits_writer.bind(
@@ -30,6 +36,6 @@ with decode_velo.bind(retina_decoding=False):
                     EnableGEC=True,
                     reco_particles=True,
                     with_fullKF=True,
-                    enableBGI_full=True,
-                    tracking_type=TrackingType.FORWARD_THEN_MATCHING)
+                    tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+                    preset_modifiers=[modify_presets])
                 generate(hlt1_node)

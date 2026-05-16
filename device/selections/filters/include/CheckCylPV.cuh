@@ -43,8 +43,8 @@ namespace check_cyl_pvs {
                                         "min_vtx_z",
                                         -99999.,
                                         "min z coordinate to accept a reconstructed primary vertex"};
-    Allen::Property<float> m_max_vtz_z {this,
-                                        "max_vtz_z",
+    Allen::Property<float> m_max_vtx_z {this,
+                                        "max_vtx_z",
                                         99999.,
                                         "max z coordinate to accept a reconstructed primary vertex"};
     Allen::Property<float> m_max_vtx_rho_sq {

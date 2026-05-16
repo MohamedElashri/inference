@@ -773,7 +773,7 @@ def default_bgi_activity_lines(pvs,
         pvs,
         name="BGIPVsCylAll",
         min_vtx_z=-3000.,
-        max_vtz_z=3000.,
+        max_vtx_z=3000.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines = []
@@ -898,7 +898,7 @@ def default_bgi_activity_lines(pvs,
         pvs,
         name="BGIPVsCylUp",
         min_vtx_z=-3000.,
-        max_vtz_z=-250.,
+        max_vtx_z=-250.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines += [
@@ -916,7 +916,7 @@ def default_bgi_activity_lines(pvs,
         pvs,
         name="BGIPVsCylDown",
         min_vtx_z=250.,
-        max_vtz_z=3000.,
+        max_vtx_z=3000.,
         max_vtx_rho_sq=max_cyl_rad_sq,
         min_vtx_nTracks=10.)
     lines += [

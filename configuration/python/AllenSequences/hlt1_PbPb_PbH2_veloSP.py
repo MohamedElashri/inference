@@ -39,6 +39,5 @@ with make_routingbits_writer.bind(rb_map=rb_map_PbPb):
                             EnableGEC=True,
                             reco_particles=True,
                             tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-                            veloMicroBias_prescaler=0.15,
                             highEt_prescaler=0.1)
                         generate(hlt1_node)
