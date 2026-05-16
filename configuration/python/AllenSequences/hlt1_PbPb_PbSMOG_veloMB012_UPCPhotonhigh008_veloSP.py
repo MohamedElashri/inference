@@ -15,6 +15,12 @@ from AllenConf.velo_reconstruction import decode_velo, make_pr_velo_tracks
 from AllenConf.persistency import make_routingbits_writer, rb_map_PbPb
 from AllenConf.hlt1_heavy_ions_lines import make_heavy_ion_event_line
 from AllenConf.calo_reconstruction import make_ecal_clusters
+from AllenConf.hlt1_presets import VELO_MICRO_BIAS_PRESETS
+
+
+def modify_presets():
+    VELO_MICRO_BIAS_PRESETS['PbPb']['Hlt1VeloMicroBias']['pre_scaler'] = 0.12
+
 
 with make_routingbits_writer.bind(rb_map=rb_map_PbPb):
     with make_ecal_clusters.bind(
@@ -29,6 +35,6 @@ with make_routingbits_writer.bind(rb_map=rb_map_PbPb):
                     EnableGEC=True,
                     reco_particles=True,
                     tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-                    veloMicroBias_prescaler=0.12,
+                    preset_modifiers=[modify_presets],
                     highEt_prescaler=0.08)
                 generate(hlt1_node)
