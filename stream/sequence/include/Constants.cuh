@@ -48,6 +48,7 @@ namespace Allen::Rich::Decoding {
   struct Tel40CableMapping;
 } // namespace Allen::Rich::Decoding
 namespace Allen::Rich {
+  template<unsigned RichID>
   struct RichDetector;
 } // namespace Allen::Rich
 namespace UT::Constants {
@@ -162,8 +163,8 @@ struct Constants {
 
   Allen::Rich::Decoding::PDMDBDecodeMapping* dev_rich_pdmdb_mapping = nullptr;
   Allen::Rich::Decoding::Tel40CableMapping* dev_rich_cable_mapping = nullptr;
-  Allen::Rich::RichDetector* dev_rich_1_geometry = nullptr;
-  Allen::Rich::RichDetector* dev_rich_2_geometry = nullptr;
+  Allen::Rich::RichDetector<0>* dev_rich_1_geometry = nullptr;
+  Allen::Rich::RichDetector<1>* dev_rich_2_geometry = nullptr;
 
   /**
    * @brief Reserves and initializes constants.

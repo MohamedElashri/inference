@@ -1,5 +1,5 @@
-/***************************************************************************** \
- * (c) Copyright 2000-2023 CERN for the benefit of the LHCb Collaboration      *
+/*****************************************************************************\
+* (c) Copyright 2000-2023 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -345,16 +345,17 @@ namespace GaudiAllen::Converters::v3 {
       return state;
     }
 
-    KalmanVeloStateWithQoP closest_state(std::vector<KalmanVeloStateWithQoP> states, const float z)
+    KalmanVeloStateWithQoP closest_state(std::vector<KalmanVeloStateWithQoP>& states, const float z)
     {
       return *std::min_element(states.begin(), states.end(), [&](auto s1, auto s2) {
         return std::abs(s1.z() - z) < std::abs(s2.z() - z) ? true : false;
       });
     }
 
-    KalmanVeloStateWithQoP extrap_from_closest_state(std::vector<KalmanVeloStateWithQoP> states, const float z)
+    KalmanVeloStateWithQoP extrap_from_closest_state(std::vector<KalmanVeloStateWithQoP>& states, const float z)
     {
-      return extrap_state(closest_state(states, z), z);
+      KalmanVeloStateWithQoP closest_state_ = closest_state(states, z);
+      return extrap_state(closest_state_, z);
     }
 
     /// Actual implementation of update states
@@ -412,9 +413,18 @@ namespace GaudiAllen::Converters::v3 {
         states,
         LHCb::Event::v3::available_states_t<OutTrackType::Upstream, FitHistory::PrKalmanFilter> {});
     case OutTrackType::Long:
-      assert(outTrack.fitHistory() == FitHistory::VeloKalman);
-      return update_states_impl(
-        outTrack, track, states, LHCb::Event::v3::available_states_t<OutTrackType::Long, FitHistory::VeloKalman> {});
+      if (outTrack.fitHistory() == FitHistory::PrKalmanFilter) {
+        return update_states_impl(
+          outTrack,
+          track,
+          states,
+          LHCb::Event::v3::available_states_t<OutTrackType::Long, FitHistory::PrKalmanFilter> {});
+      }
+      else {
+        assert(outTrack.fitHistory() == FitHistory::VeloKalman);
+        return update_states_impl(
+          outTrack, track, states, LHCb::Event::v3::available_states_t<OutTrackType::Long, FitHistory::VeloKalman> {});
+      }
     default: throw GaudiException("unknown v3 track type", "GaudiAllenTrackViewsToV3Tracks", StatusCode::FAILURE);
     }
   }
@@ -503,6 +513,26 @@ namespace GaudiAllen::Converters::v3 {
       static constexpr auto keyname = "allen_endvelo_states_view";
     };
 
+    struct rich1_front_states {
+      using type = SimpleKalmanState;
+      static constexpr auto keyname = "allen_kalman_R1_F_view";
+    };
+
+    struct rich1_back_states {
+      using type = SimpleKalmanState;
+      static constexpr auto keyname = "allen_kalman_R1_B_view";
+    };
+
+    struct rich2_front_states {
+      using type = SimpleKalmanState;
+      static constexpr auto keyname = "allen_kalman_R2_F_view";
+    };
+
+    struct rich2_back_states {
+      using type = SimpleKalmanState;
+      static constexpr auto keyname = "allen_kalman_R2_B_view";
+    };
+
     template<typename T>
     struct in_type {
       using type = T;
@@ -518,6 +548,26 @@ namespace GaudiAllen::Converters::v3 {
       using type = endvelo_states::type;
     };
 
+    template<>
+    struct in_type<rich1_front_states> {
+      using type = rich1_front_states::type;
+    };
+
+    template<>
+    struct in_type<rich1_back_states> {
+      using type = rich1_back_states::type;
+    };
+
+    template<>
+    struct in_type<rich2_front_states> {
+      using type = rich2_front_states::type;
+    };
+
+    template<>
+    struct in_type<rich2_back_states> {
+      using type = rich2_back_states::type;
+    };
+
     template<typename T>
     using in_type_t = typename in_type<T>::type;
 
@@ -527,7 +577,10 @@ namespace GaudiAllen::Converters::v3 {
     template<typename AllenInput>
     auto get_input_name()
     {
-      if constexpr (std::is_same_v<AllenInput, beamline_states> || std::is_same_v<AllenInput, endvelo_states>) {
+      if constexpr (
+        std::is_same_v<AllenInput, beamline_states> || std::is_same_v<AllenInput, endvelo_states> ||
+        std::is_same_v<AllenInput, rich1_front_states> || std::is_same_v<AllenInput, rich1_back_states> ||
+        std::is_same_v<AllenInput, rich2_front_states> || std::is_same_v<AllenInput, rich2_back_states>) {
         return AllenInput::keyname;
       }
       else {
@@ -631,11 +684,12 @@ namespace GaudiAllen::Converters::v3 {
       const auto allen_tracks_view = allen_tracks_mec[0].container(i_event);
       const auto number_of_tracks = allen_tracks_view.size();
 
+      const unsigned n_states = sizeof...(allen_states_containers);
       // Construct the output container
-      auto output = make_output_container<std::decay_t<decltype(allen_tracks_mec[0])>>(unique_id_gen);
+      auto output = make_output_container<std::decay_t<decltype(allen_tracks_mec[0])>>(unique_id_gen, n_states);
       for (unsigned int t = 0; t < number_of_tracks; t++) {
         const auto track = get_member(allen_tracks_view, t);
-        auto states = get_input_states(track, allen_states_containers...);
+        std::vector<KalmanVeloStateWithQoP> states = get_input_states(track, t, allen_states_containers...);
         const bool backward = states[0].z() > get_hit_z(last_hit(track));
 
         auto newTrack = get_new_out_track(output, backward);
@@ -650,7 +704,7 @@ namespace GaudiAllen::Converters::v3 {
     Gaudi::Property<float> m_ptVelo {this, "ptVelo", 400 * Allen::Units::MeV, "Default pT for Velo tracks"};
 
     template<typename AllenTrack>
-    OutType make_output_container(const LHCb::UniqueIDGenerator& unique_id_gen) const
+    OutType make_output_container(const LHCb::UniqueIDGenerator& unique_id_gen, const unsigned& n_states) const
     {
       using LHCb::Event::Enum::Track::FitHistory;
       using LHCb::Event::Enum::Track::Type;
@@ -663,7 +717,12 @@ namespace GaudiAllen::Converters::v3 {
                 OutTracks(v3_track_type<AllenTrack>::value_bwd, FitHistory::PrKalmanFilter, true, unique_id_gen, zn)};
       }
       else if constexpr (v3_track_type_v<AllenTrack> == Type::Long) {
-        return {OutTracks(v3_track_type_v<AllenTrack>, FitHistory::VeloKalman, false, unique_id_gen, zn)};
+        if (n_states > 1) {
+          return {OutTracks(v3_track_type_v<AllenTrack>, FitHistory::PrKalmanFilter, false, unique_id_gen, zn)};
+        }
+        else {
+          return {OutTracks(v3_track_type_v<AllenTrack>, FitHistory::VeloKalman, false, unique_id_gen, zn)};
+        }
       }
       else if constexpr (v3_track_type_v<AllenTrack> == Type::Upstream) {
         return {OutTracks(v3_track_type_v<AllenTrack>, unique_id_gen, zn)};
@@ -839,7 +898,8 @@ namespace GaudiAllen::Converters::v3 {
     }
 
     template<typename AllenTrack, typename... States>
-    std::vector<KalmanVeloStateWithQoP> get_input_states(const AllenTrack& track, const States&... input_states) const
+    std::vector<KalmanVeloStateWithQoP>
+    get_input_states(const AllenTrack& track, const unsigned track_index, const States&... input_states) const
     {
       std::vector<KalmanVeloStateWithQoP> out;
       const auto qop_w_var = qop_and_var(track, input_states...);
@@ -848,12 +908,15 @@ namespace GaudiAllen::Converters::v3 {
 
       // if a state is part of the AllenTrack, then add it.
       if constexpr (std::is_same_v<AllenTrack, Allen::Views::Physics::BasicParticle>) {
-        auto velo_beamline_state = static_cast<KalmanVeloState>(track.state());
+        KalmanVeloState velo_beamline_state = track.state();
         out.push_back({velo_beamline_state, qop, qopVar});
+        if constexpr (sizeof...(input_states) > 0) {
+          std::vector<KalmanVeloStateWithQoP> ins {
+            {(KalmanVeloState) input_states[track_index], input_states[track_index].qop, 0.f}...};
+          out.insert(out.end(), ins.begin(), ins.end());
+        }
       }
-
-      // add states provided in independent input containers
-      if constexpr (sizeof...(input_states) > 0) {
+      else if constexpr (sizeof...(input_states) > 0) {
         auto velo_track = get_velo_track(track);
         std::vector<KalmanVeloStateWithQoP> ins {{velo_track.state(input_states[0]), qop, qopVar}...};
         out.insert(out.end(), ins.begin(), ins.end());
@@ -865,6 +928,17 @@ namespace GaudiAllen::Converters::v3 {
   using GaudiAllenMEBasicParticlesToV3Tracks =
     GaudiAllenTrackViewsToV3Tracks<Allen::Views::Physics::MultiEventBasicParticles, std::tuple<OutTracks>>;
   DECLARE_COMPONENT_WITH_ID(GaudiAllenMEBasicParticlesToV3Tracks, "GaudiAllenMEBasicParticlesToV3Tracks")
+
+  using GaudiAllenMEBasicParticlesRichStatesToV3Tracks = GaudiAllenTrackViewsToV3Tracks<
+    Allen::Views::Physics::MultiEventBasicParticles,
+    std::tuple<OutTracks>,
+    rich1_front_states,
+    rich1_back_states,
+    rich2_front_states,
+    rich2_back_states>;
+  DECLARE_COMPONENT_WITH_ID(
+    GaudiAllenMEBasicParticlesRichStatesToV3Tracks,
+    "GaudiAllenMEBasicParticlesRichStatesToV3Tracks")
 
   using GaudiAllenVeloToV3Tracks = GaudiAllenTrackViewsToV3Tracks<
     Allen::Views::Velo::Consolidated::MultiEventTracks,

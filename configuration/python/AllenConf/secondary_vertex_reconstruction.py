@@ -41,25 +41,33 @@ def make_kalman_long(long_tracks, pvs, is_muon_result,
     )
 
     return {
-        "long_tracks": long_tracks,
-        "pvs": pvs,
-        "dev_kf_tracks": kalman.dev_kf_tracks_t,
-        "dev_kalman_pv_ip": kalman.dev_kalman_pv_ip_t,
-        "dev_kalman_pv_tables": kalman.dev_kalman_pv_tables_t,
-        "dev_kalman_fit_results": kalman.dev_kalman_fit_results_t,
-        "dev_kalman_states_view": kalman.dev_kalman_states_view_t
+        "long_tracks":
+        long_tracks,
+        "pvs":
+        pvs,
+        "dev_kf_tracks":
+        kalman.dev_kf_tracks_t,
+        "dev_kalman_pv_ip":
+        kalman.dev_kalman_pv_ip_t,
+        "dev_kalman_pv_tables":
+        kalman.dev_kalman_pv_tables_t,
+        "dev_kalman_fit_results":
+        kalman.dev_kalman_fit_results_t,
+        "dev_kalman_states_view":
+        kalman.dev_kalman_states_view_t,
+        "dev_kalman_R1_F_view":
+        kalman.dev_kalman_R1_F_view_t,
+        "dev_kalman_R1_B_view":
+        kalman.dev_kalman_R1_B_view_t,
+        "dev_kalman_R2_F_view":
+        kalman.dev_kalman_R2_F_view_t,
+        "dev_kalman_R2_B_view":
+        kalman.dev_kalman_R2_B_view_t,
+        "host_number_of_reconstructed_scifi_tracks":
+        long_tracks["host_number_of_reconstructed_scifi_tracks"],
+        "dev_offsets_long_tracks":
+        long_tracks["dev_offsets_long_tracks"]
     }
-
-
-def make_extrapolated_states(states, n_states, step_dz=100.0, n_steps=100):
-    extrapolator = make_algorithm(
-        extrapolate_states_t,
-        name='extrapolate_states_{hash}',
-        host_number_of_input_states_t=n_states,
-        dev_kalman_states_view_t=states,
-        n_steps=n_steps,
-        step_dz=step_dz)
-    return extrapolator.dev_states_t
 
 
 def make_kalman_velo_only(long_tracks,
@@ -579,6 +587,17 @@ def make_multi_body_svs(secondary_vertices,
         "dev_svs":
         combine_sv_track["dev_svs"],
     }
+
+
+def make_extrapolated_states(states, n_states, step_dz=100.0, n_steps=100):
+    extrapolator = make_algorithm(
+        extrapolate_states_t,
+        name='extrapolate_states_{hash}',
+        host_number_of_input_states_t=n_states,
+        dev_kalman_states_view_t=states,
+        n_steps=n_steps,
+        step_dz=step_dz)
+    return extrapolator.dev_states_t
 
 
 # tables of chi2 cuts for the two different kalamn filters

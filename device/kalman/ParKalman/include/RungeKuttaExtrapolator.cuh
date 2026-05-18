@@ -14,7 +14,6 @@
 #include <ButcherTableau.cuh>
 #include <ExtrapolatorCommon.cuh>
 #include <MagneticField.cuh>
-#include <FloatOperations.cuh>
 
 namespace Extrapolators {
   template<typename ftype = float, typename Table = ButcherTableau::CashKarp<ftype>>

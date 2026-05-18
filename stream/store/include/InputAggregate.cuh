@@ -49,6 +49,8 @@ namespace Allen::Store {
       return m_argument_data_v[index].get();
     }
 
+    std::span<T> operator[](const unsigned index) const { return get(index); }
+
     auto data(const unsigned index) const { return get(index).data(); }
 
     auto first(const unsigned index) const { return get(index)[0]; }

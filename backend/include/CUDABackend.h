@@ -106,6 +106,13 @@ entry:
   return ballot;
 #endif
 }
+
+__device__ inline auto atomicOr(uint64_t* arr, uint64_t value)
+{
+  static_assert(sizeof(unsigned long long) == sizeof(uint64_t));
+  return atomicOr(reinterpret_cast<unsigned long long*>(arr), value);
+}
+
 #endif
 
 namespace Allen {

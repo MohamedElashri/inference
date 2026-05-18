@@ -28,6 +28,7 @@ option(BUILD_TESTING "Build test programs" OFF)
 option(USE_KALMAN_DOUBLE_PRECISION "Use double precision Kalman filter" OFF)
 option(CPU_USE_REAL_HALF "Use half_t with uint16_t backend" OFF)
 option(STANDALONE "Build Allen standalone" OFF)
+option(USE_DD4HEP "Use DD4HEP" ON)
 option(TREAT_WARNINGS_AS_ERRORS "Treat all warnings as errors" OFF)
 option(ALWAYS_DISPATCH_TO_DEFAULT "Dispatch architecture-specific functions always to default target" OFF)
 option(USE_BOOST_FILESYSTEM "Use Boost filesystem library instead of std::filesystem" OFF)
@@ -47,6 +48,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DALLEN_DEBUG")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Add -DUSE_DD4HEP flag if USE_DD4HEP is ON
+if(USE_DD4HEP AND STANDALONE)
+  # Add the definition for all targets
+  add_compile_definitions(USE_DD4HEP)
+endif()
 
 # -----------------------
 # Multiple-choice options

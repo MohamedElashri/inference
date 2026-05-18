@@ -1824,14 +1824,10 @@ def setup_hlt1_node(enablePhysics=True,
             force_order=True)
     """
 
-    if with_rich:
+    if with_fullKF and with_rich:
         hlt1_node = CompositeNode(
-            "AllenWithRich", [
-                hlt1_node, reconstructed_objects["rich1_pixels"]
-                ["dev_rich_pixels"].producer,
-                reconstructed_objects["rich2_pixels"]["dev_rich_pixels"].
-                producer
-            ],
+            "AllenWithRich",
+            [hlt1_node, reconstructed_objects["rich_pid"].producer],
             NodeLogic.NONLAZY_AND,
             force_order=False)
 
@@ -1866,7 +1862,7 @@ def setup_hlt1_node(enablePhysics=True,
     else:
         validation_node = validator_node(
             reconstructed_objects, line_algorithms,
-            includes_matching(tracking_type), with_ut, with_muon,
+            includes_matching(tracking_type), with_ut, with_muon, with_rich,
             with_AC_split, with_fullKF, with_downstream_KF, prefilters)
         hlt1_config['validator_node'] = validation_node
 
