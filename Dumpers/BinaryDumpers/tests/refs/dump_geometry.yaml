@@ -63,12 +63,12 @@ counters:
       nEntries: 1052980
   DeviceRichCableMapping:
     BytesWritten_RichCableMapping:
-      nEntries: 462600
+      nEntries: 469512
   DeviceRichGeometry:
     BytesWritten_Rich1Geometry:
-      nEntries: 260504
+      nEntries: 521008
     BytesWritten_Rich2Geometry:
-      nEntries: 1764688
+      nEntries: 882344
   DeviceRichPDMDBMapping:
     BytesWritten_RichPDMDBMapping:
       nEntries: 9692
