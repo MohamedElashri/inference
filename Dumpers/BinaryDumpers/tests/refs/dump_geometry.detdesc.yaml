@@ -66,9 +66,9 @@ counters:
       nEntries: 462600
   DeviceRichGeometry:
     BytesWritten_Rich1Geometry:
-      nEntries: 306312
+      nEntries: 260504
     BytesWritten_Rich2Geometry:
-      nEntries: 612624
+      nEntries: 1764688
   DeviceRichPDMDBMapping:
     BytesWritten_RichPDMDBMapping:
       nEntries: 9692
