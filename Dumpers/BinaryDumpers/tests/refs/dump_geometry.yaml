@@ -37,3 +37,52 @@ stdout: |-
   HLTControlFlowMgr                      INFO Histograms converted successfully according to request.
   ApplicationMgr                         INFO Application Manager Finalized successfully
   ApplicationMgr                         INFO Application Manager Terminated successfully
+histos: {}
+ttrees: {}
+counters:
+  DeviceBeamline:
+    BytesWritten_Beamline:
+      nEntries: 48
+  DeviceCaloGeometry:
+    BytesWritten_EcalGeometry:
+      nEntries: 227104
+  DeviceFTGeometry:
+    BytesWritten_SciFiGeometry:
+      nEntries: 3249928
+  DeviceMagneticField:
+    BytesWritten_MagneticField:
+      nEntries: 15326544
+  DeviceMagneticFieldPolarity:
+    BytesWritten_MagneticFieldPolarity:
+      nEntries: 4
+  DeviceMuonGeometry:
+    BytesWritten_MuonGeometry:
+      nEntries: 211468
+  DeviceMuonTable:
+    BytesWritten_MuonLookupTables:
+      nEntries: 1052980
+  DeviceRichCableMapping:
+    BytesWritten_RichCableMapping:
+      nEntries: 462600
+  DeviceRichGeometry:
+    BytesWritten_Rich1Geometry:
+      nEntries: 260504
+    BytesWritten_Rich2Geometry:
+      nEntries: 1764688
+  DeviceRichPDMDBMapping:
+    BytesWritten_RichPDMDBMapping:
+      nEntries: 9692
+  DeviceUTGeometry:
+    BytesWritten_UTBoards:
+      nEntries: 84688
+    BytesWritten_UTGeometry:
+      nEntries: 46116
+  DeviceUTLookupTables:
+    BytesWritten_UTLookupTables:
+      nEntries: 15544
+  DeviceVPGeometry:
+    BytesWritten_VeloGeometry:
+      nEntries: 16380
+  HLTControlFlowMgr:
+    Processed events:
+      nEntries: 1
