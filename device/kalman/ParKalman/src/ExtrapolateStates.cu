@@ -34,14 +34,7 @@ __global__ void extrapolate_states_kernel(
   for (unsigned i = blockIdx.x * blockDim.x + threadIdx.x; i < n_states; i += blockDim.x * gridDim.x) {
     const auto& input = input_states->state(i);
 
-    Extrapolators::State output {
-      input.x(),
-      input.y(),
-      input.z(),
-      input.tx(),
-      input.ty(),
-      input.qop() * Extrapolators::c_light * Extrapolators::eplus // Don't forget to do this conversion !
-    };
+    Extrapolators::State output {input.x(), input.y(), input.z(), input.tx(), input.ty(), input.qop()};
 
     for (unsigned s = 0; s < n_steps; s++) {
       // Extrapolators::ParabolicExtrapolator<float>::propagate(output, dz, field);

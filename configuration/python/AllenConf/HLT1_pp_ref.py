@@ -1089,7 +1089,7 @@ def setup_hlt1_node(enablePhysics=True,
     else:
         validation_node = validator_node(
             reconstructed_objects, line_algorithms,
-            includes_matching(tracking_type), with_ut, with_muon,
+            includes_matching(tracking_type), with_ut, with_muon, with_rich,
             with_AC_split, with_fullKF, with_downstream_KF, prefilters)
         hlt1_config['validator_node'] = validation_node
 

@@ -17,7 +17,6 @@
 #include "VeloConsolidated.cuh"
 #include "VeloDefinitions.cuh"
 #include "VeloEventModel.cuh"
-#include "FloatOperations.cuh"
 #include <cstdint>
 
 namespace pv_beamline_calculate_denom {

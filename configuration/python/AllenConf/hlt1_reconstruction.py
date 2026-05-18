@@ -28,14 +28,14 @@ from AllenConf.validators import (
     kalman_validation, selreport_validation, data_quality_validation_long,
     data_quality_validation_occupancy, data_quality_validation_pv,
     data_quality_validation_velo, downstream_validation,
-    downstream_kalman_validation)
+    downstream_kalman_validation, rich_validation)
 from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenConf.persistency import make_gather_selections, make_sel_report_writer
 from AllenConf.filters import make_gec
 from AllenConf.best_track_creator import best_track_creator
 from AllenConf.enum_types import TrackingType
 from AllenConf.secondary_vertex_reconstruction import make_kalman_long
-from AllenConf.rich_reconstruction import make_pixels
+from AllenConf.rich_reconstruction import make_rich
 
 
 def hlt1_reconstruction(algorithm_name='',
@@ -530,13 +530,14 @@ def hlt1_reconstruction(algorithm_name='',
             v0dd_hh_pairs
         })
 
-    if with_rich:
-        rich1_pixels = make_pixels(rich=1)
-        rich2_pixels = make_pixels(rich=2)
+    if with_rich and with_fullKF:
+        rich = make_rich("Long", KF_long_track)
 
         output.update({
-            "rich1_pixels": rich1_pixels,
-            "rich2_pixels": rich2_pixels
+            "rich": rich,
+            "rich_pixels": rich["pixels"],
+            "rich_photons": rich["photons"],
+            "rich_pid": rich["pid"],
         })
 
     if with_AC_split:
@@ -656,6 +657,7 @@ def validator_node(reconstructed_objects,
                    matching,
                    with_ut,
                    with_muon,
+                   with_rich,
                    with_AC_split,
                    with_fullKF,
                    with_downstream_KF=False,
@@ -694,6 +696,9 @@ def validator_node(reconstructed_objects,
 
     if with_muon:
         validators += [muon_validation(reconstructed_objects["muonID"])]
+
+    if with_rich:
+        validators += [rich_validation(reconstructed_objects["rich"])]
 
     kf_var = "kalman_long_track" if with_fullKF else "kalman_velo_only"
     validators += [

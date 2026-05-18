@@ -17,7 +17,8 @@ from AllenCore.algorithms import (
     host_veloscifi_dump_t, host_data_provider_t, host_sel_report_validator_t,
     data_quality_validator_long_t, data_quality_validator_occupancy_t,
     data_quality_validator_pv_t, data_quality_validator_velo_t,
-    host_unmatched_seeding_validator_t, vertexing_validator_t)
+    host_unmatched_seeding_validator_t, vertexing_validator_t,
+    rich_validator_t)
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
 from AllenConf.persistency import make_dec_reporter, make_gather_selections, make_routingbits_writer, rb_map
@@ -264,6 +265,37 @@ def muon_validation(muonID, name="muon_validator"):
             "dev_multi_event_long_tracks_view"],
         dev_offsets_long_tracks_t=long_tracks["dev_offsets_long_tracks"],
         dev_is_muon_t=muonID['dev_is_muon'])
+
+
+def rich_validation(rich):
+    mc_events = mc_data_provider()
+    number_of_events = initialize_number_of_events()
+
+    name = f"rich_validator"
+    KF_long_track = rich["KF_long_track"]
+    long_tracks = KF_long_track["long_tracks"]
+    velo_kalman_filter = long_tracks["velo_kalman_filter"]
+    rich_pid = rich['pid']
+    photons = rich['photons'][1]  # TODO give both richs for histograms
+    hypos = rich['hypos'][1]  # TODO give both richs for histograms
+
+    return make_algorithm(
+        rich_validator_t,
+        name=name,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        host_mc_events_t=mc_events.host_mc_events_t,
+        host_number_of_reconstructed_long_tracks_t=long_tracks[
+            "host_number_of_reconstructed_scifi_tracks"],
+        dev_velo_states_view_t=velo_kalman_filter[
+            "dev_velo_kalman_endvelo_states_view"],
+        dev_multi_event_long_tracks_view_t=long_tracks[
+            "dev_multi_event_long_tracks_view"],
+        dev_offsets_long_tracks_t=long_tracks["dev_offsets_long_tracks"],
+        dev_rich_hypos_t=hypos['dev_rich_hypos'],
+        dev_offsets_rich_photons_t=photons["dev_offsets_rich_photons"],
+        dev_rich_photons_t=photons["dev_rich_photons"],
+        dev_pid_t=rich_pid,
+        current_rich=1)
 
 
 def pv_validation(pvs, name="pv_validator"):

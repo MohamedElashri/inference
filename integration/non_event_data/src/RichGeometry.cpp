@@ -140,7 +140,7 @@ Consumers::Rich1Geometry::Rich1Geometry(Constants& constants) : m_constants {con
 
 void Consumers::Rich1Geometry::initialize(vector<char> const&)
 {
-  Allen::malloc((void**) &m_constants.get().dev_rich_1_geometry, sizeof(Allen::Rich::RichDetector));
+  Allen::malloc((void**) &m_constants.get().dev_rich_1_geometry, sizeof(Allen::Rich::RichDetector<0>));
 }
 
 void Consumers::Rich1Geometry::consume(vector<char> const& data)
@@ -152,7 +152,7 @@ void Consumers::Rich1Geometry::consume(vector<char> const& data)
   auto& host_rich_1_geometry = m_constants.get().host_rich_1_geometry;
   host_rich_1_geometry = data;
   Allen::memcpy(
-    dev_rich_1_geometry, host_rich_1_geometry.data(), sizeof(Allen::Rich::RichDetector), Allen::memcpyHostToDevice);
+    dev_rich_1_geometry, host_rich_1_geometry.data(), sizeof(Allen::Rich::RichDetector<0>), Allen::memcpyHostToDevice);
 }
 
 // RICH 2 geometry
@@ -160,7 +160,7 @@ Consumers::Rich2Geometry::Rich2Geometry(Constants& constants) : m_constants {con
 
 void Consumers::Rich2Geometry::initialize(vector<char> const&)
 {
-  Allen::malloc((void**) &m_constants.get().dev_rich_2_geometry, sizeof(Allen::Rich::RichDetector));
+  Allen::malloc((void**) &m_constants.get().dev_rich_2_geometry, sizeof(Allen::Rich::RichDetector<1>));
 }
 
 void Consumers::Rich2Geometry::consume(vector<char> const& data)
@@ -172,5 +172,5 @@ void Consumers::Rich2Geometry::consume(vector<char> const& data)
   auto& host_rich_2_geometry = m_constants.get().host_rich_2_geometry;
   host_rich_2_geometry = data;
   Allen::memcpy(
-    dev_rich_2_geometry, host_rich_2_geometry.data(), sizeof(Allen::Rich::RichDetector), Allen::memcpyHostToDevice);
+    dev_rich_2_geometry, host_rich_2_geometry.data(), sizeof(Allen::Rich::RichDetector<1>), Allen::memcpyHostToDevice);
 }

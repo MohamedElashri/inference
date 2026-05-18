@@ -28,6 +28,8 @@ gaudi_add_module(AllenWrapper
                    src/GaudiAllenLumiSummaryToRawEvent.cpp
                    src/GaudiAllenSVsToRecVertexV2.cpp
                    src/GaudiAllenTrackViewsToV3Tracks.cpp
+                   src/GaudiAllenV3TracksToTrackViews.cpp
+                   src/GaudiAllenRichPidToRec.cpp
                    src/AllenROOTService.cpp
                    src/ProvideRuntimeOptions.cpp
                    src/CompareRecAllenCaloDigits.cpp
@@ -39,8 +41,8 @@ gaudi_add_module(AllenWrapper
                    src/CompareRecAllenFTClusters.cpp
                    src/CompareRecAllenVPHits.cpp
                    src/TestVeloClusters.cpp
-                   src/CompareRecAllenRichSmartIDs.cpp
                    src/CompareRecAllenRichPixels.cpp
+                   src/CompareRecAllenRichPhotons.cpp
                    src/IOMonitor.cpp
                  LINK
                    AllenLib
@@ -77,7 +79,7 @@ gaudi_add_module(AllenWrapper
                    LHCb::RichFutureUtils
                    Rec::PrKernel)
 
-target_include_directories(AllenWrapper PRIVATE ${PROJECT_BINARY_DIR}/code_generation)
+target_include_directories(AllenWrapper PRIVATE ${PROJECT_BINARY_DIR}/code_generation, Allen)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   target_compile_definitions(AllenWrapper PRIVATE ALLEN_DEBUG)

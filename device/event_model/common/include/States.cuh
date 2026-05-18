@@ -126,6 +126,49 @@ struct ProjectionState {
   __host__ __device__ ProjectionState(const KalmanVeloState& state) : x(state.x()), y(state.y()), z(state.z()) {}
 };
 
+/**
+ * @brief Simple state for storing kalman states at specific hit positions
+ *
+ *        {x, y, z, tx, ty, qop}
+ */
+struct SimpleKalmanState {
+  float x {}, y {}, z {}, tx {}, ty {}, qop {};
+
+  __host__ __device__ SimpleKalmanState() = default;
+
+  __host__ __device__ SimpleKalmanState(float _x, float _y, float _z, float _tx, float _ty, float _qop) :
+    x(_x), y(_y), z(_z), tx(_tx), ty(_ty), qop(_qop)
+  {}
+
+  __host__ __device__ float px() const { return (tx / fabsf(qop)) / sqrtf(1.0f + tx * tx + ty * ty); }
+
+  __host__ __device__ float py() const { return (ty / fabsf(qop)) / sqrtf(1.0f + tx * tx + ty * ty); }
+
+  __host__ __device__ float pz() const { return (1.0f / fabsf(qop)) / sqrtf(1.0f + tx * tx + ty * ty); }
+
+  __host__ __device__ float pt() const
+  {
+    const float sumt2 = tx * tx + ty * ty;
+    return (sqrtf(sumt2) / fabsf(qop)) / sqrtf(1.0f + sumt2);
+  }
+
+  __host__ __device__ float p() const { return 1.0f / fabsf(qop); }
+
+  __host__ __device__ int charge() const { return qop > 0 ? +1 : -1; }
+
+  __host__ __device__ operator KalmanVeloState() const
+  {
+    return KalmanVeloState {x, y, z, tx, ty, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+  }
+
+  __host__ friend inline std::ostream& operator<<(std::ostream& os, const SimpleKalmanState& s)
+  {
+    os << "{ x: " << s.x << " y: " << s.y << " z: " << s.z << " tx: " << s.tx << " ty: " << s.ty << " qop: " << s.qop
+       << " }";
+    return os;
+  }
+};
+
 namespace Allen {
   namespace Views {
     namespace Physics {
