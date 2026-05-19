@@ -17,15 +17,15 @@ import json
 from pathlib import Path
 from Configurables import ApplicationMgr
 from Configurables import Gaudi__RootCnvSvc as RootCnvSvc
-from Configurables import DDDBConf
 
 from AllenCore.configuration_options import is_allen_standalone
 is_allen_standalone.global_bind(standalone=True)
 
 from Allen.config import (setup_allen_non_event_data_service, allen_odin,
                           configured_bank_types)
-from PyConf.application import (configure, setup_component, ComponentConfig,
-                                ApplicationOptions, default_raw_event)
+from PyConf.application import (configure, configure_geometry_and_conditions,
+                                setup_component, ComponentConfig,
+                                ApplicationOptions)
 from PyConf.control_flow import CompositeNode, NodeLogic
 from GaudiKernel.Constants import ERROR
 from DDDB.CheckDD4Hep import UseDD4Hep
@@ -264,9 +264,7 @@ online_cond_path = '/group/online/hlt/conditions.run3/lhcb-conditions-database'
 if not args.simulation:
     if os.path.exists(online_cond_path):
         if UseDD4Hep:
-            from Configurables import LHCb__Det__LbDD4hep__DD4hepSvc as DD4hepSvc
-            dd4hepSvc = DD4hepSvc()
-            dd4hepSvc.ConditionsLocation = 'file://' + online_cond_path
+            options.conditions_location = 'file://' + online_cond_path
         else:
             from Configurables import XmlCnvSvc
             XmlCnvSvc().OutputLevel = ERROR
@@ -275,6 +273,8 @@ if not args.simulation:
 make_odin = allen_odin
 options.finalize()
 config = ComponentConfig()
+
+configure_geometry_and_conditions(ApplicationMgr(), config, options)
 
 # Some extra stuff for timing table
 extSvc = ["ToolSvc", "AuditorSvc", "ZeroMQSvc"]
@@ -373,18 +373,8 @@ if args.mep:
 ApplicationMgr().EvtSel = "NONE"
 ApplicationMgr().ExtSvc += extSvc
 
-# Copeid from PyConf.application.configure_input
-default_raw_event.global_bind(raw_event_format=options.input_raw_format)
-
-if UseDD4Hep:
-    config.add(
-        setup_component(
-            'DDDBConf',
-            Simulation=options.simulation,
-            DataType=options.data_type,
-            GeometryVersion=options.geometry_version,
-            ConditionsVersion=options.conditions_version))
-else:
+if not UseDD4Hep:
+    from Configurables import DDDBConf
     config.add(DDDBConf(Simulation=options.simulation, DataType="Upgrade"))
     config.add(
         setup_component(
