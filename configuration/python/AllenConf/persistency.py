@@ -146,7 +146,7 @@ rb_map_PbPb = {
     # RB 8 Velo (closing) monitoring
     'Hlt1VeloMicroBias.*': 8,
     # RB 9 ECAL pi0 calibration
-    'Hlt1HeavyIonPbPbUPCDiPhoton_LowPt': 9,
+    'Hlt1HeavyIonPbPbUPCDiPhoton_LowPt_Ycut': 9,
     # RB 10 ODIN calibration triggers
     'Hlt1ODINCalib': 10,
     # RB 11 BGI lines

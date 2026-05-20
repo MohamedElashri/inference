@@ -18,7 +18,7 @@ from AllenConf.filters import sd_error_filter
 from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenConf.validators import rate_validation
 from AllenConf.odin import odin_error_filter, make_event_type, make_odin_orbit, tae_filter
-from AllenConf.HLT1_common import default_bgi_activity_lines
+from AllenConf.HLT1_common import default_bgi_activity_lines, config_velo_large_clusters_lines
 from AllenConf.lumi_reconstruction import lumi_reconstruction
 from AllenConf.enum_types import TrackingType, includes_matching
 
@@ -76,6 +76,12 @@ def setup_hlt1_node(velo_open=False, enableBGI=True, enableBGI_full=False):
             line_maker(
                 make_passthrough_line(name="Hlt1ErrorBank", pre_scaler=0.0001))
         ]
+
+    lines += config_velo_large_clusters_lines(
+        reconstructed_objects=reconstructed_objects,
+        prefilters=None,
+        preset='PbPb',
+        enable_tupling=False)
 
     # list of line algorithms, required for the gather selection and DecReport algorithms
     line_algorithms = [tup[0] for tup in lines]

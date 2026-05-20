@@ -161,7 +161,7 @@ VELO_LARGE_CLUSTERS_CONFIG_PRESETS = {
         'min_n_hits': 5
     },
     'PbPb': {
-        'enable': False,
+        'enable': True,
         'min_eta': 5.,
         'min_cluster_size': 4,
         'min_n_hits': 5
