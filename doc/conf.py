@@ -106,6 +106,8 @@ linkcheck_ignore = [
     r"https://docutils.sourceforge.io/rst.html",
     # really broken, see gaudi/Gaudi#156
     r"http://gaudi\.web\.cern\.ch/gaudi/doxygen/master/index\.html",
+    # Timeout when cds is slow to respond:
+    r"https?://cds.cern.ch/record/.*",
 ]
 
 # Disable checks of anchors
