@@ -19,6 +19,7 @@ Binary file format (written by PVFinderUNet.cu):
 """
 
 import argparse
+import json
 import os
 import struct
 import sys
@@ -38,9 +39,38 @@ parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
 parser.add_argument("--unet-channels", type=int, default=64,
                     help="Number of UNet feature channels used by the PyTorch model")
+parser.add_argument("--dtype-mode", default="auto",
+                    choices=["auto", "fp32", "fp16-experimental"],
+                    help="Precision mode to record/validate. auto reads allen_precision_record.json if present")
+parser.add_argument("--threshold", type=float, default=None,
+                    help="Override max-abs-diff threshold. Defaults: fp32=1e-3, fp16-experimental=1e-2")
 parser.add_argument("--plot",      action="store_true",
                     help="Save comparison plots to <dump_dir>/plots/")
 args = parser.parse_args()
+
+precision_record_path = os.path.join(args.dump_dir, "allen_precision_record.json")
+precision_record = {}
+if os.path.exists(precision_record_path):
+    with open(precision_record_path, "r", encoding="utf-8") as handle:
+        precision_record = json.load(handle)
+
+dtype_mode = args.dtype_mode
+if dtype_mode == "auto":
+    dtype_mode = precision_record.get("dtype_mode", "fp32")
+
+default_thresholds = {
+    "fp32": 1e-3,
+    "fp16-experimental": 1e-2,
+}
+if dtype_mode not in default_thresholds:
+    raise ValueError(f"Unsupported dtype mode from precision record: {dtype_mode!r}")
+threshold = args.threshold if args.threshold is not None else default_thresholds[dtype_mode]
+
+if precision_record and precision_record.get("dtype_mode") not in (None, dtype_mode):
+    print(
+        "WARNING: --dtype-mode "
+        f"{dtype_mode!r} differs from dump precision record "
+        f"{precision_record.get('dtype_mode')!r}")
 
 # ---------------------------------------------------------------------------
 # Read Allen binary dumps
@@ -77,6 +107,9 @@ ncw_tensor = ncw_flat.reshape(n_events * N_INTERVALS, N_CHANNELS, W_IN)
 allen_kde = kde_flat.reshape(n_events * N_INTERVALS, W_IN)
 
 print(f"  n_events={n_events}  ncw={ncw_tensor.shape}  allen_kde={allen_kde.shape}")
+print(f"  dtype_mode={dtype_mode}  threshold={threshold:.3e}")
+if precision_record:
+    print(f"  precision_record={precision_record_path}")
 
 # ---------------------------------------------------------------------------
 # Load PyTorch model
@@ -156,6 +189,7 @@ pt_kde = pt_out.reshape(n_events * N_INTERVALS, W_IN)
 diff     = allen_kde - pt_kde
 abs_diff = np.abs(diff)
 rel_diff = abs_diff / (np.abs(pt_kde) + 1e-9)
+nonfinite_count = int((~np.isfinite(diff)).sum())
 
 print("\n=== Numerical Comparison ===")
 print(f"  Max  abs diff : {abs_diff.max():.6e}")
@@ -164,17 +198,42 @@ print(f"  Median abs diff : {np.median(abs_diff):.6e}")
 print(f"  Max  rel diff : {rel_diff.max():.6e}")
 print(f"  Mean rel diff : {rel_diff.mean():.6e}")
 print(f"  RMS  diff     : {np.sqrt((diff**2).mean()):.6e}")
+if nonfinite_count:
+    print(f"  Non-finite diff values: {nonfinite_count}")
 
 # Per-event max abs diff
 per_event_max = abs_diff.reshape(n_events, N_INTERVALS * W_IN).max(axis=1)
 print(f"\n  Per-event max abs diff (first 10): "
       f"{[f'{v:.3e}' for v in per_event_max[:10]]}")
 
-# Pass/fail threshold — expect cuDNN fp32 vs PyTorch fp32 differences < 1e-3
-threshold = 1e-3
 worst = abs_diff.max()
-status = "PASS" if worst < threshold else "FAIL"
+status = "PASS" if np.isfinite(worst) and worst < threshold and nonfinite_count == 0 else "FAIL"
 print(f"\n  Threshold: {threshold:.0e}  →  {status}  (worst={worst:.3e})")
+
+summary = {
+    "record_version": 1,
+    "dump_dir": args.dump_dir,
+    "weights": args.weights,
+    "device": args.device,
+    "unet_channels": args.unet_channels,
+    "dtype_mode": dtype_mode,
+    "threshold": threshold,
+    "status": status,
+    "n_events": int(n_events),
+    "max_abs_diff": float(abs_diff.max()),
+    "mean_abs_diff": float(abs_diff.mean()),
+    "median_abs_diff": float(np.median(abs_diff)),
+    "max_rel_diff": float(rel_diff.max()),
+    "mean_rel_diff": float(rel_diff.mean()),
+    "rms_diff": float(np.sqrt((diff**2).mean())),
+    "nonfinite_count": nonfinite_count,
+    "precision_record": precision_record,
+}
+summary_path = os.path.join(args.dump_dir, "validation_summary.json")
+with open(summary_path, "w", encoding="utf-8") as handle:
+    json.dump(summary, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+print(f"  Summary written: {summary_path}")
 
 # ---------------------------------------------------------------------------
 # Plots (optional)

@@ -90,6 +90,14 @@ private:
         this, "use_fp16", false,
         "Experimental validation-gated FP16 Tensor Core path for CBR layers (physics approximate)"};
 
+    Allen::Property<bool> m_use_generic_fused_cbr {
+        this, "use_generic_fused_cbr", false,
+        "Opt-in V2.4 generic AllenCuDNN fused conv+bias+ReLU path for FP32 CBR layers"};
+
+    Allen::Property<bool> m_use_allen_external_workspace {
+        this, "use_allen_external_workspace", false,
+        "Opt-in V2.5 Allen-managed external workspace for cuDNN plans"};
+
     // m_init_done: set to true after init() completes. Guards call_once.
     mutable bool m_init_done = false;
     mutable bool m_dump_done = false;
@@ -102,7 +110,8 @@ private:
         const float* w_fused, const float* b_fused,
         int K, int W_out, int N,
         cudnnHandle_t handle,
-        const dim3& block, const Allen::Context& ctx) const;
+        const dim3& block, const Allen::Context& ctx,
+        Allen::CuDNN::Workspace workspace) const;
 
     void run_convbnrelu_half(
         const Allen::CuDNN::ForwardConvPlan& desc,
@@ -110,7 +119,15 @@ private:
         const __half* w_fused, const __half* b_fused,
         int K, int W_out, int N,
         cudnnHandle_t handle,
-        const dim3& block, const Allen::Context& ctx) const;
+        const dim3& block, const Allen::Context& ctx,
+        Allen::CuDNN::Workspace workspace) const;
+
+    void run_fused_convbnrelu(
+        const Allen::CuDNN::FusedConvPlan& plan,
+        const float* input, float* output,
+        const float* w_fused, const float* b_fused,
+        cudnnHandle_t handle,
+        Allen::CuDNN::Workspace workspace) const;
 
     void run_conv(
         const Allen::CuDNN::ForwardConvPlan& desc,
@@ -119,7 +136,8 @@ private:
         int N, int C_out, int W,
         const dim3& block, const Allen::Context& ctx,
         cudnnHandle_t handle,
-        float beta_val = 0.f) const;
+        float beta_val,
+        Allen::CuDNN::Workspace workspace) const;
 
     void run_conv_transpose(
         const float* input, float* output,
@@ -127,7 +145,8 @@ private:
         const float* w_ptr, const float* bias_ptr,
         int N, int C_out, int W_out,
         const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle) const;
+        cudnnHandle_t handle,
+        Allen::CuDNN::Workspace workspace) const;
 #endif
 };
 

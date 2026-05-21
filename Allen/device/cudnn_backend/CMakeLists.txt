@@ -8,7 +8,8 @@
 
 allen_add_host_library(AllenCuDNN SHARED
   src/CuDNNWeightRegistry.cpp
-  src/CuDNNHandle.cpp)
+  src/CuDNNHandle.cpp
+  src/CuDNNFusedOps.cu)
 
 target_include_directories(AllenCuDNN
   PUBLIC

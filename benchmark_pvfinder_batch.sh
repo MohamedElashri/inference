@@ -2,8 +2,8 @@
 # Reproducible PVFinder benchmark batch runner.
 #
 # This wraps Allen benchmark runs with provenance capture, repeated measurements,
-# per-run logs/configs, optional nsys profiling, and an explicit pvfinder_unet
-# use_fp16 configuration toggle.
+# per-run logs/configs, optional nsys profiling, and explicit pvfinder_unet
+# use_fp16 / generic fused CBR / Allen external workspace configuration toggles.
 
 set -euo pipefail
 
@@ -23,6 +23,11 @@ Options:
   --repeats N                Number of repeated benchmark runs (default: 3)
   --cnn-weights PATH         Override pvfinder_unet weight_file
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
+  --use-generic-fused-cbr BOOL
+                              Set pvfinder_unet.use_generic_fused_cbr true/false (default: false)
+  --use-allen-external-workspace BOOL
+                              Set pvfinder_unet.use_allen_external_workspace true/false (default: false)
+  --dump-dir DIR              Set pvfinder_unet.dump_validation for UNet validation dumps
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -48,6 +53,9 @@ REPS=500
 REPEATS=3
 CNN_WEIGHTS_OVERRIDE=""
 USE_FP16=false
+USE_GENERIC_FUSED_CBR=false
+USE_ALLEN_EXTERNAL_WORKSPACE=false
+DUMP_DIR_OVERRIDE=""
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"
 
@@ -63,6 +71,9 @@ while [[ $# -gt 0 ]]; do
         --repeats) REPEATS="$2"; shift 2 ;;
         --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --use-fp16) USE_FP16="$2"; shift 2 ;;
+        --use-generic-fused-cbr) USE_GENERIC_FUSED_CBR="$2"; shift 2 ;;
+        --use-allen-external-workspace) USE_ALLEN_EXTERNAL_WORKSPACE="$2"; shift 2 ;;
+        --dump-dir) DUMP_DIR_OVERRIDE="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
@@ -80,6 +91,22 @@ case "${USE_FP16}" in
     true|false) ;;
     *) echo "ERROR: --use-fp16 must be true or false" >&2; exit 1 ;;
 esac
+case "${USE_GENERIC_FUSED_CBR}" in
+    true|false) ;;
+    *) echo "ERROR: --use-generic-fused-cbr must be true or false" >&2; exit 1 ;;
+esac
+case "${USE_ALLEN_EXTERNAL_WORKSPACE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-allen-external-workspace must be true or false" >&2; exit 1 ;;
+esac
+GENERIC_FUSED_CBR_ENV=0
+if [[ "${USE_GENERIC_FUSED_CBR}" == "true" ]]; then
+    GENERIC_FUSED_CBR_ENV=1
+fi
+ALLEN_EXTERNAL_WORKSPACE_ENV=0
+if [[ "${USE_ALLEN_EXTERNAL_WORKSPACE}" == "true" ]]; then
+    ALLEN_EXTERNAL_WORKSPACE_ENV=1
+fi
 
 BUILD_DIR="${SCRIPT_DIR}/Allen/${BUILD_NAME}"
 ALLEN_WRAPPER="${BUILD_DIR}/toolchain/wrapper"
@@ -147,12 +174,14 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_GENERIC_FUSED_CBR" "$USE_ALLEN_EXTERNAL_WORKSPACE" "$DUMP_DIR_OVERRIDE" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw = sys.argv[1:]
+path, weights, use_fp16_raw, use_generic_fused_cbr_raw, use_allen_external_workspace_raw, dump_dir = sys.argv[1:]
 use_fp16 = use_fp16_raw == "true"
+use_generic_fused_cbr = use_generic_fused_cbr_raw == "true"
+use_allen_external_workspace = use_allen_external_workspace_raw == "true"
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -160,6 +189,10 @@ with open(path, "r", encoding="utf-8") as handle:
 pvfinder_unet = data.setdefault("pvfinder_unet", {})
 pvfinder_unet["weight_file"] = weights
 pvfinder_unet["use_fp16"] = use_fp16
+pvfinder_unet["use_generic_fused_cbr"] = use_generic_fused_cbr
+pvfinder_unet["use_allen_external_workspace"] = use_allen_external_workspace
+if dump_dir:
+    pvfinder_unet["dump_validation"] = dump_dir
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -219,20 +252,28 @@ run_sequence() {
 
     if [[ "${PROFILE}" -eq 1 ]]; then
         local profile_out="${run_dir}/pvfinder_profile_${short}"
-        write_command "${cmd_file}" nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
+        write_command "${cmd_file}" PVFINDER_USE_GENERIC_FUSED_CBR="${GENERIC_FUSED_CBR_ENV}" \
+            PVFINDER_USE_ALLEN_EXTERNAL_WORKSPACE="${ALLEN_EXTERNAL_WORKSPACE_ENV}" \
+            nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
             "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
             "${COMMON_ARGS[@]}" --device "${DEVICE}"
         (
             cd "${run_dir}"
+            export PVFINDER_USE_GENERIC_FUSED_CBR="${GENERIC_FUSED_CBR_ENV}"
+            export PVFINDER_USE_ALLEN_EXTERNAL_WORKSPACE="${ALLEN_EXTERNAL_WORKSPACE_ENV}"
             nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
                 "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
                 "${COMMON_ARGS[@]}" --device "${DEVICE}"
         ) > "${log}" 2>&1
     else
-        write_command "${cmd_file}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+        write_command "${cmd_file}" PVFINDER_USE_GENERIC_FUSED_CBR="${GENERIC_FUSED_CBR_ENV}" \
+            PVFINDER_USE_ALLEN_EXTERNAL_WORKSPACE="${ALLEN_EXTERNAL_WORKSPACE_ENV}" \
+            "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
             "${COMMON_ARGS[@]}" --device "${DEVICE}"
         (
             cd "${run_dir}"
+            export PVFINDER_USE_GENERIC_FUSED_CBR="${GENERIC_FUSED_CBR_ENV}"
+            export PVFINDER_USE_ALLEN_EXTERNAL_WORKSPACE="${ALLEN_EXTERNAL_WORKSPACE_ENV}"
             "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
                 "${COMMON_ARGS[@]}" --device "${DEVICE}"
         ) > "${log}" 2>&1
@@ -262,6 +303,9 @@ run_sequence() {
     echo "profile=${PROFILE}"
     echo "cnn_weights=${CNN_WEIGHTS_ABS}"
     echo "use_fp16=${USE_FP16}"
+    echo "use_generic_fused_cbr=${USE_GENERIC_FUSED_CBR}"
+    echo "use_allen_external_workspace=${USE_ALLEN_EXTERNAL_WORKSPACE}"
+    echo "dump_dir=${DUMP_DIR_OVERRIDE}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
 } > "${BATCH_DIR}/metadata.env"

@@ -1,0 +1,34 @@
+{
+  "record_version": 1,
+  "client": "pvfinder_unet",
+  "model_or_algorithm": "PVFinder UNet",
+  "unet_channels": 64,
+  "dtype_mode": "fp16-experimental",
+  "reference_output_source": "PyTorch FP32 UNet validation script",
+  "recommended_max_abs_tolerance": 1e-2,
+  "compute_contract": {
+    "cbr_layers": {
+      "input_output_type": "CUDNN_DATA_HALF",
+      "filter_type": "CUDNN_DATA_HALF",
+      "compute_type": "CUDNN_DATA_FLOAT",
+      "math_type": "CUDNN_TENSOR_OP_MATH",
+      "tensor_ops_enabled": true,
+      "allow_tf32": false,
+      "fp16_experimental": true
+    },
+    "transpose_and_output_layers": "FP32",
+    "conversion_ownership": "PVFinder explicit f32_to_f16/f16_to_f32 kernels"
+  },
+  "runtime_flags": {
+    "use_fp16": true,
+    "use_generic_fused_cbr": false,
+    "use_allen_external_workspace": false
+  },
+  "workspace": {
+    "policy": "OwnedInitTime",
+    "non_overlapping_total_bytes": 41074704,
+    "max_required_bytes": 41074704
+  },
+  "status": "experimental",
+  "known_physics_caveats": "FP16 mode quantizes BN-folded CBR weights and intermediate CBR activations; keep opt-in until physics acceptance is recorded."
+}

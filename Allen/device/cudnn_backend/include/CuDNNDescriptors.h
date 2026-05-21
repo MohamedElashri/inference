@@ -8,8 +8,11 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <sstream>
+#include <unordered_map>
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include <cuda_fp16.h>
@@ -38,11 +41,28 @@ namespace Allen::CuDNN {
     Fallback
   };
 
+  enum class AlgorithmCachePolicy {
+    Disabled,
+    LookupOnly,
+    Populate,
+    LookupAndPopulate,
+    StrictLookup
+  };
+
+  enum class AlgorithmCacheStatus {
+    Disabled,
+    Miss,
+    Hit,
+    StrictMiss,
+    RejectedIncompatibleEnvironment
+  };
+
   enum class TensorLayout {
     NCHW
   };
 
   enum class ActivationMode {
+    Identity,
     Relu,
     Sigmoid,
     Tanh,
@@ -164,12 +184,21 @@ namespace Allen::CuDNN {
 #endif
   };
 
+  struct AlgorithmCacheMetadata {
+    AlgorithmCacheStatus status = AlgorithmCacheStatus::Disabled;
+    std::string key;
+    std::string provenance;
+    std::string created_by;
+  };
+
   struct ConvPlanOptions {
     AlgorithmSelectionPolicy algorithm_policy = AlgorithmSelectionPolicy::TimedFind;
     WorkspacePolicy workspace_policy = WorkspacePolicy::OwnedInitTime;
     size_t workspace_limit_bytes = 64ul * 1024 * 1024;
     bool log_plan_creation = false;
     PrecisionPolicy precision {};
+    AlgorithmCachePolicy cache_policy = AlgorithmCachePolicy::Disabled;
+    bool cache_fallback_results = false;
   };
 
   struct ConvPlanMetadata {
@@ -183,6 +212,7 @@ namespace Allen::CuDNN {
     bool created = false;
     TensorLayout layout = TensorLayout::NCHW;
     PrecisionPolicy precision {};
+    AlgorithmCacheMetadata cache {};
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     int algorithm = 0;
 #endif
@@ -237,6 +267,28 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
+  inline const char* to_string(AlgorithmCachePolicy policy) {
+    switch (policy) {
+    case AlgorithmCachePolicy::Disabled: return "Disabled";
+    case AlgorithmCachePolicy::LookupOnly: return "LookupOnly";
+    case AlgorithmCachePolicy::Populate: return "Populate";
+    case AlgorithmCachePolicy::LookupAndPopulate: return "LookupAndPopulate";
+    case AlgorithmCachePolicy::StrictLookup: return "StrictLookup";
+    }
+    return "Unknown";
+  }
+
+  inline const char* to_string(AlgorithmCacheStatus status) {
+    switch (status) {
+    case AlgorithmCacheStatus::Disabled: return "Disabled";
+    case AlgorithmCacheStatus::Miss: return "Miss";
+    case AlgorithmCacheStatus::Hit: return "Hit";
+    case AlgorithmCacheStatus::StrictMiss: return "StrictMiss";
+    case AlgorithmCacheStatus::RejectedIncompatibleEnvironment: return "RejectedIncompatibleEnvironment";
+    }
+    return "Unknown";
+  }
+
   inline const char* to_string(WorkspacePolicy policy) {
     switch (policy) {
     case WorkspacePolicy::AllenExternal: return "AllenExternal";
@@ -255,6 +307,7 @@ namespace Allen::CuDNN {
 
   inline const char* to_string(ActivationMode mode) {
     switch (mode) {
+    case ActivationMode::Identity: return "Identity";
     case ActivationMode::Relu: return "Relu";
     case ActivationMode::Sigmoid: return "Sigmoid";
     case ActivationMode::Tanh: return "Tanh";
@@ -262,6 +315,18 @@ namespace Allen::CuDNN {
     case ActivationMode::Elu: return "Elu";
     }
     return "Unknown";
+  }
+
+  inline std::string describe_precision_policy(const PrecisionPolicy& policy) {
+    std::ostringstream out;
+    out << "io=" << static_cast<int>(policy.input_output_type)
+        << ",filter=" << static_cast<int>(policy.filter_type)
+        << ",compute=" << static_cast<int>(policy.compute_type)
+        << ",math=" << static_cast<int>(policy.math_type)
+        << ",tensor_ops=" << (policy.tensor_ops_enabled ? "true" : "false")
+        << ",tf32=" << (policy.allow_tf32 ? "true" : "false")
+        << ",fp16_experimental=" << (policy.fp16_experimental ? "true" : "false");
+    return out.str();
   }
 
   inline TensorShape make_tensor_shape(std::array<int, 4> shape) {
@@ -414,6 +479,8 @@ namespace Allen::CuDNN {
 
   inline cudnnActivationMode_t to_cudnn_activation_mode(ActivationMode mode) {
     switch (mode) {
+    case ActivationMode::Identity:
+      throw std::invalid_argument("AllenCuDNN: identity activation is not a cuDNN activation descriptor");
     case ActivationMode::Relu: return CUDNN_ACTIVATION_RELU;
     case ActivationMode::Sigmoid: return CUDNN_ACTIVATION_SIGMOID;
     case ActivationMode::Tanh: return CUDNN_ACTIVATION_TANH;
@@ -432,7 +499,7 @@ namespace Allen::CuDNN {
     std::fprintf(
       stderr,
       "AllenCuDNN: %s created layout=%s algorithm=%s(%d) selection_policy=%s selection_source=%s "
-      "workspace_policy=%s workspace_bytes=%zu workspace_limit_bytes=%zu",
+      "workspace_policy=%s workspace_bytes=%zu workspace_limit_bytes=%zu precision={%s} cache=%s",
       plan_name,
       to_string(info.layout),
       info.algorithm_name.c_str(),
@@ -441,7 +508,12 @@ namespace Allen::CuDNN {
       to_string(info.selection_source),
       to_string(info.workspace_policy),
       info.workspace_bytes,
-      info.workspace_limit_bytes);
+      info.workspace_limit_bytes,
+      describe_precision_policy(info.precision).c_str(),
+      to_string(info.cache.status));
+    if (!info.cache.provenance.empty()) {
+      std::fprintf(stderr, " cache_provenance=\"%s\"", info.cache.provenance.c_str());
+    }
     if (!info.fallback_reason.empty()) {
       std::fprintf(stderr, " fallback_reason=\"%s\"", info.fallback_reason.c_str());
     }
@@ -453,12 +525,147 @@ namespace Allen::CuDNN {
       return dtype == CUDNN_DATA_HALF ? sizeof(__half) : sizeof(float);
     }
 
+    struct AlgorithmCacheEntry {
+      int algorithm = 0;
+      size_t workspace_bytes = 0;
+      AlgorithmSelectionSource selection_source = AlgorithmSelectionSource::Default;
+      std::string algorithm_name;
+      std::string fallback_reason;
+      std::string provenance;
+      std::string created_by;
+      std::string device_name;
+      size_t cudnn_version = 0;
+      int cuda_runtime_version = 0;
+    };
+
+    class AlgorithmCacheStore {
+    public:
+      bool lookup(const std::string& key, AlgorithmCacheEntry& entry) const
+      {
+        std::lock_guard<std::mutex> lock {m_mutex};
+        const auto found = m_entries.find(key);
+        if (found == m_entries.end()) return false;
+        entry = found->second;
+        return true;
+      }
+
+      void insert(const std::string& key, AlgorithmCacheEntry entry)
+      {
+        std::lock_guard<std::mutex> lock {m_mutex};
+        m_entries[key] = std::move(entry);
+      }
+
+      void clear()
+      {
+        std::lock_guard<std::mutex> lock {m_mutex};
+        m_entries.clear();
+      }
+
+      size_t size() const
+      {
+        std::lock_guard<std::mutex> lock {m_mutex};
+        return m_entries.size();
+      }
+
+    private:
+      mutable std::mutex m_mutex;
+      std::unordered_map<std::string, AlgorithmCacheEntry> m_entries;
+    };
+
+    inline AlgorithmCacheStore& algorithm_cache_store()
+    {
+      static AlgorithmCacheStore store;
+      return store;
+    }
+
+    inline void clear_algorithm_cache() { algorithm_cache_store().clear(); }
+    inline size_t algorithm_cache_size() { return algorithm_cache_store().size(); }
+
+    inline std::string current_device_name()
+    {
+      int device = 0;
+      if (cudaGetDevice(&device) != cudaSuccess) return "unknown-device";
+      cudaDeviceProp properties {};
+      if (cudaGetDeviceProperties(&properties, device) != cudaSuccess) return "unknown-device";
+      return properties.name;
+    }
+
+    inline int cuda_runtime_version()
+    {
+      int version = 0;
+      if (cudaRuntimeGetVersion(&version) != cudaSuccess) return 0;
+      return version;
+    }
+
+    inline bool cache_entry_environment_matches(const AlgorithmCacheEntry& entry)
+    {
+      return entry.device_name == current_device_name() &&
+             entry.cudnn_version == cudnnGetVersion() &&
+             entry.cuda_runtime_version == cuda_runtime_version();
+    }
+
+    inline const char* operation_provenance(AlgorithmSelectionSource source)
+    {
+      switch (source) {
+      case AlgorithmSelectionSource::Heuristic: return "heuristic";
+      case AlgorithmSelectionSource::TimedFind: return "timed-find";
+      case AlgorithmSelectionSource::ZeroWorkspace: return "zero-workspace";
+      case AlgorithmSelectionSource::Fallback: return "fallback";
+      case AlgorithmSelectionSource::Default: return "default";
+      }
+      return "unknown";
+    }
+
+    inline void append_shape(std::ostringstream& out, const char* name, TensorShape shape)
+    {
+      out << name << '=' << shape.n << 'x' << shape.c << 'x' << shape.h << 'x' << shape.w << ';';
+    }
+
+    inline void append_precision(std::ostringstream& out, const PrecisionPolicy& precision)
+    {
+      out << "io=" << static_cast<int>(precision.input_output_type)
+          << ";filter=" << static_cast<int>(precision.filter_type)
+          << ";compute=" << static_cast<int>(precision.compute_type)
+          << ";math=" << static_cast<int>(precision.math_type)
+          << ";tensor_ops=" << precision.tensor_ops_enabled
+          << ";tf32=" << precision.allow_tf32
+          << ";fp16_exp=" << precision.fp16_experimental << ';';
+    }
+
+    inline std::string algorithm_cache_key(
+      const char* operation,
+      Conv2DShape shape,
+      const ConvPlanOptions& options,
+      TensorShape output_shape)
+    {
+      std::ostringstream out;
+      out << "op=" << operation << ';';
+      append_shape(out, "input", shape.input);
+      append_shape(out, "filter", shape.filter);
+      append_shape(out, "output", output_shape);
+      out << "pad=" << shape.pad[0] << 'x' << shape.pad[1] << ';'
+          << "stride=" << shape.stride[0] << 'x' << shape.stride[1] << ';'
+          << "dilation=" << shape.dilation[0] << 'x' << shape.dilation[1] << ';'
+          << "layout=" << to_string(shape.layout) << ';';
+      append_precision(out, options.precision);
+      out << "algo_policy=" << to_string(options.algorithm_policy) << ';'
+          << "workspace_policy=" << to_string(options.workspace_policy) << ';'
+          << "workspace_limit=" << options.workspace_limit_bytes << ';'
+          << "device=" << current_device_name() << ';'
+          << "cuda_runtime=" << cuda_runtime_version() << ';'
+          << "cudnn=" << cudnnGetVersion() << ';';
+      return out.str();
+    }
+
     inline void cuda_check(cudaError_t e, const char* what) {
       if (e != cudaSuccess) {
         throw std::runtime_error(std::string(what) + ": " + cudaGetErrorString(e));
       }
     }
   } // namespace detail
+
+  inline void clear_algorithm_cache() { detail::clear_algorithm_cache(); }
+  inline size_t algorithm_cache_size() { return detail::algorithm_cache_size(); }
 #endif
 
 #ifndef ALLEN_CUDNN_BACKEND_CUDA
@@ -474,6 +681,13 @@ namespace Allen::CuDNN {
     policy.fp16_experimental = experimental;
     return policy;
   }
+
+  inline void validate_precision_policy(const PrecisionPolicy&, const char*) {}
+
+  inline PrecisionPolicy normalize_precision_policy(PrecisionPolicy policy) { return policy; }
+
+  inline void clear_algorithm_cache() {}
+  inline size_t algorithm_cache_size() { return 0; }
 #endif
 
   struct TensorDescriptor {
@@ -647,6 +861,7 @@ namespace Allen::CuDNN {
     cudnnConvolutionFwdAlgo_t m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
     ConvPlanOptions m_options {};
     AlgorithmSelectionSource m_selection_source = AlgorithmSelectionSource::Default;
+    AlgorithmCacheMetadata m_cache_metadata {};
     std::string m_fallback_reason;
     void* m_workspace = nullptr;
     size_t m_ws_bytes = 0;
@@ -668,6 +883,76 @@ namespace Allen::CuDNN {
       if (m_options.workspace_policy == WorkspacePolicy::OwnedInitTime && m_ws_bytes > 0) {
         detail::cuda_check(cudaMalloc(&m_workspace, m_ws_bytes), "ForwardConvPlan workspace allocation failed");
       }
+    }
+
+    bool cache_lookup(const std::string& key) {
+      m_cache_metadata.key = key;
+      if (m_options.cache_policy == AlgorithmCachePolicy::Disabled ||
+          m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace) {
+        m_cache_metadata.status = AlgorithmCacheStatus::Disabled;
+        return false;
+      }
+
+      if (m_options.cache_policy == AlgorithmCachePolicy::Populate) {
+        m_cache_metadata.status = AlgorithmCacheStatus::Miss;
+        return false;
+      }
+
+      detail::AlgorithmCacheEntry entry {};
+      if (!detail::algorithm_cache_store().lookup(key, entry)) {
+        if (m_options.cache_policy == AlgorithmCachePolicy::StrictLookup) {
+          m_cache_metadata.status = AlgorithmCacheStatus::StrictMiss;
+          throw std::runtime_error("AllenCuDNN: ForwardConvPlan strict algorithm cache lookup missed");
+        }
+        m_cache_metadata.status = AlgorithmCacheStatus::Miss;
+        return false;
+      }
+      if (!detail::cache_entry_environment_matches(entry)) {
+        if (m_options.cache_policy == AlgorithmCachePolicy::StrictLookup) {
+          m_cache_metadata.status = AlgorithmCacheStatus::RejectedIncompatibleEnvironment;
+          throw std::runtime_error("AllenCuDNN: ForwardConvPlan strict algorithm cache lookup found an incompatible environment");
+        }
+        m_cache_metadata.status = AlgorithmCacheStatus::RejectedIncompatibleEnvironment;
+        return false;
+      }
+
+      m_algo = static_cast<cudnnConvolutionFwdAlgo_t>(entry.algorithm);
+      m_selection_source = entry.selection_source;
+      m_fallback_reason = entry.fallback_reason;
+      m_cache_metadata.status = AlgorithmCacheStatus::Hit;
+      m_cache_metadata.provenance = entry.provenance;
+      m_cache_metadata.created_by = entry.created_by;
+      set_workspace(entry.workspace_bytes);
+      return true;
+    }
+
+    void cache_store(const std::string& key) {
+      if (m_options.cache_policy != AlgorithmCachePolicy::Populate &&
+          m_options.cache_policy != AlgorithmCachePolicy::LookupAndPopulate) {
+        return;
+      }
+      if (m_selection_source == AlgorithmSelectionSource::Fallback && !m_options.cache_fallback_results) {
+        return;
+      }
+      detail::AlgorithmCacheEntry entry {};
+      entry.algorithm = algorithm_id();
+      entry.workspace_bytes = m_ws_bytes;
+      entry.selection_source = m_selection_source;
+      entry.algorithm_name = algorithm_name();
+      entry.fallback_reason = m_fallback_reason;
+      entry.provenance = detail::operation_provenance(m_selection_source);
+      entry.created_by = "ForwardConvPlan";
+      entry.device_name = detail::current_device_name();
+      entry.cudnn_version = cudnnGetVersion();
+      entry.cuda_runtime_version = detail::cuda_runtime_version();
+      detail::algorithm_cache_store().insert(key, entry);
+      if (m_cache_metadata.status != AlgorithmCacheStatus::Hit &&
+          m_cache_metadata.status != AlgorithmCacheStatus::RejectedIncompatibleEnvironment) {
+        m_cache_metadata.status = AlgorithmCacheStatus::Miss;
+      }
+      m_cache_metadata.key = key;
+      m_cache_metadata.provenance = entry.provenance;
+      m_cache_metadata.created_by = entry.created_by;
     }
 
     void select_heuristic(cudnnHandle_t handle) {
@@ -759,6 +1044,14 @@ namespace Allen::CuDNN {
     ForwardConvPlan(const ForwardConvPlan&) = delete;
     ForwardConvPlan& operator=(const ForwardConvPlan&) = delete;
 
+    void reset() {
+      release_workspace();
+      m_selection_source = AlgorithmSelectionSource::Default;
+      m_cache_metadata = {};
+      m_fallback_reason.clear();
+      m_created = false;
+    }
+
     void create(
       cudnnHandle_t handle,
       Conv2DShape shape,
@@ -771,6 +1064,7 @@ namespace Allen::CuDNN {
       release_workspace();
       m_options = options;
       m_selection_source = AlgorithmSelectionSource::Default;
+      m_cache_metadata = {};
       m_fallback_reason.clear();
 
       m_input_desc.set_4d(shape.input.dims(), m_options.precision.input_output_type);
@@ -791,11 +1085,16 @@ namespace Allen::CuDNN {
       m_ws_bytes = 0;
       m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
         AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
-      if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
-        select_heuristic(handle);
-      }
-      else if (m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
-        select_timed(handle, shape.input, shape.filter, output_shape);
+      const std::string cache_key = detail::algorithm_cache_key("forward-convolution", shape, m_options, output_shape);
+      const bool cache_hit = cache_lookup(cache_key);
+      if (!cache_hit) {
+        if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
+          select_heuristic(handle);
+        }
+        else if (m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
+          select_timed(handle, shape.input, shape.filter, output_shape);
+        }
+        cache_store(cache_key);
       }
 
       m_created = true;
@@ -846,6 +1145,7 @@ namespace Allen::CuDNN {
     int algorithm_id() const { return static_cast<int>(m_algo); }
     const char* algorithm_name() const { return to_string(m_algo); }
     const PrecisionPolicy& precision_policy() const { return m_options.precision; }
+    const AlgorithmCacheMetadata& cache_metadata() const { return m_cache_metadata; }
     cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
     cudnnDataType_t compute_type() const { return m_options.precision.compute_type; }
     cudnnMathType_t math_type() const { return m_options.precision.math_type; }
@@ -862,6 +1162,7 @@ namespace Allen::CuDNN {
       info.created = m_created;
       info.layout = TensorLayout::NCHW;
       info.precision = m_options.precision;
+      info.cache = m_cache_metadata;
       info.algorithm = algorithm_id();
       return info;
     }
@@ -930,6 +1231,25 @@ namespace Allen::CuDNN {
     {
       forward(handle, alpha, beta, (const void*) dev_input, (const void*) dev_filter, (void*) dev_output);
     }
+
+    void forward_half(
+      cudnnHandle_t handle,
+      const float alpha,
+      const float beta,
+      const __half* dev_input,
+      const __half* dev_filter,
+      __half* dev_output,
+      Workspace external_workspace) const
+    {
+      forward(
+        handle,
+        alpha,
+        beta,
+        static_cast<const void*>(dev_input),
+        static_cast<const void*>(dev_filter),
+        static_cast<void*>(dev_output),
+        external_workspace);
+    }
 #else
     void create(void*, Conv2DShape, ConvPlanOptions = {}) {}
     void create(void*, std::array<int, 4>, std::array<int, 4>, std::array<int, 2> = {0, 0}, std::array<int, 2> = {1, 1}, std::array<int, 2> = {1, 1}, ConvPlanOptions = {}) {}
@@ -942,11 +1262,14 @@ namespace Allen::CuDNN {
     int algorithm_id() const { return 0; }
     const char* algorithm_name() const { return "CUDNN_CONVOLUTION_FWD_ALGO_UNKNOWN"; }
     const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    const AlgorithmCacheMetadata& cache_metadata() const { static const AlgorithmCacheMetadata metadata {}; return metadata; }
     ConvPlanMetadata metadata() const { return {}; }
+    void reset() {}
     void forward(void*, float, float, const float*, const float*, float*) const {}
     void forward(const Handle&, float, float, const float*, const float*, float*) const {}
     void forward(void*, float, float, const void*, const void*, void*, Workspace) const {}
     void forward_half(void*, float, float, const void*, const void*, void*) const {}
+    void forward_half(void*, float, float, const void*, const void*, void*, Workspace) const {}
 #endif
   };
 
@@ -962,6 +1285,7 @@ namespace Allen::CuDNN {
     cudnnConvolutionBwdDataAlgo_t m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
     ConvPlanOptions m_options {};
     AlgorithmSelectionSource m_selection_source = AlgorithmSelectionSource::Default;
+    AlgorithmCacheMetadata m_cache_metadata {};
     std::string m_fallback_reason;
     void* m_workspace = nullptr;
     size_t m_ws_bytes = 0;
@@ -983,6 +1307,77 @@ namespace Allen::CuDNN {
       if (m_options.workspace_policy == WorkspacePolicy::OwnedInitTime && m_ws_bytes > 0) {
         detail::cuda_check(cudaMalloc(&m_workspace, m_ws_bytes), "BackwardDataConvPlan workspace allocation failed");
       }
+    }
+
+    bool cache_lookup(const std::string& key) {
+      m_cache_metadata.key = key;
+      if (m_options.cache_policy == AlgorithmCachePolicy::Disabled ||
+          m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace) {
+        m_cache_metadata.status = AlgorithmCacheStatus::Disabled;
+        return false;
+      }
+
+      if (m_options.cache_policy == AlgorithmCachePolicy::Populate) {
+        m_cache_metadata.status = AlgorithmCacheStatus::Miss;
+        return false;
+      }
+
+      detail::AlgorithmCacheEntry entry {};
+      if (!detail::algorithm_cache_store().lookup(key, entry)) {
+        if (m_options.cache_policy == AlgorithmCachePolicy::StrictLookup) {
+          m_cache_metadata.status = AlgorithmCacheStatus::StrictMiss;
+          throw std::runtime_error("AllenCuDNN: BackwardDataConvPlan strict algorithm cache lookup missed");
+        }
+        m_cache_metadata.status = AlgorithmCacheStatus::Miss;
+        return false;
+      }
+      if (!detail::cache_entry_environment_matches(entry)) {
+        if (m_options.cache_policy == AlgorithmCachePolicy::StrictLookup) {
+          m_cache_metadata.status = AlgorithmCacheStatus::RejectedIncompatibleEnvironment;
+          throw std::runtime_error(
+            "AllenCuDNN: BackwardDataConvPlan strict algorithm cache lookup found an incompatible environment");
+        }
+        m_cache_metadata.status = AlgorithmCacheStatus::RejectedIncompatibleEnvironment;
+        return false;
+      }
+
+      m_algo = static_cast<cudnnConvolutionBwdDataAlgo_t>(entry.algorithm);
+      m_selection_source = entry.selection_source;
+      m_fallback_reason = entry.fallback_reason;
+      m_cache_metadata.status = AlgorithmCacheStatus::Hit;
+      m_cache_metadata.provenance = entry.provenance;
+      m_cache_metadata.created_by = entry.created_by;
+      set_workspace(entry.workspace_bytes);
+      return true;
+    }
+
+    void cache_store(const std::string& key) {
+      if (m_options.cache_policy != AlgorithmCachePolicy::Populate &&
+          m_options.cache_policy != AlgorithmCachePolicy::LookupAndPopulate) {
+        return;
+      }
+      if (m_selection_source == AlgorithmSelectionSource::Fallback && !m_options.cache_fallback_results) {
+        return;
+      }
+      detail::AlgorithmCacheEntry entry {};
+      entry.algorithm = algorithm_id();
+      entry.workspace_bytes = m_ws_bytes;
+      entry.selection_source = m_selection_source;
+      entry.algorithm_name = algorithm_name();
+      entry.fallback_reason = m_fallback_reason;
+      entry.provenance = detail::operation_provenance(m_selection_source);
+      entry.created_by = "BackwardDataConvPlan";
+      entry.device_name = detail::current_device_name();
+      entry.cudnn_version = cudnnGetVersion();
+      entry.cuda_runtime_version = detail::cuda_runtime_version();
+      detail::algorithm_cache_store().insert(key, entry);
+      if (m_cache_metadata.status != AlgorithmCacheStatus::Hit &&
+          m_cache_metadata.status != AlgorithmCacheStatus::RejectedIncompatibleEnvironment) {
+        m_cache_metadata.status = AlgorithmCacheStatus::Miss;
+      }
+      m_cache_metadata.key = key;
+      m_cache_metadata.provenance = entry.provenance;
+      m_cache_metadata.created_by = entry.created_by;
     }
 
     void select_heuristic(cudnnHandle_t handle) {
@@ -1088,6 +1483,7 @@ namespace Allen::CuDNN {
       release_workspace();
       m_options = options;
       m_selection_source = AlgorithmSelectionSource::Default;
+      m_cache_metadata = {};
       m_fallback_reason.clear();
       m_filter_desc.set_4d(shape.filter.dims(), m_options.precision.filter_type);
       m_input_desc.set_4d(shape.input.dims(), m_options.precision.input_output_type);
@@ -1107,11 +1503,16 @@ namespace Allen::CuDNN {
       m_ws_bytes = 0;
       m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
         AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
-      if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
-        select_heuristic(handle);
-      }
-      else if (m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
-        select_timed(handle, shape.filter, shape.input, shape.output);
+      const std::string cache_key = detail::algorithm_cache_key("backward-data-convolution", shape, m_options, shape.output);
+      const bool cache_hit = cache_lookup(cache_key);
+      if (!cache_hit) {
+        if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
+          select_heuristic(handle);
+        }
+        else if (m_options.algorithm_policy == AlgorithmSelectionPolicy::TimedFind) {
+          select_timed(handle, shape.filter, shape.input, shape.output);
+        }
+        cache_store(cache_key);
       }
       m_created = true;
       log_plan_creation("BackwardDataConvPlan", metadata(), m_options);
@@ -1143,6 +1544,7 @@ namespace Allen::CuDNN {
     int algorithm_id() const { return static_cast<int>(m_algo); }
     const char* algorithm_name() const { return to_string(m_algo); }
     const PrecisionPolicy& precision_policy() const { return m_options.precision; }
+    const AlgorithmCacheMetadata& cache_metadata() const { return m_cache_metadata; }
     cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
     cudnnDataType_t compute_type() const { return m_options.precision.compute_type; }
     cudnnMathType_t math_type() const { return m_options.precision.math_type; }
@@ -1159,6 +1561,7 @@ namespace Allen::CuDNN {
       info.created = m_created;
       info.layout = TensorLayout::NCHW;
       info.precision = m_options.precision;
+      info.cache = m_cache_metadata;
       info.algorithm = algorithm_id();
       return info;
     }
@@ -1213,6 +1616,7 @@ namespace Allen::CuDNN {
     int algorithm_id() const { return 0; }
     const char* algorithm_name() const { return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_UNKNOWN"; }
     const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    const AlgorithmCacheMetadata& cache_metadata() const { static const AlgorithmCacheMetadata metadata {}; return metadata; }
     ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
     void backward_data(void*, float, float, const void*, const void*, void*, Workspace) const {}
