@@ -18,6 +18,21 @@ if(PVFINDER_UNET_N_FEAT)
     message(STATUS "PVFinder: UNet N_FEAT overridden to ${PVFINDER_UNET_N_FEAT}")
 endif()
 
+if(PVFINDER_FC_HIDDEN_DIM)
+    target_compile_definitions(PVFinder PRIVATE PVFINDER_FC_HIDDEN_DIM=${PVFINDER_FC_HIDDEN_DIM})
+    message(STATUS "PVFinder: FC hidden dimension overridden to ${PVFINDER_FC_HIDDEN_DIM}")
+endif()
+
+if(PVFINDER_FC_HIDDEN_LAYERS)
+    target_compile_definitions(PVFinder PRIVATE PVFINDER_FC_HIDDEN_LAYERS=${PVFINDER_FC_HIDDEN_LAYERS})
+    message(STATUS "PVFinder: FC hidden layer count overridden to ${PVFINDER_FC_HIDDEN_LAYERS}")
+endif()
+
+if(PVFINDER_FC_OUTPUT_DIM)
+    target_compile_definitions(PVFinder PRIVATE PVFINDER_FC_OUTPUT_DIM=${PVFINDER_FC_OUTPUT_DIM})
+    message(STATUS "PVFinder: FC output dimension overridden to ${PVFINDER_FC_OUTPUT_DIM}")
+endif()
+
 if(WITH_CUBLAS AND TARGET_DEVICE STREQUAL "CUDA")
     # cuBLAS ships with every CUDA toolkit — no extra find_package required.
     target_link_libraries(PVFinder PRIVATE CUDA::cublas)

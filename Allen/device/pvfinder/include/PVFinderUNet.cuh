@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
+#include "PVFinderFCAggregation.cuh"
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
 #include <cuda_fp16.h>
@@ -9,7 +10,7 @@
 // ---------------------------------------------------------------------------
 // PVFinderUNet: cuDNN-backed UNet inference algorithm.
 //
-// Input:  dev_pvfinder_interval_features  [n_events, 40, C=8, W=100]
+// Input:  dev_pvfinder_interval_features  [n_events, 40, C=FC_LATENT_CHANNELS, W=100]
 // Output: dev_pvfinder_kde_output  [n_events, 40, 100]  (flat: n_events*4000)
 //
 // cuDNN integration design:
@@ -26,7 +27,7 @@ namespace pvfinder_unet {
 
 // UNet architecture constants (default weights: HDplusUNet100 iter12Ca)
 // Override N_FEAT at build time with -DPVFINDER_UNET_N_FEAT=<n> (e.g. 16 for the lighter model).
-static constexpr int N_BATCH_CHANNELS = 8;   // input latent channels
+static constexpr int N_BATCH_CHANNELS = pvfinder_fc_aggregation::FC_LATENT_CHANNELS;
 #ifdef PVFINDER_UNET_N_FEAT
 static constexpr int N_FEAT    = PVFINDER_UNET_N_FEAT;
 #else
@@ -41,7 +42,7 @@ static constexpr float KDE_SCALE = 0.001f;
 struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
 
-    // Interval features from aggregation: [n_events, 40, C=8, W=100]
+    // Interval features from aggregation: [n_events, 40, C=FC_LATENT_CHANNELS, W=100]
     DEVICE_INPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
 
     // Scratch intermediate buffers (Allen pool, fixed size for ONE event reused each iteration)

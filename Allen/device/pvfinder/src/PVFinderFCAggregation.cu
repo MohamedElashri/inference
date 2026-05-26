@@ -4,6 +4,8 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cstring>
+#include <stdexcept>
 #ifdef ALLEN_WITH_CUBLAS
 #include <cublas_v2.h>
 // Thread-local cuBLAS handle — one per Allen pipeline thread, never shared.
@@ -36,6 +38,16 @@ __device__ float pvfinder_softplus(float x) {
     return x > 0.0f ? x : logf(1.0f + expf(x));
 }
 
+static constexpr int FC_FIRST_W_OFFSET = 0;
+static constexpr int FC_FIRST_B_OFFSET = FC_FIRST_W_OFFSET + FC_INPUT_DIM * FC_HIDDEN_DIM;
+static constexpr int FC_HIDDEN_BLOCK_FLOATS = FC_HIDDEN_DIM * FC_HIDDEN_DIM + FC_HIDDEN_DIM;
+static constexpr int FC_HIDDEN_BASE_OFFSET = FC_FIRST_B_OFFSET + FC_HIDDEN_DIM;
+static constexpr int FC_FINAL_W_OFFSET =
+    FC_HIDDEN_BASE_OFFSET + (FC_HIDDEN_LAYERS - 1) * FC_HIDDEN_BLOCK_FLOATS;
+static constexpr int FC_FINAL_B_OFFSET = FC_FINAL_W_OFFSET + FC_HIDDEN_DIM * FC_OUTPUT_DIM;
+static constexpr int FC_TOTAL_FLOATS = FC_FINAL_B_OFFSET + FC_OUTPUT_DIM;
+static constexpr int FC_INTERVAL_FEATURES_PER_EVENT = FC_INTERVALS * FC_OUTPUT_DIM;
+
 // Inline LeakyReLU and linear layer — runs in registers, no global writes.
 __device__ __forceinline__ float pvfinder_leaky_relu(float x) {
     return x > 0.0f ? x : 0.01f * x;
@@ -51,6 +63,35 @@ __device__ __forceinline__ void pvfinder_linear_layer_reg(
         for (int j = 0; j < in_f; ++j) sum += w[i * in_f + j] * x[j];
         y[i] = pvfinder_leaky_relu(sum);
     }
+}
+
+__device__ __forceinline__ void pvfinder_hidden_stack_reg(
+    const float* __restrict__ feat,
+    float* __restrict__ x1,
+    float* __restrict__ x2,
+    const float* __restrict__ dev_weights)
+{
+    const float* w = dev_weights + FC_FIRST_W_OFFSET;
+    const float* b = dev_weights + FC_FIRST_B_OFFSET;
+    pvfinder_linear_layer_reg(feat, x1, w, b, FC_INPUT_DIM, FC_HIDDEN_DIM);
+
+    for (int layer = 1; layer < FC_HIDDEN_LAYERS; ++layer) {
+        w = dev_weights + FC_HIDDEN_BASE_OFFSET + (layer - 1) * FC_HIDDEN_BLOCK_FLOATS;
+        b = w + FC_HIDDEN_DIM * FC_HIDDEN_DIM;
+        if (layer & 1) {
+            pvfinder_linear_layer_reg(x1, x2, w, b, FC_HIDDEN_DIM, FC_HIDDEN_DIM);
+        }
+        else {
+            pvfinder_linear_layer_reg(x2, x1, w, b, FC_HIDDEN_DIM, FC_HIDDEN_DIM);
+        }
+    }
+}
+
+__device__ __forceinline__ const float* pvfinder_final_hidden(
+    float* __restrict__ x1,
+    float* __restrict__ x2)
+{
+    return (FC_HIDDEN_LAYERS & 1) ? x1 : x2;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,11 +220,11 @@ __global__ void pvfinder_compact_nonempty_kernel(
 // pvfinder_build_csr_kernel so the inner loop iterates over only the
 // ~T/40 tracks belonging to this interval.
 //
-// Static shared mem: s_feat[800] + s_hist[100] = 3.6 KB.
+// Static shared mem: s_feat[FC_OUTPUT_DIM] + s_hist[100].
 // This keeps occupancy high (many blocks resident per SM) which is the
 // dominant factor on both SM 7.5 and SM 8.6.
 //
-// NOTE: L6A weight caching in shared memory was tried (69.2 KB dynamic
+// NOTE: final-layer weight caching in shared memory was tried for the old 800-output model
 // smem) but regressed on SM 8.6 — the 69 KB smem drops blocks-per-SM
 // from ~16 to 1, killing occupancy. The RTX 3090 L2 ($936 GB/s) handles
 // the 64 KB weight matrix well enough without smem caching.
@@ -215,23 +256,13 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     // This saves the shared-memory init (~3 µs per block) and the MLP loop.
     if (n_local == 0) return;
 
-    const float* w1  = dev_weights;
-    const float* b1  = w1  + 180;
-    const float* w2  = b1  + 20;
-    const float* b2  = w2  + 400;
-    const float* w3  = b2  + 20;
-    const float* b3  = w3  + 400;
-    const float* w4  = b3  + 20;
-    const float* b4  = w4  + 400;
-    const float* w5  = b4  + 20;
-    const float* b5  = w5  + 400;
-    const float* w6A = b5  + 20;
-    const float* b6A = w6A + 16000;
+    const float* w6A = dev_weights + FC_FINAL_W_OFFSET;
+    const float* b6A = dev_weights + FC_FINAL_B_OFFSET;
 
-    __shared__ float s_feat[8 * 100];  // 3.2 KB
+    __shared__ float s_feat[FC_OUTPUT_DIM];
     __shared__ float s_hist[100];      // 0.4 KB
 
-    for (int i = thread_id; i < 800; i += blockDim.x) s_feat[i] = 0.0f;
+    for (int i = thread_id; i < FC_OUTPUT_DIM; i += blockDim.x) s_feat[i] = 0.0f;
     for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
     __syncthreads();
 
@@ -241,41 +272,38 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
         const int track_idx_in_batch = i + lane_id;
         const bool valid_track = track_idx_in_batch < n_local;
 
-        float x1[20], x2[20];
+        float x1[FC_HIDDEN_DIM], x2[FC_HIDDEN_DIM];
         
-        // Phase 1: Thread-parallel L1-L5
-        // Each thread processes L1-L5 for a UNIQUE track.
+        // Phase 1: thread-parallel hidden stack.
+        // Each thread processes the hidden stack for a unique track.
         if (valid_track) {
             const int local_idx = g_idx[iv_begin + track_idx_in_batch];
             const unsigned gtidx = event_track_offset + (unsigned)local_idx;
             const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
             
-            pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
-            pvfinder_linear_layer_reg(x1,  x2, w2, b2, 20, 20);
-            pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
-            pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
-            pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
+            pvfinder_hidden_stack_reg(feat, x1, x2, dev_weights);
         }
 
-        // Phase 2: Warp-collaborative L6A
+        // Phase 2: warp-collaborative final layer.
         // Loop over the tracks in this warp's current batch.
         const int batch_size = min(warpSize, n_local - i);
         for (int t = 0; t < batch_size; ++t) {
             
             // Broadcast the target track's x1 array to all lanes in the warp
-            float broadcasted_x1[20];
-            for (int m = 0; m < 20; ++m) {
-                broadcasted_x1[m] = __shfl_sync(0xffffffff, x1[m], t);
+            const float* hidden = pvfinder_final_hidden(x1, x2);
+            float broadcasted_x1[FC_HIDDEN_DIM];
+            for (int m = 0; m < FC_HIDDEN_DIM; ++m) {
+                broadcasted_x1[m] = __shfl_sync(0xffffffff, hidden[m], t);
             }
 
-            // All lanes collaboratively process L6A for track t
+            // All lanes collaboratively process the final layer for track t.
             for (int k = lane_id; k < 100; k += warpSize) {
                 float chan_sum = 0.0f;
-                for (int c = 0; c < 8; ++c) {
+                for (int c = 0; c < FC_LATENT_CHANNELS; ++c) {
                     const int neuron = c * 100 + k;
                     float val = b6A[neuron];
-                    for (int m = 0; m < 20; ++m) {
-                        val += w6A[m * 800 + neuron] * broadcasted_x1[m];
+                    for (int m = 0; m < FC_HIDDEN_DIM; ++m) {
+                        val += w6A[m * FC_OUTPUT_DIM + neuron] * broadcasted_x1[m];
                     }
                     val = pvfinder_leaky_relu(val);
                     chan_sum += val;
@@ -290,8 +318,8 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     const float weight = n_local > 0 ? 1.0f / n_local : 1.0f;
 
     float* g_feat = parameters.dev_pvfinder_interval_features
-                    + event_number * 32000 + interval * 800;
-    for (int i = thread_id; i < 800; i += blockDim.x)
+                    + event_number * FC_INTERVAL_FEATURES_PER_EVENT + interval * FC_OUTPUT_DIM;
+    for (int i = thread_id; i < FC_OUTPUT_DIM; i += blockDim.x)
         g_feat[i] = s_feat[i] * weight;
 
     float* g_hist = parameters.dev_pvfinder_output_histogram
@@ -306,13 +334,49 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
 #ifdef ALLEN_WITH_CUBLAS
 
 // ---------------------------------------------------------------------------
-// Kernel 1 — L1-L5 per track.
+// Kernel 1a — gather CSR-ordered track inputs for the all-cuBLAS experiment.
+//
+// Output layout is column-major [FC_INPUT_DIM x T_chunk], equivalent to a
+// row-major [T_chunk x FC_INPUT_DIM] view for simple writes.
+// ---------------------------------------------------------------------------
+__global__ void pvfinder_gather_fc_input_kernel(
+    pvfinder_fc_aggregation_t::Parameters parameters,
+    unsigned chunk_start,
+    unsigned chunk_end,
+    unsigned T_chunk)
+{
+    const unsigned t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= T_chunk) return;
+
+    unsigned ev = chunk_start;
+    unsigned local_t = t;
+    while (ev < chunk_end) {
+        const int* g_start_ev = parameters.dev_pvfinder_interval_start + ev * 42;
+        const unsigned n_entries = (unsigned)g_start_ev[41];
+        if (local_t < n_entries) break;
+        local_t -= n_entries;
+        ++ev;
+    }
+    if (ev >= chunk_end) return;
+
+    const auto velo_tracks_view = parameters.dev_velo_tracks_view[ev];
+    const unsigned event_track_offset = velo_tracks_view.offset();
+    const int* g_idx = parameters.dev_pvfinder_track_idx + event_track_offset * 2;
+    const int local_track = g_idx[local_t];
+    const unsigned gtidx = event_track_offset + (unsigned)local_track;
+    const float* feat = parameters.dev_pvfinder_track_features + gtidx * FC_INPUT_DIM;
+    float* out = parameters.dev_pvfinder_fc_input + (unsigned long long)t * FC_INPUT_DIM;
+    for (int i = 0; i < FC_INPUT_DIM; ++i) out[i] = feat[i];
+}
+
+// ---------------------------------------------------------------------------
+// Kernel 1b — hidden stack per track.
 //
 // Grid: ceil(T_chunk / 256)  blockDim: 256
 //
 // Each thread processes one CSR track entry for events in [chunk_start, chunk_end).
-// Evaluates L1-L5 MLP in registers and writes the 20-float hidden state to
-// dev_pvfinder_l5_output at the corresponding row.
+// Evaluates the hidden MLP in registers and writes the FC_HIDDEN_DIM-float
+// hidden state to dev_pvfinder_l5_output at the corresponding row.
 //
 // T_chunk is the total number of CSR track entries (boundary tracks counted
 // twice) for the current chunk. Entry t corresponds to the t-th slot in the
@@ -356,53 +420,38 @@ __global__ void pvfinder_l1_to_l5_kernel(
     const int local_track = g_idx[local_t];
     const unsigned gtidx = event_track_offset + (unsigned)local_track;
 
-    // Evaluate L1-L5 in registers
+    // Evaluate hidden stack in registers
     const float* feat = parameters.dev_pvfinder_track_features + gtidx * 9;
-    const float* w1 = dev_weights;
-    const float* b1 = w1 + 180;
-    const float* w2 = b1 + 20;
-    const float* b2 = w2 + 400;
-    const float* w3 = b2 + 20;
-    const float* b3 = w3 + 400;
-    const float* w4 = b3 + 20;
-    const float* b4 = w4 + 400;
-    const float* w5 = b4 + 20;
-    const float* b5 = w5 + 400;
+    float x1[FC_HIDDEN_DIM], x2[FC_HIDDEN_DIM];
+    pvfinder_hidden_stack_reg(feat, x1, x2, dev_weights);
+    const float* hidden = pvfinder_final_hidden(x1, x2);
 
-    float x1[20], x2[20];
-    pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
-    pvfinder_linear_layer_reg(x1,  x2, w2, b2, 20, 20);
-    pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
-    pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
-    pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
-
-    // Write x1[20] as row t of dev_pvfinder_l5_output [T_chunk × 20] row-major
-    float* out = parameters.dev_pvfinder_l5_output + (unsigned long long)t * 20;
-    for (int m = 0; m < 20; ++m) out[m] = x1[m];
+    // Write hidden state as row t of dev_pvfinder_l5_output [T_chunk x FC_HIDDEN_DIM] row-major
+    float* out = parameters.dev_pvfinder_l5_output + (unsigned long long)t * FC_HIDDEN_DIM;
+    for (int m = 0; m < FC_HIDDEN_DIM; ++m) out[m] = hidden[m];
 }
 
 // ---------------------------------------------------------------------------
-// Kernel 2 — Apply L6A bias + LeakyReLU in-place after cuBLAS GEMM.
+// Kernel 2 — Apply bias + LeakyReLU in-place after cuBLAS GEMM.
 //
-// cuBLAS writes        dev_l6a_output [800 × T_chunk]  (column-major)
-// i.e. element (n, t) is at offset n + t*800  (n ∈ [0,800), t ∈ [0,T_chunk))
+// The buffer is column-major [features x T_chunk].
 //
-// Grid: ceil(T_chunk * 800 / 512)  blockDim: 512
+// Grid: ceil(T_chunk * features / 512)  blockDim: 512
 // ---------------------------------------------------------------------------
-__global__ void pvfinder_l6a_bias_relu_kernel(
-    pvfinder_fc_aggregation_t::Parameters parameters,
-    const float* __restrict__ b6A,  // bias[800]
+__global__ void pvfinder_bias_relu_kernel(
+    float* __restrict__ output,
+    const float* __restrict__ bias,
+    unsigned features,
     unsigned T_chunk)
 {
     const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= T_chunk * 800u) return;
-    const unsigned n = idx % 800;  // neuron index
-    float val = parameters.dev_pvfinder_l6a_output[idx] + b6A[n];
-    parameters.dev_pvfinder_l6a_output[idx] = pvfinder_leaky_relu(val);
+    if (idx >= T_chunk * features) return;
+    const unsigned n = idx % features;
+    output[idx] = pvfinder_leaky_relu(output[idx] + bias[n]);
 }
 
 // ---------------------------------------------------------------------------
-// Kernel 3 — Reduce L6A outputs into interval features and histogram.
+// Kernel 3 — Reduce final-layer outputs into interval features and histogram.
 //
 // Grid: (B_chunk * 40)  blockDim: 128
 //
@@ -410,8 +459,8 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // to (event, interval) via the CSR bounds — no DtoH copy needed. Blocks
 // that correspond to empty intervals or out-of-range events early-return.
 //
-// dev_l6a_output is column-major [800 × T_chunk]. For track at column t:
-//   neuron n → dev_l6a_output[n + t*800]
+// dev_l6a_output is column-major [FC_OUTPUT_DIM x T_chunk]. For track at column t:
+//   neuron n -> dev_l6a_output[n + t*FC_OUTPUT_DIM]
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_reduce_l6a_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
@@ -441,11 +490,11 @@ __global__ void pvfinder_reduce_l6a_kernel(
     const int  n_local  = iv_end - iv_begin;
     if (n_local == 0) return;  // no tracks — output already zeroed by cudaMemsetAsync
 
-    // Shared memory accumulators: s_feat[800] + s_hist[100]
-    __shared__ float s_feat[800];
+    // Shared memory accumulators: s_feat[FC_OUTPUT_DIM] + s_hist[100]
+    __shared__ float s_feat[FC_OUTPUT_DIM];
     __shared__ float s_hist[100];
     const unsigned thread_id = threadIdx.x;
-    for (int i = thread_id; i < 800; i += blockDim.x) s_feat[i] = 0.0f;
+    for (int i = thread_id; i < FC_OUTPUT_DIM; i += blockDim.x) s_feat[i] = 0.0f;
     for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
     __syncthreads();
 
@@ -453,20 +502,21 @@ __global__ void pvfinder_reduce_l6a_kernel(
     // Column index in dev_l6a_output = csr_offset + ev_col_offset + t
     for (int t = iv_begin; t < iv_end; ++t) {
         const unsigned col = csr_offset + ev_col_offset + (unsigned)t;
-        // Each thread sums a strided subset of the 800 neurons.
-        for (int n = thread_id; n < 800; n += blockDim.x) {
-            const float val = parameters.dev_pvfinder_l6a_output[(unsigned long long)n + (unsigned long long)col * 800u];
+        // Each thread sums a strided subset of the final-layer neurons.
+        for (int n = thread_id; n < FC_OUTPUT_DIM; n += blockDim.x) {
+            const float val = parameters.dev_pvfinder_l6a_output[
+                (unsigned long long)n + (unsigned long long)col * FC_OUTPUT_DIM];
             atomicAdd(&s_feat[n], val);
-            // Accumulate softplus-reduced histogram bin (n / 8 maps 800 → 100)
+            // Accumulate softplus-reduced histogram bin after the full s_feat loop below.
             // s_hist[n % 100] is updated after the full s_feat loop below.
         }
     }
     __syncthreads();
 
-    // Reduce s_feat[800] → s_hist[100] via softplus of per-bin channel sums
+    // Reduce s_feat[FC_OUTPUT_DIM] -> s_hist[100] via softplus of per-bin channel sums.
     for (int k = thread_id; k < 100; k += blockDim.x) {
         float chan_sum = 0.0f;
-        for (int c = 0; c < 8; ++c) chan_sum += s_feat[c * 100 + k];
+        for (int c = 0; c < FC_LATENT_CHANNELS; ++c) chan_sum += s_feat[c * 100 + k];
         s_hist[k] = pvfinder_softplus(chan_sum);
     }
     __syncthreads();
@@ -474,8 +524,9 @@ __global__ void pvfinder_reduce_l6a_kernel(
     const float weight = 1.0f / n_local;
 
     float* g_feat = parameters.dev_pvfinder_interval_features
-                    + (unsigned long long)event_number * 32000u + interval * 800u;
-    for (int i = thread_id; i < 800; i += blockDim.x)
+                    + (unsigned long long)event_number * FC_INTERVAL_FEATURES_PER_EVENT +
+                      interval * FC_OUTPUT_DIM;
+    for (int i = thread_id; i < FC_OUTPUT_DIM; i += blockDim.x)
         g_feat[i] = s_feat[i] * weight;
 
     float* g_hist = parameters.dev_pvfinder_output_histogram
@@ -495,7 +546,7 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     const unsigned padded_events = ((total_events + 19) / 20) * 20;
     const unsigned total_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
     set_size<dev_pvfinder_output_histogram_t>  (arguments, total_events * 4000);
-    set_size<dev_pvfinder_interval_features_t> (arguments, padded_events * 32000);
+    set_size<dev_pvfinder_interval_features_t> (arguments, padded_events * FC_INTERVAL_FEATURES_PER_EVENT);
     // CSR index buffers
     set_size<dev_pvfinder_interval_start_t>(arguments, total_events * 42);
     set_size<dev_pvfinder_track_idx_t>     (arguments, total_tracks  * 2);
@@ -518,12 +569,18 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     // Clamp to MAX_TRACKS_PER_EVENT * B_CHUNK * 2 so the L6A buffer stays ≤ 25.6 MB.
     const unsigned T_chunk_max =
         std::min(avg_tracks_per_event, MAX_TRACKS_PER_EVENT) * B_CHUNK * 2u;
-    // dev_l5_output: [T_chunk_max × 20]  row-major — L1-L5 hidden states (~2.4 MB)
-    set_size<dev_pvfinder_l5_output_t> (arguments, T_chunk_max * 20u);
-    // dev_l6a_output: [800 × T_chunk_max]  column-major — raw L6A GEMM output (~24 MB)
-    set_size<dev_pvfinder_l6a_output_t>(arguments, 800u * T_chunk_max);
+    // dev_fc_input: [T_chunk_max x FC_INPUT_DIM] row-major CSR-ordered inputs
+    set_size<dev_pvfinder_fc_input_t>  (arguments, T_chunk_max * FC_INPUT_DIM);
+    // dev_l5_output: [T_chunk_max x FC_HIDDEN_DIM] row-major hidden states
+    set_size<dev_pvfinder_l5_output_t> (arguments, T_chunk_max * FC_HIDDEN_DIM);
+    // dev_hidden_tmp: [T_chunk_max x FC_HIDDEN_DIM] row-major hidden-state ping-pong buffer
+    set_size<dev_pvfinder_hidden_tmp_t>(arguments, T_chunk_max * FC_HIDDEN_DIM);
+    // dev_l6a_output: [FC_OUTPUT_DIM x T_chunk_max] column-major raw final-layer output
+    set_size<dev_pvfinder_l6a_output_t>(arguments, FC_OUTPUT_DIM * T_chunk_max);
 #else
+    set_size<dev_pvfinder_fc_input_t>  (arguments, 0u);
     set_size<dev_pvfinder_l5_output_t> (arguments, 0u);
+    set_size<dev_pvfinder_hidden_tmp_t>(arguments, 0u);
     set_size<dev_pvfinder_l6a_output_t>(arguments, 0u);
 #endif  // ALLEN_WITH_CUBLAS
 }
@@ -536,28 +593,41 @@ void pvfinder_fc_aggregation_t::operator()(
     const Allen::Context& context) const
 {
     static std::once_flag flag;
-    std::call_once(flag, []() {
+    std::call_once(flag, [this]() {
         if (!PVFinder::WeightRegistry::instance().contains("fc_weights")) {
-            std::string path = "/data/home/melashri/iris/inference/fc_weights.bin";
+            std::string path = m_weight_file.value();
             std::ifstream f(path, std::ios::binary | std::ios::ate);
             if (!f.is_open()) {
                 throw std::runtime_error("Cannot open " + path);
             }
             const size_t bytes = static_cast<size_t>(f.tellg());
+            const size_t expected_bytes = static_cast<size_t>(FC_TOTAL_FLOATS) * sizeof(float);
+            if (bytes != expected_bytes) {
+                throw std::runtime_error(
+                    "PVFinder FC weight file has " + std::to_string(bytes) +
+                    " bytes, expected " + std::to_string(expected_bytes) +
+                    " for architecture 9->" + std::to_string(FC_HIDDEN_DIM) +
+                    "x" + std::to_string(FC_HIDDEN_LAYERS) +
+                    "->" + std::to_string(FC_OUTPUT_DIM) + ": " + path);
+            }
             f.seekg(0);
             std::vector<char> host_buf(bytes);
             f.read(host_buf.data(), bytes);
 
-            // Transpose L6A weights from [800][20] to [20][800]
-            // Offset to w6A is: 180+20 + 400+20 + 400+20 + 400+20 + 400+20 = 1880 floats
+            // Transpose final-layer weights from [FC_OUTPUT_DIM][FC_HIDDEN_DIM]
+            // to [FC_HIDDEN_DIM][FC_OUTPUT_DIM] for coalesced kernel/cuBLAS access.
             float* floats = reinterpret_cast<float*>(host_buf.data());
-            std::vector<float> w6A_transposed(16000);
-            for (int r = 0; r < 800; ++r) {
-                for (int c = 0; c < 20; ++c) {
-                    w6A_transposed[c * 800 + r] = floats[1880 + r * 20 + c];
+            std::vector<float> w6A_transposed(FC_HIDDEN_DIM * FC_OUTPUT_DIM);
+            for (int r = 0; r < FC_OUTPUT_DIM; ++r) {
+                for (int c = 0; c < FC_HIDDEN_DIM; ++c) {
+                    w6A_transposed[c * FC_OUTPUT_DIM + r] =
+                        floats[FC_FINAL_W_OFFSET + r * FC_HIDDEN_DIM + c];
                 }
             }
-            std::memcpy(floats + 1880, w6A_transposed.data(), 16000 * sizeof(float));
+            std::memcpy(
+                floats + FC_FINAL_W_OFFSET,
+                w6A_transposed.data(),
+                w6A_transposed.size() * sizeof(float));
 
             PVFinder::WeightRegistry::instance().load_from_buffer(
                 "fc_weights", host_buf.data(), bytes);
@@ -583,7 +653,7 @@ void pvfinder_fc_aggregation_t::operator()(
     cudaMemsetAsync(
         data<dev_pvfinder_interval_features_t>(arguments),
         0,
-        padded_events * 32000u * sizeof(float),
+        padded_events * FC_INTERVAL_FEATURES_PER_EVENT * sizeof(float),
         context.stream());
     cudaMemsetAsync(
         data<dev_pvfinder_output_histogram_t>(arguments),
@@ -617,18 +687,8 @@ void pvfinder_fc_aggregation_t::operator()(
                csr_words * sizeof(int),
                cudaMemcpyDeviceToHost);
 
-    const float* w1  = dev_weights;
-    const float* b1  = w1  + 180;
-    const float* w2  = b1  + 20;
-    const float* b2  = w2  + 400;
-    const float* w3  = b2  + 20;
-    const float* b3  = w3  + 400;
-    const float* w4  = b3  + 20;
-    const float* b4  = w4  + 400;
-    const float* w5  = b4  + 20;
-    const float* b5  = w5  + 400;
-    const float* w6A = b5  + 20;
-    const float* b6A = w6A + 16000;
+    const float* w6A = dev_weights + FC_FINAL_W_OFFSET;
+    const float* b6A = dev_weights + FC_FINAL_B_OFFSET;
 
     constexpr unsigned B_CHUNK = 20u;
     constexpr unsigned KERNEL1_BLOCK = 256u;
@@ -651,32 +711,90 @@ void pvfinder_fc_aggregation_t::operator()(
         }
         if (T_chunk == 0) { csr_col_offset += T_chunk; continue; }
 
-        // --- Kernel 1: L1-L5 per track in this chunk ---
         const unsigned k1_blocks = (T_chunk + KERNEL1_BLOCK - 1) / KERNEL1_BLOCK;
-        global_function(pvfinder_l1_to_l5_kernel)(
-            dim3(k1_blocks), dim3(KERNEL1_BLOCK), context)(
-            arguments, dev_weights, chunk_start, chunk_end, csr_col_offset, T_chunk);
+        const float* final_hidden = data<dev_pvfinder_l5_output_t>(arguments);
 
-        // --- cuBLAS SGEMM: L6A ---
-        // W6A [20×800] row-major = [800×20] col-major → CUBLAS_OP_T gives [800×20].
-        // X [T_chunk×20] row-major = [20×T_chunk] col-major, op=N.
-        // Y = W6A^T × X → [800×T_chunk] col-major → dev_l6a_output.
+        if (m_use_cublas_hidden_stack.value()) {
+            // --- Kernel 1a: gather FC inputs in CSR order ---
+            global_function(pvfinder_gather_fc_input_kernel)(
+                dim3(k1_blocks), dim3(KERNEL1_BLOCK), context)(
+                arguments, chunk_start, chunk_end, T_chunk);
+
+            // --- cuBLAS hidden stack: 9->32 and 32->32 layers ---
+            const float* layer_w = dev_weights + FC_FIRST_W_OFFSET;
+            const float* layer_b = dev_weights + FC_FIRST_B_OFFSET;
+            float* hidden_a = data<dev_pvfinder_l5_output_t>(arguments);
+            float* hidden_b = data<dev_pvfinder_hidden_tmp_t>(arguments);
+
+            cublasSgemm(cublas,
+                CUBLAS_OP_T, CUBLAS_OP_N,
+                FC_HIDDEN_DIM, (int)T_chunk, FC_INPUT_DIM,
+                &alpha,
+                layer_w, FC_INPUT_DIM,
+                data<dev_pvfinder_fc_input_t>(arguments), FC_INPUT_DIM,
+                &beta,
+                hidden_a, FC_HIDDEN_DIM);
+
+            const unsigned hidden_bias_blocks =
+                (T_chunk * FC_HIDDEN_DIM + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
+            global_function(pvfinder_bias_relu_kernel)(
+                dim3(hidden_bias_blocks), dim3(KERNEL2_BLOCK), context)(
+                hidden_a, layer_b, FC_HIDDEN_DIM, T_chunk);
+
+            for (int layer = 1; layer < FC_HIDDEN_LAYERS; ++layer) {
+                layer_w = dev_weights + FC_HIDDEN_BASE_OFFSET + (layer - 1) * FC_HIDDEN_BLOCK_FLOATS;
+                layer_b = layer_w + FC_HIDDEN_DIM * FC_HIDDEN_DIM;
+                float* input_hidden = (layer & 1) ? hidden_a : hidden_b;
+                float* output_hidden = (layer & 1) ? hidden_b : hidden_a;
+
+                cublasSgemm(cublas,
+                    CUBLAS_OP_T, CUBLAS_OP_N,
+                    FC_HIDDEN_DIM, (int)T_chunk, FC_HIDDEN_DIM,
+                    &alpha,
+                    layer_w, FC_HIDDEN_DIM,
+                    input_hidden, FC_HIDDEN_DIM,
+                    &beta,
+                    output_hidden, FC_HIDDEN_DIM);
+
+                global_function(pvfinder_bias_relu_kernel)(
+                    dim3(hidden_bias_blocks), dim3(KERNEL2_BLOCK), context)(
+                    output_hidden, layer_b, FC_HIDDEN_DIM, T_chunk);
+            }
+
+            final_hidden =
+                (FC_HIDDEN_LAYERS & 1) ?
+                    data<dev_pvfinder_l5_output_t>(arguments) :
+                    data<dev_pvfinder_hidden_tmp_t>(arguments);
+        }
+        else {
+            // --- Kernel 1b: register hidden stack per track in this chunk ---
+            global_function(pvfinder_l1_to_l5_kernel)(
+                dim3(k1_blocks), dim3(KERNEL1_BLOCK), context)(
+                arguments, dev_weights, chunk_start, chunk_end, csr_col_offset, T_chunk);
+        }
+
+        // --- cuBLAS SGEMM: final layer ---
+        // W6A [FC_HIDDEN_DIM x FC_OUTPUT_DIM] row-major =
+        // [FC_OUTPUT_DIM x FC_HIDDEN_DIM] col-major with CUBLAS_OP_T.
+        // X [T_chunk x FC_HIDDEN_DIM] row-major =
+        // [FC_HIDDEN_DIM x T_chunk] col-major, op=N.
+        // Y = W6A^T x X -> [FC_OUTPUT_DIM x T_chunk] col-major.
         cublasSgemm(cublas,
             CUBLAS_OP_T, CUBLAS_OP_N,
-            800, (int)T_chunk, 20,
+            FC_OUTPUT_DIM, (int)T_chunk, FC_HIDDEN_DIM,
             &alpha,
-            w6A, 20,
-            data<dev_pvfinder_l5_output_t>(arguments), 20,
+            w6A, FC_HIDDEN_DIM,
+            final_hidden, FC_HIDDEN_DIM,
             &beta,
-            data<dev_pvfinder_l6a_output_t>(arguments), 800);
+            data<dev_pvfinder_l6a_output_t>(arguments), FC_OUTPUT_DIM);
 
-        // --- Kernel 2: bias + LeakyReLU in-place on L6A output ---
-        const unsigned k2_blocks = (T_chunk * 800u + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
-        global_function(pvfinder_l6a_bias_relu_kernel)(
+        // --- Kernel 2: bias + LeakyReLU in-place on final-layer output ---
+        const unsigned k2_blocks = (T_chunk * FC_OUTPUT_DIM + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
+        global_function(pvfinder_bias_relu_kernel)(
             dim3(k2_blocks), dim3(KERNEL2_BLOCK), context)(
-            arguments, b6A, T_chunk);
+            data<dev_pvfinder_l6a_output_t>(arguments), b6A, FC_OUTPUT_DIM, T_chunk);
 
-        // --- Kernel 3: reduce L6A → interval features + histogram ---
+        // --- Kernel 3: reduce final-layer output -> interval features + histogram ---
         const unsigned n_chunk_events = chunk_end - chunk_start;
         global_function(pvfinder_reduce_l6a_kernel)(
             dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(

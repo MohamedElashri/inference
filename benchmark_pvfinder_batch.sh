@@ -21,6 +21,10 @@ Options:
   -m, --memory MB            Device memory per thread / stream (default: 300)
   -r, --repetitions N        Repetitions per thread / stream (default: 500)
   --repeats N                Number of repeated benchmark runs (default: 3)
+  --fc-only                  Run only baseline and FC sequences; skip FC+UNet
+  --fc-weights PATH          Override pvfinder_fc_aggregation weight_file
+  --use-cublas-hidden-stack BOOL
+                              Set pvfinder_fc_aggregation.use_cublas_hidden_stack true/false (default: false)
   --cnn-weights PATH         Override pvfinder_unet weight_file
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
   --use-generic-fused-cbr BOOL
@@ -52,6 +56,9 @@ MEMORY=300
 REPS=500
 REPEATS=3
 CNN_WEIGHTS_OVERRIDE=""
+FC_WEIGHTS_OVERRIDE=""
+FC_ONLY=0
+USE_CUBLAS_HIDDEN_STACK=false
 USE_FP16=false
 USE_GENERIC_FUSED_CBR=false
 USE_ALLEN_EXTERNAL_WORKSPACE=false
@@ -69,6 +76,9 @@ while [[ $# -gt 0 ]]; do
         --memory|-m) MEMORY="$2"; shift 2 ;;
         --repetitions|-r) REPS="$2"; shift 2 ;;
         --repeats) REPEATS="$2"; shift 2 ;;
+        --fc-only) FC_ONLY=1; shift 1 ;;
+        --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
+        --use-cublas-hidden-stack) USE_CUBLAS_HIDDEN_STACK="$2"; shift 2 ;;
         --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --use-fp16) USE_FP16="$2"; shift 2 ;;
         --use-generic-fused-cbr) USE_GENERIC_FUSED_CBR="$2"; shift 2 ;;
@@ -90,6 +100,10 @@ fi
 case "${USE_FP16}" in
     true|false) ;;
     *) echo "ERROR: --use-fp16 must be true or false" >&2; exit 1 ;;
+esac
+case "${USE_CUBLAS_HIDDEN_STACK}" in
+    true|false) ;;
+    *) echo "ERROR: --use-cublas-hidden-stack must be true or false" >&2; exit 1 ;;
 esac
 case "${USE_GENERIC_FUSED_CBR}" in
     true|false) ;;
@@ -117,6 +131,20 @@ GEO="${SCRIPT_DIR}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231
 if [[ ! -x "${ALLEN_WRAPPER}" || ! -x "${ALLEN_BIN}" ]]; then
     echo "ERROR: build does not look runnable: ${BUILD_DIR}" >&2
     exit 1
+fi
+
+if [[ -n "${FC_WEIGHTS_OVERRIDE}" ]]; then
+    if [[ "${FC_WEIGHTS_OVERRIDE}" = /* ]]; then
+        FC_WEIGHTS_ABS="${FC_WEIGHTS_OVERRIDE}"
+    else
+        FC_WEIGHTS_ABS="${SCRIPT_DIR}/${FC_WEIGHTS_OVERRIDE}"
+    fi
+    if [[ ! -f "${FC_WEIGHTS_ABS}" ]]; then
+        echo "ERROR: --fc-weights file not found: ${FC_WEIGHTS_ABS}" >&2
+        exit 1
+    fi
+else
+    FC_WEIGHTS_ABS="${SCRIPT_DIR}/fc_weights_32x3_400.bin"
 fi
 
 if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
@@ -150,8 +178,10 @@ COMMON_ARGS=(
 SEQUENCES=(
     "hlt1_pp_default"
     "hlt1_pp_pvfinder_benchmark"
-    "hlt1_pp_pvfinder_unet_benchmark"
 )
+if [[ "${FC_ONLY}" -eq 0 ]]; then
+    SEQUENCES+=("hlt1_pp_pvfinder_unet_benchmark")
+fi
 
 sequence_label() {
     case "$1" in
@@ -172,13 +202,14 @@ write_command() {
     printf '\n' >> "${out}"
 }
 
-patch_unet_config() {
+patch_pvfinder_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_GENERIC_FUSED_CBR" "$USE_ALLEN_EXTERNAL_WORKSPACE" "$DUMP_DIR_OVERRIDE" <<'PY'
+    python3 - "$config" "$FC_WEIGHTS_ABS" "$USE_CUBLAS_HIDDEN_STACK" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_GENERIC_FUSED_CBR" "$USE_ALLEN_EXTERNAL_WORKSPACE" "$DUMP_DIR_OVERRIDE" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, use_generic_fused_cbr_raw, use_allen_external_workspace_raw, dump_dir = sys.argv[1:]
+path, fc_weights, use_cublas_hidden_stack_raw, cnn_weights, use_fp16_raw, use_generic_fused_cbr_raw, use_allen_external_workspace_raw, dump_dir = sys.argv[1:]
+use_cublas_hidden_stack = use_cublas_hidden_stack_raw == "true"
 use_fp16 = use_fp16_raw == "true"
 use_generic_fused_cbr = use_generic_fused_cbr_raw == "true"
 use_allen_external_workspace = use_allen_external_workspace_raw == "true"
@@ -186,13 +217,19 @@ use_allen_external_workspace = use_allen_external_workspace_raw == "true"
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 
-pvfinder_unet = data.setdefault("pvfinder_unet", {})
-pvfinder_unet["weight_file"] = weights
-pvfinder_unet["use_fp16"] = use_fp16
-pvfinder_unet["use_generic_fused_cbr"] = use_generic_fused_cbr
-pvfinder_unet["use_allen_external_workspace"] = use_allen_external_workspace
-if dump_dir:
-    pvfinder_unet["dump_validation"] = dump_dir
+pvfinder_fc = data.get("pvfinder_fc_aggregation")
+if pvfinder_fc is not None:
+    pvfinder_fc["weight_file"] = fc_weights
+    pvfinder_fc["use_cublas_hidden_stack"] = use_cublas_hidden_stack
+
+pvfinder_unet = data.get("pvfinder_unet")
+if pvfinder_unet is not None:
+    pvfinder_unet["weight_file"] = cnn_weights
+    pvfinder_unet["use_fp16"] = use_fp16
+    pvfinder_unet["use_generic_fused_cbr"] = use_generic_fused_cbr
+    pvfinder_unet["use_allen_external_workspace"] = use_allen_external_workspace
+    if dump_dir:
+        pvfinder_unet["dump_validation"] = dump_dir
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -232,9 +269,7 @@ generate_config() {
     cp "${tmp}/Sequence.json" "${out_config}"
     rm -rf "${tmp}"
 
-    if [[ "${seq}" == "hlt1_pp_pvfinder_unet_benchmark" ]]; then
-        patch_unet_config "${out_config}"
-    fi
+    patch_pvfinder_config "${out_config}"
 }
 
 run_sequence() {
@@ -300,7 +335,10 @@ run_sequence() {
     echo "memory=${MEMORY}"
     echo "repetitions=${REPS}"
     echo "repeats=${REPEATS}"
+    echo "fc_only=${FC_ONLY}"
     echo "profile=${PROFILE}"
+    echo "fc_weights=${FC_WEIGHTS_ABS}"
+    echo "use_cublas_hidden_stack=${USE_CUBLAS_HIDDEN_STACK}"
     echo "cnn_weights=${CNN_WEIGHTS_ABS}"
     echo "use_fp16=${USE_FP16}"
     echo "use_generic_fused_cbr=${USE_GENERIC_FUSED_CBR}"
@@ -314,7 +352,10 @@ git -C "${SCRIPT_DIR}" rev-parse HEAD > "${BATCH_DIR}/git_head.txt"
 git -C "${SCRIPT_DIR}" status --short > "${BATCH_DIR}/git_status_short.txt"
 git -C "${SCRIPT_DIR}" log --oneline -8 --decorate > "${BATCH_DIR}/git_log_oneline.txt"
 
-sha256sum "${CNN_WEIGHTS_ABS}" > "${BATCH_DIR}/weights.sha256"
+{
+    sha256sum "${FC_WEIGHTS_ABS}"
+    sha256sum "${CNN_WEIGHTS_ABS}"
+} > "${BATCH_DIR}/weights.sha256"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi > "${BATCH_DIR}/nvidia_smi.txt" 2>&1 || true
@@ -323,8 +364,12 @@ fi
 
 write_command "${BATCH_DIR}/batch_command.cmd" "$0" "${ORIGINAL_ARGS[@]}"
 
-printf 'run\tbaseline\tfc\tunet\tfc_overhead_pct\tunet_overhead_pct\tunet_retention_pct\n' \
-    > "${BATCH_DIR}/summary.tsv"
+if [[ "${FC_ONLY}" -eq 1 ]]; then
+    printf 'run\tbaseline\tfc\tfc_overhead_pct\n' > "${BATCH_DIR}/summary.tsv"
+else
+    printf 'run\tbaseline\tfc\tunet\tfc_overhead_pct\tunet_overhead_pct\tunet_retention_pct\n' \
+        > "${BATCH_DIR}/summary.tsv"
+fi
 
 for run_idx in $(seq 1 "${REPEATS}"); do
     run_dir="${BATCH_DIR}/run_$(printf '%02d' "${run_idx}")"
@@ -339,18 +384,60 @@ for run_idx in $(seq 1 "${REPEATS}"); do
 
     baseline="$(awk '$1=="baseline"{print $2}' "${rates_file}")"
     fc="$(awk '$1=="fc"{print $2}' "${rates_file}")"
-    unet="$(awk '$1=="unet"{print $2}' "${rates_file}")"
-
-    awk -v run="${run_idx}" -v base="${baseline}" -v fc="${fc}" -v unet="${unet}" '
-      BEGIN {
-        fc_over = (base > 0) ? (base - fc) / base * 100.0 : 0.0;
-        unet_over = (base > 0) ? (base - unet) / base * 100.0 : 0.0;
-        retain = (base > 0) ? unet / base * 100.0 : 0.0;
-        printf "%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n",
-          run, base, fc, unet, fc_over, unet_over, retain;
-      }' >> "${BATCH_DIR}/summary.tsv"
+    if [[ "${FC_ONLY}" -eq 1 ]]; then
+        awk -v run="${run_idx}" -v base="${baseline}" -v fc="${fc}" '
+          BEGIN {
+            fc_over = (base > 0) ? (base - fc) / base * 100.0 : 0.0;
+            printf "%s\t%.2f\t%.2f\t%.2f\n", run, base, fc, fc_over;
+          }' >> "${BATCH_DIR}/summary.tsv"
+    else
+        unet="$(awk '$1=="unet"{print $2}' "${rates_file}")"
+        awk -v run="${run_idx}" -v base="${baseline}" -v fc="${fc}" -v unet="${unet}" '
+          BEGIN {
+            fc_over = (base > 0) ? (base - fc) / base * 100.0 : 0.0;
+            unet_over = (base > 0) ? (base - unet) / base * 100.0 : 0.0;
+            retain = (base > 0) ? unet / base * 100.0 : 0.0;
+            printf "%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n",
+              run, base, fc, unet, fc_over, unet_over, retain;
+          }' >> "${BATCH_DIR}/summary.tsv"
+    fi
 done
 
+if [[ "${FC_ONLY}" -eq 1 ]]; then
+awk '
+  NR == 1 { next }
+  {
+    b[NR-1] = $2; f[NR-1] = $3; fo[NR-1] = $4;
+    n = NR-1;
+  }
+  function sort(a, n, i, j, t) {
+    for (i = 1; i <= n; ++i) for (j = i + 1; j <= n; ++j) if (a[j] < a[i]) {
+      t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+  }
+  function median(a, n) {
+    sort(a, n);
+    return (n % 2) ? a[(n + 1) / 2] : (a[n / 2] + a[n / 2 + 1]) / 2.0;
+  }
+  END {
+    if (n == 0) exit;
+    mb = median(b, n); mf = median(f, n); mfo = median(fo, n);
+    minb = b[1]; maxb = b[n];
+    spread = (mb > 0) ? (maxb - minb) / mb * 100.0 : 0.0;
+    printf "# PVFinder benchmark summary\n\n";
+    printf "- repeats: %d\n", n;
+    printf "- median baseline events/s: %.2f\n", mb;
+    printf "- median FC events/s: %.2f\n", mf;
+    printf "- median FC overhead: %.2f%%\n", mfo;
+    printf "- baseline spread: %.2f%%\n", spread;
+    if (spread > 5.0) {
+      printf "- contention status: contended, repeat later\n";
+    } else {
+      printf "- contention status: acceptable\n";
+    }
+  }
+' "${BATCH_DIR}/summary.tsv" > "${BATCH_DIR}/summary.md"
+else
 awk '
   NR == 1 { next }
   {
@@ -389,6 +476,7 @@ awk '
     }
   }
 ' "${BATCH_DIR}/summary.tsv" > "${BATCH_DIR}/summary.md"
+fi
 
 printf '\nBatch complete: %s\n' "${BATCH_DIR}"
 cat "${BATCH_DIR}/summary.md"
