@@ -61,11 +61,12 @@ The public API includes:
   convolution.
 * ``BiasAddPlan`` and ``ActivationPlan`` for generic tensor bias and activation
   operations.
+* ``PoolingPlan`` for generic NCHW pooling operations.
 * ``FusedConvPlan`` for forward convolution with optional channel-bias and
   activation post-ops.
-* ``TensorShape``, ``Conv2DShape``, ``Conv1DShape``, and ``TensorLayout`` for
-  explicit shape and layout descriptions. ``TensorLayout::NCHW`` is currently
-  the supported layout.
+* ``TensorShape``, ``Conv2DShape``, ``Conv1DShape``, ``Pooling2DShape``,
+  ``Pooling1DShape``, and ``TensorLayout`` for explicit shape and layout
+  descriptions. ``TensorLayout::NCHW`` is currently the supported layout.
 * ``ConvPlanOptions`` and ``PrecisionPolicy`` for algorithm, workspace,
   precision, math-mode, Tensor Op, TF32, and cache choices.
 * ``Workspace``, ``WorkspacePlanner``, ``WorkspacePlan``, and
@@ -359,9 +360,9 @@ post-op sequence. Supported post-op sequences are:
 * convolution plus channel bias plus activation
 
 Residual/add post-ops are rejected until a concrete client needs that contract.
-Client-specific operations, such as custom normalization, pooling, concatenation,
-or output transforms, should stay in the client unless they become useful to
-more than one algorithm.
+Client-specific operations, such as custom normalization, concatenation, or
+output transforms, should stay in the client unless they become useful to more
+than one algorithm.
 
 Example:
 
@@ -394,6 +395,34 @@ compile-time client-contract checks:
 
    Allen::CuDNN::FusedConvPlan metadata_only;
    metadata_only.create(shape, options);
+
+Pooling
+-------
+
+``PoolingPlan`` describes generic NCHW pooling. It was added as the first V2.10
+operation extension after the V2.9 cutover made PVFinder an accepted direct
+``AllenCuDNN`` client. The first accepted test representative is max pooling
+with typed ``Pooling2DShape``/``Pooling1DShape`` shapes and explicit precision
+metadata:
+
+.. code-block:: c++
+
+   Allen::CuDNN::PoolingOptions options {};
+   options.mode = Allen::CuDNN::PoolingMode::Max;
+
+   Allen::CuDNN::PoolingPlan pool;
+   pool.create(Allen::CuDNN::Pooling1DShape::forward(N, C, W, 2, 2), options);
+   pool.forward(handle, 1.0f, dev_input, 0.0f, dev_output);
+
+Pooling plans do not use cuDNN workspace. Creation validates the requested
+layout, shape, precision policy, and computed output shape.
+``ALLEN_CUDNN_VERBOSE=1`` logs mode, input/output shape, window, padding,
+stride, workspace bytes, and precision policy.
+
+PVFinder's FP32 maxpool hot path remains on its local kernel for now. The V2.10
+trial of replacing it with ``PoolingPlan`` missed the existing FP32 PyTorch
+validation tolerance, so the generic plan is available and tested but not yet an
+accepted PVFinder default-path operation.
 
 Precision
 ---------
@@ -445,19 +474,20 @@ recommended patterns:
 
 * weights are loaded through a namespaced ``DeviceWeights`` instance
 * cuDNN handles are retrieved through the thread-local provider
-* forward and backward-data convolution plans are created once and reused
+* FP32 CBR layers use ``FusedConvPlan`` directly for convolution plus channel
+  bias and ReLU
+* non-CBR forward and backward-data convolution plans are created once and
+  reused
 * optional Allen external workspace uses a single reusable Allen buffer for
   sequential cuDNN plans
-* generic fused convolution is kept behind an explicit feature flag while the
-  client-owned validated path remains the default
 * FP16 remains an opt-in experimental mode with client-owned conversion kernels
   and separate validation records
 
 PVFinder-specific pieces are not part of the generic backend contract. Its model
 file format, interval feature construction, batch-normalization folding,
-maxpooling, concatenation, softplus/output kernels, and PyTorch comparison path
-belong to PVFinder. A new Allen algorithm should copy the integration pattern,
-not the PVFinder topology.
+maxpooling, concatenation, softplus/output kernels, FP16 experimental
+conversion/pooling path, and PyTorch comparison path belong to PVFinder. A new
+Allen algorithm should copy the integration pattern, not the PVFinder topology.
 
 Client Checklist
 ----------------
@@ -475,8 +505,8 @@ Before merging a new cuDNN-backed client, check that:
   cache policy are set intentionally.
 * Event-time execution does not allocate hidden cuDNN workspace.
 * Plan metadata is available in benchmark or validation output.
-* Non-FP32 precision and new fused-post-op paths are opt-in until accepted by
-  the client.
+* Non-FP32 precision and unaccepted fused-post-op paths are opt-in until
+  accepted by the client.
 * Unsupported backends fail clearly or record an explicit fallback reason.
 
 Testing

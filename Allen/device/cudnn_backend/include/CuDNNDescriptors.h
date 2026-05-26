@@ -61,6 +61,12 @@ namespace Allen::CuDNN {
     NCHW
   };
 
+  enum class PoolingMode {
+    Max,
+    AverageCountIncludePadding,
+    AverageCountExcludePadding
+  };
+
   enum class ActivationMode {
     Identity,
     Relu,
@@ -164,6 +170,47 @@ namespace Allen::CuDNN {
     }
   };
 
+  struct Pooling2DShape {
+    TensorShape input;
+    TensorShape output;
+    std::array<int, 2> window = {1, 1};
+    std::array<int, 2> pad = {0, 0};
+    std::array<int, 2> stride = {1, 1};
+    TensorLayout layout = TensorLayout::NCHW;
+    bool has_output = false;
+
+    static Pooling2DShape forward(
+      TensorShape input_shape,
+      std::array<int, 2> window_shape,
+      std::array<int, 2> pad = {0, 0},
+      std::array<int, 2> stride = {1, 1})
+    {
+      Pooling2DShape shape {};
+      shape.input = input_shape;
+      shape.window = window_shape;
+      shape.pad = pad;
+      shape.stride = stride;
+      return shape;
+    }
+  };
+
+  struct Pooling1DShape {
+    static Pooling2DShape forward(
+      int n,
+      int channels,
+      int width,
+      int window_width,
+      int stride = 1,
+      int pad = 0)
+    {
+      return Pooling2DShape::forward(
+        {n, channels, 1, width},
+        {1, window_width},
+        {0, pad},
+        {1, stride});
+    }
+  };
+
   struct PrecisionPolicy {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     cudnnDataType_t input_output_type = CUDNN_DATA_FLOAT;
@@ -247,6 +294,26 @@ namespace Allen::CuDNN {
     PrecisionPolicy precision {};
   };
 
+  struct PoolingOptions {
+    PoolingMode mode = PoolingMode::Max;
+    TensorLayout layout = TensorLayout::NCHW;
+    PrecisionPolicy precision {};
+    bool log_plan_creation = false;
+  };
+
+  struct PoolingMetadata {
+    bool created = false;
+    PoolingMode mode = PoolingMode::Max;
+    TensorLayout layout = TensorLayout::NCHW;
+    TensorShape input_shape {};
+    TensorShape output_shape {};
+    std::array<int, 2> window = {1, 1};
+    std::array<int, 2> pad = {0, 0};
+    std::array<int, 2> stride = {1, 1};
+    size_t workspace_bytes = 0;
+    PrecisionPolicy precision {};
+  };
+
   inline const char* to_string(AlgorithmSelectionPolicy policy) {
     switch (policy) {
     case AlgorithmSelectionPolicy::ZeroWorkspace: return "ZeroWorkspace";
@@ -301,6 +368,15 @@ namespace Allen::CuDNN {
   inline const char* to_string(TensorLayout layout) {
     switch (layout) {
     case TensorLayout::NCHW: return "NCHW";
+    }
+    return "Unknown";
+  }
+
+  inline const char* to_string(PoolingMode mode) {
+    switch (mode) {
+    case PoolingMode::Max: return "Max";
+    case PoolingMode::AverageCountIncludePadding: return "AverageCountIncludePadding";
+    case PoolingMode::AverageCountExcludePadding: return "AverageCountExcludePadding";
     }
     return "Unknown";
   }
@@ -391,6 +467,32 @@ namespace Allen::CuDNN {
     if (shape.filter.c != shape.output.c) {
       throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter input channels do not match output channels");
     }
+  }
+
+  inline void validate_pooling_shape(const Pooling2DShape& shape, const char* owner) {
+    validate_layout(shape.layout, owner);
+    validate_tensor_shape(shape.input, (std::string(owner) + " input_shape").c_str());
+    validate_pair_2d(shape.window, (std::string(owner) + " window").c_str(), false);
+    validate_pair_2d(shape.pad, (std::string(owner) + " pad").c_str(), true);
+    validate_pair_2d(shape.stride, (std::string(owner) + " stride").c_str(), false);
+    if (shape.has_output) {
+      validate_tensor_shape(shape.output, (std::string(owner) + " output_shape").c_str());
+    }
+  }
+
+  inline TensorShape pooling_forward_output_shape(const Pooling2DShape& shape, const char* owner) {
+    validate_pooling_shape(shape, owner);
+    const int h_extent = shape.input.h + 2 * shape.pad[0] - shape.window[0];
+    const int w_extent = shape.input.w + 2 * shape.pad[1] - shape.window[1];
+    if (h_extent < 0 || w_extent < 0) {
+      throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " pooling window exceeds padded input");
+    }
+    const int output_h = h_extent / shape.stride[0] + 1;
+    const int output_w = w_extent / shape.stride[1] + 1;
+    if (output_h <= 0 || output_w <= 0) {
+      throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " computed non-positive output dimension");
+    }
+    return {shape.input.n, shape.input.c, output_h, output_w};
   }
 
   inline TensorShape channel_bias_shape(TensorShape tensor_shape) {
@@ -490,7 +592,20 @@ namespace Allen::CuDNN {
     return CUDNN_ACTIVATION_RELU;
   }
 
+  inline cudnnPoolingMode_t to_cudnn_pooling_mode(PoolingMode mode) {
+    switch (mode) {
+    case PoolingMode::Max: return CUDNN_POOLING_MAX;
+    case PoolingMode::AverageCountIncludePadding: return CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+    case PoolingMode::AverageCountExcludePadding: return CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+    }
+    return CUDNN_POOLING_MAX;
+  }
+
   inline bool plan_creation_logging_enabled(const ConvPlanOptions& options) {
+    return options.log_plan_creation || std::getenv("ALLEN_CUDNN_VERBOSE") != nullptr;
+  }
+
+  inline bool pooling_plan_creation_logging_enabled(const PoolingOptions& options) {
     return options.log_plan_creation || std::getenv("ALLEN_CUDNN_VERBOSE") != nullptr;
   }
 
@@ -518,6 +633,24 @@ namespace Allen::CuDNN {
       std::fprintf(stderr, " fallback_reason=\"%s\"", info.fallback_reason.c_str());
     }
     std::fprintf(stderr, "\n");
+  }
+
+  inline void log_pooling_plan_creation(const char* plan_name, const PoolingMetadata& info, const PoolingOptions& options) {
+    if (!pooling_plan_creation_logging_enabled(options)) return;
+    std::fprintf(
+      stderr,
+      "AllenCuDNN: %s created layout=%s mode=%s input=%dx%dx%dx%d output=%dx%dx%dx%d "
+      "window=%dx%d pad=%dx%d stride=%dx%d workspace_bytes=%zu precision={%s}\n",
+      plan_name,
+      to_string(info.layout),
+      to_string(info.mode),
+      info.input_shape.n, info.input_shape.c, info.input_shape.h, info.input_shape.w,
+      info.output_shape.n, info.output_shape.c, info.output_shape.h, info.output_shape.w,
+      info.window[0], info.window[1],
+      info.pad[0], info.pad[1],
+      info.stride[0], info.stride[1],
+      info.workspace_bytes,
+      describe_precision_policy(info.precision).c_str());
   }
 
   namespace detail {
@@ -847,6 +980,49 @@ namespace Allen::CuDNN {
     void reset() {}
     void create() {}
     void set(ActivationMode, double) {}
+    void* get() const { return nullptr; }
+#endif
+  };
+
+  struct PoolingDescriptor {
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+  private:
+    cudnnPoolingDescriptor_t m_desc = nullptr;
+
+  public:
+    PoolingDescriptor() = default;
+    ~PoolingDescriptor() { reset(); }
+    PoolingDescriptor(const PoolingDescriptor&) = delete;
+    PoolingDescriptor& operator=(const PoolingDescriptor&) = delete;
+
+    void reset() {
+      if (m_desc) {
+        cudnnDestroyPoolingDescriptor(m_desc);
+        m_desc = nullptr;
+      }
+    }
+
+    void create() {
+      reset();
+      ALLEN_CUDNN_CHECK(cudnnCreatePoolingDescriptor(&m_desc));
+    }
+
+    void set_2d(PoolingMode mode, std::array<int, 2> window, std::array<int, 2> pad, std::array<int, 2> stride) {
+      if (!m_desc) create();
+      ALLEN_CUDNN_CHECK(cudnnSetPooling2dDescriptor(
+        m_desc,
+        to_cudnn_pooling_mode(mode),
+        CUDNN_NOT_PROPAGATE_NAN,
+        window[0], window[1],
+        pad[0], pad[1],
+        stride[0], stride[1]));
+    }
+
+    cudnnPoolingDescriptor_t get() const { return m_desc; }
+#else
+    void reset() {}
+    void create() {}
+    void set_2d(PoolingMode, std::array<int, 2>, std::array<int, 2>, std::array<int, 2>) {}
     void* get() const { return nullptr; }
 #endif
   };
@@ -1620,6 +1796,123 @@ namespace Allen::CuDNN {
     ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
     void backward_data(void*, float, float, const void*, const void*, void*, Workspace) const {}
+#endif
+  };
+
+  struct PoolingPlan {
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
+  private:
+    TensorDescriptor m_input_desc;
+    TensorDescriptor m_output_desc;
+    PoolingDescriptor m_pooling_desc;
+    PoolingOptions m_options {};
+    Pooling2DShape m_shape {};
+    TensorShape m_output_shape {};
+    bool m_created = false;
+
+  public:
+    PoolingPlan() = default;
+    PoolingPlan(const PoolingPlan&) = delete;
+    PoolingPlan& operator=(const PoolingPlan&) = delete;
+
+    void create(Pooling2DShape shape, PoolingOptions options = {}) {
+      validate_layout(options.layout, "PoolingPlan");
+      validate_pooling_shape(shape, "PoolingPlan");
+      options.precision = normalize_precision_policy(options.precision);
+      validate_precision_policy(options.precision, "PoolingPlan");
+
+      const TensorShape computed_output = pooling_forward_output_shape(shape, "PoolingPlan");
+      if (shape.has_output && shape.output != computed_output) {
+        throw std::invalid_argument("AllenCuDNN: PoolingPlan caller output_shape does not match computed output shape");
+      }
+
+      m_options = options;
+      m_shape = shape;
+      m_shape.layout = m_options.layout;
+      m_output_shape = computed_output;
+      m_input_desc.set_4d(m_shape.input.dims(), m_options.precision.input_output_type);
+      m_output_desc.set_4d(m_output_shape.dims(), m_options.precision.input_output_type);
+      m_pooling_desc.set_2d(m_options.mode, m_shape.window, m_shape.pad, m_shape.stride);
+      m_created = true;
+      log_pooling_plan_creation("PoolingPlan", metadata(), m_options);
+    }
+
+    void create(std::array<int, 4> input_shape, std::array<int, 2> window, PoolingOptions options = {}) {
+      create(Pooling2DShape::forward(make_tensor_shape(input_shape), window), options);
+    }
+
+    bool is_created() const { return m_created; }
+    PoolingMode mode() const { return m_options.mode; }
+    TensorShape input_shape() const { return m_shape.input; }
+    TensorShape output_shape() const { return m_output_shape; }
+    std::array<int, 2> window() const { return m_shape.window; }
+    std::array<int, 2> pad() const { return m_shape.pad; }
+    std::array<int, 2> stride() const { return m_shape.stride; }
+    const PrecisionPolicy& precision_policy() const { return m_options.precision; }
+    cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
+    size_t workspace_bytes() const { return 0; }
+
+    PoolingMetadata metadata() const {
+      PoolingMetadata info {};
+      info.created = m_created;
+      info.mode = m_options.mode;
+      info.layout = m_options.layout;
+      info.input_shape = m_shape.input;
+      info.output_shape = m_output_shape;
+      info.window = m_shape.window;
+      info.pad = m_shape.pad;
+      info.stride = m_shape.stride;
+      info.workspace_bytes = 0;
+      info.precision = m_options.precision;
+      return info;
+    }
+
+    void forward(
+      cudnnHandle_t handle,
+      const float alpha,
+      const void* dev_input,
+      const float beta,
+      void* dev_output) const
+    {
+      ALLEN_CUDNN_CHECK(cudnnPoolingForward(
+        handle,
+        m_pooling_desc.get(),
+        &alpha,
+        m_input_desc.get(), dev_input,
+        &beta,
+        m_output_desc.get(), dev_output));
+    }
+
+    void forward(cudnnHandle_t handle, const float alpha, const float* dev_input, const float beta, float* dev_output) const {
+      forward(handle, alpha, (const void*) dev_input, beta, (void*) dev_output);
+    }
+
+    void forward_half(
+      cudnnHandle_t handle,
+      const float alpha,
+      const __half* dev_input,
+      const float beta,
+      __half* dev_output) const
+    {
+      forward(handle, alpha, (const void*) dev_input, beta, (void*) dev_output);
+    }
+#else
+    void create(Pooling2DShape, PoolingOptions = {}) {}
+    void create(std::array<int, 4>, std::array<int, 2>, PoolingOptions = {}) {}
+    bool is_created() const { return false; }
+    PoolingMode mode() const { return PoolingMode::Max; }
+    TensorShape input_shape() const { return {}; }
+    TensorShape output_shape() const { return {}; }
+    std::array<int, 2> window() const { return {1, 1}; }
+    std::array<int, 2> pad() const { return {0, 0}; }
+    std::array<int, 2> stride() const { return {1, 1}; }
+    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    int data_type() const { return 0; }
+    size_t workspace_bytes() const { return 0; }
+    PoolingMetadata metadata() const { return {}; }
+    void forward(void*, float, const void*, float, void*) const {}
+    void forward(void*, float, const float*, float, float*) const {}
+    void forward_half(void*, float, const void*, float, void*) const {}
 #endif
   };
 

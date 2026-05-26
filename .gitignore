@@ -1,4 +1,6 @@
 validation_dump
+validation_dump_e2e
+validation_results
 plan*
 docs
 *.bin

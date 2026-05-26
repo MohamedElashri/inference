@@ -680,6 +680,75 @@ TEST_CASE("cudnn.activation_plan.metadata", "[AllenCuDNN]") {
   REQUIRE(metadata.tensor_shape == tensor_shape);
 }
 
+TEST_CASE("cudnn.pooling_plan.metadata_and_validation", "[AllenCuDNN]") {
+  const auto shape = Allen::CuDNN::Pooling1DShape::forward(2, 3, 100, 2, 2);
+  const Allen::CuDNN::TensorShape input_shape {2, 3, 1, 100};
+  const Allen::CuDNN::TensorShape output_shape {2, 3, 1, 50};
+  const std::array<int, 2> window {1, 2};
+  const std::array<int, 2> pad {0, 0};
+  const std::array<int, 2> stride {1, 2};
+
+  Allen::CuDNN::PoolingPlan plan;
+  plan.create(shape);
+
+  REQUIRE(plan.is_created());
+  REQUIRE(plan.mode() == Allen::CuDNN::PoolingMode::Max);
+  REQUIRE(plan.input_shape() == input_shape);
+  REQUIRE(plan.output_shape() == output_shape);
+  REQUIRE(plan.window() == window);
+  REQUIRE(plan.pad() == pad);
+  REQUIRE(plan.stride() == stride);
+  REQUIRE(plan.workspace_bytes() == 0);
+  REQUIRE(plan.data_type() == CUDNN_DATA_FLOAT);
+  REQUIRE(std::string(Allen::CuDNN::to_string(plan.mode())) == "Max");
+
+  const auto metadata = plan.metadata();
+  REQUIRE(metadata.created);
+  REQUIRE(metadata.mode == Allen::CuDNN::PoolingMode::Max);
+  REQUIRE(metadata.layout == Allen::CuDNN::TensorLayout::NCHW);
+  REQUIRE(metadata.input_shape == input_shape);
+  REQUIRE(metadata.output_shape == output_shape);
+  REQUIRE(metadata.workspace_bytes == 0);
+  REQUIRE(metadata.precision.input_output_type == CUDNN_DATA_FLOAT);
+
+  auto bad_output = shape;
+  bad_output.output = {2, 3, 1, 49};
+  bad_output.has_output = true;
+  REQUIRE_THROWS(plan.create(bad_output));
+
+  REQUIRE_THROWS(plan.create(Allen::CuDNN::Pooling1DShape::forward(1, 1, 1, 2, 2)));
+}
+
+TEST_CASE("cudnn.pooling_plan.max_pool_1d_matches_reference", "[AllenCuDNN]") {
+  REQUIRE_CUDA_DEVICE();
+  auto handle = Allen::CuDNN::HandleProvider::get(0);
+
+  Allen::CuDNN::PoolingPlan plan;
+  plan.create(Allen::CuDNN::Pooling1DShape::forward(1, 2, 6, 2, 2));
+
+  const std::vector<float> host_input {
+    1.f, 3.f, -1.f, 5.f, 2.f, 0.f,
+    -2.f, -1.f, 4.f, 3.f, 8.f, 7.f};
+  const std::vector<float> expected {3.f, 5.f, 2.f, -1.f, 4.f, 8.f};
+  std::vector<float> observed(expected.size(), 0.f);
+
+  float *dev_input = nullptr, *dev_output = nullptr;
+  require_cuda(cudaMalloc(&dev_input, host_input.size() * sizeof(float)));
+  require_cuda(cudaMalloc(&dev_output, observed.size() * sizeof(float)));
+  require_cuda(cudaMemcpy(dev_input, host_input.data(), host_input.size() * sizeof(float), cudaMemcpyHostToDevice));
+  require_cuda(cudaMemset(dev_output, 0, observed.size() * sizeof(float)));
+
+  plan.forward(handle, 1.f, dev_input, 0.f, dev_output);
+  require_cuda(cudaMemcpy(observed.data(), dev_output, observed.size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+  for (size_t i = 0; i < expected.size(); ++i) {
+    REQUIRE(std::fabs(expected[i] - observed[i]) < 1e-6f);
+  }
+
+  cudaFree(dev_input);
+  cudaFree(dev_output);
+}
+
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
   REQUIRE_CUDA_DEVICE();
   Allen::CuDNN::DeviceWeights weights {"unit_phase2"};

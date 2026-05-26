@@ -26,21 +26,13 @@ static constexpr size_t CUDNN_WORKSPACE_LIMIT_BYTES = 64ul * 1024ul * 1024ul;
 // Shapes are compile-time constants so no synchronisation is needed after init.
 // ---------------------------------------------------------------------------
 struct GlobalDescriptors {
-    // CBR layers: cuDNN conv + PVFinder bias/ReLU, with BN folded into weights/bias at init.
-    // BN folded into weights/bias at init time (fold_bn lambda).
-    Allen::CuDNN::ForwardConvPlan rcbn1;    // Conv(8→N_FEAT,      k=25, pad=12)
-    Allen::CuDNN::ForwardConvPlan rcbn2;    // Conv(N_FEAT→N_FEAT, k=7,  pad=3)
-    Allen::CuDNN::ForwardConvPlan rcbn3;    // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
-    Allen::CuDNN::ForwardConvPlan up1_c;    // Conv(N_FEAT→N_FEAT, k=5,  pad=2) after ConvTranspose
-    Allen::CuDNN::ForwardConvPlan up2_c;    // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
-    // V2.4 opt-in generic fused CBR plans. These are created only when the
-    // feature flag is enabled so the default PVFinder path keeps its baseline
-    // workspace and algorithm-selection behavior.
-    Allen::CuDNN::FusedConvPlan rcbn1_fused;
-    Allen::CuDNN::FusedConvPlan rcbn2_fused;
-    Allen::CuDNN::FusedConvPlan rcbn3_fused;
-    Allen::CuDNN::FusedConvPlan up1c_fused;
-    Allen::CuDNN::FusedConvPlan up2c_fused;
+    // FP32 CBR layers: AllenCuDNN fused conv + channel bias + ReLU, with BN
+    // folded into weights/bias at init time.
+    Allen::CuDNN::FusedConvPlan rcbn1_fused; // Conv(8→N_FEAT,      k=25, pad=12)
+    Allen::CuDNN::FusedConvPlan rcbn2_fused; // Conv(N_FEAT→N_FEAT, k=7,  pad=3)
+    Allen::CuDNN::FusedConvPlan rcbn3_fused; // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
+    Allen::CuDNN::FusedConvPlan up1c_fused; // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
+    Allen::CuDNN::FusedConvPlan up2c_fused; // Conv(N_FEAT→N_FEAT, k=5,  pad=2)
     // Non-CBR paths: plain conv (no BN/ReLU fusion).
     Allen::CuDNN::ForwardConvPlan oint_half;// Conv(N_FEAT→N_FEAT, k=5, pad=2) — two halves
     Allen::CuDNN::ForwardConvPlan outc;     // Conv(N_FEAT→1,      k=5, pad=2)
@@ -78,7 +70,6 @@ struct GlobalDescriptors {
 static GlobalDescriptors s_desc;
 static std::once_flag    s_init_flag;
 static std::once_flag    s_desc_init_flag;
-static bool              s_desc_use_generic_fused_cbr = false;
 static bool              s_desc_use_allen_external_workspace = false;
 static bool              s_desc_workspace_plan_ready = false;
 static Allen::CuDNN::WorkspacePlan s_desc_workspace_plan {};
@@ -126,12 +117,6 @@ static Allen::CuDNN::DeviceWeights& unet_weights()
     return weights;
 }
 
-static bool generic_fused_cbr_env_enabled()
-{
-    const char* value = std::getenv("PVFINDER_USE_GENERIC_FUSED_CBR");
-    return value != nullptr && std::strcmp(value, "1") == 0;
-}
-
 static bool allen_external_workspace_env_enabled()
 {
     const char* value = std::getenv("PVFINDER_USE_ALLEN_EXTERNAL_WORKSPACE");
@@ -151,7 +136,6 @@ static const char* precision_mode_name(bool use_fp16)
 static void write_precision_record(
     const std::string& dump_dir,
     bool use_fp16,
-    bool use_generic_fused_cbr,
     bool use_allen_external_workspace)
 {
     std::ofstream record(dump_dir + "/allen_precision_record.json");
@@ -193,8 +177,15 @@ static void write_precision_record(
     record << "  },\n";
     record << "  \"runtime_flags\": {\n";
     record << "    \"use_fp16\": " << (use_fp16 ? "true" : "false") << ",\n";
-    record << "    \"use_generic_fused_cbr\": " << (use_generic_fused_cbr ? "true" : "false") << ",\n";
     record << "    \"use_allen_external_workspace\": " << (use_allen_external_workspace ? "true" : "false") << "\n";
+    record << "  },\n";
+    record << "  \"cbr_execution\": {\n";
+    record << "    \"fp32\": \"AllenCuDNN::FusedConvPlan LegacyConvPlusCudaPostOp\",\n";
+    record << "    \"fp16_experimental\": \"AllenCuDNN::ForwardConvPlan plus PVFinder FP16 conversion and post-op kernels\"\n";
+    record << "  },\n";
+    record << "  \"pooling_execution\": {\n";
+    record << "    \"fp32\": \"PVFinder custom maxpool1d_2_kernel\",\n";
+    record << "    \"fp16_experimental\": \"PVFinder custom half maxpool kernel\"\n";
     record << "  },\n";
     record << "  \"workspace\": {\n";
     record << "    \"policy\": \"" << (use_allen_external_workspace ? "AllenExternal" : "OwnedInitTime") << "\",\n";
@@ -220,11 +211,6 @@ static void add_workspace_requirement(
 static Allen::CuDNN::WorkspacePlan build_workspace_plan(const GlobalDescriptors& desc)
 {
     Allen::CuDNN::WorkspacePlanner planner;
-    add_workspace_requirement(planner, "rcbn1", desc.rcbn1);
-    add_workspace_requirement(planner, "rcbn2", desc.rcbn2);
-    add_workspace_requirement(planner, "rcbn3", desc.rcbn3);
-    add_workspace_requirement(planner, "up1_c", desc.up1_c);
-    add_workspace_requirement(planner, "up2_c", desc.up2_c);
     add_workspace_requirement(planner, "rcbn1_fused", desc.rcbn1_fused);
     add_workspace_requirement(planner, "rcbn2_fused", desc.rcbn2_fused);
     add_workspace_requirement(planner, "rcbn3_fused", desc.rcbn3_fused);
@@ -245,7 +231,6 @@ static Allen::CuDNN::WorkspacePlan build_workspace_plan(const GlobalDescriptors&
 static void init_global_descriptors(
     cudnnHandle_t handle,
     const WeightBlob& wb,
-    bool use_generic_fused_cbr,
     bool use_allen_external_workspace)
 {
     constexpr int N = N_CHUNK_INTERVALS;
@@ -263,18 +248,6 @@ static void init_global_descriptors(
     fused_cbr_options.fallback_policy = Allen::CuDNN::FusedConvFallbackPolicy::RequireRequestedBackend;
     fused_cbr_options.post_ops =
         Allen::CuDNN::PostOpSequence::bias_activation(Allen::CuDNN::ActivationMode::Relu);
-
-    auto create_cbr_plan = [handle, use_generic_fused_cbr, &conv_options, &fused_cbr_options](
-                               Allen::CuDNN::ForwardConvPlan& legacy_plan,
-                               Allen::CuDNN::FusedConvPlan& fused_plan,
-                               Allen::CuDNN::Conv2DShape shape) {
-        if (use_generic_fused_cbr) {
-            fused_plan.create(handle, shape, fused_cbr_options);
-        }
-        else {
-            legacy_plan.create(handle, shape, conv_options);
-        }
-    };
 
     // Helper: allocate device buffer for fused weights/bias and launch the
     // BN-folding kernel.
@@ -304,7 +277,8 @@ static void init_global_descriptors(
         f32_to_f16_kernel<<<((K  + threads - 1) / threads), threads, 0, stream>>>(b_h, b_f, K);
     };
 
-    // Fold BN into conv weights for each CBR layer, then build the fused graph.
+    // Fold BN into conv weights for each CBR layer, then build the generic
+    // fused AllenCuDNN conv+bias+ReLU plans.
     // All fold kernels run on stream 0 (init is single-threaded here).
     fold_bn(wb.w_rcbn1_w, wb.w_rcbn1_b,
             wb.w_rcbn1_gamma, wb.w_rcbn1_beta,
@@ -312,10 +286,10 @@ static void init_global_descriptors(
             N_FEAT, N_BATCH_CHANNELS * 25,
             s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, 0);
     cudaDeviceSynchronize();
-    create_cbr_plan(
-        s_desc.rcbn1,
-        s_desc.rcbn1_fused,
-        Allen::CuDNN::Conv1DShape::forward(N, N_BATCH_CHANNELS, W_IN, N_FEAT, 25, 12));
+    s_desc.rcbn1_fused.create(
+        handle,
+        Allen::CuDNN::Conv1DShape::forward(N, N_BATCH_CHANNELS, W_IN, N_FEAT, 25, 12),
+        fused_cbr_options);
     to_half(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
             s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, 0);
     cudaDeviceSynchronize();
@@ -334,10 +308,10 @@ static void init_global_descriptors(
             N_FEAT, N_FEAT * 7,
             s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, 0);
     cudaDeviceSynchronize();
-    create_cbr_plan(
-        s_desc.rcbn2,
-        s_desc.rcbn2_fused,
-        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 7, 3));
+    s_desc.rcbn2_fused.create(
+        handle,
+        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 7, 3),
+        fused_cbr_options);
     to_half(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
             s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, 0);
     cudaDeviceSynchronize();
@@ -350,10 +324,10 @@ static void init_global_descriptors(
             N_FEAT, N_FEAT * 5,
             s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, 0);
     cudaDeviceSynchronize();
-    create_cbr_plan(
-        s_desc.rcbn3,
-        s_desc.rcbn3_fused,
-        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2));
+    s_desc.rcbn3_fused.create(
+        handle,
+        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2),
+        fused_cbr_options);
     to_half(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
             s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, 0);
     cudaDeviceSynchronize();
@@ -366,10 +340,10 @@ static void init_global_descriptors(
             N_FEAT, N_FEAT * 5,
             s_desc.up1c_w_f, s_desc.up1c_b_f, 0);
     cudaDeviceSynchronize();
-    create_cbr_plan(
-        s_desc.up1_c,
-        s_desc.up1c_fused,
-        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2));
+    s_desc.up1c_fused.create(
+        handle,
+        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_HALF, N_FEAT, 5, 2),
+        fused_cbr_options);
     to_half(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
             s_desc.up1c_w_h, s_desc.up1c_b_h, 0);
     cudaDeviceSynchronize();
@@ -382,10 +356,10 @@ static void init_global_descriptors(
             N_FEAT, N_FEAT * 5,
             s_desc.up2c_w_f, s_desc.up2c_b_f, 0);
     cudaDeviceSynchronize();
-    create_cbr_plan(
-        s_desc.up2_c,
-        s_desc.up2c_fused,
-        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 5, 2));
+    s_desc.up2c_fused.create(
+        handle,
+        Allen::CuDNN::Conv1DShape::forward(N, N_FEAT, W_IN, N_FEAT, 5, 2),
+        fused_cbr_options);
     to_half(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
             s_desc.up2c_w_h, s_desc.up2c_b_h, 0);
     cudaDeviceSynchronize();
@@ -695,27 +669,6 @@ void pvfinder_unet_t::set_arguments_size(
 // ---------------------------------------------------------------------------
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-// Conv1d + bias + ReLU (BN folded into w_fused/b_fused at init).
-// Uses cudnnConvolutionForward with the Phase K timed algorithm, then
-// launches bias_relu_kernel (no BN math — BN already in w_fused/b_fused).
-void pvfinder_unet_t::run_convbnrelu(
-    const Allen::CuDNN::ForwardConvPlan& desc,
-    const float* input, float* output,
-    const float* w_fused, const float* b_fused,
-    int K, int W_out, int N,
-    cudnnHandle_t handle,
-    const dim3& block, const Allen::Context& ctx,
-    Allen::CuDNN::Workspace workspace) const
-{
-    if (desc.workspace_policy() == Allen::CuDNN::WorkspacePolicy::AllenExternal) {
-        desc.forward(handle, 1.f, 0.f, input, w_fused, output, workspace);
-    }
-    else {
-        desc.forward(handle, 1.f, 0.f, input, w_fused, output);
-    }
-    launch_bias_relu(output, b_fused, K, W_out, N, block, ctx);
-}
-
 // FP16 variant: Tensor Core conv (CUDNN_DATA_HALF desc) + FP16 bias+relu kernel.
 void pvfinder_unet_t::run_convbnrelu_half(
     const Allen::CuDNN::ForwardConvPlan& desc,
@@ -735,8 +688,8 @@ void pvfinder_unet_t::run_convbnrelu_half(
     launch_bias_relu_half(output, b_fused, K, W_out, N, block, ctx);
 }
 
-// Generic V2.4 FP32 CBR path: FusedConvPlan wraps cudnnConvolutionForward and
-// one backend-owned CUDA post-op kernel for channel bias + ReLU.
+// FP32 CBR path: FusedConvPlan wraps cudnnConvolutionForward and one
+// backend-owned CUDA post-op kernel for channel bias + ReLU.
 void pvfinder_unet_t::run_fused_convbnrelu(
     const Allen::CuDNN::FusedConvPlan& plan,
     const float* input, float* output,
@@ -815,17 +768,13 @@ void pvfinder_unet_t::operator()(
     // Descriptor creation needs a live handle (for algorithm selection), so it runs
     // here on first operator() call rather than in init().
     const bool use_fp16 = m_use_fp16.value();
-    const bool requested_generic_fused_cbr =
-        (m_use_generic_fused_cbr.value() || generic_fused_cbr_env_enabled()) && !use_fp16;
     const bool requested_allen_external_workspace =
         m_use_allen_external_workspace.value() || allen_external_workspace_env_enabled();
 
-    std::call_once(s_desc_init_flag, [handle, requested_generic_fused_cbr, requested_allen_external_workspace]() {
-        s_desc_use_generic_fused_cbr = requested_generic_fused_cbr;
+    std::call_once(s_desc_init_flag, [handle, requested_allen_external_workspace]() {
         s_desc_use_allen_external_workspace = requested_allen_external_workspace;
-        init_global_descriptors(handle, s_wb, requested_generic_fused_cbr, requested_allen_external_workspace);
+        init_global_descriptors(handle, s_wb, requested_allen_external_workspace);
     });
-    const bool use_generic_fused_cbr = s_desc_use_generic_fused_cbr;
     const bool use_allen_external_workspace = s_desc_use_allen_external_workspace;
 
     const dim3 block = m_block_dim;
@@ -872,47 +821,26 @@ void pvfinder_unet_t::operator()(
         float*       kde = kde_base + chunk_start * kde_stride;
 
         if (!use_fp16) {
-            // ---- FP32 path (Phase L baseline) ----
-            if (use_generic_fused_cbr) {
-                run_fused_convbnrelu(s_desc.rcbn1_fused, ncw, x1, s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, handle, cudnn_workspace);
-                run_fused_convbnrelu(s_desc.rcbn2_fused, x1, up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, handle, cudnn_workspace);
-            }
-            else {
-                run_convbnrelu(s_desc.rcbn1, ncw, x1, s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN, N, handle, block, context, cudnn_workspace);
-                run_convbnrelu(s_desc.rcbn2, x1, up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN, N, handle, block, context, cudnn_workspace);
-            }
+            // ---- FP32 path: direct AllenCuDNN fused CBR cutover ----
+            run_fused_convbnrelu(s_desc.rcbn1_fused, ncw, x1, s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, handle, cudnn_workspace);
+            run_fused_convbnrelu(s_desc.rcbn2_fused, x1, up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, handle, cudnn_workspace);
             launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
 
-            if (use_generic_fused_cbr) {
-                run_fused_convbnrelu(s_desc.rcbn3_fused, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, handle, cudnn_workspace);
-            }
-            else {
-                run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context, cudnn_workspace);
-            }
+            run_fused_convbnrelu(s_desc.rcbn3_fused, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, handle, cudnn_workspace);
             launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
             run_conv_transpose(x3, up2,
                 s_desc.up1_t,
                 s_wb.w_up1t_w, s_wb.w_up1t_b,
                 N, N_FEAT, W_HALF, block, context, handle, cudnn_workspace);
-            if (use_generic_fused_cbr) {
-                run_fused_convbnrelu(s_desc.up1c_fused, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, handle, cudnn_workspace);
-            }
-            else {
-                run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context, cudnn_workspace);
-            }
+            run_fused_convbnrelu(s_desc.up1c_fused, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, handle, cudnn_workspace);
 
             launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
             run_conv_transpose(cat2, logits,
                 s_desc.up2_t,
                 s_wb.w_up2t_w, s_wb.w_up2t_b,
                 N, N_FEAT, W_IN, block, context, handle, cudnn_workspace);
-            if (use_generic_fused_cbr) {
-                run_fused_convbnrelu(s_desc.up2c_fused, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, handle, cudnn_workspace);
-            }
-            else {
-                run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context, cudnn_workspace);
-            }
+            run_fused_convbnrelu(s_desc.up2c_fused, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, handle, cudnn_workspace);
 
             run_conv(s_desc.oint_half, x1, logits,
                 s_wb.w_oint_b_w, nullptr,
@@ -1010,7 +938,7 @@ void pvfinder_unet_t::operator()(
         };
         write_bin(dump_dir + "/allen_ncw_input.bin",  h_ncw.data(), ncw_elems);
         write_bin(dump_dir + "/allen_kde_output.bin", h_kde.data(), kde_elems);
-        write_precision_record(dump_dir, use_fp16, use_generic_fused_cbr, use_allen_external_workspace);
+        write_precision_record(dump_dir, use_fp16, use_allen_external_workspace);
         printf("[pvfinder_unet] Validation dump written to %s (%u events)\n",
                dump_dir.c_str(), n_events);
         m_dump_done = true;

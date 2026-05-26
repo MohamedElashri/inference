@@ -16,9 +16,10 @@
 //   - All tensor shapes are compile-time constants — descriptors created once globally.
 //   - One thread_local cudnnHandle_t per OS thread, created lazily via
 //     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
-//   - cuDNN plans make algorithm selection and workspace ownership explicit.
-//     The current production path uses timed forward-conv selection, heuristic
-//     backward-data selection, and init-time owned workspaces.
+//   - AllenCuDNN plans make algorithm selection, fused CBR execution, and
+//     workspace ownership explicit. FP32 CBR layers use FusedConvPlan directly;
+//     transposed convolutions use BackwardDataConvPlan; init-time owned
+//     workspaces remain the default unless AllenExternal is requested.
 //   - Weight tensors loaded once through the Allen::CuDNN::DeviceWeights facade via std::call_once.
 // ---------------------------------------------------------------------------
 
@@ -50,8 +51,8 @@ struct Parameters {
     DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, 64, 100] (also logits)
     DEVICE_OUTPUT(dev_unet_up1_t,     float) dev_unet_up1;   // [N, 64, 50]
     DEVICE_OUTPUT(dev_unet_cat2_t,    float) dev_unet_cat2;  // [N, 128, 50] (also up2[N,64,100])
-    // conv_ws: retained as a parser-visible Allen buffer for compatibility.
-    // Current cuDNN plans own any init-time workspace internally.
+    // conv_ws: used only when AllenExternal workspace is requested; otherwise
+    // cuDNN plans own any init-time workspace internally.
     DEVICE_OUTPUT(dev_unet_conv_ws_t, float) dev_unet_conv_ws;
 
     // Final KDE output: [n_events * 40 * 100] floats
@@ -90,10 +91,6 @@ private:
         this, "use_fp16", false,
         "Experimental validation-gated FP16 Tensor Core path for CBR layers (physics approximate)"};
 
-    Allen::Property<bool> m_use_generic_fused_cbr {
-        this, "use_generic_fused_cbr", false,
-        "Opt-in V2.4 generic AllenCuDNN fused conv+bias+ReLU path for FP32 CBR layers"};
-
     Allen::Property<bool> m_use_allen_external_workspace {
         this, "use_allen_external_workspace", false,
         "Opt-in V2.5 Allen-managed external workspace for cuDNN plans"};
@@ -104,15 +101,6 @@ private:
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     // Per-layer helpers — use global descriptor set + thread_local handle
-    void run_convbnrelu(
-        const Allen::CuDNN::ForwardConvPlan& desc,
-        const float* input, float* output,
-        const float* w_fused, const float* b_fused,
-        int K, int W_out, int N,
-        cudnnHandle_t handle,
-        const dim3& block, const Allen::Context& ctx,
-        Allen::CuDNN::Workspace workspace) const;
-
     void run_convbnrelu_half(
         const Allen::CuDNN::ForwardConvPlan& desc,
         const __half* input, __half* output,

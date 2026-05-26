@@ -140,24 +140,6 @@ __global__ void accumulate_add_kernel(
 }
 
 // ---------------------------------------------------------------------------
-// Bias add + ReLU: y = relu(tensor + bias[c])
-// Used after BN-folded convolutions — BN absorbed into weights at init,
-// so only bias + ReLU remain at runtime. Avoids the 4 extra per-channel
-// reads (gamma/beta/mean/var) of bias_bn_relu_kernel.
-// ---------------------------------------------------------------------------
-__global__ void bias_relu_kernel(
-    float* __restrict__ tensor,
-    const float* __restrict__ bias,
-    int C, int W, int total)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    int c = (i / W) % C;
-    float v = tensor[i] + bias[c];
-    tensor[i] = v > 0.f ? v : 0.f;
-}
-
-// ---------------------------------------------------------------------------
 // BN weight folding: fuse BN into conv weights + bias at init time.
 // After folding, inference is y = relu(conv(x, w_fused) + b_fused) — no
 // separate BN kernel needed at runtime.
@@ -212,17 +194,6 @@ __global__ void bias_bn_relu_kernel(
 // ---------------------------------------------------------------------------
 // Convenience: launch helpers called from host code
 // ---------------------------------------------------------------------------
-inline void launch_bias_relu(
-    float* tensor, const float* bias,
-    int C, int W, int N,
-    const dim3& block, const Allen::Context& ctx)
-{
-    int total = N * C * W;
-    dim3 grid((total + block.x - 1) / block.x);
-    bias_relu_kernel<<<grid, block, 0, ctx.stream()>>>(
-        tensor, bias, C, W, total);
-}
-
 inline void launch_bias_bn_relu(
     float* tensor, const float* bias,
     const float* gamma, const float* beta,
