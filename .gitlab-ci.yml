@@ -9,9 +9,9 @@ variables:
 
   ALLEN_DATA: "/scratch/allen_data"
 
-  LCG_VERSION: "LCG_108b"
+  LCG_VERSION: "LCG_108c"
   # LCG_PLATFORM = {LCG_SYSTEM}+{LCG_QUALIFIER}-{LCG_OPTIMIZATION}
-  LCG_SYSTEM: "x86_64_v3-el9-gcc13"
+  LCG_SYSTEM: "x86_64_v3-el9-gcc15"
   LCG_QUALIFIER: "cpu"
   LCG_OPTIMIZATION: "opt+g"
 
@@ -21,7 +21,7 @@ variables:
   AVG_THROUGHPUT_DECREASE_THRESHOLD: "-2.5" # (%); fail throughput check if averaged throughput % change falls below -2.5%
   DEVICE_THROUGHPUT_DECREASE_THRESHOLD: "-7.5" # (%); fail throughput check if single device throughput % change falls below -10.0%
 
-  OVERRIDE_CUDA_ARCH_FLAG: "-gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_86,code=sm_86"
+  OVERRIDE_CUDA_ARCH_FLAG: "-gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_86,code=sm_86"
 
 stages:
   - check            # Ensures the CI environment is valid

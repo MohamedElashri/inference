@@ -10,6 +10,7 @@
  \*****************************************************************************/
 #pragma once
 #include <RichDefinitions.cuh>
+#include <algorithm>
 
 namespace Allen::Rich {
   struct Mirror {

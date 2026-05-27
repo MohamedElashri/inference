@@ -66,6 +66,7 @@ gaudi_add_module(AllenWrapper
                    EventModel
                    Gear
                    Rich
+                   Utils
                    Gaudi::GaudiAlgLib
                    LHCb::DAQEventLib
                    LHCb::RecEvent

@@ -254,13 +254,13 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   #By default, compile for compatibility
     elseif(CUDA_ARCH STREQUAL "COMPATIBILITY")
   #Compatibility arch flag.
-  #* These settings support natively archs 5.0, 6.0, 7.0, 7.5, 8.0 and 8.6.
+  #* These settings support natively archs 7.0, 7.5, 8.0 and 8.6.
   #* All other 5.X and 6.X architectures are supported through their respective
   #major number builds, specifics of those architectures are not used.
   #* Forward compatibility with newer devices is also supported by generating PTX from 8.6
   #(- gencode = arch = compute_86, compute = compute_86)
       message(STATUS "Setting compute capability to COMPATIBILITY:")
-      foreach(arch 70 75 80 86)
+      foreach(arch 75 80 86)
         list(APPEND CUDA_ARCH_LIST ${arch})
       endforeach()
   #Finally, compile for the specified architecture
@@ -415,10 +415,17 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
     install(TARGETS ${ARGV0} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endfunction()
 elseif(TARGET_DEVICE STREQUAL "CUDA")
-  set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
-  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG --generate-line-info")
-  set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG --generate-line-info")
-  set(CMAKE_CUDA_FLAGS_DEBUG "-G -g -DALLEN_DEBUG")
+  if (CMAKE_CXX_STANDARD GREATER 20)
+    message(STATUS "nvcc does not support C++ > 20. Setting CUDA C++ standard to 20.")
+    set(CMAKE_CUDA_STANDARD 20)
+    set(CMAKE_CUDA_WARNING_FLAGS "-Wno-cpp")
+  else()
+    set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
+    set(CMAKE_CUDA_WARNING_FLAGS "")
+  endif()
+  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG --generate-line-info ${CMAKE_CUDA_WARNING_FLAGS}")
+  set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG --generate-line-info ${CMAKE_CUDA_WARNING_FLAGS}")
+  set(CMAKE_CUDA_FLAGS_DEBUG "-G -g -DALLEN_DEBUG ${CMAKE_CUDA_WARNING_FLAGS}")
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
   option(CUDA_VEBOSE_BUILD "CUDA verbose build" OFF)
@@ -429,7 +436,7 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
   endif()
 
   # The cxx standard seems to get lost somehwere for .cu files, so add it explicitly
-  string(APPEND CMAKE_CUDA_FLAGS "  -std=c++${CMAKE_CUDA_STANDARD}")
+  string(APPEND CMAKE_CUDA_FLAGS " -std=c++${CMAKE_CUDA_STANDARD}")
 
   string(APPEND CMAKE_CUDA_FLAGS " ${DEVICE_ARCHITECTURE} ${CUDA_TOOLCHAIN_OPTIONS} -Xcudafe --display_error_number --use_fast_math --expt-relaxed-constexpr ${CUDA_VERBOSE_FLAGS}")
   if (NOT CMAKE_CUDA_HOST_COMPILER)
