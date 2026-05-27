@@ -56,8 +56,8 @@ ZMQOutputSender::ZMQOutputSender(
   auto const pos = receiver_connection.rfind(":");
   auto const receiver = receiver_connection.substr(0, pos);
 
-  m_request = m_zmq->socket(zmq::REQ);
-  zmq::setsockopt(*m_request, zmq::LINGER, 0);
+  m_request = m_zmq->socket(zmq::socket_type::req);
+  m_request->set(zmq::sockopt::linger, 0);
   m_request->connect(receiver_connection.c_str());
   m_id = "Allen_"s + Utils::hostname() + "_" + std::to_string(::getpid());
   m_zmq->send(*m_request, "PORT", send_flags::sndmore);
@@ -65,12 +65,12 @@ ZMQOutputSender::ZMQOutputSender(
 
   // Wait for reply for a second
   zmq::pollitem_t items[] = {{*m_request, 0, zmq::POLLIN, 0}};
-  zmq::poll(&items[0], 1, 1000);
+  zmq::poll(&items[0], 1, std::chrono::seconds {1});
   if (items[0].revents & zmq::POLLIN) {
     auto port = m_zmq->receive<std::string>(*m_request);
     std::string connection = receiver + ":" + port;
-    m_socket = m_zmq->socket(zmq::PAIR);
-    zmq::setsockopt(*m_socket, zmq::LINGER, 0);
+    m_socket = m_zmq->socket(zmq::socket_type::pair);
+    m_socket->set(zmq::sockopt::linger, 0);
     m_socket->connect(connection.c_str());
     info_cout << "Connected MDF output socket to " << connection << "\n";
     m_connected = true;
@@ -87,7 +87,7 @@ ZMQOutputSender::~ZMQOutputSender()
     m_zmq->send(*m_request, "CLIENT_EXIT", send_flags::sndmore);
     m_zmq->send(*m_request, m_id);
     zmq::pollitem_t items[] = {{*m_request, 0, zmq::POLLIN, 0}};
-    zmq::poll(&items[0], 1, 500);
+    zmq::poll(&items[0], 1, std::chrono::milliseconds {500});
     if (items[0].revents & zmq::POLLIN) {
       m_zmq->receive<std::string>(*m_request);
     }

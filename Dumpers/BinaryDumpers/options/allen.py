@@ -50,7 +50,7 @@ interpreter.Declare("#include <Allen/Provider.h>")
 interpreter.Declare("""
 #include <GaudiKernel/IService.h>
 #include <Allen/InputProvider.h>
-#include <zmq/zmq.hpp>
+#include <zmq.hpp>
 // Helper function to cast the LHCb-implementation of the Allen
 // non-event data manager to its shared interface
 template<typename TO>

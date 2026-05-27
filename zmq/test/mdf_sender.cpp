@@ -9,7 +9,7 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include <iostream>
-
+#include <chrono>
 #include <fcntl.h>
 
 #include <ZeroMQ/IZeroMQSvc.h>
@@ -99,8 +99,8 @@ int main(int argc, char* argv[])
   auto const pos = receiver_connection.rfind(":");
   auto const receiver = receiver_connection.substr(0, pos);
 
-  auto request = zmqSvc->socket(zmq::REQ);
-  zmq::setsockopt(request, zmq::LINGER, 0);
+  auto request = zmqSvc->socket(zmq::socket_type::req);
+  request.set(zmq::sockopt::linger, 0);
   request.connect(receiver_connection.c_str());
   auto id = "Test_"s + Utils::hostname() + "_" + std::to_string(::getpid());
   zmqSvc->send(request, "PORT", send_flags::sndmore);
@@ -111,12 +111,12 @@ int main(int argc, char* argv[])
   // Wait for reply for a second
   {
     zmq::pollitem_t items[] = {{request, 0, zmq::POLLIN, 0}};
-    zmq::poll(&items[0], 1, 500);
+    zmq::poll(&items[0], 1, std::chrono::milliseconds {500});
     if (items[0].revents & zmq::POLLIN) {
       auto port = zmqSvc->receive<std::string>(request);
       std::string connection = receiver + ":" + port;
-      data_socket = zmqSvc->socket(zmq::PAIR);
-      zmq::setsockopt(*data_socket, zmq::LINGER, 0);
+      data_socket = zmqSvc->socket(zmq::socket_type::pair);
+      data_socket->set(zmq::sockopt::linger, 0);
       data_socket->connect(connection.c_str());
       cout << "Connected MDF output socket to " << connection << "\n";
     }
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
   while (!eof && i_event++ < n_events) {
 
     // Check if there are messages
-    auto n = zmq::poll(&items[0], 1, interval);
+    auto n = zmq::poll(&items[0], 1, std::chrono::milliseconds {interval});
 
     // Handle
     if (items[0].revents & zmq::POLLIN) {
@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
     zmqSvc->send(request, "CLIENT_EXIT", send_flags::sndmore);
     zmqSvc->send(request, id);
     zmq::pollitem_t items[] = {{request, 0, zmq::POLLIN, 0}};
-    zmq::poll(&items[0], 1, 500);
+    zmq::poll(&items[0], 1, std::chrono::milliseconds {500});
     if (items[0].revents & zmq::POLLIN) {
       zmqSvc->receive<std::string>(request);
     }

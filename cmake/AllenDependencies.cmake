@@ -104,6 +104,7 @@ pkg_check_modules(sodium libsodium REQUIRED IMPORTED_TARGET)
 if(NOT STANDALONE)
   pkg_check_modules(git2 libgit2 REQUIRED IMPORTED_TARGET)  # for GitEntityResolver
 endif()
+find_package(cppzmq CONFIG REQUIRED)
 
 if(WITH_Allen_PRIVATE_DEPENDENCIES)
   # We need a Python 3 interpreter

@@ -38,7 +38,6 @@
 #include <stdio.h>
 #include <filesystem>
 
-#include <zmq/zmq.hpp>
 #include <ZeroMQ/IZeroMQSvc.h>
 #include <zmq_compat.h>
 
@@ -238,8 +237,8 @@ int allen(
   std::optional<zmq::socket_t> allen_control;
   size_t control_index = 0;
   if (!control_connection.empty()) {
-    allen_control = zmqSvc->socket(zmq::PAIR);
-    zmq::setsockopt(*allen_control, zmq::LINGER, -1);
+    allen_control = zmqSvc->socket(zmq::socket_type::pair);
+    allen_control->set(zmq::sockopt::linger, -1);
     allen_control->connect(control_connection.data());
     control_index = items.size() - 1;
     items[control_index] = {*allen_control, 0, zmq::POLLIN, 0};
@@ -486,8 +485,8 @@ int allen(
        }) {
     size_t n_ready = 0;
     for (unsigned i = 0; i < n; ++i) {
-      zmq::socket_t control = zmqSvc->socket(zmq::PAIR);
-      zmq::setsockopt(control, zmq::LINGER, 0);
+      zmq::socket_t control = zmqSvc->socket(zmq::socket_type::pair);
+      control.set(zmq::sockopt::linger, 0);
       auto con = connection(thread_id);
       control.bind(con.c_str());
       // I don't know why, but this prevents problems. Probably
@@ -545,8 +544,8 @@ int allen(
 
   std::optional<zmq::socket_t> throughput_socket;
   try {
-    throughput_socket = zmqSvc->socket(zmq::PUB);
-    zmq::setsockopt(*throughput_socket, zmq::LINGER, 0);
+    throughput_socket = zmqSvc->socket(zmq::socket_type::pub);
+    throughput_socket->set(zmq::sockopt::linger, 0);
     std::stringstream bus_suffix;
     bus_suffix << std::setfill('0') << std::setw(2) << std::hex << bus_id;
     std::string con = "ipc:///tmp/allen_throughput_" + bus_suffix.str();

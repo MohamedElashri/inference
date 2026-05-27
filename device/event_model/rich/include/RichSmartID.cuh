@@ -147,7 +147,7 @@ namespace Allen::Rich::Decoding {
 
     __host__ __device__ constexpr DataType panelLocalModuleNum() const noexcept
     {
-      return pdMod() - PanelModuleOffsets()[rich()][panel()];
+      return pdMod() - panelModuleOffsets(rich(), panel());
     }
 
     __host__ __device__ constexpr DataType panelLocalModuleColumn() const noexcept
@@ -281,31 +281,30 @@ namespace Allen::Rich::Decoding {
     // Number of modules per column
     static constexpr const DataType ModulesPerColumn = 6;
     // Number of module columns per panel, in each RICH
-    static constexpr const std::array<DataType, 2> ModuleColumnsPerPanel = {
+    static constexpr DataType ModuleColumnsPerRich1Panel = 11;
 #ifdef USE_DD4HEP
-      {11, 14} // With dd4hep we have an extra column reserved at the end of each RICH2 panel
+    // With dd4hep we have an extra column reserved at the end of each RICH2 panel:
+    static constexpr DataType ModuleColumnsPerRich2Panel = 14;
 #else
-      {11, 12}
+    static constexpr DataType ModuleColumnsPerRich2Panel = 12;
 #endif
-    };
+
     // Maximum number of module columns in any panel, RICH1 or RICH2
-    static constexpr const DataType MaxModuleColumnsAnyPanel =
-      std::max(ModuleColumnsPerPanel[0], ModuleColumnsPerPanel[1]);
-    // Number of modules per panel, in each RICH
-    static constexpr const std::array<DataType, 2> ModulesPerPanel {
-      {(ModulesPerColumn * ModuleColumnsPerPanel[0]), (ModulesPerColumn * ModuleColumnsPerPanel[1])}};
+    static constexpr DataType MaxModuleColumnsAnyPanel =
+      std::max(ModuleColumnsPerRich1Panel, ModuleColumnsPerRich2Panel);
 
     /// Number of modules in RICH1
-    static constexpr const DataType RICH1Modules = 2 * ModulesPerPanel[Rich::Detector::Type::Rich1];
+    static constexpr const DataType RICH1Modules = 2 * ModulesPerColumn * ModuleColumnsPerRich1Panel;
     /// Number of modules in RICH2
-    static constexpr const DataType RICH2Modules = 2 * ModulesPerPanel[Rich::Detector::Type::Rich2];
+    static constexpr const DataType RICH2Modules = 2 * ModulesPerColumn * ModuleColumnsPerRich2Panel;
     /// Total number of modules
     static constexpr const DataType TotalModules = RICH1Modules + RICH2Modules;
 
-    __host__ __device__ static constexpr std::array<std::array<DataType, 2>, 2> PanelModuleOffsets()
+    __host__ __device__ constexpr unsigned panelModuleOffsets(BitPackType rich, BitPackType panel) const noexcept
     {
-      return {std::array<DataType, 2> {0, ModulesPerPanel[0]},
-              std::array<DataType, 2> {2 * ModulesPerPanel[0], (2 * ModulesPerPanel[0]) + ModulesPerPanel[1]}};
+      return (2 * rich * ModulesPerColumn * ModuleColumnsPerRich1Panel) +
+             (panel *
+              (rich ? ModulesPerColumn * ModuleColumnsPerRich2Panel : ModulesPerColumn * ModuleColumnsPerRich1Panel));
     }
 
     class MaPMT {
