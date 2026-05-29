@@ -12,6 +12,9 @@
 # Package: BinaryDumpers
 ################################################################################
 
+
+file(GLOB BINARY_DUMPERS_SOURCES "src/*.cpp")
+
 gaudi_add_library(BinaryDumpers
                   SOURCES
                     src/lib/TestUTBoards.cpp
@@ -24,6 +27,8 @@ gaudi_add_library(BinaryDumpers
                     EventModel
                     AllenRuntime
                     AllenLib
+                    MuonCommon
+                    UTCommon
                     Gaudi::GaudiKernel
                     LHCb::DAQEventLib
                     LHCb::FTDAQLib
@@ -34,37 +39,12 @@ gaudi_add_library(BinaryDumpers
                     LHCb::RecEvent
                     LHCb::RichFutureDAQLib
                     LHCb::RichFutureKernel
-		    LHCb::RichDetectorsLib
-		    LHCb::RichDetLib)
+		                LHCb::RichDetectorsLib
+		                LHCb::RichDetLib)
 
 gaudi_add_module(BinaryDumpersModule
                  SOURCES
-                   src/ODINProducer.cpp
-                   src/AllenUpdater.cpp
-                   src/DumpBeamline.cpp
-                   src/DumpCrossingAngles.cpp
-                   src/DumpCaloGeometry.cpp
-                   src/DumpForwardTracks.cpp
-                   src/DumpFTGeometry.cpp
-                   src/DumpFTHits.cpp
-                   src/DumpMagneticField.cpp
-                   src/DumpMagneticFieldPolarity.cpp
-                   src/DumpMuonCommonHits.cpp
-                   src/DumpMuonCoords.cpp
-                   src/DumpMuonGeometry.cpp
-                   src/DumpMuonTable.cpp
-                   src/DumpRawBanks.cpp
-                   src/DumpUTGeometry.cpp
-                   src/DumpUTHits.cpp
-                   src/DumpUTLookupTables.cpp
-                   src/DumpVPGeometry.cpp
-                   src/DumpRichCableMapping.cpp
-                   src/DumpRichPDMDBMapping.cpp
-                   src/DumpRichGeometry.cpp
-                   src/PVDumper.cpp
-                   src/ProvideConstants.cpp
-                   src/TestMuonTable.cpp
-                   src/TransposeRawBanks.cpp
+                   ${BINARY_DUMPERS_SOURCES}
                  LINK
                    Rangev3::rangev3
                    TBB::tbb
@@ -81,8 +61,8 @@ gaudi_add_module(BinaryDumpersModule
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MuonDAQLib
-		   LHCb::RichDetLib
-		   Rec::PrKernel
+		               LHCb::RichDetLib
+		               Rec::PrKernel
                    yaml-cpp::yaml-cpp
                    BinaryDumpers)
 

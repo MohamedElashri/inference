@@ -89,7 +89,7 @@ namespace downstream_make_particles {
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_phi,
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_trk_pt);
 
-  __global__ void downstream_make_particles(Parameters parameters, const float* dev_magnet_polarity);
+  __global__ void downstream_make_particles(Parameters parameters, const float magnet_polarity);
 
   struct downstream_make_particles_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;

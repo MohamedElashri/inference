@@ -24,7 +24,6 @@ int main()
   for (const auto& [id, alg] : Allen::AlgorithmDB::get()->all_algorithms()) {
     // std::cerr << " Generating: " << id << std::endl;
     auto infos = alg.get_algorithm_infos();
-    infos["filename"] = Allen::AlgorithmDB::get()->filename_for(id);
     infos["name"] = id;
     default_properties[id] = infos;
   }

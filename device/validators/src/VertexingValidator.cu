@@ -189,9 +189,7 @@ void vertexing_validator::vertexing_validator_t::operator()(
   auto& checker = runtime_options.checker_invoker->checker<CompositeDumper>(name(), m_root_output_filename);
 
   // Fetch event level infos
-  float host_polarity = 0;
-  Allen::memcpy_async(
-    &host_polarity, constants.dev_magnet_polarity.data(), sizeof(float), Allen::memcpyDeviceToHost, context);
+  float host_polarity = constants.magnet_polarity;
 
   const auto slice_idx = static_cast<unsigned>(runtime_options.slice_index);
   const auto time = static_cast<unsigned>(

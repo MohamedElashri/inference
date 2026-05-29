@@ -22,8 +22,7 @@ void lf_triplet_seeding::lf_triplet_seeding_t::set_arguments_size(
   const RuntimeOptions&,
   const Constants&) const
 {
-  const bool with_ut = first<host_track_type_id_t>(arguments) == Allen::TypeIDs::VeloUTTracks;
-  const auto n_seeds = with_ut ? LookingForward::InputUT::n_seeds : LookingForward::InputVelo::n_seeds;
+  const auto n_seeds = m_with_ut.value() ? LookingForward::InputUT::n_seeds : LookingForward::InputVelo::n_seeds;
 
   set_size<dev_scifi_lf_found_triplets_t>(
     arguments,

@@ -323,7 +323,6 @@ namespace Allen::Store {
     auto first() const
     {
       static_assert(std::is_base_of_v<host_datatype, T> && "first can only access host datatypes");
-      static_assert(!std::is_base_of_v<optional_datatype, T> && "first can only access non-optional datatypes");
       return get<T>()[0];
     }
 
@@ -342,15 +341,14 @@ namespace Allen::Store {
     template<typename T>
     void set_size(const size_t size)
     {
-      static_assert(
-        !Allen::is_template_base_of_v<input_datatype, T> && "set_size can only be used on output datatypes");
+      static_assert(!Allen::Store::is_input<T>::value && "set_size can only be used on output datatypes");
       arg<T>().set_size(size);
     }
 
     template<typename T>
     void resize(const size_t size) const
     {
-      static_assert(!Allen::is_template_base_of_v<input_datatype, T> && "resize can only be used on output datatypes");
+      static_assert(!Allen::Store::is_input<T>::value && "resize can only be used on output datatypes");
       if (m_store) {
         m_store->free(name<T>());
       }
@@ -367,8 +365,7 @@ namespace Allen::Store {
     template<typename T>
     void reduce_size(const size_t size) const
     {
-      static_assert(
-        !Allen::is_template_base_of_v<input_datatype, T> && "reduce_size can only be used on output datatypes");
+      static_assert(!Allen::Store::is_input<T>::value && "reduce_size can only be used on output datatypes");
       assert(size <= get<T>().size());
       arg<T>().set_size(size);
     }

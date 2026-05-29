@@ -211,6 +211,43 @@ set(TARGET_DEFINITION "TARGET_DEVICE_${TARGET_DEVICE}")
 
 include(CTest)
 
+# The list of libraries containing algorithms:
+set(ALLEN_ALGORITHM_LIB
+  Associate
+  Calo
+  Combiners
+  DeviceValidators
+  Downstream
+  Examples
+  HostCombiners
+  HostDataProvider
+  HostDummyMaker
+  HostErrorBanks
+  HostGEC
+  HostInitEventList
+  HostRoutingBits
+  HostTAEFilter
+  Kalman
+  Lumi
+  Muon
+  PVChecking
+  PV_beamline
+  Plume
+  Rich
+  SciFi
+  SelChecking
+  Selections
+  TrackChecking
+  TTrack
+  UT
+  Utils
+  Validators
+  Velo
+  VertexFitter
+  track_matching
+  Jets
+)
+
 # Detect CUDA architecture
 if(TARGET_DEVICE STREQUAL "CUDA")
   if (NOT CMAKE_CUDA_COMPILER)
@@ -279,6 +316,7 @@ if(TARGET_DEVICE STREQUAL "CUDA")
       string(APPEND DEVICE_ARCHITECTURE " -gencode=arch=compute_86,code=sm_86")
     endif()
   endif()
+  message(STATUS "CMAKE_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}")
   message(STATUS "Device architecture set to ${DEVICE_ARCHITECTURE}")
 endif()
 
@@ -301,7 +339,9 @@ if(TARGET_DEVICE STREQUAL "CPU")
     add_library(${ARGV})
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     if (${is_static} EQUAL -1)
       install(TARGETS ${ARGV0}
         EXPORT Allen
@@ -321,7 +361,9 @@ if(TARGET_DEVICE STREQUAL "CPU")
     add_library(${ARGV})
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
 
     if (${is_static} EQUAL -1)
       install(TARGETS ${ARGV0}
@@ -338,7 +380,9 @@ if(TARGET_DEVICE STREQUAL "CPU")
     endforeach()
 
     add_executable(${ARGV})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     install(TARGETS ${ARGV0} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endfunction()
 
@@ -381,7 +425,9 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
     message(STATUS "Adding host library: ${ARGV0}")
     add_library(${ARGV})
     target_include_directories(${ARGV0} PRIVATE ${HIP_PATH}/include ${ROCM_PATH}/hsa/include)
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
 
@@ -399,7 +445,9 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
     target_include_directories(${ARGV0} PRIVATE ${HIP_PATH}/include ${ROCM_PATH}/hsa/include)
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
 
     if (${is_static} EQUAL -1)
       install(TARGETS ${ARGV0}
@@ -459,7 +507,9 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
 
     add_library(${ARGV})
     target_include_directories(${ARGV0} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${PROJECT_BINARY_DIR}/code_generation)
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     if(SEPARABLE_COMPILATION)
       set_property(TARGET ${ARGV0} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
     endif()
@@ -478,7 +528,9 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
 
     add_library(${ARGV})
     target_include_directories(${ARGV0} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     if(SEPARABLE_COMPILATION)
       set_property(TARGET ${ARGV0} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
     endif()
@@ -494,9 +546,6 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
 
   function(allen_add_executable)
     add_executable(${ARGV})
-    if(SEPARABLE_COMPILATION)
-      set_property(TARGET ${ARGV0} PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS OFF)
-    endif()
     target_include_directories(${ARGV0} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION})
     install(TARGETS ${ARGV0} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -723,7 +772,6 @@ allen_add_host_library(AllenLib SHARED
   main/src/AllenThreads.cpp
   main/src/OutputHandler.cpp
   main/src/Provider.cpp
-  main/src/RegisterConsumers.cpp
   main/src/ZMQOutputSender.cpp)
 
 target_compile_definitions(AllenLib PUBLIC ${TARGET_DEFINITION})
@@ -734,46 +782,13 @@ target_include_directories(AllenLib PUBLIC
 
 target_link_libraries(AllenLib
   PRIVATE
-    Associate
     Backend
-    Calo
-    Combiners
-    DeviceValidators
-    Downstream
     EventModel
-    Examples
-    HostCombiners
-    HostDataProvider
-    HostDummyMaker
-    HostErrorBanks
     HostEventModel
-    HostGEC
-    HostInitEventList
-    HostRoutingBits
-    HostTAEFilter
-    Kalman
     LHCbEvent
-    Lumi
-    Muon
-    NonEventData
-    PVChecking
-    PV_beamline
-    Plume
-    Rich
-    SciFi
-    SelChecking
-    Selections
-    Stream
-    TrackChecking
-    TTrack
-    UT
-    Utils
-    Validators
-    Velo
-    VertexFitter
     mdf
-    track_matching
-    Jets
+    NonEventData
+    Stream
   PUBLIC
     Gear
     AllenCommon
@@ -803,6 +818,10 @@ add_dependencies(Allen Sequences)
 
 target_link_libraries(Allen PRIVATE AllenLib)
 set_target_properties(Allen PROPERTIES BUILD_RPATH_USE_ORIGIN TRUE)
+
+if (STANDALONE)
+  target_link_libraries(Allen PRIVATE ${ALLEN_ALGORITHM_LIB})
+endif()
 
 if (NOT STANDALONE)
     include(FileContentMetadataRepository)

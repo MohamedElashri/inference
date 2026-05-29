@@ -45,7 +45,10 @@ add_custom_command(
 add_custom_target(generate_conf_core DEPENDS "${SEQUENCE_DEFINITION_DIR}" "${ALLEN_CORE_DIR}" "${ALLEN_SEQUENCE_DIR}")
 
 add_executable(default_properties ${DEFAULT_PROPERTIES_SRC})
-target_link_libraries(default_properties PRIVATE AllenLib HostEventModel EventModel Gear)
+target_link_libraries(default_properties PRIVATE AllenLib HostEventModel EventModel Gear ${ALLEN_ALGORITHM_LIB})
+if (NOT STANDALONE)
+  target_link_libraries(default_properties PRIVATE LHCb::DetDescLib)
+endif()
 
 set(PARSER_ENV PYTHONPATH=$ENV{PYTHONPATH} LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH})
 
@@ -85,25 +88,7 @@ install(TARGETS extern_lines
       EXPORT Allen
       LIBRARY DESTINATION lib)
 
-if(NOT STANDALONE AND TARGET_DEVICE STREQUAL "CPU")
-  # We need to get the list of algorithms at configuration time in order to
-  # know the list of files that will be required of this build
-  set(ALGORITHM_WRAPPERS_FOLDER ${CODE_GENERATION_DIR}/algorithm_wrappers)
-  set(ALGORITHM_WRAPPERS_LISTFILE ${ALGORITHM_WRAPPERS_FOLDER}/algorithm_list.txt)
-  file(MAKE_DIRECTORY ${ALGORITHM_WRAPPERS_FOLDER})
-  execute_process(COMMAND ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate wrapperlist --filename "${ALGORITHM_WRAPPERS_LISTFILE}" --algorithm_wrappers_folder "${ALGORITHM_WRAPPERS_FOLDER}" --prefix_project_folder "${PROJECT_SOURCE_DIR}")
-  file(READ "${ALGORITHM_WRAPPERS_LISTFILE}" WRAPPED_ALGORITHM_SOURCES) # WRAPPED_ALGORITHM_SOURCES="a.cpp b.cpp c.cpp"
-
-  # Build step that will produce all .cpp conversion files
-  add_custom_command(
-    OUTPUT ${WRAPPED_ALGORITHM_SOURCES}
-    COMMENT "Generating wrapped algorithm sources"
-    COMMAND
-      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate wrappers --algorithm_wrappers_folder "${ALGORITHM_WRAPPERS_FOLDER}" --default_properties $<TARGET_FILE:default_properties> --prefix_project_folder "${PROJECT_SOURCE_DIR}"
-    WORKING_DIRECTORY ${PROJECT_SEQUENCE_DIR}
-    DEPENDS default_properties)
-
-elseif(STANDALONE)
+if(STANDALONE)
   if (DEFINED ENV{LHCBROOT})
     set(LHCBROOT $ENV{LHCBROOT} CACHE STRING "LHCB root directory")
     set(LHCBOUTPUTS
@@ -177,7 +162,9 @@ elseif(STANDALONE)
   # files work. CMake doesn't support doing this in another
   # directory...
   add_library(LHCbEvent STATIC ${LHCBOUTPUTS})
-  target_compile_definitions(LHCbEvent PUBLIC ODIN_WITHOUT_GAUDI)
+  if(STANDALONE)
+    target_compile_definitions(LHCbEvent PUBLIC ODIN_WITHOUT_GAUDI)
+  endif()
   add_dependencies(LHCbEvent checkout_lhcb checkout_gaudi)
   target_link_libraries(LHCbEvent PUBLIC ROOT::Core ROOT::MathCore Boost::headers)
   target_include_directories(

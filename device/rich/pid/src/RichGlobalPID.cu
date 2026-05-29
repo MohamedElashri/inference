@@ -45,8 +45,8 @@ void rich_global_pid::rich_global_pid_t::updateRich(const Allen::Rich::RichDetec
 
 void rich_global_pid::rich_global_pid_t::update(const Constants& constants) const
 {
-  updateRich<0>(reinterpret_cast<const Allen::Rich::RichDetector<0>*>(constants.host_rich_1_geometry.data()));
-  updateRich<1>(reinterpret_cast<const Allen::Rich::RichDetector<1>*>(constants.host_rich_2_geometry.data()));
+  updateRich<0>(constants.host_rich_1_geometry);
+  updateRich<1>(constants.host_rich_2_geometry);
 }
 
 // Sum the signals of every photon from the selected hypo into each pixel:

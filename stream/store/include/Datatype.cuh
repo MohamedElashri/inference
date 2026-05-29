@@ -40,8 +40,6 @@ namespace Allen::Store {
   };
   struct aggregate_datatype {
   };
-  struct optional_datatype {
-  };
 
   // A generic datatype data holder.
   template<typename internal_t>
@@ -84,6 +82,15 @@ namespace Allen::Store {
     constexpr __host__ __device__ output_datatype() {}
     constexpr __host__ __device__ output_datatype(Allen::device::span<type> value) : datatype<type>(value) {}
     constexpr __host__ __device__ type& operator[](const unsigned index) { return this->get()[index]; }
+  };
+
+  // Type traits to identify inputs and outputs
+  template<typename T>
+  struct is_input : std::is_base_of<input_datatype<std::remove_const_t<typename T::type>>, T> {
+  };
+
+  template<typename T>
+  struct is_output : std::is_base_of<output_datatype<typename T::type>, T> {
   };
 
 // Inputs / outputs have an additional parsable method required for libclang parsing.
@@ -135,23 +142,6 @@ namespace Allen::Store {
   struct ARGUMENT_NAME : Allen::Store::device_datatype, Allen::Store::output_datatype<mask_t> { \
     using Allen::Store::output_datatype<mask_t>::output_datatype;                               \
     static constexpr std::string_view name = #ARGUMENT_NAME;                                    \
-  }
-
-// Support for optional input aggregates
-#define DEVICE_INPUT_OPTIONAL(ARGUMENT_NAME, ...)                    \
-  struct ARGUMENT_NAME : Allen::Store::device_datatype,              \
-                         Allen::Store::optional_datatype,            \
-                         Allen::Store::input_datatype<__VA_ARGS__> { \
-    using Allen::Store::input_datatype<__VA_ARGS__>::input_datatype; \
-    static constexpr std::string_view name = #ARGUMENT_NAME;         \
-  }
-
-#define HOST_INPUT_OPTIONAL(ARGUMENT_NAME, ...)                      \
-  struct ARGUMENT_NAME : Allen::Store::host_datatype,                \
-                         Allen::Store::optional_datatype,            \
-                         Allen::Store::input_datatype<__VA_ARGS__> { \
-    using Allen::Store::input_datatype<__VA_ARGS__>::input_datatype; \
-    static constexpr std::string_view name = #ARGUMENT_NAME;         \
   }
 
 #define DEPENDENCIES(...) Allen::Store::dependencies<__VA_ARGS__>

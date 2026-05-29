@@ -26,6 +26,48 @@
 #include <cxxabi.h>
 #include <nlohmann/json.hpp>
 
+#ifndef ALLEN_STANDALONE
+#include <Gaudi/Algorithm.h>
+#include <GaudiKernel/StdArrayAsProperty.h>
+
+// Parsers are in namespace LHCb for ADL to work.
+namespace Gaudi::Parsers {
+  inline StatusCode parse(BankTypes& result, const std::string& in)
+  {
+    // This takes care of quoting
+    std::string input;
+    using Gaudi::Parsers::parse;
+    auto sc = parse(input, in);
+    if (!sc) return sc;
+
+    result = bank_type(input);
+    return StatusCode::SUCCESS;
+  }
+
+  inline StatusCode parse(dim3& result, const std::string& in)
+  {
+    std::array<unsigned, 3> input;
+    using Gaudi::Parsers::parse;
+    auto sc = parse(input, in);
+    if (!sc) return sc;
+
+    result = {input[0], input[1], input[2]};
+    return StatusCode::SUCCESS;
+  }
+} // namespace Gaudi::Parsers
+
+inline std::ostream& toStream(const BankTypes& bt, std::ostream& s)
+{
+  auto bn = bank_name(bt);
+  return s << "'" << bn << "'";
+}
+
+inline std::ostream& toStream(const dim3& d, std::ostream& s)
+{
+  return Gaudi::Utils::toStream(std::array {d.x, d.y, d.z}, s);
+}
+#endif
+
 void from_json(const nlohmann::json& j, dim3& d);
 void to_json(nlohmann::json& j, const dim3& d);
 
@@ -58,6 +100,18 @@ namespace Allen {
     operator V const&() const { return m_cached_value; }
 
     void set_value(const V& value) { m_cached_value = value; }
+
+#ifndef ALLEN_STANDALONE
+    Gaudi::Property<V> m_gaudi_prop;
+    void register_as_gaudi_property(Gaudi::Algorithm* alg) override
+    {
+      m_gaudi_prop = {name(), value(), description()};
+      alg->declareProperty(m_gaudi_prop);
+      m_gaudi_prop.template setOwnerType<Gaudi::Algorithm>();
+      m_gaudi_prop.declareUpdateHandler([this](auto&) { m_cached_value = m_gaudi_prop.value(); });
+      m_gaudi_prop.useUpdateHandler();
+    }
+#endif
 
   private:
     std::string type_name()

@@ -17,5 +17,6 @@ allen_add_host_library(HostEventModel OBJECT
 target_link_libraries(HostEventModel PRIVATE EventModel Gear AllenCommon Backend)
 
 target_include_directories(HostEventModel PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/routing_bits/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tae/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MC/include>)

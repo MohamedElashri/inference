@@ -45,7 +45,7 @@ namespace downstream_vertexing {
   template<bool same_sign_reco>
   __global__ void downstream_vertexing(
     Parameters,
-    const float*,
+    const float magnet_polarity,
     const CompositeQualityEvaluator::DeviceType*,
     const float track_min_pt_both,
     const float track_min_ip_both,

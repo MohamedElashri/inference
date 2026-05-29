@@ -54,7 +54,7 @@ namespace {
   bool emplace_output_arg(const std::vector<std::string>& arguments, Allen::Store::UnorderedStore& store)
   {
     using t = std::tuple_element_t<I, T>;
-    if constexpr (Allen::is_template_base_of_v<Allen::Store::output_datatype, t>) {
+    if constexpr (Allen::Store::is_output<t>::value) {
       store.register_entry(
         arguments[I],
         Allen::Store::AllenArgument {std::in_place_type<typename t::type>,
@@ -112,12 +112,10 @@ namespace {
     }
 
     // Determine kind (input or output)
-    if constexpr (std::is_base_of_v<
-                    Allen::Store::input_datatype<std::remove_const_t<typename datatype::type>>,
-                    datatype>) {
+    if constexpr (Allen::Store::is_input<datatype>::value) {
       arg["kind"] = "input";
     }
-    else if constexpr (std::is_base_of_v<Allen::Store::output_datatype<typename datatype::type>, datatype>) {
+    else if constexpr (Allen::Store::is_output<datatype>::value) {
       arg["kind"] = "output";
     }
     else {
@@ -129,9 +127,6 @@ namespace {
       arg["kind"] = "input";
       arg["aggregate"] = true;
       arg["type"] = "unknown_t"; // Pyconf typechecking doesn't know how to handle aggregates, so disable it
-    }
-    if constexpr (std::is_base_of_v<Allen::Store::optional_datatype, datatype>) {
-      arg["optional"] = true;
     }
 
     // Extract dependencies
@@ -432,7 +427,10 @@ namespace Allen {
 
     TypeErasedAlgorithm instantiate_algorithm(const std::string& id, const std::string& name) const
     {
-      return m_factories.at(id)(name);
+      if (m_factories.find(id) != std::end(m_factories)) {
+        return m_factories.at(id)(name);
+      }
+      throw std::runtime_error("Cannot instantiate algorithm " + id);
     }
 
     std::vector<std::pair<std::string, TypeErasedAlgorithm>> all_algorithms() const
@@ -445,38 +443,14 @@ namespace Allen {
     }
 
     template<typename F>
-    bool register_factory(const std::string& id, const std::string& filename, F&& factory)
+    bool register_factory(const std::string& id, F&& factory)
     {
-      m_filenames[id] = filename;
       m_factories[id] = factory;
       return true;
     }
 
-    std::string filename_for(const std::string& id) const { return m_filenames.at(id); }
-
-    std::map<std::string, std::string> m_filenames;
     std::map<std::string, factory_t> m_factories;
   };
-
-#define CONCATENATE_IMPL(s1, s2) s1##s2
-#define CONCATENATE(s1, s2) CONCATENATE_IMPL(s1, s2)
-#define ANONYMOUS_VARIABLE(prefix) CONCATENATE(prefix, __COUNTER__)
-
-#define INSTANTIATE_ALGORITHM(TYPE)                                                                \
-  namespace {                                                                                      \
-    static bool ANONYMOUS_VARIABLE(registered_algorithm_) =                                        \
-      (Allen::AlgorithmDB::get())->register_factory(#TYPE, __FILE__, [](const std::string& name) { \
-        return Allen::TypeErasedAlgorithm {std::in_place_type<TYPE>, name};                        \
-      });                                                                                          \
-  }
-
-#define INSTANTIATE_ALGORITHM_WITH_ID(TYPE, ID)                                                 \
-  namespace {                                                                                   \
-    static bool ANONYMOUS_VARIABLE(registered_algorithm_) =                                     \
-      (Allen::AlgorithmDB::get())->register_factory(ID, __FILE__, [](const std::string& name) { \
-        return Allen::TypeErasedAlgorithm {std::in_place_type<TYPE>, name};                     \
-      });                                                                                       \
-  }
 
   // Forward declare to use in Algorithm
   template<typename V>
@@ -548,6 +522,15 @@ namespace Allen {
         properties.emplace(kv.first, kv.second->to_json());
       }
       return properties;
+    }
+
+    std::vector<BaseProperty*> properties() const override
+    {
+      std::vector<BaseProperty*> props;
+      for (const auto& kv : m_properties) {
+        props.push_back(kv.second);
+      }
+      return props;
     }
 
     std::map<std::string, nlohmann::json> get_properties_infos() const override

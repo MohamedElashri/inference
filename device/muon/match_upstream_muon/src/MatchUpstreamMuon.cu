@@ -30,7 +30,7 @@ void MatchUpstreamMuon::match_upstream_muon_t::operator()(
 
   global_function(match_upstream_muon)(dim3(first<host_selected_events_mf_t>(arguments)), m_block_dim, context)(
     arguments,
-    constants.dev_magnet_polarity.data(),
+    constants.magnet_polarity,
     constants.dev_muonmatch_search_muon_chambers,
     constants.dev_muonmatch_search_windows,
     first<host_number_of_events_t>(arguments));
@@ -38,7 +38,7 @@ void MatchUpstreamMuon::match_upstream_muon_t::operator()(
 
 __global__ void MatchUpstreamMuon::match_upstream_muon(
   MatchUpstreamMuon::Parameters parameters,
-  const float* magnet_polarity,
+  const float magnet_polarity,
   const MatchUpstreamMuon::MuonChambers* dev_muonmatch_search_muon_chambers,
   const MatchUpstreamMuon::SearchWindows* dev_muonmatch_search_windows,
   const unsigned number_of_events)

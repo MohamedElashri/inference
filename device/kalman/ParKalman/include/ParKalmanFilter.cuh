@@ -178,7 +178,7 @@ namespace kalman_filter {
   //--------------------------------------------------
   __global__ void kalman_filter(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const ParKalmanFilter::KalmanParametrizations* dev_kalman_params);
 
   __global__ void kalman_pv_ip(Parameters parameters);
