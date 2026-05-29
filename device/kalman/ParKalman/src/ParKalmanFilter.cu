@@ -47,12 +47,10 @@ void kalman_filter::kalman_filter_t::operator()(
   dim3 block_dim = m_block_dim;
   int _gridDim = (first<host_number_of_reconstructed_scifi_tracks_t>(arguments) + (block_dim.x) - 1) / (block_dim.x);
   global_function(kalman_filter)(dim3(_gridDim), m_block_dim, context)(
-    arguments, constants.dev_magnet_polarity.data(), constants.dev_kalman_params);
+    arguments, constants.magnet_polarity, constants.dev_kalman_params);
 
   global_function(kalman_pv_ip)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(arguments);
 }
-
-__constant__ struct BeamlinePVConstants::Common::Beamline dev_beamline;
 
 namespace ParKalmanFilter {
   //----------------------------------------------------------------------
@@ -250,10 +248,10 @@ namespace ParKalmanFilter {
 // Kalman filter kernel.
 __global__ void kalman_filter::kalman_filter(
   kalman_filter::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const ParKalmanFilter::KalmanParametrizations* dev_kalman_params)
 {
-  const KalmanFloat magSign = dev_magnet_polarity[0];
+  const KalmanFloat magSign = magnet_polarity;
 
   // Base pointer for the list of all tracks (contiguous in memory), regardless of events boundaries
   const Allen::Views::Physics::LongTrack* track_base = parameters.dev_long_track_view.data();

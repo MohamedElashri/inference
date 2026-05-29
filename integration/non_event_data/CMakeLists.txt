@@ -30,3 +30,27 @@ target_link_libraries(NonEventData
   PUBLIC
     NonEventDataHeaders
   )
+
+if(NOT STANDALONE)
+  target_link_libraries(NonEventData
+    PRIVATE
+      Rangev3::rangev3
+      TBB::tbb
+      Gaudi::GaudiAlgLib
+      LHCb::AssociatorsBase
+      LHCb::LHCbAlgsLib
+      LHCb::LinkerEvent
+      LHCb::MCEvent
+      LHCb::DAQEventLib
+      LHCb::RecEvent
+      LHCb::VPDetLib
+      LHCb::UTDetLib
+      LHCb::UTKernelLib
+      LHCb::CaloDetLib
+      LHCb::FTDetLib
+      LHCb::MuonDAQLib
+      LHCb::RichDetLib
+      Rec::PrKernel
+      yaml-cpp::yaml-cpp
+    )
+endif()

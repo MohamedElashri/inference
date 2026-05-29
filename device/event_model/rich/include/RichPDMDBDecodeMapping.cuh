@@ -30,11 +30,11 @@ namespace Allen::Rich::Decoding {
     /// The data for each anode
     struct BitData final {
       /// The EC number (0-3)
-      int8_t ec;
+      int8_t ec {};
       /// The PMT number in EC
-      int8_t pmtInEC;
+      int8_t pmtInEC {};
       /// The Anode index (0-63)
-      int8_t anode;
+      int8_t anode {};
 
       /// Default constructor
       BitData() = default;
@@ -125,10 +125,10 @@ namespace Allen::Rich::Decoding {
     // data
 
     /// R type data
-    RTypeRichData m_pdmDataR; // std::array<PDMData, 2>
+    RTypeRichData m_pdmDataR {}; // std::array<PDMData, 2>
 
     /// H type data
-    PDMData m_pdmDataH; // std::array<PDMDBData, 2>
+    PDMData m_pdmDataH {}; // std::array<PDMDBData, 2>
 
     /// Flag to indicate initialisation status
     bool m_isInitialised {false};

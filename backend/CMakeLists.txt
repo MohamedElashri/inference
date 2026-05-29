@@ -8,7 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-set(backend_sources src/CPUID.cpp)
+set(backend_sources src/CPUID.cpp src/utils.cpp)
 
 add_library(AllenRuntime INTERFACE)
 install(TARGETS AllenRuntime EXPORT Allen)

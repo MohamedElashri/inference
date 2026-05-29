@@ -16,15 +16,7 @@ from AllenGeneratorUtils import get_namespace
 class AllenAlgorithmFinder():
     """Helper class to find the definition files of Allen algorithms."""
 
-    # Pattern sought in every file, prior to parsing the file for an algorithm
-    __algorithm_pattern_compiled = re.compile(
-        "(?P<scope>Host|Device|Selection|Validation|Provider|Barrier)Algorithm"
-    )
-
     # File extensions considered
-    __include_extensions_compiled = [
-        re.compile(".*\\." + p + "$") for p in ["cuh", "h", "hpp"]
-    ]
     __source_extensions_compiled = [
         re.compile(".*\\." + p + "$") for p in ["cpp", "cu"]
     ]
@@ -43,15 +35,6 @@ class AllenAlgorithmFinder():
         return list_of_files
 
     @staticmethod
-    def get_all_includes(prefix_project_folder):
-        out = []
-        for folder in AllenAlgorithmFinder.__folders:
-            path = prefix_project_folder + folder
-            out += AllenAlgorithmFinder.__get_filenames(
-                path, AllenAlgorithmFinder.__include_extensions_compiled)
-        return out
-
-    @staticmethod
     def get_all_sources(prefix_project_folder):
         out = []
         for folder in AllenAlgorithmFinder.__folders:
@@ -59,26 +42,6 @@ class AllenAlgorithmFinder():
             out += AllenAlgorithmFinder.__get_filenames(
                 path, AllenAlgorithmFinder.__source_extensions_compiled)
         return out
-
-    @staticmethod
-    def find_all_algorithm_instances(prefix_project_folder):
-        all_filenames = AllenAlgorithmFinder.get_all_sources(
-            prefix_project_folder)
-        algorithms = []
-        instance_re = re.compile(r"INSTANTIATE_ALGORITHM\(([^)]+)\)")
-        instance_with_id_re = re.compile(
-            r'INSTANTIATE_ALGORITHM_WITH_ID\([^,]+,\s*"([^"]+)"\)')
-        for filename in all_filenames:
-            with codecs.open(filename, 'r', 'utf-8') as f:
-                s = f.read()
-                for m in instance_re.finditer(s):
-                    _, name = get_namespace(m.group(1).strip())
-                    algorithms.append(name)
-                for m in instance_with_id_re.finditer(s):
-                    algorithms.append(m.group(1).strip())
-        all_lines = AllenAlgorithmFinder.find_all_line_instances(
-            prefix_project_folder)
-        return algorithms + [name for namespace, name in all_lines]
 
     @staticmethod
     def find_all_line_instances(prefix_project_folder):
@@ -92,27 +55,3 @@ class AllenAlgorithmFinder():
                 for m in instance_re.finditer(s):
                     lines.append(get_namespace(m.group(1).strip()))
         return lines
-
-    @staticmethod
-    def find_algorithm_files(prefix_project_folder):
-        all_filenames = AllenAlgorithmFinder.get_all_includes(
-            prefix_project_folder)
-        algorithm_files = []
-        for filename in all_filenames:
-            with codecs.open(filename, 'r', 'utf-8') as f:
-                s = f.read()
-                has_algorithm = AllenAlgorithmFinder.__algorithm_pattern_compiled.search(
-                    s)
-                if has_algorithm:
-                    algorithm_files.append(filename)
-        return algorithm_files
-
-    @staticmethod
-    def find_filename_for_algorithm(alg_name, all_filenames):
-        struct_re = re.compile(fr"struct\s+{alg_name}\s+:")
-        for filename in all_filenames:
-            with codecs.open(filename, 'r', 'utf-8') as f:
-                s = f.read()
-                if struct_re.search(s): return filename
-        raise Exception("Could not find filename for " + alg_name)
-        return ""

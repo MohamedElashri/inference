@@ -76,7 +76,7 @@ namespace track_matching {
   template<typename GhostKiller_t>
   __global__ void track_matching_veloSciFi(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const GhostKiller_t* dev_matching_ghost_killer,
     const std::array<float, 16>,
     const std::array<float, 5>,
@@ -89,7 +89,7 @@ namespace track_matching {
 
   __global__ void track_matching_add_ut_hits(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const std::array<float, 4 * 3> ut_x_loose_tolerance_parameters,
     const std::array<float, 4 * 3> ut_x_tight_tolerance_parameters,
     const float ut_y_tolerance_parameters,

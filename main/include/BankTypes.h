@@ -84,8 +84,9 @@ struct BanksAndOffsets {
 
 struct TransposedBanks {
   std::vector<char> data;
-  std::vector<uint16_t> sizes;
-  std::vector<uint8_t> types;
+  std::vector<unsigned> offsets;
+  std::vector<unsigned> sizes;
+  std::vector<unsigned> types;
   int version = -1;
 };
 

@@ -93,7 +93,7 @@ namespace downstream_find_hits {
   template<bool filter_used_scifi_seeds, bool use_constant_tolerance_window>
   __global__ void downstream_create_candidates(
     Parameters parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const float tolerance_window_x4_multiplier,
     const float tolerance_window_y4_multiplier,
     const float ttracks_probability_threshold,

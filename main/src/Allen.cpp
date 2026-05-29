@@ -51,7 +51,6 @@
 #include "Timer.h"
 #include "Constants.cuh"
 #include "MuonDefinitions.cuh"
-#include "Consumers.h"
 #include "CheckerInvoker.h"
 #include "HostBuffersManager.cuh"
 #include "FileWriter.h"
@@ -270,7 +269,11 @@ int allen(
     muon_field_of_interest_params, folder_parameters + "allen_muon_field_of_interest_params.bin");
 
   // Initialize detector constants on GPU
-  Constants constants;
+  Constants& constants = updater->getConstants();
+
+  // Load geometry from files only in standalone:
+#ifdef ALLEN_STANDALONE
+  load_geometry(updater, config_reader.configured_bank_types(), options);
 
   // ParKF constants
   std::unique_ptr<ParKalmanReader> parKalmanFilter_reader;
@@ -289,9 +292,7 @@ int allen(
     parKalmanFilter_reader->UT_layer(),
     parKalmanFilter_reader->T_layer(),
     parKalmanFilter_reader->UTT_META());
-
-  // Register all consumers
-  register_consumers(updater, constants, config_reader.configured_bank_types());
+#endif
 
 #ifndef ALLEN_STANDALONE
   // Set up monitoring sink
@@ -1086,6 +1087,7 @@ loop_error:
   }
 
   input_provider->release_buffers();
+  updater->release_buffers();
 
   // Reset device
   Allen::device_reset();

@@ -39,11 +39,6 @@ namespace kalman_validator {
     DEVICE_OUTPUT(dev_kalman_checker_tracks_t, Checker::Track) dev_kalman_checker_tracks;
   };
 
-  __global__ void kalman_validator(
-    Parameters,
-    const LookingForward::Constants* dev_looking_forward_constants,
-    const float* dev_magnet_polarity);
-
   struct kalman_validator_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 

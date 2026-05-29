@@ -16,8 +16,6 @@
 #include <numeric>
 #include <span>
 #include <chrono>
-#include "BackendCommon.h"
-#include "Logger.h"
 
 // Forward declarations
 struct VeloGeometry;
@@ -100,12 +98,8 @@ struct Constants {
   // Beam location
   std::vector<float> host_beamline;
 
-  // Beam location
-  std::vector<float> host_gen_crossing_angles;
-
   // Magnet polarity
-  std::span<float> dev_magnet_polarity;
-  std::vector<float> host_magnet_polarity;
+  float magnet_polarity {0};
 
   // Magnetic field
   MagneticField::Magfield* magnetic_field = nullptr;
@@ -156,10 +150,10 @@ struct Constants {
   float* host_UTT_META = nullptr;
 
   // Rich
-  std::vector<char> host_rich_pdmdb_mapping;
+  Allen::Rich::Decoding::PDMDBDecodeMapping* host_rich_pdmdb_mapping = nullptr;
   std::vector<char> host_rich_cable_mapping;
-  std::vector<char> host_rich_1_geometry;
-  std::vector<char> host_rich_2_geometry;
+  Allen::Rich::RichDetector<0>* host_rich_1_geometry = nullptr;
+  Allen::Rich::RichDetector<1>* host_rich_2_geometry = nullptr;
 
   Allen::Rich::Decoding::PDMDBDecodeMapping* dev_rich_pdmdb_mapping = nullptr;
   Allen::Rich::Decoding::Tel40CableMapping* dev_rich_cable_mapping = nullptr;

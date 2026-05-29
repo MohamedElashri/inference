@@ -84,10 +84,10 @@ void rich_make_hypos::rich_make_hypos_t::updateRich(const Allen::Rich::RichDetec
 void rich_make_hypos::rich_make_hypos_t::update(const Constants& constants) const
 {
   if (m_current_rich == 1) {
-    updateRich<0>(reinterpret_cast<const Allen::Rich::RichDetector<0>*>(constants.host_rich_1_geometry.data()));
+    updateRich<0>(constants.host_rich_1_geometry);
   }
   else {
-    updateRich<1>(reinterpret_cast<const Allen::Rich::RichDetector<1>*>(constants.host_rich_2_geometry.data()));
+    updateRich<1>(constants.host_rich_2_geometry);
   }
 }
 

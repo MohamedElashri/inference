@@ -18,6 +18,7 @@
 #include "Constants.cuh"
 #include "Datatype.cuh"
 #include "InputAggregate.cuh"
+#include "GaudiAllenAlgorithmWrapper.h"
 
 struct DeviceAlgorithm : public Allen::Algorithm {
   constexpr static auto algorithm_scope = "DeviceAlgorithm";
@@ -53,3 +54,25 @@ struct ProviderAlgorithm : public Allen::Algorithm {
 struct BarrierAlgorithm : public Allen::Algorithm {
   constexpr static auto algorithm_scope = "BarrierAlgorithm";
 };
+
+#define CONCATENATE_IMPL(s1, s2) s1##s2
+#define CONCATENATE(s1, s2) CONCATENATE_IMPL(s1, s2)
+#define ANONYMOUS_VARIABLE(prefix) CONCATENATE(prefix, __COUNTER__)
+
+#define INSTANTIATE_ALGORITHM(TYPE)                                                      \
+  namespace {                                                                            \
+    static bool ANONYMOUS_VARIABLE(registered_algorithm_) =                              \
+      (Allen::AlgorithmDB::get())->register_factory(#TYPE, [](const std::string& name) { \
+        return Allen::TypeErasedAlgorithm {std::in_place_type<TYPE>, name};              \
+      });                                                                                \
+    MAKE_ALLEN_GAUDI_WRAPPER(TYPE)                                                       \
+  }
+
+#define INSTANTIATE_ALGORITHM_WITH_ID(TYPE, ID)                                       \
+  namespace {                                                                         \
+    static bool ANONYMOUS_VARIABLE(registered_algorithm_) =                           \
+      (Allen::AlgorithmDB::get())->register_factory(ID, [](const std::string& name) { \
+        return Allen::TypeErasedAlgorithm {std::in_place_type<TYPE>, name};           \
+      });                                                                             \
+    MAKE_ALLEN_GAUDI_WRAPPER_WITH_ID(TYPE, ID)                                        \
+  }

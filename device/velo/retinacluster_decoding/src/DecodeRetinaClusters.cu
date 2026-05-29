@@ -102,8 +102,8 @@ __device__ void populate_sorting_key(
   }
 
   // Decode ID
-  const uint32_t chip = cx >> VP::ChipColumns_division;
-  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & VP::ChipColumns_mask, cy, or_fx, or_fy);
+  const uint32_t chip = cx >> Allen::VP::ChipColumns_division;
+  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & Allen::VP::ChipColumns_mask, cy, or_fx, or_fy);
   const uint32_t id = get_lhcb_id(cid);
 
   // Calculate phi
@@ -256,7 +256,7 @@ __device__ void populate_retinacluster(
     or_fy = (cy_frac_half | cy_frac_quarter);
   }
 
-  const uint32_t chip = cx >> VP::ChipColumns_division;
+  const uint32_t chip = cx >> Allen::VP::ChipColumns_division;
   const float local_x = g.local_x[cx] + fx * g.x_pitch[cx];
   const float local_y = (0.5f + fy) * Velo::Constants::pixel_size;
 
@@ -264,7 +264,7 @@ __device__ void populate_retinacluster(
   const float gy = (ltg[3] * local_x + ltg[4] * local_y + ltg[10]);
   const float gz = (ltg[6] * local_x + ltg[7] * local_y + ltg[11]);
 
-  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & VP::ChipColumns_mask, cy, or_fx, or_fy);
+  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & Allen::VP::ChipColumns_mask, cy, or_fx, or_fy);
 
   velo_cluster_container.set_id(cluster_index, get_lhcb_id(cid));
   velo_cluster_container.set_x(cluster_index, gx);

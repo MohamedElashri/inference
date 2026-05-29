@@ -71,7 +71,7 @@ void filter_ttracks::filter_ttracks_t::operator()(
   Allen::copy_async<dev_buffer_used_tracks_t, dev_matched_is_scifi_track_used_t>(arguments, context);
 
   global_function(filter_ttracks)(size<dev_event_list_t>(arguments), m_block_dim, context)(
-    arguments, constants.host_magnet_polarity.data()[0], DeviceProperties(*this));
+    arguments, constants.magnet_polarity, DeviceProperties(*this));
 
   PrefixSum::prefix_sum<dev_offsets_filtered_seeding_tracks_t, host_number_of_filtered_scifi_tracks_t>(
     *this, arguments, context);

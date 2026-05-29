@@ -13,8 +13,8 @@ from AllenCore.algorithms import (
     scifi_raw_bank_decoder_t, ut_select_velo_tracks_t,
     lf_search_initial_windows_t, lf_triplet_seeding_t, lf_create_tracks_t,
     lf_quality_filter_length_t, lf_quality_filter_t,
-    scifi_copy_track_hit_number_t, scifi_consolidate_tracks_t, get_type_id_t,
-    seed_xz_t, seed_confirmTracks_t, seeding_copy_track_hit_number_t,
+    scifi_copy_track_hit_number_t, scifi_consolidate_tracks_t, seed_xz_t,
+    seed_confirmTracks_t, seeding_copy_track_hit_number_t,
     seed_confirmTracks_consolidate_t)
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
@@ -250,10 +250,6 @@ def make_forward_tracks(
             "dev_velo_kalman_beamline_states_view"],
         dev_accepted_velo_tracks_t=dev_accepted_velo_tracks)
 
-    # With or without UT (get type if of input_track_views)
-    get_type_id = make_algorithm(
-        get_type_id_t, name='get_type_id_{hash}', dev_imec_t=input_track_views)
-
     lf_search_initial_windows = make_algorithm(
         lf_search_initial_windows_t,
         name='lf_search_initial_windows_{hash}',
@@ -275,7 +271,7 @@ def make_forward_tracks(
         initial_windows_max_offset_uv_window=
         initial_windows_max_offset_uv_window,
         x_windows_factor=x_windows_factor,
-        host_track_type_id_t=get_type_id.host_type_id_t,
+        with_ut=with_ut,
         input_momentum=input_momentum,
         input_pt=input_pt)
 
@@ -301,7 +297,7 @@ def make_forward_tracks(
         dev_scifi_lf_number_of_tracks_t,
         dev_scifi_lf_tracks_indices_t=lf_search_initial_windows.
         dev_scifi_lf_tracks_indices_t,
-        host_track_type_id_t=get_type_id.host_type_id_t)
+        with_ut=with_ut)
 
     lf_create_tracks = make_algorithm(
         lf_create_tracks_t,
@@ -331,8 +327,7 @@ def make_forward_tracks(
         dev_scifi_lf_number_of_tracks_t=lf_search_initial_windows.
         dev_scifi_lf_number_of_tracks_t,
         dev_scifi_lf_tracks_indices_t=lf_search_initial_windows.
-        dev_scifi_lf_tracks_indices_t,
-        host_track_type_id_t=get_type_id.host_type_id_t)
+        dev_scifi_lf_tracks_indices_t)
 
     lf_quality_filter_length = make_algorithm(
         lf_quality_filter_length_t,

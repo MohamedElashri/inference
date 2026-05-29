@@ -256,8 +256,8 @@ __global__ void velo_decode_ccl(
       const float fy = y / static_cast<float>(n) - cy;
 
       // store target (3D point for tracking)
-      const uint32_t chip = cx >> VP::ChipColumns_division;
-      const unsigned cid = get_channel_id(sensor_number, chip, cx & VP::ChipColumns_mask, cy);
+      const uint32_t chip = cx >> Allen::VP::ChipColumns_division;
+      const unsigned cid = get_channel_id(sensor_number, chip, cx & Allen::VP::ChipColumns_mask, cy);
 
       const float local_x = dev_velo_geometry->local_x[cx] + fx * dev_velo_geometry->x_pitch[cx];
       const float local_y = (cy + 0.5f + fy) * Velo::Constants::pixel_size;

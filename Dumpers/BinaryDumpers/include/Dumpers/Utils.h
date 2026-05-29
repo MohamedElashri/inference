@@ -8,13 +8,11 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#ifndef DUMPUTILS_H
-#define DUMPUTILS_H
+#pragma once
 
 #include <boost/filesystem.hpp>
 #include <boost/interprocess/streams/vectorstream.hpp>
 
-#include <Detector/Muon/TileID.h>
 #include <Kernel/STLExtensions.h>
 #include <fstream>
 #include <functional>
@@ -98,5 +96,3 @@ namespace DumpUtils {
   using Dumps = std::vector<Dump>;
 
 } // namespace DumpUtils
-
-#endif

@@ -47,7 +47,7 @@ void downstream_make_particles::downstream_make_particles_t::operator()(
   Allen::memset_async<dev_downstream_particles_pv_t>(arguments, 0, context);
 
   global_function(downstream_make_particles)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
-    arguments, constants.dev_magnet_polarity.data());
+    arguments, constants.magnet_polarity);
 
   global_function(downstream_create_particles_views)(dim3(first<host_number_of_events_t>(arguments)), 128, context)(
     arguments,
@@ -122,7 +122,7 @@ __global__ void downstream_make_particles::downstream_create_particles_views(
 
 __global__ void downstream_make_particles::downstream_make_particles(
   downstream_make_particles::Parameters parameters,
-  const float* dev_magnet_polarity)
+  const float magnet_polarity)
 {
   // Basic
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
@@ -147,7 +147,7 @@ __global__ void downstream_make_particles::downstream_make_particles(
     auto state = parameters.dev_downstream_track_states_view[event_number].state(track_index);
 
     // Obtain paramters for downstream trajectory
-    const auto gA = Downstream::DownstreamExtrapolation::Physics::gamma(state.qop(), *dev_magnet_polarity);
+    const auto gA = Downstream::DownstreamExtrapolation::Physics::gamma(state.qop(), magnet_polarity);
 
     // Find best PV
     Downstream::DownstreamHelpers::BestCandidateManager<unsigned> best_pv;

@@ -162,6 +162,7 @@ vectype(ulonglong) vectype(float) vectype(double)
   unsigned int y = 1;
   unsigned int z = 1;
 
+  dim3() = default;
   dim3(const unsigned int& x) : x(x) {}
   dim3(const unsigned int& x, const unsigned int& y) : x(x), y(y) {}
   dim3(const unsigned int& x, const unsigned int& y, const unsigned int& z) : x(x), y(y), z(z) {}

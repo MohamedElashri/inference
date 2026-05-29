@@ -209,7 +209,7 @@ void scifi_consolidate_tracks::scifi_consolidate_tracks_t::operator()(
 
   global_function(scifi_consolidate_tracks)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
-    constants.dev_magnet_polarity.data(),
+    constants.magnet_polarity,
     m_momentum_parameters,
     dev_histo_n_long_tracks_forward,
     dev_counter_long_tracks_forward);
@@ -241,7 +241,7 @@ __device__ void populate(const SciFi::TrackHits& track, const F& assign)
 template<bool with_ut, typename T>
 __device__ void scifi_consolidate_tracks_impl(
   const scifi_consolidate_tracks::Parameters& parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const T* tracks,
   const std::array<float, 16> momentum_parameters,
   Allen::Monitoring::Histogram<>::DeviceType& dev_histogram_n_long_tracks_forward,
@@ -342,7 +342,7 @@ __device__ void scifi_consolidate_tracks_impl(
     const SciFi::TrackHits& track = event_scifi_tracks[i];
 
     // align momentum evaluation with velo-scifi matching
-    const auto magSign = -dev_magnet_polarity[0];
+    const auto magSign = -magnet_polarity;
     // needs SciFi tx at last T-station SciFi::Constants::ZEndT (9410)
     const auto qop =
       LongTrack::computeQoverP(velo_state.tx(), velo_state.ty(), scifi_state.tx(), magSign, momentum_parameters);
@@ -391,7 +391,7 @@ __device__ void scifi_consolidate_tracks_impl(
 
 __global__ void scifi_consolidate_tracks::scifi_consolidate_tracks(
   scifi_consolidate_tracks::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const std::array<float, 16> momentum_parameters,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_n_long_tracks_forward,
   Allen::Monitoring::AveragingCounter<>::DeviceType dev_n_long_tracks_forward_counter)
@@ -401,7 +401,7 @@ __global__ void scifi_consolidate_tracks::scifi_consolidate_tracks(
   if (ut_tracks) {
     scifi_consolidate_tracks_impl<true>(
       parameters,
-      dev_magnet_polarity,
+      magnet_polarity,
       ut_tracks,
       momentum_parameters,
       dev_histogram_n_long_tracks_forward,
@@ -412,7 +412,7 @@ __global__ void scifi_consolidate_tracks::scifi_consolidate_tracks(
       static_cast<const Allen::Views::Velo::Consolidated::MultiEventTracks*>(*parameters.dev_tracks_view);
     scifi_consolidate_tracks_impl<false>(
       parameters,
-      dev_magnet_polarity,
+      magnet_polarity,
       velo_tracks,
       momentum_parameters,
       dev_histogram_n_long_tracks_forward,

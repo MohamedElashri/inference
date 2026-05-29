@@ -63,7 +63,7 @@ namespace downstream_create_tracks {
 
   __global__ void downstream_create_tracks(
     Parameters,
-    const float*,
+    const float magnet_polarity,
     const float,
     const DownstreamGhostKiller::DeviceType*,
     [[maybe_unused]] Allen::Monitoring::Counter<>::DeviceType);

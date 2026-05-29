@@ -52,3 +52,53 @@ namespace Allen {
 
   const unsigned NSourceIdSys = to_integral(SourceIdSys::SourceIdSys_TDET) + 1;
 } // namespace Allen
+
+#ifndef ALLEN_STANDALONE
+#include <cstring>
+#include <fstream>
+#include <string>
+#include <Gaudi/Parsers/Factory.h>
+#include <Event/RawBank.h>
+#include <Event/RawEvent.h>
+#include <GaudiKernel/GaudiException.h>
+
+inline std::string toString(BankTypes e) { return bank_name(e); }
+inline std::ostream& toStream(BankTypes e, std::ostream& os) { return os << std::quoted(toString(e), '\''); }
+inline std::ostream& operator<<(std::ostream& s, BankTypes e) { return toStream(e, s); }
+
+inline StatusCode parse(BankTypes& bt, const std::string& in)
+{
+  auto s = std::string_view {in};
+  if (!s.empty() && s.front() == s.back() && (s.front() == '\'' || s.front() == '\"')) {
+    s.remove_prefix(1);
+    s.remove_suffix(1);
+  }
+  // Use BankSizes here because it has all he BankTypes as keys.
+  auto i = std::find_if(BankSizes.begin(), BankSizes.end(), [s](auto e) { return s == bank_name(std::get<0>(e)); });
+  if (i == BankSizes.end()) return StatusCode::FAILURE;
+  bt = i->first;
+  return StatusCode::SUCCESS;
+}
+
+namespace Gaudi::Parsers {
+  inline StatusCode parse(std::set<BankTypes>& s, const std::string& in)
+  {
+    s.clear();
+    using Gaudi::Parsers::parse;
+    std::set<std::string> ss;
+    return parse(ss, in).andThen([&]() -> StatusCode {
+      try {
+        std::transform(begin(ss), end(ss), std::inserter(s, begin(s)), [](const std::string& str) {
+          BankTypes t {};
+          parse(t, str).orThrow("Bad Parse", "");
+          return t;
+        });
+        return StatusCode::SUCCESS;
+      } catch (const GaudiException& e) {
+        return e.code();
+      }
+    });
+  }
+} // namespace Gaudi::Parsers
+
+#endif

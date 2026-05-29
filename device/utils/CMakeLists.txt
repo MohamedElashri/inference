@@ -9,14 +9,12 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 file(GLOB prefix_sum "prefix_sum/src/*cu")
-file(GLOB get_type_id "get_type_id/src/*cu")
 file(GLOB sorting "sorting/src/*cu")
 file(GLOB mva_models "mva_models/src/*cu")
 file(GLOB reduction "reduction/src/*cu")
 
 allen_add_device_library(Utils OBJECT
   ${prefix_sum}
-  ${get_type_id}
   ${sorting}
   ${mva_models}
   ${reduction}
@@ -40,11 +38,10 @@ target_include_directories(Utils PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/warp/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prefix_sum/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scan_reduce/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/get_type_id/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>)
 
 allen_add_executable(prefix_sum_test prefix_sum/test/prefix_sum_test.cu)
-target_link_libraries(prefix_sum_test PRIVATE AllenLib Utils)
+target_link_libraries(prefix_sum_test PRIVATE AllenLib Utils AllenRuntime)
 
 allen_add_executable(reduction_test reduction/test/reduction_test.cu)
-target_link_libraries(reduction_test PRIVATE AllenLib Utils)
+target_link_libraries(reduction_test PRIVATE AllenLib Utils AllenRuntime)

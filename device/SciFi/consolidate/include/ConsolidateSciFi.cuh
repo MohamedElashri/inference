@@ -95,7 +95,7 @@ namespace scifi_consolidate_tracks {
 
   __global__ void scifi_consolidate_tracks(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const std::array<float, 16> momentum_parameters,
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_n_long_tracks_forward,
     Allen::Monitoring::AveragingCounter<>::DeviceType dev_n_long_tracks_forward_counter);
