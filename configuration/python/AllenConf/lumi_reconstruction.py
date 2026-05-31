@@ -33,6 +33,13 @@ from AllenConf.lumi_schema_generator import LumiSchemaGenerator, concatinate_lum
 from AllenConf.plume_reconstruction import decode_plume
 
 
+def _bytes2words(i: int) -> int:
+    d, m = divmod(i, 4)
+    if m != 0:
+        raise ValueError(f"Invalid size: {i} not a multiple of 4")
+    return d
+
+
 def findLine(lines, name):
     for i in range(len(lines)):
         if lines[i].startswith(name):
@@ -323,9 +330,9 @@ def lumi_reconstruction(
     else:
         key = 0
         key_full = 0
-    lumi_sum_length = table[
-        "size"] / 4  #algorithms expect length in words not bytes
-    lumi_sum_length_full = table_full["size"] / 4
+    #algorithms expect length in words not bytes
+    lumi_sum_length = _bytes2words(table["size"])
+    lumi_sum_length_full = _bytes2words(table_full["size"])
     schema_for_algorithms = {
         counter["name"]: (counter["offset"], counter["size"])
         for counter in table_full["counters"]
