@@ -1089,9 +1089,6 @@ loop_error:
   input_provider->release_buffers();
   updater->release_buffers();
 
-  // Reset device
-  Allen::device_reset();
-
 #ifndef ALLEN_STANDALONE
   if (register_monitoring_counters) {
     Gaudi::svcLocator()->monitoringHub().removeSink(&monitoringPrinter);
