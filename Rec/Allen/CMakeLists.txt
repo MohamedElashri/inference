@@ -94,8 +94,8 @@ gaudi_add_executable(test_mass_definitions
 if(BUILD_TESTING AND NOT USE_DD4HEP)
     # Disable test on data for detdesc builds
     list(APPEND tests_to_disable
-        Allen.pytest.test_mdf_input_2023_data
-        Allen.pytest.test_mdf_input_2024_data_tae
+        Allen.pytest.test_mdf_input_2025_data
+        Allen.pytest.test_mdf_input_2026_data_tae
     )
 endif()
 

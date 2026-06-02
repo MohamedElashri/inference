@@ -14,11 +14,11 @@ from LHCbTesting import LHCbExeTest
 class Test(LHCbExeTest):
     command = [
         'python', '../../../../Dumpers/BinaryDumpers/options/allen.py',
-        '--test-file-db-key', '2024_raw_hlt1_289254', '--monitoring-filename',
-        'mdf_2024_data_tae_hists.root', '--sequence',
+        '--test-file-db-key', '2025-hlt1-mdf', '--monitoring-filename',
+        'mdf_2025_data_hists.root', '--sequence',
         '${ALLEN_INSTALL_DIR}/constants//hlt1_pp_forward_then_matching_no_ut.json',
-        '-n', '2000', '--register-monitoring-counters', '1'
+        '-n', '2000', '--real-data'
     ]
-    timeout = 300
+    timeout = 60000
 
     reference = {"messages_count": {"FATAL": 0, "ERROR": 0, "WARNING": 0}}
