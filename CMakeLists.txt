@@ -287,13 +287,11 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   #CUDA_ARCH can be set to MIN
     elseif(CUDA_ARCH STREQUAL "MIN")
       message(STATUS "Setting lowest CUDA compute capability:")
-      list(APPEND CUDA_ARCH_LIST 70)
+      list(APPEND CUDA_ARCH_LIST 75)
   #By default, compile for compatibility
     elseif(CUDA_ARCH STREQUAL "COMPATIBILITY")
   #Compatibility arch flag.
-  #* These settings support natively archs 7.0, 7.5, 8.0 and 8.6.
-  #* All other 5.X and 6.X architectures are supported through their respective
-  #major number builds, specifics of those architectures are not used.
+  #* These settings support natively archs 7.5, 8.0 and 8.6.
   #* Forward compatibility with newer devices is also supported by generating PTX from 8.6
   #(- gencode = arch = compute_86, compute = compute_86)
       message(STATUS "Setting compute capability to COMPATIBILITY:")
@@ -463,14 +461,8 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
     install(TARGETS ${ARGV0} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endfunction()
 elseif(TARGET_DEVICE STREQUAL "CUDA")
-  if (CMAKE_CXX_STANDARD GREATER 20)
-    message(STATUS "nvcc does not support C++ > 20. Setting CUDA C++ standard to 20.")
-    set(CMAKE_CUDA_STANDARD 20)
-    set(CMAKE_CUDA_WARNING_FLAGS "-Wno-cpp")
-  else()
-    set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
-    set(CMAKE_CUDA_WARNING_FLAGS "")
-  endif()
+  set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
+  set(CMAKE_CUDA_WARNING_FLAGS "-Wno-cpp")
   set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG --generate-line-info ${CMAKE_CUDA_WARNING_FLAGS}")
   set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG --generate-line-info ${CMAKE_CUDA_WARNING_FLAGS}")
   set(CMAKE_CUDA_FLAGS_DEBUG "-G -g -DALLEN_DEBUG ${CMAKE_CUDA_WARNING_FLAGS}")
@@ -482,9 +474,6 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
   else()
     set(CUDA_VERBOSE_FLAGS "")
   endif()
-
-  # The cxx standard seems to get lost somehwere for .cu files, so add it explicitly
-  string(APPEND CMAKE_CUDA_FLAGS " -std=c++${CMAKE_CUDA_STANDARD}")
 
   string(APPEND CMAKE_CUDA_FLAGS " ${DEVICE_ARCHITECTURE} ${CUDA_TOOLCHAIN_OPTIONS} -Xcudafe --display_error_number --use_fast_math --expt-relaxed-constexpr ${CUDA_VERBOSE_FLAGS}")
   if (NOT CMAKE_CUDA_HOST_COMPILER)

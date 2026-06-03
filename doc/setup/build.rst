@@ -73,7 +73,7 @@ The build process is the standard cmake procedure. You should specify a `CMAKE_T
 
     mkdir build
     cd build
-    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc15+cuda13_0-opt+g.cmake ..
+    cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc15+cuda13_3-opt+g.cmake ..
     make
 
 * HIP target (the following is a CentOS 7 configuration, a RHEL 9 one will soon be provided)::
@@ -87,7 +87,7 @@ Note: CUDA builds with CVMFS outside CERN network still require a local CUDA ins
 
 * Specify `CMAKE_CUDA_COMPILER` when invoking `cmake`::
 
-    cmake -DSTANDALONE=ON -DCMAKE_CUDA_COMPILER=</path/to/nvcc> -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc15+cuda13_0-opt+g.cmake ..
+    cmake -DSTANDALONE=ON -DCMAKE_CUDA_COMPILER=</path/to/nvcc> -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc15+cuda13_3-opt+g.cmake ..
 
 * Add `nvcc` directory to `PATH` (typically `/usr/local/cuda-X.Y/bin`)::
 
