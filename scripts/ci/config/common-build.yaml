@@ -14,7 +14,7 @@
       # If you change these, don't forget to change the qualifiers in main.yaml as well.
       - LCG_QUALIFIER:
           - "cpu"
-          - "cuda13_0"
+          - "cuda13_3"
           # - "hip5"
 
 # Builds that are considered "additional", can be run in addition to "minimal" tests in certain scenarios
@@ -32,7 +32,7 @@
 
       - LCG_SYSTEM: "x86_64_v3-el9-gcc15"
         LCG_OPTIMIZATION: "dbg"
-        LCG_QUALIFIER: "cuda13_0"
+        LCG_QUALIFIER: "cuda13_3"
         OPTIONS:
           - BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC
 
