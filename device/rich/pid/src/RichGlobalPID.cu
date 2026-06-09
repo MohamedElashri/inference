@@ -342,6 +342,12 @@ __global__ void rich_global_pid_iterations_k(
   unsigned* dev_pixel_signals_r2,
   Allen::Rich::ParticleIDType* pids,
   Allen::Rich::HypoData<float>* dlls,
+  float* dev_s_old_r1,
+  float* dev_s_old_r2,
+  const unsigned* dev_pix2track_offsets_r1,
+  const unsigned* dev_pix2track_r1,
+  const unsigned* dev_pix2track_offsets_r2,
+  const unsigned* dev_pix2track_r2,
   const float epsilon,
   const unsigned max_iterations)
 {
@@ -427,13 +433,18 @@ __global__ void rich_global_pid_iterations_k(
     const unsigned ph_end_r2 = dev_offsets_rich_photons_r2[gt + 1];
 
     // Step 1: update pixel signals
-    for (unsigned p = ph_start_r1 + threadIdx.x; p < ph_end_r1; p += warp_size) {
+    for (unsigned p = ph_start_r1 + lane_id; p < ph_end_r1; p += warp_size) {
+      const unsigned pix = dev_rich_photons_r1[p].pixelIdx;
+      dev_s_old_r1[p] = static_cast<float>(dev_pixel_signals_r1[pix]) * inv_pix_signals_scale;
       const float delta = dev_photon_pix_signals_r1[p][new_pid] - dev_photon_pix_signals_r1[p][old_pid];
+      // dev_deltas_r1[p] = delta; // Store for step 3
       atomicAdd(
         &dev_pixel_signals_r1[dev_rich_photons_r1[p].pixelIdx],
         static_cast<unsigned>(static_cast<int>(delta * pix_signals_scale)));
     }
-    for (unsigned p = ph_start_r2 + threadIdx.x; p < ph_end_r2; p += warp_size) {
+    for (unsigned p = ph_start_r2 + lane_id; p < ph_end_r2; p += warp_size) {
+      const unsigned pix = dev_rich_photons_r2[p].pixelIdx;
+      dev_s_old_r2[p] = static_cast<float>(dev_pixel_signals_r2[pix]) * inv_pix_signals_scale;
       const float delta = dev_photon_pix_signals_r2[p][new_pid] - dev_photon_pix_signals_r2[p][old_pid];
       atomicAdd(
         &dev_pixel_signals_r2[dev_rich_photons_r2[p].pixelIdx],
@@ -485,9 +496,71 @@ __global__ void rich_global_pid_iterations_k(
                (dev_track_total_signals_r1[gt][new_pid] + dev_track_total_signals_r2[gt][new_pid]);
         dlls[gt][h] = dll;
       }
-    } // end of step d
+    } // end of step 2
     __syncwarp();
-  } // iterations while loop
+
+    // Step 3: propagate DLL corrections to tracks sharing pixels with t*
+    // RICH 1
+    for (unsigned p = ph_start_r1 + lane_id; p < ph_end_r1; p += warp_size) {
+      const unsigned pix = dev_rich_photons_r1[p].pixelIdx;
+      const float S_old = dev_s_old_r1[p];
+      const float S_new = static_cast<float>(dev_pixel_signals_r1[pix]) * inv_pix_signals_scale;
+      if (S_old == S_new) continue; // no change on this pixel, skip
+
+      for (unsigned k = dev_pix2track_offsets_r1[pix]; k < dev_pix2track_offsets_r1[pix + 1]; k++) {
+        const unsigned tp = dev_pix2track_r1[k];
+        if (tp == gt) continue;
+
+        const auto cur_pid_tp = pids[tp];
+        if (cur_pid_tp == Allen::Rich::ParticleIDType::Unknown) continue;
+
+        const unsigned ph_start_tp = dev_offsets_rich_photons_r1[tp];
+        const unsigned ph_end_tp = dev_offsets_rich_photons_r1[tp + 1];
+        for (unsigned p2 = ph_start_tp; p2 < ph_end_tp; p2++) {
+          if (dev_rich_photons_r1[p2].pixelIdx != pix) continue;
+          for (unsigned h = 0; h < Allen::Rich::NParticleTypes; h++) {
+            if (static_cast<Allen::Rich::ParticleIDType>(h) == cur_pid_tp) continue;
+            const float sig_cur = dev_photon_pix_signals_r1[p2][static_cast<unsigned>(cur_pid_tp)];
+            const float sig_h = dev_photon_pix_signals_r1[p2][h];
+            const float d_dll =
+              (sigFunc(S_new) - sigFunc(S_new - sig_cur + sig_h)) - (sigFunc(S_old) - sigFunc(S_old - sig_cur + sig_h));
+            atomicAdd(&dlls[tp][h], d_dll);
+          }
+        }
+      }
+    }
+
+    // RICH 2
+    for (unsigned p = ph_start_r2 + lane_id; p < ph_end_r2; p += warp_size) {
+      const unsigned pix = dev_rich_photons_r2[p].pixelIdx;
+      const float S_old = dev_s_old_r2[p];
+      const float S_new = static_cast<float>(dev_pixel_signals_r2[pix]) * inv_pix_signals_scale;
+      if (S_old == S_new) continue;
+
+      for (unsigned k = dev_pix2track_offsets_r2[pix]; k < dev_pix2track_offsets_r2[pix + 1]; k++) {
+        const unsigned tp = dev_pix2track_r2[k];
+        if (tp == gt) continue;
+
+        const auto cur_pid_tp = pids[tp];
+        if (cur_pid_tp == Allen::Rich::ParticleIDType::Unknown) continue;
+
+        const unsigned ph_start_tp = dev_offsets_rich_photons_r2[tp];
+        const unsigned ph_end_tp = dev_offsets_rich_photons_r2[tp + 1];
+        for (unsigned p2 = ph_start_tp; p2 < ph_end_tp; p2++) {
+          if (dev_rich_photons_r2[p2].pixelIdx != pix) continue;
+          for (unsigned h = 0; h < Allen::Rich::NParticleTypes; h++) {
+            if (static_cast<Allen::Rich::ParticleIDType>(h) == cur_pid_tp) continue;
+            const float sig_cur = dev_photon_pix_signals_r2[p2][static_cast<unsigned>(cur_pid_tp)];
+            const float sig_h = dev_photon_pix_signals_r2[p2][h];
+            const float d_dll =
+              (sigFunc(S_new) - sigFunc(S_new - sig_cur + sig_h)) - (sigFunc(S_old) - sigFunc(S_old - sig_cur + sig_h));
+            atomicAdd(&dlls[tp][h], d_dll);
+          }
+        }
+      }
+    }             // End of step 3
+    __syncwarp(); // ensure all DLL updates visible before next iteration's Phase A
+  }               // iterations while loop
 }
 
 void rich_global_pid::rich_global_pid_t::initDLLs(
@@ -556,7 +629,13 @@ void rich_global_pid::rich_global_pid_t::doIterations(
   const ArgumentReferences<Parameters>& arguments,
   const Allen::Context& context,
   Allen::Rich::ParticleIDType* pids,
-  Allen::Rich::HypoData<float>* dlls) const
+  Allen::Rich::HypoData<float>* dlls,
+  float* s_old_r1,
+  float* s_old_r2,
+  const unsigned* pix2track_offsets_r1,
+  const unsigned* pix2track_r1,
+  const unsigned* pix2track_offsets_r2,
+  const unsigned* pix2track_r2) const
 {
 
   const unsigned number_of_events = first<host_number_of_events_t>(arguments);
@@ -579,6 +658,12 @@ void rich_global_pid::rich_global_pid_t::doIterations(
     data<dev_pixel_signals_r2_t>(arguments),
     pids,
     dlls,
+    s_old_r1,
+    s_old_r2,
+    pix2track_offsets_r1,
+    pix2track_r1,
+    pix2track_offsets_r2,
+    pix2track_r2,
     m_epsilon.value(),
     m_maxEventIterations.value());
 }
@@ -617,6 +702,12 @@ void rich_global_pid::rich_global_pid_t::operator()(
   auto pids_tmp_buffer =
     arguments.template make_buffer<Allen::Store::Scope::Device, Allen::Rich::ParticleIDType>(number_of_tracks);
 
+  // pix2track map
+  const unsigned number_of_photons_r1 = first<host_number_of_photons_r1_t>(arguments);
+  const unsigned number_of_photons_r2 = first<host_number_of_photons_r2_t>(arguments);
+  auto s_old_r1 = arguments.template make_buffer<Allen::Store::Scope::Device, float>(number_of_photons_r1);
+  auto s_old_r2 = arguments.template make_buffer<Allen::Store::Scope::Device, float>(number_of_photons_r2);
+
   Allen::Rich::ParticleIDType* pids_in = pids_tmp_buffer.data();
   Allen::Rich::ParticleIDType* pids_out = data<dev_pid_out_t>(arguments);
 
@@ -645,7 +736,17 @@ void rich_global_pid::rich_global_pid_t::operator()(
     initDLLs(arguments, context, pids_in, pids_out);
 
     // Do iterations until convergence:
-    doIterations(arguments, context, pids_out, data<dev_dll_out_t>(arguments));
+    doIterations(
+      arguments,
+      context,
+      pids_out,
+      data<dev_dll_out_t>(arguments),
+      s_old_r1.data(),
+      s_old_r2.data(),
+      data<dev_pix2track_offsets_r1_t>(arguments),
+      data<dev_pix2track_r1_t>(arguments),
+      data<dev_pix2track_offsets_r2_t>(arguments),
+      data<dev_pix2track_r2_t>(arguments));
 
     std::swap(pids_in, pids_out);
   }
