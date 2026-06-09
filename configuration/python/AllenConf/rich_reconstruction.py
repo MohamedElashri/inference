@@ -14,7 +14,7 @@ from AllenCore.algorithms import (
     rich_make_pixels_from_pd_t, rich_decode_pd_t, rich_pd_to_smartid_t,
     rich_photon_reconstruction_t, rich_raytrace_cherenkov_cones_t,
     rich_photon_predicted_pixel_signal_t, rich_global_pid_t,
-    rich_quartic_signals_t, rich_make_hypos_t)
+    rich_quartic_signals_t, rich_make_hypos_t, rich_pix2track_t)
 from AllenConf.rich_reco_options import default_rich_reco_options_allen
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
@@ -291,6 +291,24 @@ def make_signals(tracks,
     }
 
 
+def make_pix2track(pixels, tracks, photons, rich=RICH_1):
+    pix2track = make_algorithm(
+        rich_pix2track_t,
+        name=f"rich{rich}_build_pix2track",
+        host_number_of_tracks_t=tracks[
+            "host_number_of_reconstructed_scifi_tracks"],
+        host_number_of_pixels_t=pixels["host_number_of_pixels"],
+        host_number_of_photons_t=photons["host_number_of_photons"],
+        dev_offsets_rich_photons_t=photons["dev_offsets_rich_photons"],
+        dev_rich_photons_t=photons["dev_rich_photons"],
+        current_rich=rich)
+
+    return {
+        "dev_pix2track_offsets": pix2track.dev_pix2track_offsets_t,
+        "dev_pix2track": pix2track.dev_pix2track_t,
+    }
+
+
 def make_simple_pid(tracks,
                     photons_r1,
                     photons_r2,
@@ -320,6 +338,7 @@ def make_global_pid(pixels,
                     tracks,
                     photons,
                     pid,
+                    pix2track,
                     options=default_rich_reco_options_allen()):
     number_of_events = initialize_number_of_events()
 
@@ -360,6 +379,12 @@ def make_global_pid(pixels,
         dev_photon_pix_signals_r2_t=photons[RICH_2]["dev_photon_pix_signals"],
         dev_track_total_signals_r2_t=photons[RICH_2]
         ["dev_track_total_signals"],
+        # pix2track
+        dev_pix2track_offsets_r1_t=pix2track[RICH_1]["dev_pix2track_offsets"],
+        dev_pix2track_r1_t=pix2track[RICH_1]["dev_pix2track"],
+        dev_pix2track_offsets_r2_t=pix2track[RICH_2]["dev_pix2track_offsets"],
+        dev_pix2track_r2_t=pix2track[RICH_2]["dev_pix2track"],
+        # alg settings
         nLikelihoodIterations=options["nLikelihoodIterations"],
         IgnoreExpectedSignals=options["PDBackIgnoreExpSignals"])
 
@@ -378,6 +403,7 @@ def make_rich(track_name, tracks, options=default_rich_reco_options_allen()):
     hypos = {}
     photons = {}
     signals = {}
+    pix2tracks = {}
     for rich in VALID_RICHS:
         pixels[rich] = make_pixels(rich=rich, options=options)
 
@@ -412,12 +438,17 @@ def make_rich(track_name, tracks, options=default_rich_reco_options_allen()):
         photons[rich]["dev_track_total_signals"] = signals[rich][
             "dev_rich_geomeff_fractions"]
         photons[rich]["dev_rich_hypos"] = hypos[rich]["dev_rich_hypos"]
+
+        pix2tracks[rich] = make_pix2track(
+            pixels[rich], tracks, photons[rich], rich=rich)
+
     options["nLikelihoodIterations"] = 1  # quick test for allen standalone
     pid = init_pid(tracks, options=options)
     #pid = make_simple_pid(
     #    tracks, photons[RICH_1], photons[RICH_2], options=options)
 
-    global_pid = make_global_pid(pixels, tracks, photons, pid, options=options)
+    global_pid = make_global_pid(
+        pixels, tracks, photons, pid, pix2tracks, options=options)
 
     return {
         "KF_long_track": tracks,
