@@ -172,9 +172,11 @@ __global__ void rich_raytrace_fill_geomeffs_k(
         pd_fraction += pdInc;
       }
       else {
-        geomeffs_pd_ids_hypo[idx] = pd_id;
-        geomeffs_fractions_hypo[idx] = pd_fraction;
-        idx++;
+        if (last_pd != -1) {
+          geomeffs_pd_ids_hypo[idx] = last_pd;
+          geomeffs_fractions_hypo[idx] = pd_fraction;
+          idx++;
+        }
         pd_fraction = pdInc;
         last_pd = pd_id;
       }
