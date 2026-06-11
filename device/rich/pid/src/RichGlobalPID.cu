@@ -374,7 +374,8 @@ __global__ void rich_global_pid_iterations_k(
     int local_best_track = -1;  // event-local index
     int local_best_pid = -1;
 
-    for (unsigned t = threadIdx.x; t < n_tracks; t += warp_size) {
+    // t is event-local, so each warp must scan with its lane-local index.
+    for (unsigned t = lane_id; t < n_tracks; t += warp_size) {
       const unsigned gt = track_start + t; // global track index
       const auto cur_pid = pids[gt];
       if (cur_pid == Allen::Rich::ParticleIDType::Unknown) continue;
