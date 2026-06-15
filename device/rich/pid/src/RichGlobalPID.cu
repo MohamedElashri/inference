@@ -185,15 +185,11 @@ void rich_global_pid::rich_global_pid_t::backgroundsForRichFromReco(
 
 inline __device__ float sigFunc(float sig)
 {
-  return logf(expf(sig) - 1.f); // TODO: check if approximation or caching gain something
-
-  // Use power series expansion
-  // log( e^x - 1 ) ~= log(x) + x/2 + x^2/24
-  // works well for x ~ 0.001 to 5
-  /*const float a( 1.0 / 24.0 );
-  const float b( 0.5 );
-  // return logf(x) + ( ( ( a * x ) + b ) * x );
-  return logf( sig ) + ( ( ( a * sig ) + b ) * sig );*/
+  // Floor to the fixed-point signal granularity and use the small-x expansion
+  // of log(exp(x) - 1) to avoid cancellation near zero.
+  constexpr float min_sig = inv_pix_signals_scale;
+  const float x = fmaxf(sig, min_sig);
+  return x < 1e-2f ? logf(x) + x * (0.5f + x * (1.f / 24.f)) : logf(expm1f(x));
 }
 
 // Accumulate the pixel part of the delta log likelihood
