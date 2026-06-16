@@ -17,6 +17,13 @@ INSTANTIATE_ALGORITHM(rich_global_pid::rich_global_pid_t);
 constexpr float pix_signals_scale = 1e5f;
 constexpr float inv_pix_signals_scale = 1.f / pix_signals_scale;
 
+inline __device__ int signalToFixedPoint(const float signal) { return static_cast<int>(signal * pix_signals_scale); }
+
+inline __device__ float signalFromFixedPoint(const int signal)
+{
+  return static_cast<float>(signal) * inv_pix_signals_scale;
+}
+
 template<unsigned richIdx>
 void rich_global_pid::rich_global_pid_t::updateRich(const Allen::Rich::RichDetector<richIdx>* rich) const
 {
@@ -58,7 +65,7 @@ __global__ void rich_acc_pixel_signal_k(
   const unsigned* photons_offsets,
   const Allen::Rich::PhotonReco::Photon* photons,
   const Allen::Rich::HypoData<float>* photon_pix_signals,
-  unsigned* pixels_signals)
+  int* pixels_signals)
 {
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
@@ -73,8 +80,9 @@ __global__ void rich_acc_pixel_signal_k(
 
     const unsigned pix_id = photons[i].pixelIdx;
 
-    // we accumulate the signals as integers to avoid atomic float non-determinism:
-    atomicAdd(&pixels_signals[pix_id], static_cast<unsigned>(sig * pix_signals_scale));
+    // We accumulate the signals as signed integers to avoid atomic float
+    // non-determinism while preserving negative hypothesis-change deltas.
+    atomicAdd(&pixels_signals[pix_id], signalToFixedPoint(sig));
   }
 }
 
@@ -112,7 +120,7 @@ __global__ void rich_avg_bkg_from_reco_k(
   const uint16_t* effNumPixsEC,
   const unsigned number_of_events,
   const unsigned* pixels_offsets,
-  unsigned* pixel_signals,
+  int* pixel_signals,
   float* ec_bkg)
 {
   const unsigned ec_per_panel = Allen::Rich::Detector::PDPanel<richIdx>::ECsPerPanel;
@@ -134,7 +142,7 @@ __global__ void rich_avg_bkg_from_reco_k(
       float expSignal = 0.f;
       if constexpr (!ignoreExpSignal) {
         for (unsigned j = pixStart; j < pixEnd; j++) {
-          expSignal += static_cast<float>(pixel_signals[j]) * inv_pix_signals_scale;
+          expSignal += signalFromFixedPoint(pixel_signals[j]);
         }
 
         if (obsSignal > 0) expSignal *= effNumPixs / obsSignal;
@@ -157,7 +165,7 @@ __global__ void rich_avg_bkg_from_reco_k(
       // we save some memory.
       // this will have to be subtracted at the end of the iteration (if its not the last one)
       for (unsigned j = pixStart; j < pixEnd; j++) {
-        pixel_signals[j] += static_cast<unsigned>(expBackgrd * pix_signals_scale);
+        pixel_signals[j] += signalToFixedPoint(expBackgrd);
       }
     }
 
@@ -200,7 +208,7 @@ __global__ void rich_acc_pixel_dll_k(
   const unsigned* photons_offsets,
   const Allen::Rich::PhotonReco::Photon* photons,
   const Allen::Rich::HypoData<float>* photon_pix_signals,
-  unsigned* pixel_signals,
+  int* pixel_signals,
   Allen::Rich::HypoData<float>* dlls)
 {
   Allen::Rich::HypoData<int>* dlls_int = reinterpret_cast<Allen::Rich::HypoData<int>*>(dlls);
@@ -212,7 +220,7 @@ __global__ void rich_acc_pixel_dll_k(
     const auto cur_pid = pids[track_id];
     const float cur_sig = (cur_pid != Allen::Rich::ParticleIDType::Unknown) ? photon_pix_signals[i][cur_pid] : 0.f;
     const unsigned pix_id = photons[i].pixelIdx;
-    float pix_sig_bkg = static_cast<float>(pixel_signals[pix_id]) * inv_pix_signals_scale;
+    float pix_sig_bkg = signalFromFixedPoint(pixel_signals[pix_id]);
     const float deltaLLbase = sigFunc(pix_sig_bkg);
     pix_sig_bkg -= cur_sig;
 
@@ -301,7 +309,7 @@ __global__ void rich_global_pid_init_update_signals_k(
   const unsigned* photons_offsets,
   const Allen::Rich::PhotonReco::Photon* photons,
   const Allen::Rich::HypoData<float>* photon_pix_signals,
-  unsigned* pixel_signals)
+  int* pixel_signals)
 {
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
@@ -318,8 +326,7 @@ __global__ void rich_global_pid_init_update_signals_k(
     const unsigned pix_id = photons[i].pixelIdx;
     const float delta = photon_pix_signals[i][new_pid] - photon_pix_signals[i][old_pid];
 
-    // cast to handle negative deltas correctly
-    atomicAdd(&pixel_signals[pix_id], static_cast<unsigned>(static_cast<int>(delta * pix_signals_scale)));
+    atomicAdd(&pixel_signals[pix_id], signalToFixedPoint(delta));
   }
 }
 
@@ -330,12 +337,12 @@ __global__ void rich_global_pid_iterations_k(
   const Allen::Rich::PhotonReco::Photon* dev_rich_photons_r1,
   const Allen::Rich::HypoData<float>* dev_photon_pix_signals_r1,
   const Allen::Rich::HypoData<float>* dev_track_total_signals_r1,
-  unsigned* dev_pixel_signals_r1,
+  int* dev_pixel_signals_r1,
   const unsigned* dev_offsets_rich_photons_r2,
   const Allen::Rich::PhotonReco::Photon* dev_rich_photons_r2,
   const Allen::Rich::HypoData<float>* dev_photon_pix_signals_r2,
   const Allen::Rich::HypoData<float>* dev_track_total_signals_r2,
-  unsigned* dev_pixel_signals_r2,
+  int* dev_pixel_signals_r2,
   Allen::Rich::ParticleIDType* pids,
   Allen::Rich::HypoData<float>* dlls,
   float* dev_s_old_r1,
@@ -432,20 +439,15 @@ __global__ void rich_global_pid_iterations_k(
     // Step 1: update pixel signals
     for (unsigned p = ph_start_r1 + lane_id; p < ph_end_r1; p += warp_size) {
       const unsigned pix = dev_rich_photons_r1[p].pixelIdx;
-      dev_s_old_r1[p] = static_cast<float>(dev_pixel_signals_r1[pix]) * inv_pix_signals_scale;
+      dev_s_old_r1[p] = signalFromFixedPoint(dev_pixel_signals_r1[pix]);
       const float delta = dev_photon_pix_signals_r1[p][new_pid] - dev_photon_pix_signals_r1[p][old_pid];
-      // dev_deltas_r1[p] = delta; // Store for step 3
-      atomicAdd(
-        &dev_pixel_signals_r1[dev_rich_photons_r1[p].pixelIdx],
-        static_cast<unsigned>(static_cast<int>(delta * pix_signals_scale)));
+      atomicAdd(&dev_pixel_signals_r1[dev_rich_photons_r1[p].pixelIdx], signalToFixedPoint(delta));
     }
     for (unsigned p = ph_start_r2 + lane_id; p < ph_end_r2; p += warp_size) {
       const unsigned pix = dev_rich_photons_r2[p].pixelIdx;
-      dev_s_old_r2[p] = static_cast<float>(dev_pixel_signals_r2[pix]) * inv_pix_signals_scale;
+      dev_s_old_r2[p] = signalFromFixedPoint(dev_pixel_signals_r2[pix]);
       const float delta = dev_photon_pix_signals_r2[p][new_pid] - dev_photon_pix_signals_r2[p][old_pid];
-      atomicAdd(
-        &dev_pixel_signals_r2[dev_rich_photons_r2[p].pixelIdx],
-        static_cast<unsigned>(static_cast<int>(delta * pix_signals_scale)));
+      atomicAdd(&dev_pixel_signals_r2[dev_rich_photons_r2[p].pixelIdx], signalToFixedPoint(delta));
     }
 
     if (lane_id == 0) {
@@ -468,16 +470,14 @@ __global__ void rich_global_pid_iterations_k(
       float dll = 0.f;
 
       for (unsigned p = ph_start_r1 + lane_id; p < ph_end_r1; p += warp_size) {
-        const float S =
-          static_cast<float>(dev_pixel_signals_r1[dev_rich_photons_r1[p].pixelIdx]) * inv_pix_signals_scale;
+        const float S = signalFromFixedPoint(dev_pixel_signals_r1[dev_rich_photons_r1[p].pixelIdx]);
         const float sig_cur = dev_photon_pix_signals_r1[p][new_pid];
         const float sig_h = dev_photon_pix_signals_r1[p][h];
         dll += sigFunc(S) - sigFunc(S - sig_cur + sig_h);
       }
 
       for (unsigned p = ph_start_r2 + lane_id; p < ph_end_r2; p += warp_size) {
-        const float S =
-          static_cast<float>(dev_pixel_signals_r2[dev_rich_photons_r2[p].pixelIdx]) * inv_pix_signals_scale;
+        const float S = signalFromFixedPoint(dev_pixel_signals_r2[dev_rich_photons_r2[p].pixelIdx]);
         const float sig_cur = dev_photon_pix_signals_r2[p][new_pid];
         const float sig_h = dev_photon_pix_signals_r2[p][h];
         dll += sigFunc(S) - sigFunc(S - sig_cur + sig_h);
@@ -501,7 +501,7 @@ __global__ void rich_global_pid_iterations_k(
     for (unsigned p = ph_start_r1 + lane_id; p < ph_end_r1; p += warp_size) {
       const unsigned pix = dev_rich_photons_r1[p].pixelIdx;
       const float S_old = dev_s_old_r1[p];
-      const float S_new = static_cast<float>(dev_pixel_signals_r1[pix]) * inv_pix_signals_scale;
+      const float S_new = signalFromFixedPoint(dev_pixel_signals_r1[pix]);
       if (S_old == S_new) continue; // no change on this pixel, skip
 
       for (unsigned k = dev_pix2track_offsets_r1[pix]; k < dev_pix2track_offsets_r1[pix + 1]; k++) {
@@ -531,7 +531,7 @@ __global__ void rich_global_pid_iterations_k(
     for (unsigned p = ph_start_r2 + lane_id; p < ph_end_r2; p += warp_size) {
       const unsigned pix = dev_rich_photons_r2[p].pixelIdx;
       const float S_old = dev_s_old_r2[p];
-      const float S_new = static_cast<float>(dev_pixel_signals_r2[pix]) * inv_pix_signals_scale;
+      const float S_new = signalFromFixedPoint(dev_pixel_signals_r2[pix]);
       if (S_old == S_new) continue;
 
       for (unsigned k = dev_pix2track_offsets_r2[pix]; k < dev_pix2track_offsets_r2[pix + 1]; k++) {
