@@ -55,8 +55,8 @@ namespace rich_global_pid {
     DEVICE_INPUT(dev_pix2track_offsets_r2_t, unsigned) dev_pix2track_offsets_r2;
     DEVICE_INPUT(dev_pix2track_r2_t, unsigned) dev_pix2track_r2;
 
-    DEVICE_OUTPUT(dev_pixel_signals_r1_t, unsigned) dev_pixel_signals_r1;
-    DEVICE_OUTPUT(dev_pixel_signals_r2_t, unsigned) dev_pixel_signals_r2;
+    DEVICE_OUTPUT(dev_pixel_signals_r1_t, int) dev_pixel_signals_r1;
+    DEVICE_OUTPUT(dev_pixel_signals_r2_t, int) dev_pixel_signals_r2;
 
     DEVICE_OUTPUT(dev_pix_bkg_r1_t, float) dev_pix_bkg_r1;
     DEVICE_OUTPUT(dev_pix_bkg_r2_t, float) dev_pix_bkg_r2;
