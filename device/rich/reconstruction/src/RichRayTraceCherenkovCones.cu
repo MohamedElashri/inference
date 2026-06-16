@@ -10,6 +10,7 @@
 \*****************************************************************************/
 
 #include "RichRayTraceCherenkovCones.cuh"
+#include <cmath>
 #include <fstream>
 #include <BinarySearch.cuh>
 #include <PrefixSum.cuh>
@@ -56,14 +57,24 @@ __global__ void rich_raytrace_npoints_k(
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned i = threadId; i < total_number_of_tracks; i += stride) {
     const auto hypos = hypos_tracks[i];
-    const float lightestCKtheta = hypos.ckTheta[0]; // TODO: check
+    float lightestCKtheta = 0.f;
+    UNROLL(Allen::Rich::NRealParticleTypes)
+    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+      const float ckTheta = hypos.ckTheta[hypo];
+      if (std::isfinite(ckTheta) && ckTheta > 0.f) {
+        lightestCKtheta = ckTheta;
+        break;
+      }
+    }
 
     UNROLL(Allen::Rich::NRealParticleTypes)
     for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
       const float ckTheta = hypos.ckTheta[hypo];
       unsigned count = 0; // if invalid hypo
-      if (ckTheta == ckTheta) {
-        count = nPointsMin + (nPointsMax - nPointsMin) * ckTheta / lightestCKtheta;
+      if (std::isfinite(ckTheta) && ckTheta > 0.f && lightestCKtheta > 0.f) {
+        const float nPoints =
+          fminf(static_cast<float>(nPointsMax), nPointsMin + (nPointsMax - nPointsMin) * ckTheta / lightestCKtheta);
+        count = static_cast<unsigned>(nPoints);
       }
       photons_offset[i * Allen::Rich::NRealParticleTypes + hypo] = count;
     }
