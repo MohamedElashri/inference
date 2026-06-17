@@ -407,8 +407,8 @@ def setup_hlt1_node(withMCChecking=False,
     pv_activity_filter = make_minimal_activity_filter(
         reconstructed_objects,
         minimal_activity_type=ActivityType.PRIMARY_VERTICES,
-        min_activity=1.,
-        max_activity=100.)
+        min_activity=1,
+        max_activity=100)
     velo_clusters_filter = [
         make_gec(
             gec_name="closing_filter",

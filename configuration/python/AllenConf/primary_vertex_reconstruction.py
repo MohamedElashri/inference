@@ -32,11 +32,11 @@ def make_pvs(velo_tracks,
     SMOG2_maxTrackZ0Err = 10.
 
     if velo_open:
-        pp_minNumTracksPerVertex = 3.
+        pp_minNumTracksPerVertex = 3
         maxChi2 = 25.
         maxTrackBlChi2 = 300.
     else:
-        pp_minNumTracksPerVertex = 4.
+        pp_minNumTracksPerVertex = 4
         maxChi2 = 12.
         maxTrackBlChi2 = 10.
 
