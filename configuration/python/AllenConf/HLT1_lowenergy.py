@@ -21,6 +21,7 @@ from AllenConf.hlt1_electron_lines import *
 from AllenConf.hlt1_monitoring_lines import *
 from AllenConf.hlt1_smog2_lines import *
 from AllenConf.hlt1_downstream_lines import *
+from AllenConf.codex_lines import make_codex_passthrough_line, make_codex_coincidence_line
 from AllenConf.filters import *
 
 from AllenConf.hlt1_photon_lines import *
@@ -932,6 +933,22 @@ def default_bgi_activity_lines(pvs,
     return lines
 
 
+@configurable
+def codex_lines():
+    lines = []
+    lines += [
+        line_maker(
+            make_codex_passthrough_line(
+                name="Hlt1CodexPassthrough", pre_scaler=1.), )
+    ]
+    lines += [
+        line_maker(
+            make_codex_coincidence_line(
+                name="Hlt1CodexCoincidence", pre_scaler=1.), )
+    ]
+    return lines
+
+
 def setup_hlt1_node(enablePhysics=True,
                     withMCChecking=False,
                     EnableGEC=True,
@@ -961,6 +978,7 @@ def setup_hlt1_node(enablePhysics=True,
                     bb_nobias_prescale=0.004,
                     with_fullKF=True,
                     with_downstream_KF=True,
+                    withCODEX=False,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[]):
 
@@ -1005,6 +1023,7 @@ def setup_hlt1_node(enablePhysics=True,
     physics_lines = []
     smog2_lines = []
     technical_lines = []
+    codex_lines_list = []
 
     prefilters = odin_err_filter + beam_beam_filter + velo_closed + gec
     with line_maker.bind(prefilter=prefilters):
@@ -1200,10 +1219,14 @@ def setup_hlt1_node(enablePhysics=True,
                 with_v0s,
                 enable_tupling=enableTupling)
 
+    if withCODEX:
+        codex_lines_list = codex_lines()
+
     grouped_lines = dict(
         Physics=physics_lines,
         SMOG2=smog2_lines,
         Technical=technical_lines,
+        CODEX=codex_lines_list,
     )
     grouped_line_algs = {
         key: [tup[0] for tup in lines]
