@@ -129,6 +129,15 @@ void CompareRecAllenRichPixels::operator()(
     allenRich2PixelsSmartID,
   const Rich::Future::Rec::SIMDPixelSummaries& recPixelSummaries) const
 {
+  auto allen_in_rec = m_allen_in_rec.buffer();
+  auto allen_not_in_rec = m_allen_not_in_rec.buffer();
+  auto rec_in_allen = m_rec_in_allen.buffer();
+  auto rec_not_in_allen = m_rec_not_in_allen.buffer();
+  auto allen_null = m_allen_null.buffer();
+  auto rec_null = m_rec_null.buffer();
+  auto allen_reviewed = m_allen_reviewed.buffer();
+  auto rec_reviewed = m_rec_reviewed.buffer();
+
   // Concatenate Allen Pixel vectors
   std::vector<float3> allenPixelsGpos;
   std::vector<float2> allenPixelsLpos;
@@ -153,7 +162,7 @@ void CompareRecAllenRichPixels::operator()(
   auto allenPixelExistsInRec =
     [&](
       const float3& allenGpos, const float2& allenLpos, const Allen::Rich::Decoding::SmartID& allenID) -> ReturnState {
-    ++m_allen_reviewed;
+    ++allen_reviewed;
 
     // iterate over all pixel summaries
     for (const auto& recPixelSummary : recPixelSummaries) {
@@ -163,13 +172,13 @@ void CompareRecAllenRichPixels::operator()(
         if (recPixelSummary.validMask()[i]) {
           // check for match
           if (matchPixels(allenGpos, allenLpos, allenID, recPixelSummary, i)) {
-            ++m_allen_in_rec;
+            ++allen_in_rec;
             return ReturnState::EXISTS;
           }
         } // invalid HLT2 pix
       }   // didn't find pix match
     }     // covered all HLT2 pixels
-    ++m_allen_not_in_rec;
+    ++allen_not_in_rec;
     error() << "Allen pixel " << allenID.key() << " not found in HLT2" << endmsg;
     return ReturnState::NOT_EXISTS;
   };
@@ -181,7 +190,7 @@ void CompareRecAllenRichPixels::operator()(
 
     // arbitralilly use any of the vector in a pixel summary to get the pixel count and iterate that many times.
     for (size_t i = 0; i < recPixelSummary.gloPos().X().size(); i++) {
-      ++m_rec_reviewed;
+      ++rec_reviewed;
       if (found_current_pixel) {
         found_current_pixel = false;
         // ensure HLT2 pixel validity
@@ -190,7 +199,7 @@ void CompareRecAllenRichPixels::operator()(
           for (unsigned j = 0; j < allenPixelsGpos.size(); j++) {
             // check for match
             if (matchPixels(allenPixelsGpos[j], allenPixelsLpos[j], allenPixelsSmartID[j], recPixelSummary, i)) {
-              ++m_rec_in_allen;
+              ++rec_in_allen;
               found_current_pixel = true;
               summaryStates.push_back(ReturnState::EXISTS);
               continue;
@@ -198,14 +207,14 @@ void CompareRecAllenRichPixels::operator()(
           }   // covered all Allen pixels
         }
         else {
-          ++m_rec_null;
+          ++rec_null;
           found_current_pixel = true; // assume correctness on invalid pix to ignore it.
 
           summaryStates.push_back(ReturnState::IS_NULL);
         } // invalid HLT2 pix
       }
       else { // didn't find pix match
-        ++m_rec_not_in_allen;
+        ++rec_not_in_allen;
         summaryStates.push_back(ReturnState::NOT_EXISTS);
         error() << "HLT2 pixel " << recPixelSummary.smartID()[i].key() << " not found in Allen" << endmsg;
       }
@@ -251,15 +260,15 @@ void CompareRecAllenRichPixels::operator()(
   }
 
   // verify that all Allen pixels were accounted for
-  if ((m_allen_in_rec.value() + m_allen_null.value()) != m_allen_reviewed.value()) {
-    error() << "Found " << m_allen_in_rec.value() << " Allen pixels in HLT2, and " << m_allen_null.value()
-            << " Allen null pixels totalling " << m_allen_null.value() + m_allen_in_rec.value() << ". Expected "
-            << m_allen_reviewed.value() << endmsg;
+  if ((allen_in_rec.value() + allen_null.value()) != allen_reviewed.value()) {
+    error() << "Found " << allen_in_rec.value() << " Allen pixels in HLT2, and " << allen_null.value()
+            << " Allen null pixels totalling " << allen_null.value() + allen_in_rec.value() << ". Expected "
+            << allen_reviewed.value() << endmsg;
   }
   // verify that all HLT2 pixels were accounted for
-  if ((m_rec_in_allen.value() + m_rec_null.value()) != m_rec_reviewed.value()) {
-    error() << "Found " << m_rec_in_allen.value() << " HLT2 pixels in Allen, and " << m_rec_null.value()
-            << " HLT2 null pixels totalling " << m_rec_null.value() + m_rec_in_allen.value() << ". Expected "
-            << m_rec_reviewed.value() << endmsg;
+  if ((rec_in_allen.value() + rec_null.value()) != rec_reviewed.value()) {
+    error() << "Found " << rec_in_allen.value() << " HLT2 pixels in Allen, and " << rec_null.value()
+            << " HLT2 null pixels totalling " << rec_null.value() + rec_in_allen.value() << ". Expected "
+            << rec_reviewed.value() << endmsg;
   }
 }
