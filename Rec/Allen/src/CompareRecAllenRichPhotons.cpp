@@ -101,6 +101,7 @@ public:
 private:
   // Expect containers from the same track/rich
   // match the photons based on pixel id
+  template<typename MatchCount, typename AllenNotInRec, typename RecNotInAllen>
   void matchPhotonsForTrack(
     [[maybe_unused]] const unsigned trackID,
     [[maybe_unused]] const unsigned rich,
@@ -108,9 +109,9 @@ private:
     const std::vector<RecPhotonIndividual>& recPhotons,
     const Allen::parameter_vector<Allen::Rich::Decoding::SmartID>& allenPixelsSmartID,
     [[maybe_unused]] const std::vector<Allen::Rich::HypoData<float>>& allenPhotonPixelSignals,
-    Gaudi::Accumulators::Counter<>& match_count,
-    Gaudi::Accumulators::Counter<>& allen_not_in_rec,
-    Gaudi::Accumulators::Counter<>& rec_not_in_allen,
+    MatchCount& match_count,
+    AllenNotInRec& allen_not_in_rec,
+    RecNotInAllen& rec_not_in_allen,
     Gaudi::Accumulators::Histogram<1>& ckThetaRec_allen,
     Gaudi::Accumulators::Histogram<1>& ckThetaRec_rec,
     Gaudi::Accumulators::Histogram<1>& ckThetaRec_rec_allen,
@@ -163,6 +164,7 @@ private:
     }
   }
 
+private:
   mutable Gaudi::Accumulators::Counter<> m_allen_not_in_rec_r1 {this, "R1 Photons Allen not found in Rec"};
   mutable Gaudi::Accumulators::Counter<> m_rec_not_in_allen_r1 {this, "R1 Photons Rec not found in Allen"};
   mutable Gaudi::Accumulators::Counter<> m_allen_reviewed_r1 {this, "R1 Photons Allen reviewed"};
@@ -260,6 +262,24 @@ void CompareRecAllenRichPhotons::operator()(
   const Rich::Future::Rec::Relations::PhotonToParents::Vector& photRels,
   const Rich::Future::Rec::SIMDPhotonSignals::Vector& recPhotonSignals) const
 {
+  auto allen_not_in_rec_r1 = m_allen_not_in_rec_r1.buffer();
+  auto rec_not_in_allen_r1 = m_rec_not_in_allen_r1.buffer();
+  auto allen_reviewed_r1 = m_allen_reviewed_r1.buffer();
+  auto rec_reviewed_r1 = m_rec_reviewed_r1.buffer();
+  auto matched_photons_r1 = m_matched_photons_r1.buffer();
+  auto allen_not_in_rec_r2 = m_allen_not_in_rec_r2.buffer();
+  auto rec_not_in_allen_r2 = m_rec_not_in_allen_r2.buffer();
+  auto allen_reviewed_r2 = m_allen_reviewed_r2.buffer();
+  auto rec_reviewed_r2 = m_rec_reviewed_r2.buffer();
+  auto matched_photons_r2 = m_matched_photons_r2.buffer();
+  auto tracks_not_in_rec_r1 = m_tracks_not_in_rec_r1.buffer();
+  auto tracks_not_in_allen_r1 = m_tracks_not_in_allen_r1.buffer();
+  auto tracks_used_both_r1 = m_tracks_used_both_r1.buffer();
+  auto tracks_not_in_rec_r2 = m_tracks_not_in_rec_r2.buffer();
+  auto tracks_not_in_allen_r2 = m_tracks_not_in_allen_r2.buffer();
+  auto tracks_used_both_r2 = m_tracks_used_both_r2.buffer();
+  auto n_tracks_counter = m_n_tracks.buffer();
+
   // Unpack Rec SIMD photons
   std::vector<RecPhotonIndividual> recPhotonsFlat;
 
@@ -295,7 +315,7 @@ void CompareRecAllenRichPhotons::operator()(
       unsigned start = allenRich1PhotonsOffsets[trackID];
       unsigned size = allenRich1PhotonsOffsets[trackID + 1] - start;
       for (unsigned photon = 0; photon < size; photon++) {
-        ++m_allen_reviewed_r1;
+        ++allen_reviewed_r1;
         allen_by_trackid_r1[trackID].push_back(allenRich1Photons[start + photon]);
         allen_signals_by_trackid_r1[trackID].push_back(allenRich1PhotonsPixelSignals[start + photon]);
       }
@@ -304,7 +324,7 @@ void CompareRecAllenRichPhotons::operator()(
       unsigned start = allenRich2PhotonsOffsets[trackID];
       unsigned size = allenRich2PhotonsOffsets[trackID + 1] - start;
       for (unsigned photon = 0; photon < size; photon++) {
-        ++m_allen_reviewed_r2;
+        ++allen_reviewed_r2;
         allen_by_trackid_r2[trackID].push_back(allenRich2Photons[start + photon]);
         allen_signals_by_trackid_r2[trackID].push_back(allenRich2PhotonsPixelSignals[start + photon]);
       }
@@ -313,11 +333,11 @@ void CompareRecAllenRichPhotons::operator()(
     // Rec
     for (const auto& recPhoton : recPhotonsFlat) {
       if (recPhoton.rich == 0) {
-        ++m_rec_reviewed_r1;
+        ++rec_reviewed_r1;
         rec_by_trackid_r1[recPhoton.trackID].push_back(recPhoton);
       }
       else if (recPhoton.rich == 1) {
-        ++m_rec_reviewed_r2;
+        ++rec_reviewed_r2;
         rec_by_trackid_r2[recPhoton.trackID].push_back(recPhoton);
       }
     }
@@ -325,15 +345,15 @@ void CompareRecAllenRichPhotons::operator()(
 
   // Stats on tracks:
   for (unsigned trackID = 0; trackID < n_tracks; trackID++) {
-    if (rec_by_trackid_r1[trackID].size() == 0 && allen_by_trackid_r1[trackID].size() != 0) ++m_tracks_not_in_rec_r1;
-    if (allen_by_trackid_r1[trackID].size() == 0 && rec_by_trackid_r1[trackID].size() != 0) ++m_tracks_not_in_allen_r1;
-    if (rec_by_trackid_r1[trackID].size() != 0 && allen_by_trackid_r1[trackID].size() != 0) ++m_tracks_used_both_r1;
-    ++m_n_tracks;
+    if (rec_by_trackid_r1[trackID].size() == 0 && allen_by_trackid_r1[trackID].size() != 0) ++tracks_not_in_rec_r1;
+    if (allen_by_trackid_r1[trackID].size() == 0 && rec_by_trackid_r1[trackID].size() != 0) ++tracks_not_in_allen_r1;
+    if (rec_by_trackid_r1[trackID].size() != 0 && allen_by_trackid_r1[trackID].size() != 0) ++tracks_used_both_r1;
+    ++n_tracks_counter;
   }
   for (unsigned trackID = 0; trackID < n_tracks; trackID++) {
-    if (rec_by_trackid_r2[trackID].size() == 0 && allen_by_trackid_r2[trackID].size() != 0) ++m_tracks_not_in_rec_r2;
-    if (allen_by_trackid_r2[trackID].size() == 0 && rec_by_trackid_r2[trackID].size() != 0) ++m_tracks_not_in_allen_r2;
-    if (rec_by_trackid_r2[trackID].size() != 0 && allen_by_trackid_r2[trackID].size() != 0) ++m_tracks_used_both_r2;
+    if (rec_by_trackid_r2[trackID].size() == 0 && allen_by_trackid_r2[trackID].size() != 0) ++tracks_not_in_rec_r2;
+    if (allen_by_trackid_r2[trackID].size() == 0 && rec_by_trackid_r2[trackID].size() != 0) ++tracks_not_in_allen_r2;
+    if (rec_by_trackid_r2[trackID].size() != 0 && allen_by_trackid_r2[trackID].size() != 0) ++tracks_used_both_r2;
   }
 
   // Match individual photons
@@ -345,9 +365,9 @@ void CompareRecAllenRichPhotons::operator()(
       rec_by_trackid_r1[trackID],
       allenRich1PixelsSmartID,
       allen_signals_by_trackid_r1[trackID],
-      m_matched_photons_r1,
-      m_allen_not_in_rec_r1,
-      m_rec_not_in_allen_r1,
+      matched_photons_r1,
+      allen_not_in_rec_r1,
+      rec_not_in_allen_r1,
       m_ckThetaRec_allen_r1,
       m_ckThetaRec_rec_r1,
       m_ckThetaRec_rec_allen_r1,
@@ -360,9 +380,9 @@ void CompareRecAllenRichPhotons::operator()(
       rec_by_trackid_r2[trackID],
       allenRich2PixelsSmartID,
       allen_signals_by_trackid_r2[trackID],
-      m_matched_photons_r2,
-      m_allen_not_in_rec_r2,
-      m_rec_not_in_allen_r2,
+      matched_photons_r2,
+      allen_not_in_rec_r2,
+      rec_not_in_allen_r2,
       m_ckThetaRec_allen_r2,
       m_ckThetaRec_rec_r2,
       m_ckThetaRec_rec_allen_r2,
