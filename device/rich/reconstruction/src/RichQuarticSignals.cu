@@ -11,6 +11,7 @@
 
 #include "RichQuarticSignals.cuh"
 #include <cassert>
+#include <cmath>
 #include <fstream>
 #include <ParabolicExtrapolator.cuh>
 #include <RungeKuttaExtrapolator.cuh>
@@ -385,7 +386,8 @@ __global__ void rich_interp_pixel_signals_k(
 
         const bool save_photon = (pixels_bitmask >> (y * 8 + x)) & 1;
 
-        const float hypo_indep = Afactor / theta;
+        const bool validTheta = std::isfinite(theta) && theta > 0.f;
+        const float hypo_indep = validTheta ? Afactor / theta : 0.f;
 
         // Compute signals for that pixel
         //[[maybe_unused]] Allen::Rich::HypoData<float> signals{};
@@ -394,6 +396,7 @@ __global__ void rich_interp_pixel_signals_k(
         for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
           const float expTheta = hypos.ckTheta[hypo];
           if (expTheta != expTheta) break; // break on first below threshold
+          if (!validTheta) break;
 
           // aij = yield * 1/((2pi)^(3/2)*sigma(theta)) * exp(-1/2 * sep^2) * 4A/(R^2 theta)
           const float sep = (theta - expTheta) * invRes[hypo];

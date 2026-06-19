@@ -10,6 +10,7 @@
 \*****************************************************************************/
 
 #include "RichPhotonPredictedPixelSignal.cuh"
+#include <cmath>
 #include <BinarySearch.cuh>
 
 INSTANTIATE_ALGORITHM(rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t);
@@ -60,13 +61,14 @@ __global__ void rich_photon_predicted_pixel_signal_k(
     pd_id = pd_id % Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 
     const float A = rich->pdPanels()[side].pds()[pd_id].effectivePixelArea();
-    const float hypo_indep = A * factor / theta;
+    const bool validTheta = std::isfinite(theta) && theta > 0.f;
+    const float hypo_indep = validTheta ? A * factor / theta : 0.f;
 
     UNROLL(Allen::Rich::NParticleTypes)
     for (unsigned hypo = 0; hypo < Allen::Rich::NParticleTypes; hypo++) {
       const float expTheta = hypos[track_id].ckTheta[hypo];
       float sig = 0.f;
-      if (expTheta == expTheta && expTheta > minExpCKT) {
+      if (validTheta && expTheta == expTheta && expTheta > minExpCKT) {
         const float res = hypos[track_id].ckRes[hypo];
         const float yield = hypos[track_id].yield[hypo];
         const float resInv = 1.f / res;
