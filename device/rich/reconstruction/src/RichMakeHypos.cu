@@ -179,6 +179,8 @@ __global__ void rich_hypos_k(
       UNROLL(Allen::Rich::NRealParticleTypes)
       for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
         hypos.ckTheta[hypo] = NAN;
+        hypos.ckRes[hypo] = 0.f;
+        hypos.yield[hypo] = 0.f;
       }
     }
 
