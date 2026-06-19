@@ -10,6 +10,7 @@
 \*****************************************************************************/
 
 #include "RichQuarticSignals.cuh"
+#include <cassert>
 #include <fstream>
 #include <ParabolicExtrapolator.cuh>
 #include <RungeKuttaExtrapolator.cuh>
@@ -27,6 +28,7 @@ void rich_quartic_signals::rich_quartic_signals_t::updateRich(const Allen::Rich:
   std::vector<float3> pd_corners {};
   std::vector<float>
     pd_diag {}; // TODO: since this is all the same value for R1 and 2 possible values for R2, this could be optimized..
+  std::array<unsigned, 2> n_pds_per_side {};
   constexpr std::array<float2, 4> corners {{{-3.5f, -3.5f}, {-3.5f, +3.5f}, {+3.5f, -3.5f}, {+3.5f, +3.5f}}};
   float smallPixelArea = 0.f;
   float largePixelArea = 0.f;
@@ -43,6 +45,7 @@ void rich_quartic_signals::rich_quartic_signals_t::updateRich(const Allen::Rich:
       p = Allen::Rich::radLocalCorrection(p, m_radScale.value()[richIdx]);
       pd_lpos16.emplace_back(make_short2(p.x * ((1 << 15) / 750.f) + .5f, p.y * ((1 << 15) / 750.f) + .5f));
 
+      n_pds_per_side[side]++;
       pd_infos.emplace_back(i, pd.isLarge());
 
       if (pd.isLarge())
@@ -58,7 +61,10 @@ void rich_quartic_signals::rich_quartic_signals_t::updateRich(const Allen::Rich:
     }
   }
 
-  m_n_pds = pd_infos.size() / 2; // per panel
+  assert(
+    n_pds_per_side[0] == n_pds_per_side[1] &&
+    "RICH quartic signals require equal non-null photodetector counts per panel");
+  m_n_pds = n_pds_per_side[0]; // per panel
 
   if (m_pd_infos != nullptr) Allen::free(m_pd_infos);
   Allen::malloc((void**) &m_pd_infos, pd_infos.size() * sizeof(PDShortInfo));
