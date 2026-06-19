@@ -442,7 +442,6 @@ def make_rich(track_name, tracks, options=default_rich_reco_options_allen()):
         pix2tracks[rich] = make_pix2track(
             pixels[rich], tracks, photons[rich], rich=rich)
 
-    options["nLikelihoodIterations"] = 1  # quick test for allen standalone
     pid = init_pid(tracks, options=options)
     #pid = make_simple_pid(
     #    tracks, photons[RICH_1], photons[RICH_2], options=options)
