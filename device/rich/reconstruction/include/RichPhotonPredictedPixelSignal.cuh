@@ -33,10 +33,10 @@ namespace rich_photon_predicted_pixel_signal {
 
     void set_arguments_size(ArgumentReferences<Parameters>, const RuntimeOptions&, const Constants&) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void updateRich(const Allen::Rich::RichDetector<richIdx>*) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void launchForRich(
       const ArgumentReferences<Parameters>&,
       const RuntimeOptions&,
@@ -55,14 +55,14 @@ namespace rich_photon_predicted_pixel_signal {
     Allen::Property<unsigned> m_current_rich {this, "current_rich", 1, "current rich"};
 
     /// The minimum expected track Cherenkov angle to be considered 'Above Threshold'
-    Allen::Property<std::array<float, 2>> m_minExpCKT {
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_minExpCKT {
       this,
       "MinExpTrackCKTheta",
       {0.0f, 0.0f}, // was { 1e-6f, 1e-6f }
       "The minimum expected track Cherenkov angle for each RICH (R1Gas/R2Gas)"};
 
     /// The minimum cut value for photon probability
-    Allen::Property<std::array<float, 2>> m_minPhotonProb {
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_minPhotonProb {
       this,
       "MinPhotonProbability",
       {1e-15f, 1e-15f},

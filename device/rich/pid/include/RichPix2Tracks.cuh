@@ -39,6 +39,5 @@ namespace rich_pix2track {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
-    Allen::Property<unsigned> m_current_rich {this, "current_rich", 1u, "RICH detector (1 or 2)"};
   };
 } // namespace rich_pix2track

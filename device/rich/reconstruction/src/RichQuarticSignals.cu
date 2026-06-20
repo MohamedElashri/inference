@@ -20,7 +20,7 @@
 
 INSTANTIATE_ALGORITHM(rich_quartic_signals::rich_quartic_signals_t);
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_quartic_signals::rich_quartic_signals_t::updateRich(const Allen::Rich::RichDetector<richIdx>* rich) const
 {
   // Precompute pd infos
@@ -29,12 +29,12 @@ void rich_quartic_signals::rich_quartic_signals_t::updateRich(const Allen::Rich:
   std::vector<float3> pd_corners {};
   std::vector<float>
     pd_diag {}; // TODO: since this is all the same value for R1 and 2 possible values for R2, this could be optimized..
-  std::array<unsigned, 2> n_pds_per_side {};
+  Allen::Rich::PanelArray<unsigned> n_pds_per_side {};
   constexpr std::array<float2, 4> corners {{{-3.5f, -3.5f}, {-3.5f, +3.5f}, {+3.5f, -3.5f}, {+3.5f, +3.5f}}};
   float smallPixelArea = 0.f;
   float largePixelArea = 0.f;
   const float scalePreSel = m_ckThetaScale.value()[richIdx] / m_sepGScale.value()[richIdx];
-  for (unsigned side = 0; side < 2; side++) {
+  for (const auto side : Allen::Rich::Detector::sides()) {
     const unsigned n_pds = Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
     const auto* pds = rich->pdPanels()[side].pds();
     const auto& g2panel = rich->pdPanels()[side].globalToPDPanel();
@@ -91,15 +91,16 @@ void rich_quartic_signals::rich_quartic_signals_t::updateRich(const Allen::Rich:
 
 void rich_quartic_signals::rich_quartic_signals_t::update(const Constants& constants) const
 {
-  if (m_current_rich == 1) {
-    updateRich<0>(constants.host_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    updateRich<Allen::Rich::Detector::Rich1>(constants.host_rich_1_geometry);
   }
   else {
-    updateRich<1>(constants.host_rich_2_geometry);
+    updateRich<Allen::Rich::Detector::Rich2>(constants.host_rich_2_geometry);
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_prefilter_pd_count_k(
   const unsigned n_pds,
   const short2* pd_lpos16,
@@ -119,11 +120,11 @@ __global__ void rich_prefilter_pd_count_k(
   for (unsigned i = threadId; i < number_of_tracks; i += stride) {
 
     // Load segment data
-    const unsigned side = Allen::Rich::side<richIdx>(segs_best_point[i]);
+    const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
     const auto segPanelPnt = segs_point_at_panel[i];
     auto hypos = track_hypos[i];
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       hypos.ckRes[hypo] *= nSigmaPreSel;
     }
 
@@ -146,7 +147,7 @@ __global__ void rich_prefilter_pd_count_k(
         // Is any hit close to any mass hypo in local coordinate space ?
         bool keep = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+        for (const auto hypo : Allen::Rich::realParticles()) {
           if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] + diag);
         }
@@ -158,7 +159,7 @@ __global__ void rich_prefilter_pd_count_k(
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_prefilter_pd_fill_k(
   const rich_quartic_signals::PDShortInfo* pd_infos,
   const unsigned n_pds,
@@ -184,11 +185,11 @@ __global__ void rich_prefilter_pd_fill_k(
   for (unsigned i = threadId; i < number_of_tracks; i += stride) {
 
     // Load segment data
-    const unsigned side = Allen::Rich::side<richIdx>(segs_best_point[i]);
+    const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
     const auto segPanelPnt = segs_point_at_panel[i];
     auto hypos = track_hypos[i];
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       hypos.ckRes[hypo] *= nSigmaPreSel;
     }
 
@@ -217,7 +218,7 @@ __global__ void rich_prefilter_pd_fill_k(
         // Is any hit close to any mass hypo in local coordinate space ?
         bool keep = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+        for (const auto hypo : Allen::Rich::realParticles()) {
           if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] + diag);
         }
@@ -260,7 +261,7 @@ __device__ inline T interp2D(float rx, float ry, const std::array<T, 4>& values)
   return interp(rx, y0, y1);
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_quartic_corners_k(
   const Allen::Rich::RichDetector<richIdx>* rich,
   const float3* pd_corners,
@@ -306,7 +307,7 @@ __global__ void rich_quartic_corners_k(
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_interp_pixel_signals_k(
   // const Allen::Rich::RichDetector<richIdx>* rich,
   const rich_quartic_signals::PDShortInfo* pd_infos,
@@ -361,11 +362,11 @@ __global__ void rich_interp_pixel_signals_k(
     // Precompute pixel independent values:
     Allen::Rich::HypoData<float> invRes {};
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       const float res = hypos.ckRes[hypo];
       invRes[hypo] = 1.f / res;
     }
-    const float Afactor = factor[richIdx == 0 ? 0 : pd_infos[pd_id].isLarge()];
+    const float Afactor = factor[richIdx == Allen::Rich::Detector::Rich1 ? 0 : pd_infos[pd_id].isLarge()];
 
     // Integrate photon signals
     Allen::Rich::HypoData<float> fractions {};
@@ -393,7 +394,7 @@ __global__ void rich_interp_pixel_signals_k(
         //[[maybe_unused]] Allen::Rich::HypoData<float> signals{};
         bool has_signal_over_threshold = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+        for (const auto hypo : Allen::Rich::realParticles()) {
           const float expTheta = hypos.ckTheta[hypo];
           if (expTheta != expTheta) break; // break on first below threshold
           if (!validTheta) break;
@@ -444,7 +445,7 @@ __global__ void rich_interp_pixel_signals_k(
       }
     }
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       fractions[hypo] *= hypos.yield[hypo];
     }
     pd_fractions[i] = fractions;
@@ -488,16 +489,16 @@ __global__ void rich_sum_track_geomeffs_k(
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned i = threadId; i < number_of_tracks * Allen::Rich::NParticleTypes; i += stride) {
     const unsigned track_id = i / Allen::Rich::NParticleTypes;
-    const unsigned hypo_id = i % Allen::Rich::NParticleTypes;
+    const auto hypo = Allen::Rich::particles()[i % Allen::Rich::NParticleTypes];
 
     const unsigned start = track_signal_offsets[track_id];
     const unsigned end = track_signal_offsets[track_id + 1];
 
     float sum = 0.f;
     for (unsigned j = start; j < end; j++) {
-      sum += pd_signals[j][hypo_id];
+      sum += pd_signals[j][hypo];
     }
-    track_total_signals[track_id][hypo_id] = sum;
+    track_total_signals[track_id][hypo] = sum;
     /*if (track_id == 0) {
       std::cout << "[Allen] hypo " << hypo_id << " signal: " << sum<<std::endl;
     }*/
@@ -531,7 +532,7 @@ void rich_quartic_signals::rich_quartic_signals_t::set_arguments_size(
   set_size<dev_pd_photon_dir_corners_t>(arguments, 1); // will be allocated when we know the count
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
   const ArgumentReferences<Parameters>& arguments,
   const RuntimeOptions&,
@@ -662,11 +663,11 @@ void rich_quartic_signals::rich_quartic_signals_t::operator()(
   const Constants& constants,
   const Allen::Context& context) const
 {
-  const unsigned richValue = m_current_rich;
-  if (richValue == 1) {
-    launchForRich<0>(arguments, options, constants, context, constants.dev_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    launchForRich<Allen::Rich::Detector::Rich1>(arguments, options, constants, context, constants.dev_rich_1_geometry);
   }
   else {
-    launchForRich<1>(arguments, options, constants, context, constants.dev_rich_2_geometry);
+    launchForRich<Allen::Rich::Detector::Rich2>(arguments, options, constants, context, constants.dev_rich_2_geometry);
   }
 }

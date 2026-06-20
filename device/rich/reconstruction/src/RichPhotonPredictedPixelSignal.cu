@@ -15,7 +15,7 @@
 
 INSTANTIATE_ALGORITHM(rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t);
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t::updateRich(
   const Allen::Rich::RichDetector<richIdx>* rich) const
 {
@@ -25,15 +25,16 @@ void rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t::u
 
 void rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t::update(const Constants& constants) const
 {
-  if (m_current_rich == 1) {
-    updateRich<0>(constants.host_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    updateRich<Allen::Rich::Detector::Rich1>(constants.host_rich_1_geometry);
   }
   else {
-    updateRich<1>(constants.host_rich_2_geometry);
+    updateRich<Allen::Rich::Detector::Rich2>(constants.host_rich_2_geometry);
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_photon_predicted_pixel_signal_k(
   const Allen::Rich::RichDetector<richIdx>* rich,
   const unsigned number_of_events,
@@ -48,7 +49,8 @@ __global__ void rich_photon_predicted_pixel_signal_k(
   const float minExpCKT,
   const float minPhotonProb)
 {
-  const unsigned number_of_pds = 2 * number_of_events * Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
+  const unsigned number_of_pds =
+    Allen::Rich::NPDPanelsPerRICH * number_of_events * Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned photon_id = threadId; photon_id < number_of_photons; photon_id += stride) {
@@ -57,7 +59,7 @@ __global__ void rich_photon_predicted_pixel_signal_k(
     const float theta = photons[photon_id].ckTheta;
 
     unsigned pd_id = binary_search_rightmost(pixels_offsets, number_of_pds + 1, pix_id);
-    const unsigned side = pd_id / (number_of_pds / 2);
+    const auto side = Allen::Rich::Detector::sides()[pd_id / (number_of_pds / Allen::Rich::NPDPanelsPerRICH)];
     pd_id = pd_id % Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 
     const float A = rich->pdPanels()[side].pds()[pd_id].effectivePixelArea();
@@ -65,7 +67,7 @@ __global__ void rich_photon_predicted_pixel_signal_k(
     const float hypo_indep = validTheta ? A * factor / theta : 0.f;
 
     UNROLL(Allen::Rich::NParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::particles()) {
       const float expTheta = hypos[track_id].ckTheta[hypo];
       float sig = 0.f;
       if (validTheta && expTheta == expTheta && expTheta > minExpCKT) {
@@ -96,7 +98,7 @@ void rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t::s
   set_size<dev_photon_pix_signals_t>(arguments, number_of_photons);
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t::launchForRich(
   const ArgumentReferences<Parameters>& arguments,
   const RuntimeOptions&,
@@ -130,11 +132,11 @@ void rich_photon_predicted_pixel_signal::rich_photon_predicted_pixel_signal_t::o
   const Constants& constants,
   const Allen::Context& context) const
 {
-  const unsigned richValue = m_current_rich;
-  if (richValue == 1) {
-    launchForRich<0>(arguments, options, constants, context, constants.dev_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    launchForRich<Allen::Rich::Detector::Rich1>(arguments, options, constants, context, constants.dev_rich_1_geometry);
   }
   else {
-    launchForRich<1>(arguments, options, constants, context, constants.dev_rich_2_geometry);
+    launchForRich<Allen::Rich::Detector::Rich2>(arguments, options, constants, context, constants.dev_rich_2_geometry);
   }
 }

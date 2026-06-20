@@ -26,6 +26,7 @@
 
 enum ReturnState { IS_NULL, NOT_EXISTS, EXISTS };
 
+template<typename DetectorType, typename Side>
 void printPixelAttributes(
   const std::string& label,
   float gx,
@@ -34,16 +35,16 @@ void printPixelAttributes(
   float lx,
   float ly,
   uint32_t smartIDKey,
-  int rich,
-  int side)
+  const DetectorType rich,
+  const Side side)
 {
   std::cout << std::fixed << std::setprecision(std::numeric_limits<float>::max_digits10);
   std::cout << label << ": ";
   std::cout << "GP=(" << gx << "," << gy << "," << gz << "), ";
   std::cout << "LP=(" << lx << "," << ly << "), ";
   std::cout << "SID=" << smartIDKey << ", ";
-  std::cout << "R=" << rich << ", ";
-  std::cout << "S=" << side << "\n";
+  std::cout << "R=" << static_cast<int>(rich) << ", ";
+  std::cout << "S=" << static_cast<int>(side) << "\n";
 }
 
 // This test verifies that all valid HLT2 pixels exist in Allen, and all valid Allen pixels exist in HLT2
@@ -234,8 +235,8 @@ void CompareRecAllenRichPixels::operator()(
         allenPixelsLpos[j].x,
         allenPixelsLpos[j].y,
         allenPixelsSmartID[j].key(),
-        static_cast<int>(allenPixelsSmartID[j].rich()),
-        static_cast<int>(allenPixelsSmartID[j].side()));
+        allenPixelsSmartID[j].rich(),
+        allenPixelsSmartID[j].side());
     }
   }
 
@@ -253,8 +254,8 @@ void CompareRecAllenRichPixels::operator()(
           recPixelSummary.locPos().X()[i],
           recPixelSummary.locPos().Y()[i],
           recPixelSummary.smartID()[i].key(),
-          static_cast<int>(recPixelSummary.rich()),
-          static_cast<int>(recPixelSummary.side()));
+          recPixelSummary.rich(),
+          recPixelSummary.side());
       }
     }
   }

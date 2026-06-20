@@ -49,7 +49,7 @@ namespace {
 #endif
 
 namespace Allen::Conditions {
-  template<Allen::Rich::Detector::Type RichID>
+  template<Allen::Rich::Detector::DetectorType RichID>
   struct RichGeometry : HostDeviceCondition<Allen::Rich::RichDetector<RichID>> {
     inline static std::string const id = RichID == Allen::Rich::Detector::Rich1 ? "Rich1Geometry" : "Rich2Geometry";
     inline static std::string const filename =
@@ -83,15 +83,15 @@ namespace Allen::Conditions {
     RichGeometry(const RichT& rich, const ::Rich::Detector::Rich1& sellParams) :
       HostDeviceCondition<Allen::Rich::RichDetector<RichID>>([&rich, &sellParams]() {
         Allen::Rich::RichDetector<RichID> allenRich;
-        for (size_t k = 0; k < rich.pdPanels().size(); k++) {
-          auto& panel = rich.pdPanels()[k];
-          auto& allenPanel = allenRich.m_panels[k];
+        for (auto& panel : rich.pdPanels()) {
+          const auto panelSide = static_cast<Allen::Rich::Detector::Side>(panel.side());
+          auto& allenPanel = allenRich.m_panels[panelSide];
           auto& panelPlane = panel.detectionPlaneSIMD();
 
           allenPanel.m_modNumOffset = panel.modNumOffset();
           allenPanel.m_panelID = {panel.rich(), panel.side(), 0};
-          allenPanel.m_rich = (Allen::Rich::Detector::Type) panel.rich();
-          allenPanel.m_side = (Allen::Rich::Detector::Side) panel.side();
+          allenPanel.m_rich = static_cast<Allen::Rich::Detector::DetectorType>(panel.rich());
+          allenPanel.m_side = panelSide;
           panel.globalToPDPanel().GetComponents(allenPanel.m_gloToPDPanelM.begin());
 
           allenPanel.m_detectionPlane[0] = panelPlane.A()[0];
@@ -135,14 +135,14 @@ namespace Allen::Conditions {
         allenRich.m_sphMirrorRadius = (rich.sphMirrorRadius());
 
         // nominal CoCs for both sides
-        for (int side = 0; side < 2; ++side) {
-          const auto& coc = rich.nominalCentreOfCurvature((Allen::Rich::Detector::Side)(side));
+        for (const auto side : Allen::Rich::Detector::sides()) {
+          const auto& coc = rich.nominalCentreOfCurvature(side);
           allenRich.m_nominalCentresOfCurvature[side].x = ::Rich::Detector::scalar(coc.X());
           allenRich.m_nominalCentresOfCurvature[side].y = ::Rich::Detector::scalar(coc.Y());
           allenRich.m_nominalCentresOfCurvature[side].z = ::Rich::Detector::scalar(coc.Z());
 
           // nominal planes
-          const auto& plane = rich.nominalPlane((Allen::Rich::Detector::Side)(side));
+          const auto& plane = rich.nominalPlane(side);
           allenRich.m_nominalPlanes[side][0] = ::Rich::Detector::scalar(plane.A());
           allenRich.m_nominalPlanes[side][1] = ::Rich::Detector::scalar(plane.B());
           allenRich.m_nominalPlanes[side][2] = ::Rich::Detector::scalar(plane.C());
@@ -154,9 +154,13 @@ namespace Allen::Conditions {
           unsigned i_side0 = 0;
           unsigned i_side1 = 0;
           for (const auto& m : rich.primaryMirrors()) {
-            auto s = side(m.get(), rich.rich()); // we need to get the side this way for detdesc compatibility.
-            assert((s == 0 ? i_side0 : i_side1) < allenRich.m_primary_finder[s].m_mirrors.size());
-            auto& allenMirror = allenRich.m_primary_finder[s].m_mirrors[s == 0 ? (i_side0++) : (i_side1++)];
+            const auto s = static_cast<Allen::Rich::Detector::Side>(
+              side(m.get(), rich.rich())); // we need to get the side this way for detdesc compatibility.
+            assert(
+              (s == Allen::Rich::Detector::firstSide ? i_side0 : i_side1) <
+              allenRich.m_primary_finder[s].m_mirrors.size());
+            auto& allenMirror = allenRich.m_primary_finder[s]
+                                  .m_mirrors[s == Allen::Rich::Detector::firstSide ? (i_side0++) : (i_side1++)];
             allenMirror.centreOfCurvature.x = m->centreOfCurvature().x();
             allenMirror.centreOfCurvature.y = m->centreOfCurvature().y();
             allenMirror.centreOfCurvature.z = m->centreOfCurvature().z();
@@ -172,9 +176,13 @@ namespace Allen::Conditions {
           unsigned i_side0 = 0;
           unsigned i_side1 = 0;
           for (const auto& m : rich.secondaryMirrors()) {
-            auto s = side(m.get(), rich.rich()); // we need to get the side this way for detdesc compatibility.
-            assert((s == 0 ? i_side0 : i_side1) < allenRich.m_secondary_finder[s].m_mirrors.size());
-            auto& allenMirror = allenRich.m_secondary_finder[s].m_mirrors[s == 0 ? (i_side0++) : (i_side1++)];
+            const auto s = static_cast<Allen::Rich::Detector::Side>(
+              side(m.get(), rich.rich())); // we need to get the side this way for detdesc compatibility.
+            assert(
+              (s == Allen::Rich::Detector::firstSide ? i_side0 : i_side1) <
+              allenRich.m_secondary_finder[s].m_mirrors.size());
+            auto& allenMirror = allenRich.m_secondary_finder[s]
+                                  .m_mirrors[s == Allen::Rich::Detector::firstSide ? (i_side0++) : (i_side1++)];
             allenMirror.centreOfCurvature.x = m->centreOfCurvature().x();
             allenMirror.centreOfCurvature.y = m->centreOfCurvature().y();
             allenMirror.centreOfCurvature.z = m->centreOfCurvature().z();
@@ -292,6 +300,6 @@ namespace Allen::Conditions {
     }
   };
 
-  using Rich1Geometry = RichGeometry<Allen::Rich::Detector::Type::Rich1>;
-  using Rich2Geometry = RichGeometry<Allen::Rich::Detector::Type::Rich2>;
+  using Rich1Geometry = RichGeometry<Allen::Rich::Detector::DetectorType::Rich1>;
+  using Rich2Geometry = RichGeometry<Allen::Rich::Detector::DetectorType::Rich2>;
 } // namespace Allen::Conditions

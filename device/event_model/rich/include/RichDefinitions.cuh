@@ -10,12 +10,13 @@
  \*****************************************************************************/
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <ostream>
 #include <BackendCommon.h>
-#include <cstdint>
 #include <MassDefinitions.h>
+#include <RichTypes.cuh>
 
 namespace Allen::Rich {
   using FP = float;
@@ -32,39 +33,28 @@ namespace Allen::Rich {
   /// Rec/Rich/RichFutureRecPixelAlgorithms/src/RichSIMDSummaryPixels.cpp
 
   /// Enabled 4D reconstruction
-  [[maybe_unused]] __device__ constexpr bool m_enable4D[2] = {false, false};
+  [[maybe_unused]] __device__ constexpr DetectorArray<bool> m_enable4D = {false, false};
 
   /// Average expected hit time for signal in each RICH in ns
-  [[maybe_unused]] __device__ constexpr float m_avHitTime[2] = {13.03, 52.94};
+  [[maybe_unused]] __device__ constexpr DetectorArray<float> m_avHitTime = {13.03, 52.94};
 
   /// Course (pixel) Time window for each RICH in ns
-  [[maybe_unused]] __device__ constexpr float m_timeWindow[2] = {3.0, 3.0};
+  [[maybe_unused]] __device__ constexpr DetectorArray<float> m_timeWindow = {3.0, 3.0};
 
   /// Enable the override of inner and out regions
-  [[maybe_unused]] __device__ constexpr bool m_overrideRegions[2] = {false, false};
+  [[maybe_unused]] __device__ constexpr DetectorArray<bool> m_overrideRegions = {false, false};
 
   /// Size in X defining the inner pixels for each RICH
-  [[maybe_unused]] __device__ constexpr double m_innerPixX[2] = {250.0, 99999.9};
+  [[maybe_unused]] __device__ constexpr DetectorArray<double> m_innerPixX = {250.0, 99999.9};
 
   /// Size in Y defining the inner pixels for each RICH
-  [[maybe_unused]] __device__ constexpr double m_innerPixY[2] = {300.0, 300.0};
+  [[maybe_unused]] __device__ constexpr DetectorArray<double> m_innerPixY = {300.0, 300.0};
 
   /// Time resolution for inner regions in ns
-  [[maybe_unused]] __device__ constexpr float m_innerTimeWindow[2] = {0.15, 0.15};
+  [[maybe_unused]] __device__ constexpr DetectorArray<float> m_innerTimeWindow = {0.15, 0.15};
 
   /// Time resolution for outer regions in ns
-  [[maybe_unused]] __device__ constexpr float m_outerTimeWindow[2] = {0.3, 0.3};
-
-  template<unsigned richIdx>
-  __device__ unsigned side(const Point& p)
-  {
-    if constexpr (richIdx == 0) {
-      return (p.y > 0) ? 0 : 1;
-    }
-    else {
-      return (p.x > 0) ? 0 : 1;
-    }
-  }
+  [[maybe_unused]] __device__ constexpr DetectorArray<float> m_outerTimeWindow = {0.3, 0.3};
 
   /// Matrix-point transform3D, adapted from ROOT::Math
   __host__ __device__ inline Point transform3DTimesPoint(Transform3D fM, Point point)
@@ -239,25 +229,6 @@ namespace Allen::Rich {
     return make_float2((1.f - radScale) * pos.x, (1.f + radScale) * pos.y);
   }
 
-  // Number of RICH particle types (Electron, Muon, Pion, Kaon, Proton, Deuteron
-  // and 'Below Threshold')
-  inline constexpr unsigned NParticleTypes = 7;
-
-  // Number of 'real' RICH particle types (Electron, Muon, Pion, Kaon, Proton and Deuteron)
-  inline constexpr unsigned NRealParticleTypes = NParticleTypes - 1;
-
-  // Enumeration for the RICH particle ID mass hypotheses.
-  enum ParticleIDType : int8_t {
-    Unknown = -1,  ///< Unknown particle type
-    Electron,      ///< Represents e+ or e-
-    Muon,          ///< Represents mu+ or mu-
-    Pion,          ///< Represents pi+ or pi-
-    Kaon,          ///< Represents K+ or K-
-    Proton,        ///< Represents Pr+ or Pr-
-    Deuteron,      ///< Represents d+ or d-
-    BelowThreshold ///< Particle type is below threshold
-  };
-
   inline std::ostream& operator<<(std::ostream& strm, ParticleIDType pid)
   {
     const std::string nameTT[] = {
@@ -266,7 +237,7 @@ namespace Allen::Rich {
   }
 
   // https://gitlab.cern.ch/lhcb/Lbcom/-/blob/master/Rich/RichFutureTools/src/RichParticleProperties.cpp
-  [[maybe_unused]] __constant__ constexpr float particleMass[NParticleTypes] = {
+  [[maybe_unused]] __constant__ constexpr ParticleArray<float> particleMass = {
     Allen::mEl,                       // e+
     Allen::mMu,                       // mu+
     Allen::mPi,                       // pi+
@@ -276,7 +247,7 @@ namespace Allen::Rich {
     std::numeric_limits<float>::max() // BelowThreshold
   };
 
-  [[maybe_unused]] __constant__ constexpr float particleMass2[NParticleTypes] = {
+  [[maybe_unused]] __constant__ constexpr ParticleArray<float> particleMass2 = {
     particleMass[Electron] * particleMass[Electron],
     particleMass[Muon] * particleMass[Muon],
     particleMass[Pion] * particleMass[Pion],
@@ -285,42 +256,6 @@ namespace Allen::Rich {
     particleMass[Deuteron] * particleMass[Deuteron],
     std::numeric_limits<float>::max() // BelowThreshold
   };
-
-  // Reduced hypo set:
-
-  // Number of RICH particle types (Pion, Kaon and 'Below Threshold')
-  /*inline constexpr unsigned NParticleTypes = 3;
-
-  // Number of 'real' RICH particle types (Pion, Kaon)
-  inline constexpr unsigned NRealParticleTypes = NParticleTypes - 1;
-
-  // Enumeration for the RICH particle ID mass hypotheses.
-  enum ParticleIDType : int8_t {
-    Unknown = -1,  ///< Unknown particle type
-    Pion,          ///< Represents pi+ or pi-
-    Kaon,          ///< Represents K+ or K-
-    BelowThreshold ///< Particle type is below threshold
-  };
-
-  inline std::ostream& operator<<(std::ostream& strm, ParticleIDType pid)
-  {
-    const std::string nameTT[] = {
-      "Unknown", "Pion", "Kaon", "BelowThreshold"};
-    return strm << nameTT[pid + 1];
-  }
-
-  // https://gitlab.cern.ch/lhcb/Lbcom/-/blob/master/Rich/RichFutureTools/src/RichParticleProperties.cpp
-  [[maybe_unused]] __constant__ constexpr float particleMass[NParticleTypes] = {
-    Allen::mPi,                       // pi+
-    Allen::mK,                        // K+
-    std::numeric_limits<float>::max() // BelowThreshold
-  };
-
-  [[maybe_unused]] __constant__ constexpr float particleMass2[NParticleTypes] = {
-    particleMass[Pion] * particleMass[Pion],
-    particleMass[Kaon] * particleMass[Kaon],
-    std::numeric_limits<float>::max() // BelowThreshold
-  };*/
 
   /// Number of photon spectra energy bins
   inline constexpr unsigned NPhotonSpectraBins = 5;
@@ -402,45 +337,58 @@ namespace Allen::Rich::Maths {
 } // namespace Allen::Rich::Maths
 
 namespace Allen::Rich::Detector {
-  enum Type : std::int8_t {
-    InvalidDetector = -1, //< Unspecified Detector
-    Rich1 = 0,            //< RICH1 detector
-    Rich2 = 1,            //< RICH2 detector
-    Rich = 1              //< Single RICH detector
-  };
+  /// Access all valid detector types
+  __device__ __host__ inline constexpr Detectors detectors() noexcept { return {Rich1, Rich2}; }
 
-  // Detector side enum
-  enum Side : std::int8_t {
-    InvalidSide = -1, //< Invalid side
-    // RICH1
-    top = 0,    //< Upper panel in RICH1
-    bottom = 1, //< Lower panel in RICH1
-    // RICH2
-    left = 0,  //< Left panel in RICH2
-    right = 1, //< Right panel in RICH2
-    aside = 0, //< A-Side panel in RICH2
-    cside = 1, //< C-Side panel in RICH2
-    // Generic
-    firstSide = 0, //< Upper panel in RICH1 or Left panel in RICH2
-    secondSide = 1 //< Lower panel in RICH1 or Right panel in RICH2
-  };
+  /// Access all valid panel sides
+  __device__ __host__ inline constexpr Sides sides() noexcept { return {firstSide, secondSide}; }
 
-  enum RadiatorType : std::int8_t {
-    InvalidRadiator = -1, ///< Unspecified radiator type
-    Rich1Gas = 0,         ///< Gaseous RICH1 radiator
-    Rich2Gas = 1,         ///< Gaseous RICH2 radiator
-    // background types
-    GasQuartzWin = 2,  ///< Quartz windows to the gas radiator volumes
-    HPDQuartzWin = 3,  ///< HPD Quartz windows
-    Nitrogen = 4,      ///< Nitrogen volume
-    AerogelFilter = 5, ///< Aerogel filter material //TODO: I suppose this material should go too?
-    CO2 = 6,           ///< Carbon dioxide
-    PMTQuartzWin = 7   ///< MAPMT Quartz windows
-  };
+  /// Access all active radiator types
+  __device__ __host__ inline constexpr Radiators radiators() noexcept { return {Rich1Gas, Rich2Gas}; }
+
+  /// Convert the user-facing one-based RICH number into its semantic type
+  __device__ __host__ inline constexpr DetectorType detectorTypeFromNumber(const unsigned rich)
+  {
+    return rich == 1u ? Rich1 : rich == 2u ? Rich2 : InvalidDetector;
+  }
+
+  /// Map RICH detector type to radiator type
+  __device__ __host__ inline constexpr RadiatorType radType(const DetectorType rich)
+  {
+    return Rich1 == rich ? Rich1Gas : Rich2Gas;
+  }
 
   /// Map radiator type to RICH detector type
-  __device__ __host__ inline constexpr Type richType(RadiatorType rad) { return (rad == Rich1Gas) ? Rich1 : Rich2; }
+  __device__ __host__ inline constexpr DetectorType richType(const RadiatorType rad)
+  {
+    return Rich2Gas == rad ? Rich2 : Rich1;
+  }
 } // namespace Allen::Rich::Detector
+
+namespace Allen::Rich {
+  /// Access all valid particle ID types
+  __device__ __host__ inline constexpr Particles particles() noexcept
+  {
+    return {Electron, Muon, Pion, Kaon, Proton, Deuteron, BelowThreshold};
+  }
+
+  /// Access all physical particle ID types
+  __device__ __host__ inline constexpr RealParticles realParticles() noexcept
+  {
+    return {Electron, Muon, Pion, Kaon, Proton, Deuteron};
+  }
+
+  template<Detector::DetectorType rich>
+  __device__ Detector::Side side(const Point& p)
+  {
+    if constexpr (rich == Detector::Rich1) {
+      return p.y > 0 ? Detector::top : Detector::bottom;
+    }
+    else {
+      return p.x > 0 ? Detector::left : Detector::right;
+    }
+  }
+} // namespace Allen::Rich
 
 namespace Allen::Rich::Decoding {
   // Helper class for RichDecoding

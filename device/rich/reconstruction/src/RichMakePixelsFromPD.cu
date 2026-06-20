@@ -18,12 +18,12 @@
 INSTANTIATE_ALGORITHM(rich_make_pixels_from_pd::rich_make_pixels_from_pd_t);
 
 /// Kernel function to iterate over Events, SmartIDs, and create Pixels
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_make_pixels_from_pd_k(
   rich_make_pixels_from_pd::Parameters parameters,
   const Allen::Rich::RichDetector<richIdx>* deRich)
 {
-  const auto side = blockIdx.y; // 0 or 1 for RICH1 top/bottom or RICH2 left/right
+  const auto side = Allen::Rich::Detector::sides()[blockIdx.y];
   const auto number_of_events = parameters.dev_event_list.size();
   auto offset = side * number_of_events * Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 
@@ -86,15 +86,15 @@ void rich_make_pixels_from_pd::rich_make_pixels_from_pd_t::operator()(
   const Constants& constants,
   const Allen::Context& context) const
 {
-  const auto richValue = m_current_rich;
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
 
   // dont launch too many blocks and instead rely on the grid stride loop to amortize launch overhead
-  if (richValue == 1) {
-    global_function(rich_make_pixels_from_pd_k<0>)(dim3(32, 2), dim3(128), context)(
-      arguments, constants.dev_rich_1_geometry);
+  if (rich == Allen::Rich::Detector::Rich1) {
+    global_function(rich_make_pixels_from_pd_k<Allen::Rich::Detector::Rich1>)(
+      dim3(32, Allen::Rich::NPDPanelsPerRICH), dim3(128), context)(arguments, constants.dev_rich_1_geometry);
   }
   else {
-    global_function(rich_make_pixels_from_pd_k<1>)(dim3(32, 2), dim3(128), context)(
-      arguments, constants.dev_rich_2_geometry);
+    global_function(rich_make_pixels_from_pd_k<Allen::Rich::Detector::Rich2>)(
+      dim3(32, Allen::Rich::NPDPanelsPerRICH), dim3(128), context)(arguments, constants.dev_rich_2_geometry);
   }
 }

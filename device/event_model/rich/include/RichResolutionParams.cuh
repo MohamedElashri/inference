@@ -16,7 +16,10 @@
 // Converted from
 // https://gitlab.cern.ch/lhcb/Rec/-/blob/master/Rich/RichFutureRecTrackAlgorithms/src/ResolutionParameters/Run3.h
 
+#include <array>
 #include <cstddef>
+#include <MassDefinitions.h>
+#include <RichTypes.cuh>
 
 namespace Allen::Rich {
   // Array size constants
@@ -245,44 +248,47 @@ namespace Allen::Rich {
     0.0004378, 0.0004381, 0.0004373, 0.0004362, 0.000436,  0.0004363, 0.0004372, 0.0004384, 0.0004393,
     0.0004396, 0.0004389, 0.0004372, 0.0004353, 0.0004342, 0.0004357, 0.0004423};
 
-  __device__ constexpr const float* LongMomentum_x[2][6] = {{LongMomentum_Rich1Gas_Electron_x,
-                                                             LongMomentum_Rich1Gas_Muon_x,
-                                                             LongMomentum_Rich1Gas_Pion_x,
-                                                             LongMomentum_Rich1Gas_Kaon_x,
-                                                             LongMomentum_Rich1Gas_Proton_x,
-                                                             LongMomentum_Rich1Gas_Proton_x},
-                                                            {LongMomentum_Rich2Gas_Electron_x,
-                                                             LongMomentum_Rich2Gas_Muon_x,
-                                                             LongMomentum_Rich2Gas_Pion_x,
-                                                             LongMomentum_Rich2Gas_Kaon_x,
-                                                             LongMomentum_Rich2Gas_Proton_x,
-                                                             LongMomentum_Rich2Gas_Proton_x}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> LongMomentum_x = {
+    {{LongMomentum_Rich1Gas_Electron_x,
+      LongMomentum_Rich1Gas_Muon_x,
+      LongMomentum_Rich1Gas_Pion_x,
+      LongMomentum_Rich1Gas_Kaon_x,
+      LongMomentum_Rich1Gas_Proton_x,
+      LongMomentum_Rich1Gas_Proton_x},
+     {LongMomentum_Rich2Gas_Electron_x,
+      LongMomentum_Rich2Gas_Muon_x,
+      LongMomentum_Rich2Gas_Pion_x,
+      LongMomentum_Rich2Gas_Kaon_x,
+      LongMomentum_Rich2Gas_Proton_x,
+      LongMomentum_Rich2Gas_Proton_x}}};
 
-  __device__ constexpr const float* LongMomentum_y[2][6] = {{LongMomentum_Rich1Gas_Electron_y,
-                                                             LongMomentum_Rich1Gas_Muon_y,
-                                                             LongMomentum_Rich1Gas_Pion_y,
-                                                             LongMomentum_Rich1Gas_Kaon_y,
-                                                             LongMomentum_Rich1Gas_Proton_y,
-                                                             LongMomentum_Rich1Gas_Proton_y},
-                                                            {LongMomentum_Rich2Gas_Electron_y,
-                                                             LongMomentum_Rich2Gas_Muon_y,
-                                                             LongMomentum_Rich2Gas_Pion_y,
-                                                             LongMomentum_Rich2Gas_Kaon_y,
-                                                             LongMomentum_Rich2Gas_Proton_y,
-                                                             LongMomentum_Rich2Gas_Proton_y}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> LongMomentum_y = {
+    {{LongMomentum_Rich1Gas_Electron_y,
+      LongMomentum_Rich1Gas_Muon_y,
+      LongMomentum_Rich1Gas_Pion_y,
+      LongMomentum_Rich1Gas_Kaon_y,
+      LongMomentum_Rich1Gas_Proton_y,
+      LongMomentum_Rich1Gas_Proton_y},
+     {LongMomentum_Rich2Gas_Electron_y,
+      LongMomentum_Rich2Gas_Muon_y,
+      LongMomentum_Rich2Gas_Pion_y,
+      LongMomentum_Rich2Gas_Kaon_y,
+      LongMomentum_Rich2Gas_Proton_y,
+      LongMomentum_Rich2Gas_Proton_y}}};
 
-  __device__ constexpr const size_t LongMomentum_size[2][6] = {{LongMomentum_Rich1Gas_Electron_size,
-                                                                LongMomentum_Rich1Gas_Muon_size,
-                                                                LongMomentum_Rich1Gas_Pion_size,
-                                                                LongMomentum_Rich1Gas_Kaon_size,
-                                                                LongMomentum_Rich1Gas_Proton_size,
-                                                                LongMomentum_Rich1Gas_Proton_size},
-                                                               {LongMomentum_Rich2Gas_Electron_size,
-                                                                LongMomentum_Rich2Gas_Muon_size,
-                                                                LongMomentum_Rich2Gas_Pion_size,
-                                                                LongMomentum_Rich2Gas_Kaon_size,
-                                                                LongMomentum_Rich2Gas_Proton_size,
-                                                                LongMomentum_Rich2Gas_Proton_size}};
+  __device__ constexpr DetectorArray<RealParticleArray<size_t>> LongMomentum_size = {
+    {{LongMomentum_Rich1Gas_Electron_size,
+      LongMomentum_Rich1Gas_Muon_size,
+      LongMomentum_Rich1Gas_Pion_size,
+      LongMomentum_Rich1Gas_Kaon_size,
+      LongMomentum_Rich1Gas_Proton_size,
+      LongMomentum_Rich1Gas_Proton_size},
+     {LongMomentum_Rich2Gas_Electron_size,
+      LongMomentum_Rich2Gas_Muon_size,
+      LongMomentum_Rich2Gas_Pion_size,
+      LongMomentum_Rich2Gas_Kaon_size,
+      LongMomentum_Rich2Gas_Proton_size,
+      LongMomentum_Rich2Gas_Proton_size}}};
 
   __device__ constexpr float LongCKTheta_Rich1Gas_Muon_x[] = {
     0.0147477, 0.0185167, 0.0205082, 0.0219943, 0.0232458, 0.0242651, 0.0251861, 0.0259853, 0.0266783,
@@ -656,44 +662,47 @@ namespace Allen::Rich {
                                                                  0.0004306,
                                                                  0.0004384};
 
-  __device__ constexpr const float* DownMomentum_x[2][6] = {{DownMomentum_Rich1Gas_Electron_x,
-                                                             DownMomentum_Rich1Gas_Muon_x,
-                                                             DownMomentum_Rich1Gas_Pion_x,
-                                                             DownMomentum_Rich1Gas_Kaon_x,
-                                                             DownMomentum_Rich1Gas_Proton_x,
-                                                             DownMomentum_Rich1Gas_Proton_x},
-                                                            {DownMomentum_Rich2Gas_Electron_x,
-                                                             DownMomentum_Rich2Gas_Muon_x,
-                                                             DownMomentum_Rich2Gas_Pion_x,
-                                                             DownMomentum_Rich2Gas_Kaon_x,
-                                                             DownMomentum_Rich2Gas_Proton_x,
-                                                             DownMomentum_Rich2Gas_Proton_x}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> DownMomentum_x = {
+    {{DownMomentum_Rich1Gas_Electron_x,
+      DownMomentum_Rich1Gas_Muon_x,
+      DownMomentum_Rich1Gas_Pion_x,
+      DownMomentum_Rich1Gas_Kaon_x,
+      DownMomentum_Rich1Gas_Proton_x,
+      DownMomentum_Rich1Gas_Proton_x},
+     {DownMomentum_Rich2Gas_Electron_x,
+      DownMomentum_Rich2Gas_Muon_x,
+      DownMomentum_Rich2Gas_Pion_x,
+      DownMomentum_Rich2Gas_Kaon_x,
+      DownMomentum_Rich2Gas_Proton_x,
+      DownMomentum_Rich2Gas_Proton_x}}};
 
-  __device__ constexpr const float* DownMomentum_y[2][6] = {{DownMomentum_Rich1Gas_Electron_y,
-                                                             DownMomentum_Rich1Gas_Muon_y,
-                                                             DownMomentum_Rich1Gas_Pion_y,
-                                                             DownMomentum_Rich1Gas_Kaon_y,
-                                                             DownMomentum_Rich1Gas_Proton_y,
-                                                             DownMomentum_Rich1Gas_Proton_y},
-                                                            {DownMomentum_Rich2Gas_Electron_y,
-                                                             DownMomentum_Rich2Gas_Muon_y,
-                                                             DownMomentum_Rich2Gas_Pion_y,
-                                                             DownMomentum_Rich2Gas_Kaon_y,
-                                                             DownMomentum_Rich2Gas_Proton_y,
-                                                             DownMomentum_Rich2Gas_Proton_y}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> DownMomentum_y = {
+    {{DownMomentum_Rich1Gas_Electron_y,
+      DownMomentum_Rich1Gas_Muon_y,
+      DownMomentum_Rich1Gas_Pion_y,
+      DownMomentum_Rich1Gas_Kaon_y,
+      DownMomentum_Rich1Gas_Proton_y,
+      DownMomentum_Rich1Gas_Proton_y},
+     {DownMomentum_Rich2Gas_Electron_y,
+      DownMomentum_Rich2Gas_Muon_y,
+      DownMomentum_Rich2Gas_Pion_y,
+      DownMomentum_Rich2Gas_Kaon_y,
+      DownMomentum_Rich2Gas_Proton_y,
+      DownMomentum_Rich2Gas_Proton_y}}};
 
-  __device__ constexpr const size_t DownMomentum_size[2][6] = {{DownMomentum_Rich1Gas_Electron_size,
-                                                                DownMomentum_Rich1Gas_Muon_size,
-                                                                DownMomentum_Rich1Gas_Pion_size,
-                                                                DownMomentum_Rich1Gas_Kaon_size,
-                                                                DownMomentum_Rich1Gas_Proton_size,
-                                                                DownMomentum_Rich1Gas_Proton_size},
-                                                               {DownMomentum_Rich2Gas_Electron_size,
-                                                                DownMomentum_Rich2Gas_Muon_size,
-                                                                DownMomentum_Rich2Gas_Pion_size,
-                                                                DownMomentum_Rich2Gas_Kaon_size,
-                                                                DownMomentum_Rich2Gas_Proton_size,
-                                                                DownMomentum_Rich2Gas_Proton_size}};
+  __device__ constexpr DetectorArray<RealParticleArray<size_t>> DownMomentum_size = {
+    {{DownMomentum_Rich1Gas_Electron_size,
+      DownMomentum_Rich1Gas_Muon_size,
+      DownMomentum_Rich1Gas_Pion_size,
+      DownMomentum_Rich1Gas_Kaon_size,
+      DownMomentum_Rich1Gas_Proton_size,
+      DownMomentum_Rich1Gas_Proton_size},
+     {DownMomentum_Rich2Gas_Electron_size,
+      DownMomentum_Rich2Gas_Muon_size,
+      DownMomentum_Rich2Gas_Pion_size,
+      DownMomentum_Rich2Gas_Kaon_size,
+      DownMomentum_Rich2Gas_Proton_size,
+      DownMomentum_Rich2Gas_Proton_size}}};
 
   __device__ constexpr float DownCKTheta_Rich1Gas_Muon_x[] = {
     0.0145553, 0.0182661, 0.0202718, 0.0217792, 0.0230019, 0.0240566, 0.02496,   0.0257708, 0.0264471,
@@ -916,26 +925,26 @@ namespace Allen::Rich {
     0.0025053, 0.0023964, 0.0022839, 0.0021721, 0.0020599, 0.001947,  0.0018328, 0.0017166, 0.0015981,
     0.0014779, 0.0013585, 0.0012445, 0.0011417, 0.0010561, 0.0009905};
 
-  __device__ constexpr const float* UpMomentum_x[2][6] = {{UpMomentum_Rich1Gas_Electron_x,
-                                                           UpMomentum_Rich1Gas_Muon_x,
-                                                           UpMomentum_Rich1Gas_Pion_x,
-                                                           UpMomentum_Rich1Gas_Kaon_x,
-                                                           UpMomentum_Rich1Gas_Proton_x,
-                                                           UpMomentum_Rich1Gas_Proton_x}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> UpMomentum_x = {{{UpMomentum_Rich1Gas_Electron_x,
+                                                                                        UpMomentum_Rich1Gas_Muon_x,
+                                                                                        UpMomentum_Rich1Gas_Pion_x,
+                                                                                        UpMomentum_Rich1Gas_Kaon_x,
+                                                                                        UpMomentum_Rich1Gas_Proton_x,
+                                                                                        UpMomentum_Rich1Gas_Proton_x}}};
 
-  __device__ constexpr const float* UpMomentum_y[2][6] = {{UpMomentum_Rich1Gas_Electron_y,
-                                                           UpMomentum_Rich1Gas_Muon_y,
-                                                           UpMomentum_Rich1Gas_Pion_y,
-                                                           UpMomentum_Rich1Gas_Kaon_y,
-                                                           UpMomentum_Rich1Gas_Proton_y,
-                                                           UpMomentum_Rich1Gas_Proton_y}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> UpMomentum_y = {{{UpMomentum_Rich1Gas_Electron_y,
+                                                                                        UpMomentum_Rich1Gas_Muon_y,
+                                                                                        UpMomentum_Rich1Gas_Pion_y,
+                                                                                        UpMomentum_Rich1Gas_Kaon_y,
+                                                                                        UpMomentum_Rich1Gas_Proton_y,
+                                                                                        UpMomentum_Rich1Gas_Proton_y}}};
 
-  __device__ constexpr const size_t UpMomentum_size[2][6] = {{UpMomentum_Rich1Gas_Electron_size,
-                                                              UpMomentum_Rich1Gas_Muon_size,
-                                                              UpMomentum_Rich1Gas_Pion_size,
-                                                              UpMomentum_Rich1Gas_Kaon_size,
-                                                              UpMomentum_Rich1Gas_Proton_size,
-                                                              UpMomentum_Rich1Gas_Proton_size}};
+  __device__ constexpr DetectorArray<RealParticleArray<size_t>> UpMomentum_size = {{{UpMomentum_Rich1Gas_Electron_size,
+                                                                                     UpMomentum_Rich1Gas_Muon_size,
+                                                                                     UpMomentum_Rich1Gas_Pion_size,
+                                                                                     UpMomentum_Rich1Gas_Kaon_size,
+                                                                                     UpMomentum_Rich1Gas_Proton_size,
+                                                                                     UpMomentum_Rich1Gas_Proton_size}}};
 
   __device__ constexpr float UpCKTheta_Rich1Gas_Muon_x[] = {0.0294793,
                                                             0.0356396,
@@ -1081,26 +1090,29 @@ namespace Allen::Rich {
     0.0051408, 0.0048569, 0.0045459, 0.0042445, 0.0039903, 0.0037961, 0.003649,  0.0035213, 0.0033858, 0.0032271,
     0.0030447, 0.0028758, 0.0027185, 0.0025786, 0.0024535, 0.0023336, 0.0022063, 0.0020658, 0.0019277, 0.0018501};
 
-  __device__ constexpr const float* SeedMomentum_x[2][6] = {{SeedMomentum_Rich2Gas_Electron_x,
-                                                             SeedMomentum_Rich2Gas_Muon_x,
-                                                             SeedMomentum_Rich2Gas_Pion_x,
-                                                             SeedMomentum_Rich2Gas_Kaon_x,
-                                                             SeedMomentum_Rich2Gas_Proton_x,
-                                                             SeedMomentum_Rich2Gas_Proton_x}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> SeedMomentum_x = {
+    {{SeedMomentum_Rich2Gas_Electron_x,
+      SeedMomentum_Rich2Gas_Muon_x,
+      SeedMomentum_Rich2Gas_Pion_x,
+      SeedMomentum_Rich2Gas_Kaon_x,
+      SeedMomentum_Rich2Gas_Proton_x,
+      SeedMomentum_Rich2Gas_Proton_x}}};
 
-  __device__ constexpr const float* SeedMomentum_y[2][6] = {{SeedMomentum_Rich2Gas_Electron_y,
-                                                             SeedMomentum_Rich2Gas_Muon_y,
-                                                             SeedMomentum_Rich2Gas_Pion_y,
-                                                             SeedMomentum_Rich2Gas_Kaon_y,
-                                                             SeedMomentum_Rich2Gas_Proton_y,
-                                                             SeedMomentum_Rich2Gas_Proton_y}};
+  __device__ constexpr DetectorArray<RealParticleArray<const float*>> SeedMomentum_y = {
+    {{SeedMomentum_Rich2Gas_Electron_y,
+      SeedMomentum_Rich2Gas_Muon_y,
+      SeedMomentum_Rich2Gas_Pion_y,
+      SeedMomentum_Rich2Gas_Kaon_y,
+      SeedMomentum_Rich2Gas_Proton_y,
+      SeedMomentum_Rich2Gas_Proton_y}}};
 
-  __device__ constexpr const size_t SeedMomentum_size[2][6] = {{SeedMomentum_Rich2Gas_Electron_size,
-                                                                SeedMomentum_Rich2Gas_Muon_size,
-                                                                SeedMomentum_Rich2Gas_Pion_size,
-                                                                SeedMomentum_Rich2Gas_Kaon_size,
-                                                                SeedMomentum_Rich2Gas_Proton_size,
-                                                                SeedMomentum_Rich2Gas_Proton_size}};
+  __device__ constexpr DetectorArray<RealParticleArray<size_t>> SeedMomentum_size = {
+    {{SeedMomentum_Rich2Gas_Electron_size,
+      SeedMomentum_Rich2Gas_Muon_size,
+      SeedMomentum_Rich2Gas_Pion_size,
+      SeedMomentum_Rich2Gas_Kaon_size,
+      SeedMomentum_Rich2Gas_Proton_size,
+      SeedMomentum_Rich2Gas_Proton_size}}};
 
   __device__ constexpr float SeedCKTheta_Rich2Gas_Muon_x[] = {
     0.0146721, 0.0175805, 0.018832,  0.0196795, 0.0203085, 0.0208192, 0.0212713, 0.0216797, 0.0220849,

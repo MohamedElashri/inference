@@ -300,8 +300,7 @@ def make_pix2track(pixels, tracks, photons, rich=RICH_1):
         host_number_of_pixels_t=pixels["host_number_of_pixels"],
         host_number_of_photons_t=photons["host_number_of_photons"],
         dev_offsets_rich_photons_t=photons["dev_offsets_rich_photons"],
-        dev_rich_photons_t=photons["dev_rich_photons"],
-        current_rich=rich)
+        dev_rich_photons_t=photons["dev_rich_photons"])
 
     return {
         "dev_pix2track_offsets": pix2track.dev_pix2track_offsets_t,

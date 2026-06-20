@@ -102,7 +102,10 @@ def generate_cuda_header(
 
 // Converted from https://gitlab.cern.ch/lhcb/Rec/-/blob/master/Rich/RichFutureRecTrackAlgorithms/src/ResolutionParameters/Run3.h
 
+#include <array>
 #include <cstddef>
+#include <MassDefinitions.h>
+#include <RichTypes.cuh>
 
 namespace Allen::Rich {
 """)
@@ -149,15 +152,15 @@ namespace Allen::Rich {
                     "Electron", "Muon", "Pion", "Kaon", "Proton", "Proton"
                 ]  # deuteron uses same param as proton
                 for field in ["x", "y", "size"]:
-                    array_type = "size_t" if field == "size" else "float*"
+                    array_type = "size_t" if field == "size" else "const float*"
                     f.write(
-                        f"  __device__ constexpr const {array_type} {array_name}_{field}[2][6] = {{\n"
-                    )
+                        f"  __device__ constexpr DetectorArray<RealParticleArray<{array_type}>> "
+                        f"{array_name}_{field} = {{{{{{\n")
                     f.write(",\n".join("    {\n" + ",\n".join(
                         f"      {array_name}_{radiator}_{particle}_{field}"
                         for particle in particles) + "\n    }"
                                        for radiator in data[array_name]))
-                    f.write("\n  };\n\n")
+                    f.write("\n  }}};\n\n")
 
         # Close namespace
         f.write("""

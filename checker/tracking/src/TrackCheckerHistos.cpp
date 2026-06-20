@@ -464,9 +464,9 @@ void TrackCheckerHistos::fillMuonIDMatchedHistos(const Checker::Track& track, co
 void TrackCheckerHistos::fillRichHistos(
   const Checker::Track& track,
   const std::vector<Allen::Rich::PhotonReco::Photon>& photons,
-  unsigned true_pid)
+  const Allen::Rich::ParticleIDType true_pid)
 {
-  if (true_pid >= 6) return;
+  if (true_pid == Allen::Rich::ParticleIDType::BelowThreshold) return;
   float ckThetaExp = track.ckThetaExp[true_pid];
   for (const auto& photon : photons) {
     if (ckThetaExp != ckThetaExp) continue;

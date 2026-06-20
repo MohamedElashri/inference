@@ -69,16 +69,16 @@ namespace rich_global_pid {
 
     void set_arguments_size(ArgumentReferences<Parameters>, const RuntimeOptions&, const Constants&) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void updateRich(const Allen::Rich::RichDetector<richIdx>*) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void pixelSignalsForRich(
       const ArgumentReferences<Parameters>&,
       const Allen::Context&,
       const Allen::Rich::ParticleIDType*) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void backgroundsForRichFromReco(const ArgumentReferences<Parameters>&, const Allen::Context&, const unsigned) const;
 
     void initDLLs(
@@ -122,6 +122,6 @@ namespace rich_global_pid {
 
     Allen::Property<unsigned> m_maxEventIterations {this, "MaxEventIterations", 2000u, "Maximum globalPID iterations"};
 
-    mutable std::array<uint16_t*, 2> m_cached_effNumPixsEC {nullptr, nullptr};
+    mutable Allen::Rich::DetectorArray<uint16_t*> m_cached_effNumPixsEC {nullptr, nullptr};
   };
 } // namespace rich_global_pid

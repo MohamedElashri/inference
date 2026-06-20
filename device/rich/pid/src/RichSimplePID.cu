@@ -26,11 +26,11 @@ __global__ void rich_simple_pid_k(
     float max_bin = 0.f;
     auto pid = Allen::Rich::ParticleIDType::Unknown;
     UNROLL(Allen::Rich::NParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::particles()) {
       float h = track_total_signals_r1[i][hypo] + track_total_signals_r2[i][hypo];
       if (h > max_bin) {
         max_bin = h;
-        pid = static_cast<Allen::Rich::ParticleIDType>(hypo);
+        pid = hypo;
       }
     }
 

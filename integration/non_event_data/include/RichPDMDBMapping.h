@@ -69,14 +69,14 @@ namespace Allen::Conditions {
         auto& pdmMaskR = allenPDMDBMapping.m_pdmMaskR;
         auto& pdmMaskH = allenPDMDBMapping.m_pdmMaskH;
 
-        for (unsigned rich = 0; rich < 2; rich++) {
-          for (unsigned pdmdb = 0; pdmdb < 2; pdmdb++) {
-            for (unsigned link = 0; link < 6; link++) {
-              for (unsigned b = 0; b < 11; b++) {
+        for (const auto rich : Allen::Rich::Detector::detectors()) {
+          for (unsigned pdmdb = 0; pdmdb < Allen::Rich::Decoding::PDMDBDecodeMapping::PDMDBPerModule; pdmdb++) {
+            for (unsigned link = 0; link < Allen::Rich::Decoding::PDMDBDecodeMapping::FramesPerPDMDB; link++) {
+              for (unsigned b = 0; b < Allen::Rich::Decoding::PDMDBDecodeMapping::BytesPerFrameBitmask; b++) {
                 pdmMaskR[rich][pdmdb][link][b] = 0;
-                if (rich == 0) pdmMaskH[pdmdb][link][b] = 0;
+                if (rich == Allen::Rich::Detector::Rich1) pdmMaskH[pdmdb][link][b] = 0;
               }
-              for (unsigned bit = 0; bit < 86; bit++) {
+              for (unsigned bit = 0; bit < Allen::Rich::Decoding::PDMDBDecodeMapping::BitsPerFrame; bit++) {
                 auto b = bit + (bit >= 39 ? 1 : 0);
                 auto& dataR = pdmDataR[rich][pdmdb][link][bit];
                 auto& dataH = pdmDataH[pdmdb][link][bit];
@@ -85,13 +85,13 @@ namespace Allen::Conditions {
                 unsigned validH = dataH.ec != -1 && dataH.pmtInEC != -1 && dataH.anode != -1;
 
                 pdmMaskR[rich][pdmdb][link][b / 8] |= validR << (b % 8);
-                if (rich == 0) pdmMaskH[pdmdb][link][b / 8] |= validH << (b % 8);
+                if (rich == Allen::Rich::Detector::Rich1) pdmMaskH[pdmdb][link][b / 8] |= validH << (b % 8);
 
                 // Patch anode (reverse column)
                 auto row = dataR.anode / 8;
                 auto col = 7 - (dataR.anode % 8);
                 dataR.anode = col + 8 * row;
-                if (rich == 0) {
+                if (rich == Allen::Rich::Detector::Rich1) {
                   row = dataH.anode / 8;
                   col = 7 - (dataH.anode % 8);
                   dataH.anode = col + 8 * row;

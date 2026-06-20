@@ -40,6 +40,22 @@ namespace GaudiAllen::Converters {
     using AllenDLLs = Allen::parameter_vector<Allen::Rich::HypoData<float>>;
     using AllenOffsets = Allen::parameter_vector<unsigned>;
     using AllenHypos = Allen::parameter_vector<Allen::Rich::ParticleHypos>;
+
+    // This mapping is only required while the standalone Allen build forces Allen to maintain its own copy of the
+    // RICH particle hypothesis enum. Remove it and use the upstream Rich::ParticleIDType directly once the standalone
+    // build and the duplicated Allen types have been retired.
+    inline constexpr Allen::Rich::ParticleArray<Rich::ParticleIDType> RecParticleTypes {Rich::Electron,
+                                                                                        Rich::Muon,
+                                                                                        Rich::Pion,
+                                                                                        Rich::Kaon,
+                                                                                        Rich::Proton,
+                                                                                        Rich::Deuteron,
+                                                                                        Rich::BelowThreshold};
+
+    constexpr auto recParticleType(const Allen::Rich::ParticleIDType particle) noexcept
+    {
+      return particle == Allen::Rich::Unknown ? Rich::Unknown : RecParticleTypes[particle];
+    }
   } // namespace
 
   class GaudiAllenRichPidToRec final : public Gaudi::Functional::Transformer<LHCb::RichPIDs(
@@ -92,7 +108,7 @@ namespace GaudiAllen::Converters {
       for (std::size_t i = 0; i < tracks.size(); ++i) {
         // Allen pid info
         const auto* tk = tracks[i];
-        const auto bestH = static_cast<Rich::ParticleIDType>(allenPIDs[i]);
+        const auto bestH = recParticleType(allenPIDs[i]);
         const auto& allenDLL = allenDLLs[i];
 
         // Rec style pid
@@ -111,17 +127,18 @@ namespace GaudiAllen::Converters {
 
         // Threshold
         Allen::Rich::HypoData<int> thresh {};
-        for (std::size_t idx = 0; idx < Allen::Rich::NParticleTypes; ++idx) {
-          const auto hypo = static_cast<Rich::ParticleIDType>(idx);
-          thresh[idx] = hyposR1[i].yield[idx] > 0.f || hyposR2[i].yield[idx] > 0.f;
-          pid->setAboveThreshold(hypo, hyposR1[i].yield[idx] > 0.f || hyposR2[i].yield[idx] > 0.f);
+        for (const auto allenHypo : Allen::Rich::particles()) {
+          const auto hypo = recParticleType(allenHypo);
+          thresh[allenHypo] = hyposR1[i].yield[allenHypo] > 0.f || hyposR2[i].yield[allenHypo] > 0.f;
+          pid->setAboveThreshold(hypo, hyposR1[i].yield[allenHypo] > 0.f || hyposR2[i].yield[allenHypo] > 0.f);
         }
 
         // DLLs
         // Allen normalises DLLs to pion: allenDLL[X] = logL(X) - logL(pi)
         auto& vDLLs = pid->particleLLValues();
-        for (std::size_t idx = 0; idx < Allen::Rich::NParticleTypes; ++idx) {
-          vDLLs[idx] = static_cast<LHCb::RichPID::DLL>(allenDLL[idx]);
+        for (const auto allenHypo : Allen::Rich::particles()) {
+          const auto hypo = recParticleType(allenHypo);
+          vDLLs[hypo] = static_cast<LHCb::RichPID::DLL>(allenDLL[allenHypo]);
         }
         vDLLs[Rich::Pion] = 0.f; // probably redundant
         rPIDs.insert(std::move(pid), tk->key());
