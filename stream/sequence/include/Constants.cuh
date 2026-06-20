@@ -16,6 +16,7 @@
 #include <numeric>
 #include <span>
 #include <chrono>
+#include <RichTypes.cuh>
 
 // Forward declarations
 struct VeloGeometry;
@@ -46,7 +47,7 @@ namespace Allen::Rich::Decoding {
   struct Tel40CableMapping;
 } // namespace Allen::Rich::Decoding
 namespace Allen::Rich {
-  template<unsigned RichID>
+  template<Detector::DetectorType RichID>
   struct RichDetector;
 } // namespace Allen::Rich
 namespace UT::Constants {
@@ -152,13 +153,13 @@ struct Constants {
   // Rich
   Allen::Rich::Decoding::PDMDBDecodeMapping* host_rich_pdmdb_mapping = nullptr;
   std::vector<char> host_rich_cable_mapping;
-  Allen::Rich::RichDetector<0>* host_rich_1_geometry = nullptr;
-  Allen::Rich::RichDetector<1>* host_rich_2_geometry = nullptr;
+  Allen::Rich::RichDetector<Allen::Rich::Detector::Rich1>* host_rich_1_geometry = nullptr;
+  Allen::Rich::RichDetector<Allen::Rich::Detector::Rich2>* host_rich_2_geometry = nullptr;
 
   Allen::Rich::Decoding::PDMDBDecodeMapping* dev_rich_pdmdb_mapping = nullptr;
   Allen::Rich::Decoding::Tel40CableMapping* dev_rich_cable_mapping = nullptr;
-  Allen::Rich::RichDetector<0>* dev_rich_1_geometry = nullptr;
-  Allen::Rich::RichDetector<1>* dev_rich_2_geometry = nullptr;
+  Allen::Rich::RichDetector<Allen::Rich::Detector::Rich1>* dev_rich_1_geometry = nullptr;
+  Allen::Rich::RichDetector<Allen::Rich::Detector::Rich2>* dev_rich_2_geometry = nullptr;
 
   /**
    * @brief Reserves and initializes constants.

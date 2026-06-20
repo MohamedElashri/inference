@@ -29,12 +29,8 @@ namespace rich_init_pid {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<unsigned> m_current_rich {this, "current_rich", 1, "current rich"};
-
     /// The default PID to initialize all tracks with
-    Allen::Property<int> m_default_pid {this, "defaultPID", (int) Allen::Rich::ParticleIDType::Pion, ""};
-    // The following is causing errors with Gaudi:
-    // Allen::Property<Allen::Rich::ParticleIDType> m_default_pid {this, "defaultPID",
-    // Allen::Rich::ParticleIDType::Pion, ""};
+    // Retain the integer property for Gaudi compatibility and convert it at the algorithm boundary.
+    Allen::Property<int> m_default_pid {this, "defaultPID", static_cast<int>(Allen::Rich::ParticleIDType::Pion), ""};
   };
 } // namespace rich_init_pid

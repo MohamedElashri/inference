@@ -18,15 +18,15 @@
 INSTANTIATE_ALGORITHM(rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t);
 
 namespace Rich::Raytracing {
-  std::array<std::array<Allen::Rich::Detector::PDPanelLookup, 2>, 2> pd_panel_lut {};
+  Allen::Rich::DetectorArray<Allen::Rich::PanelArray<Allen::Rich::Detector::PDPanelLookup>> pd_panel_lut {};
 } // namespace Rich::Raytracing
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t::updateRich(
   const Allen::Rich::RichDetector<richIdx>* rich) const
 {
   // Build photodetector panel lookup tables
-  for (unsigned side = 0; side < 2; side++) {
+  for (const auto side : Allen::Rich::Detector::sides()) {
     const auto& allenPanel = rich->m_panels[side];
     const auto& g2panel = allenPanel.globalToPDPanel();
     auto& lut = Rich::Raytracing::pd_panel_lut[richIdx][side];
@@ -38,11 +38,12 @@ void rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t::updateRich(
 
 void rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t::update(const Constants& constants) const
 {
-  if (m_current_rich == 1) {
-    updateRich<0>(constants.host_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    updateRich<Allen::Rich::Detector::Rich1>(constants.host_rich_1_geometry);
   }
   else {
-    updateRich<1>(constants.host_rich_2_geometry);
+    updateRich<Allen::Rich::Detector::Rich2>(constants.host_rich_2_geometry);
   }
 }
 
@@ -59,7 +60,7 @@ __global__ void rich_raytrace_npoints_k(
     const auto hypos = hypos_tracks[i];
     float lightestCKtheta = 0.f;
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       const float ckTheta = hypos.ckTheta[hypo];
       if (std::isfinite(ckTheta) && ckTheta > 0.f) {
         lightestCKtheta = ckTheta;
@@ -68,7 +69,7 @@ __global__ void rich_raytrace_npoints_k(
     }
 
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       const float ckTheta = hypos.ckTheta[hypo];
       unsigned count = 0; // if invalid hypo
       if (std::isfinite(ckTheta) && ckTheta > 0.f && lightestCKtheta > 0.f) {
@@ -81,10 +82,10 @@ __global__ void rich_raytrace_npoints_k(
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_raytrace_ck_cones_k(
   const Allen::Rich::RichDetector<richIdx>* rich,
-  const std::array<Allen::Rich::Detector::PDPanelLookup, 2> pd_panel_lut,
+  const Allen::Rich::PanelArray<Allen::Rich::Detector::PDPanelLookup> pd_panel_lut,
   const unsigned number_of_events,
   const unsigned total_number_of_tracks,
   const unsigned* track_offsets,
@@ -105,24 +106,24 @@ __global__ void rich_raytrace_ck_cones_k(
 
     const unsigned track_id = track_hypo_id / Allen::Rich::NRealParticleTypes;
     const unsigned event_number = binary_search_rightmost(track_offsets, number_of_events + 1, track_id);
-    const unsigned hypo_id = track_hypo_id % Allen::Rich::NRealParticleTypes;
+    const auto hypo = Allen::Rich::realParticles()[track_hypo_id % Allen::Rich::NRealParticleTypes];
     const unsigned photon_id = i - hypo_offset;
 
     const float3 emission_point = segs_best_point[track_id];
     const auto side = Allen::Rich::side<richIdx>(emission_point);
-    const float ckTheta = hypos_tracks[track_id].ckTheta[hypo_id];
+    const float ckTheta = hypos_tracks[track_id].ckTheta[hypo];
     const float ckPhi = ((float) (2 * M_PI)) * photon_id / nPoints;
 
     Allen::Rich::PhotonReco::RotationMatrix rotation {segs_best_momentum[track_id]};
     float3 dir = rotation.vectorAtThetaPhi(ckTheta, ckPhi);
 
-    float2 lpos = Allen::Rich::pointAtPanel(rich, emission_point, dir, static_cast<Allen::Rich::Detector::Side>(side));
+    float2 lpos = Allen::Rich::pointAtPanel(rich, emission_point, dir, side);
     const unsigned panel_offset =
       (side * number_of_events + event_number) * Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
     int pd_index = pd_panel_lut[side].find(lpos);
     if (pd_index != -1) pd_index += panel_offset;
     pd_ids[i] = pd_index;
-    /*if (track_id == 0 && richIdx == 0 && hypo_id == 0) {
+    /*if (track_id == 0 && richIdx == 0 && hypo == Allen::Rich::Electron) {
       std::cout << "[Allen] id "<< photon_id << " / " << nPoints << " (" <<lpos.x<<", "<<lpos.y<<") side: "<<side<<" pd:
     "<<pd_index<<std::endl;
     }*/
@@ -198,8 +199,8 @@ __global__ void rich_raytrace_fill_geomeffs_k(
     }
 
     const unsigned track_id = i / Allen::Rich::NRealParticleTypes;
-    const unsigned hypo_id = i % Allen::Rich::NRealParticleTypes;
-    geomeffs_fractions_per_hypo[track_id][hypo_id] = total_fraction;
+    const auto hypo = Allen::Rich::realParticles()[i % Allen::Rich::NRealParticleTypes];
+    geomeffs_fractions_per_hypo[track_id][hypo] = total_fraction;
   }
 }
 
@@ -214,13 +215,13 @@ __global__ void rich_sum_track_signal_rec_k(
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned i = threadId; i < number_of_tracks * Allen::Rich::NParticleTypes; i += stride) {
     const unsigned track_id = i / Allen::Rich::NParticleTypes;
-    const unsigned hypo_id = i % Allen::Rich::NParticleTypes;
+    const auto hypo = Allen::Rich::particles()[i % Allen::Rich::NParticleTypes];
 
-    track_total_signals[track_id][hypo_id] = hypos[track_id].yield[hypo_id] * geomEffs[track_id][hypo_id];
+    track_total_signals[track_id][hypo] = hypos[track_id].yield[hypo] * geomEffs[track_id][hypo];
 
     /*if (track_id == 0) {
-      std::cout << "[Allen] Track 0 Hypo " << hypo_id << " track_signals "
-                << track_total_signals[track_id][hypo_id] << " geomEffs " << geomEffs[track_id][hypo_id] << std::endl;
+      std::cout << "[Allen] Track 0 Hypo " << hypo << " track_signals "
+                << track_total_signals[track_id][hypo] << " geomEffs " << geomEffs[track_id][hypo] << std::endl;
     }*/
   }
 }
@@ -243,7 +244,7 @@ void rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t::set_argumen
   set_size<dev_track_total_signals_t>(arguments, number_of_tracks);
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t::launchForRich(
   const ArgumentReferences<Parameters>& arguments,
   const RuntimeOptions&,
@@ -321,11 +322,11 @@ void rich_raytrace_cherenkov_cones::rich_raytrace_cherenkov_cones_t::operator()(
   const Constants& constants,
   const Allen::Context& context) const
 {
-  const unsigned richValue = m_current_rich;
-  if (richValue == 1) {
-    launchForRich<0>(arguments, options, constants, context, constants.dev_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    launchForRich<Allen::Rich::Detector::Rich1>(arguments, options, constants, context, constants.dev_rich_1_geometry);
   }
   else {
-    launchForRich<1>(arguments, options, constants, context, constants.dev_rich_2_geometry);
+    launchForRich<Allen::Rich::Detector::Rich2>(arguments, options, constants, context, constants.dev_rich_2_geometry);
   }
 }

@@ -41,10 +41,10 @@ struct RecPhotonIndividual {
   uint64_t smartID {};
   float ckTheta {};
   float ckPhi {};
-  unsigned rich {};
+  Rich::DetectorType rich {Rich::InvalidDetector};
   Rich::Future::HypoData<float> signals {};
 
-  RecPhotonIndividual(unsigned tid, uint64_t sid, float theta, float phi, unsigned rich) :
+  RecPhotonIndividual(unsigned tid, uint64_t sid, float theta, float phi, const Rich::DetectorType rich) :
     trackID(tid), smartID(sid), ckTheta(theta), ckPhi(phi), rich(rich)
   {}
 };
@@ -104,7 +104,6 @@ private:
   template<typename MatchCount, typename AllenNotInRec, typename RecNotInAllen>
   void matchPhotonsForTrack(
     [[maybe_unused]] const unsigned trackID,
-    [[maybe_unused]] const unsigned rich,
     const std::vector<AllenRichPhoton>& allenPhotons,
     const std::vector<RecPhotonIndividual>& recPhotons,
     const Allen::parameter_vector<Allen::Rich::Decoding::SmartID>& allenPixelsSmartID,
@@ -293,8 +292,7 @@ void CompareRecAllenRichPhotons::operator()(
           recPhoton.CherenkovTheta()[i],
           recPhoton.CherenkovPhi()[i],
           recPhoton.smartID()[i].rich());
-        for (unsigned j = 0; j < sigs.dataArray().size(); j++) {
-          auto id = static_cast<Rich::ParticleIDType>(j);
+        for (const auto id : Rich::particles()) {
           ph.signals[id] = sigs[id][i];
         }
       }
@@ -332,11 +330,11 @@ void CompareRecAllenRichPhotons::operator()(
 
     // Rec
     for (const auto& recPhoton : recPhotonsFlat) {
-      if (recPhoton.rich == 0) {
+      if (recPhoton.rich == Rich::Rich1) {
         ++rec_reviewed_r1;
         rec_by_trackid_r1[recPhoton.trackID].push_back(recPhoton);
       }
-      else if (recPhoton.rich == 1) {
+      else if (recPhoton.rich == Rich::Rich2) {
         ++rec_reviewed_r2;
         rec_by_trackid_r2[recPhoton.trackID].push_back(recPhoton);
       }
@@ -360,7 +358,6 @@ void CompareRecAllenRichPhotons::operator()(
   for (unsigned trackID = 0; trackID < n_tracks; trackID++) {
     matchPhotonsForTrack(
       trackID,
-      1,
       allen_by_trackid_r1[trackID],
       rec_by_trackid_r1[trackID],
       allenRich1PixelsSmartID,
@@ -375,7 +372,6 @@ void CompareRecAllenRichPhotons::operator()(
       m_ckThetaRec_rec_all_r1);
     matchPhotonsForTrack(
       trackID,
-      2,
       allen_by_trackid_r2[trackID],
       rec_by_trackid_r2[trackID],
       allenRich2PixelsSmartID,

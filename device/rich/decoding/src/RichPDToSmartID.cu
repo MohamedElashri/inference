@@ -20,7 +20,7 @@
 
 INSTANTIATE_ALGORITHM(rich_pd_to_smartid::rich_pd_to_smartid_t)
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_pd_to_smartid_k(
   const Allen::Rich::RichDetector<richIdx>* deRich,
   const unsigned number_of_pds,
@@ -34,7 +34,7 @@ __global__ void rich_pd_to_smartid_k(
     uint64_t pixels = pd_pixels[i];
     Allen::Rich::Decoding::SmartID* out = smartids + pd_offsets[i];
 
-    const unsigned side = i / (number_of_pds / 2);
+    const auto side = Allen::Rich::Detector::sides()[i / (number_of_pds / Allen::Rich::NPDPanelsPerRICH)];
     const unsigned denseID = i % Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 
     const auto& pd = deRich->pdPanels()[side].pds()[denseID];
@@ -70,16 +70,17 @@ void rich_pd_to_smartid::rich_pd_to_smartid_t::operator()(
   const Constants& constants,
   const Allen::Context& context) const
 {
-  if (m_current_rich == 1) {
-    global_function(rich_pd_to_smartid_k<0>)(dim3(32), dim3(256), context)(
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    global_function(rich_pd_to_smartid_k<Allen::Rich::Detector::Rich1>)(dim3(32), dim3(256), context)(
       constants.dev_rich_1_geometry,
       size<dev_pd_pixels_t>(arguments),
       data<dev_pd_pixels_t>(arguments),
       data<dev_rich_pd_offsets_t>(arguments),
       data<dev_smart_ids_t>(arguments));
   }
-  else if (m_current_rich == 2) {
-    global_function(rich_pd_to_smartid_k<1>)(dim3(32), dim3(256), context)(
+  else if (rich == Allen::Rich::Detector::Rich2) {
+    global_function(rich_pd_to_smartid_k<Allen::Rich::Detector::Rich2>)(dim3(32), dim3(256), context)(
       constants.dev_rich_2_geometry,
       size<dev_pd_pixels_t>(arguments),
       data<dev_pd_pixels_t>(arguments),

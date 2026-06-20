@@ -117,7 +117,7 @@ struct TrackCheckerHistos {
   void fillRichHistos(
     const Checker::Track& track,
     const std::vector<Allen::Rich::PhotonReco::Photon>& photons,
-    unsigned true_pid);
+    Allen::Rich::ParticleIDType true_pid);
   void fillMuonReconstructedMatchedIsMuon(const MCParticle& mcp);
   void fillMuonFromSReconstructedMatchedIsMuon(const MCParticle& mcp);
   void fillMuonFromBReconstructedMatchedIsMuon(const MCParticle& mcp);

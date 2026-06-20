@@ -41,10 +41,10 @@ namespace rich_raytrace_cherenkov_cones {
 
     void set_arguments_size(ArgumentReferences<Parameters>, const RuntimeOptions&, const Constants&) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void updateRich(const Allen::Rich::RichDetector<richIdx>*) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void launchForRich(
       const ArgumentReferences<Parameters>&,
       const RuntimeOptions&,
@@ -63,8 +63,8 @@ namespace rich_raytrace_cherenkov_cones {
     Allen::Property<unsigned> m_current_rich {this, "current_rich", 1, "current rich"};
 
     /// Minimum number of points to ray trace on each ring, for each RICH
-    Allen::Property<std::array<unsigned, 2>> m_nPointsMin {this, "NRingPointsMin", {16u, 16u}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<unsigned>> m_nPointsMin {this, "NRingPointsMin", {16u, 16u}, ""};
     /// Maximum number of points to ray trace on each ring, for each RICH
-    Allen::Property<std::array<unsigned, 2>> m_nPointsMax {this, "NRingPointsMax", {96u, 96u}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<unsigned>> m_nPointsMax {this, "NRingPointsMax", {96u, 96u}, ""};
   };
 } // namespace rich_raytrace_cherenkov_cones

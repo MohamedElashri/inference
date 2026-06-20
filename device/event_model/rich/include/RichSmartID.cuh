@@ -132,9 +132,15 @@ namespace Allen::Rich::Decoding {
       return 0 != getData(ShiftLargePixel, MaskLargePixel);
     }
 
-    __host__ __device__ constexpr auto rich() const noexcept { return getData(ShiftRich, MaskRich); }
+    __host__ __device__ constexpr auto rich() const noexcept
+    {
+      return Detector::detectors()[getData(ShiftRich, MaskRich)];
+    }
 
-    __host__ __device__ constexpr auto panel() const noexcept { return getData(ShiftPanel, MaskPanel); }
+    __host__ __device__ constexpr auto panel() const noexcept
+    {
+      return Detector::sides()[getData(ShiftPanel, MaskPanel)];
+    }
 
     __host__ __device__ constexpr auto side() const noexcept { return panel(); }
 
@@ -223,12 +229,12 @@ namespace Allen::Rich::Decoding {
       str << "{ ";
       str << "PMT";
       str << (id.isLargePMT() ? ":h " : ":r ");
-      str << (rich == 0 ? "Rich1 " : "Rich2 ");
-      if (rich == 0) {
-        str << (panel == 0 ? "Top " : "Bot ");
+      str << (rich == Detector::Rich1 ? "Rich1 " : "Rich2 ");
+      if (rich == Detector::Rich1) {
+        str << (panel == Detector::top ? "Top " : "Bot ");
       }
       else {
-        str << (panel == 0 ? "L-A " : "R-C ");
+        str << (panel == Detector::left ? "L-A " : "R-C ");
       }
       str << "PD[Mod,NInMod]: ";
       str << std::setfill('0') << std::setw(3) << id.pdMod() << ',';
@@ -294,17 +300,19 @@ namespace Allen::Rich::Decoding {
       std::max(ModuleColumnsPerRich1Panel, ModuleColumnsPerRich2Panel);
 
     /// Number of modules in RICH1
-    static constexpr const DataType RICH1Modules = 2 * ModulesPerColumn * ModuleColumnsPerRich1Panel;
+    static constexpr const DataType RICH1Modules = NPDPanelsPerRICH * ModulesPerColumn * ModuleColumnsPerRich1Panel;
     /// Number of modules in RICH2
-    static constexpr const DataType RICH2Modules = 2 * ModulesPerColumn * ModuleColumnsPerRich2Panel;
+    static constexpr const DataType RICH2Modules = NPDPanelsPerRICH * ModulesPerColumn * ModuleColumnsPerRich2Panel;
     /// Total number of modules
     static constexpr const DataType TotalModules = RICH1Modules + RICH2Modules;
 
-    __host__ __device__ constexpr unsigned panelModuleOffsets(BitPackType rich, BitPackType panel) const noexcept
+    __host__ __device__ constexpr unsigned panelModuleOffsets(
+      const Detector::DetectorType rich,
+      const Detector::Side panel) const noexcept
     {
-      return (2 * rich * ModulesPerColumn * ModuleColumnsPerRich1Panel) +
-             (panel *
-              (rich ? ModulesPerColumn * ModuleColumnsPerRich2Panel : ModulesPerColumn * ModuleColumnsPerRich1Panel));
+      return (NPDPanelsPerRICH * rich * ModulesPerColumn * ModuleColumnsPerRich1Panel) +
+             (panel * (rich == Detector::Rich2 ? ModulesPerColumn * ModuleColumnsPerRich2Panel :
+                                                 ModulesPerColumn * ModuleColumnsPerRich1Panel));
     }
 
     class MaPMT {

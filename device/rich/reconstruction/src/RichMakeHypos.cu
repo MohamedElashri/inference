@@ -17,7 +17,7 @@
 
 INSTANTIATE_ALGORITHM(rich_make_hypos::rich_make_hypos_t);
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_make_hypos::rich_make_hypos_t::updateRich(const Allen::Rich::RichDetector<richIdx>* rich) const
 {
   const double min_photon_E = static_cast<double>(Allen::Rich::MinPhotonEnergy);
@@ -83,11 +83,12 @@ void rich_make_hypos::rich_make_hypos_t::updateRich(const Allen::Rich::RichDetec
 
 void rich_make_hypos::rich_make_hypos_t::update(const Constants& constants) const
 {
-  if (m_current_rich == 1) {
-    updateRich<0>(constants.host_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    updateRich<Allen::Rich::Detector::Rich1>(constants.host_rich_1_geometry);
   }
   else {
-    updateRich<1>(constants.host_rich_2_geometry);
+    updateRich<Allen::Rich::Detector::Rich2>(constants.host_rich_2_geometry);
   }
 }
 
@@ -104,7 +105,7 @@ inline __device__ void moveState(Extrapolators::State& state, float z, const Mag
   }
 }
 
-template<unsigned richIdx, bool useYieldWeightedAngles>
+template<Allen::Rich::Detector::DetectorType richIdx, bool useYieldWeightedAngles>
 __global__ void rich_hypos_k(
   const Allen::Rich::RichDetector<richIdx>* rich,
   const MagneticField::Magfield magfield,
@@ -131,7 +132,7 @@ __global__ void rich_hypos_k(
     Extrapolators::State exit_state = exit_states[i];
 
     // Find real exit_state
-    const auto detectorSide = static_cast<Allen::Rich::Detector::Side>(Allen::Rich::side<richIdx>(exit_state.pos()));
+    const auto detectorSide = Allen::Rich::side<richIdx>(exit_state.pos());
     const auto initialZ = rich->m_radZExit;
 
     moveState(exit_state, initialZ - mirror_shift, magfield);
@@ -145,7 +146,7 @@ __global__ void rich_hypos_k(
     float3 entry_point = entry_state.pos();
     entry_point.z = rich->m_radZEntry;
 
-    if constexpr (richIdx == 0) { // only for rich 1
+    if constexpr (richIdx == Allen::Rich::Detector::Rich1) {
       rich->beampipeIntersect(entry_point, exit_point);
     }
 
@@ -177,7 +178,7 @@ __global__ void rich_hypos_k(
 
     if (pathLength < minRadLength) {
       UNROLL(Allen::Rich::NRealParticleTypes)
-      for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+      for (const auto hypo : Allen::Rich::realParticles()) {
         hypos.ckTheta[hypo] = NAN;
         hypos.ckRes[hypo] = 0.f;
         hypos.yield[hypo] = 0.f;
@@ -201,7 +202,7 @@ void rich_make_hypos::rich_make_hypos_t::set_arguments_size(
   set_size<dev_rich_hypos_t>(arguments, number_of_tracks);
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_make_hypos::rich_make_hypos_t::launchForRich(
   const ArgumentReferences<Parameters>& arguments,
   const RuntimeOptions&,
@@ -243,11 +244,11 @@ void rich_make_hypos::rich_make_hypos_t::operator()(
   const Constants& constants,
   const Allen::Context& context) const
 {
-  const unsigned richValue = m_current_rich;
-  if (richValue == 1) {
-    launchForRich<0>(arguments, options, constants, context, constants.dev_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    launchForRich<Allen::Rich::Detector::Rich1>(arguments, options, constants, context, constants.dev_rich_1_geometry);
   }
   else {
-    launchForRich<1>(arguments, options, constants, context, constants.dev_rich_2_geometry);
+    launchForRich<Allen::Rich::Detector::Rich2>(arguments, options, constants, context, constants.dev_rich_2_geometry);
   }
 }

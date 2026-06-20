@@ -16,7 +16,7 @@
 #include "QuarticSolver.cuh"
 
 namespace Allen::Rich {
-  template<unsigned RichID>
+  template<Detector::DetectorType RichID>
   struct RichDetector {
     __host__ __device__ inline auto rich() const { return RichID; }
 
@@ -121,11 +121,11 @@ namespace Allen::Rich {
     }
 
     // Panel geometry
-    std::array<Detector::PDPanel<RichID>, 2> m_panels {};
+    PanelArray<Detector::PDPanel<RichID>> m_panels {};
 
     // Nominal mirror geometry (for each side)
-    std::array<Plane, 2> m_nominalPlanes {};             // A,B,C,D for each side (secondary)
-    std::array<Point, 2> m_nominalCentresOfCurvature {}; // XYZ for each side (primary)
+    PanelArray<Plane> m_nominalPlanes {};             // A,B,C,D for each side (secondary)
+    PanelArray<Point> m_nominalCentresOfCurvature {}; // XYZ for each side (primary)
     float m_sphMirrorRadius {};
 
     // Mirror segments (for each side)
@@ -137,8 +137,8 @@ namespace Allen::Rich {
       RichID == Allen::Rich::Detector::Rich1,
       LookupTableMirrorFinder<8, 200, 100, 100.f>,
       LookupTableMirrorFinder<20, 400, 400, 2500.f>>;
-    std::array<PrimaryMirrorFinder, 2> m_primary_finder {};
-    std::array<SecondaryMirrorFinder, 2> m_secondary_finder {};
+    PanelArray<PrimaryMirrorFinder> m_primary_finder {};
+    PanelArray<SecondaryMirrorFinder> m_secondary_finder {};
 
     // Radiator
     float m_radZEntry {};
@@ -177,28 +177,28 @@ namespace Allen::Rich {
    * the track on the photodetector panel
    * @return End point in local space
    */
-  template<unsigned richIdx>
+  template<Detector::DetectorType rich>
   __device__ inline float2 pointAtPanel(
-    const Allen::Rich::RichDetector<richIdx>* rich,
+    const Allen::Rich::RichDetector<rich>* detector,
     float3 gPos,
     float3 gDir,
     const Allen::Rich::Detector::Side side)
   {
     auto gPosTest = gPos;
     auto gDirTest = gDir;
-    reflectSpherical(gPosTest, gDirTest, rich->nominalCentreOfCurvature(side), rich->sphMirrorRadius());
+    reflectSpherical(gPosTest, gDirTest, detector->nominalCentreOfCurvature(side), detector->sphMirrorRadius());
 
-    const auto& primMirror = rich->findPrimaryMirror(gPosTest, side);
+    const auto& primMirror = detector->findPrimaryMirror(gPosTest, side);
     reflectSpherical(gPos, gDir, primMirror.centreOfCurvature, primMirror.radiusOfCurvature);
 
     gPosTest = gPos;
     gDirTest = gDir;
-    reflectPlane(gPosTest, gDirTest, rich->nominalPlane(side));
+    reflectPlane(gPosTest, gDirTest, detector->nominalPlane(side));
 
-    const auto& secMirror = rich->findSecondaryMirror(gPosTest, side);
+    const auto& secMirror = detector->findSecondaryMirror(gPosTest, side);
     reflectSpherical(gPos, gDir, secMirror.centreOfCurvature, secMirror.radiusOfCurvature);
 
-    const Allen::Rich::Detector::PDPanel<richIdx>& panel = rich->pdPanels()[side];
+    const Allen::Rich::Detector::PDPanel<rich>& panel = detector->pdPanels()[side];
     gPos = intersectPlane(gPos, gDir, panel.detectionPlane());
 
     const auto g2panel = panel.globalToPDPanel();
@@ -206,43 +206,46 @@ namespace Allen::Rich {
     return {lPos.x, lPos.y};
   }
 
-  template<unsigned richIdx>
+  template<Detector::DetectorType rich>
   __device__ inline float3 photonDirection(
-    const Allen::Rich::RichDetector<richIdx>* rich,
+    const Allen::Rich::RichDetector<rich>* detector,
     const float3 emissionPoint,
     const float3 detectionPoint)
   {
     // TODO: return summary of which mirrors were used
-    const unsigned side = Allen::Rich::side<richIdx>(detectionPoint);
-    const Allen::Rich::Detector::Side detectorSide = static_cast<Allen::Rich::Detector::Side>(side);
+    const auto detectorSide = Allen::Rich::side<rich>(detectionPoint);
 
-    auto virtDetPoint = Allen::Rich::virtualPointPlane(detectionPoint, rich->nominalPlane(detectorSide));
+    auto virtDetPoint = Allen::Rich::virtualPointPlane(detectionPoint, detector->nominalPlane(detectorSide));
 
     float3 sphReflPoint, secReflPoint;
     Allen::Rich::QuarticSolverNewton<2, 2>::solve(
-      emissionPoint, rich->nominalCentreOfCurvature(detectorSide), virtDetPoint, rich->sphMirrorRadius(), sphReflPoint);
+      emissionPoint,
+      detector->nominalCentreOfCurvature(detectorSide),
+      virtDetPoint,
+      detector->sphMirrorRadius(),
+      sphReflPoint);
 
-    auto primMirror = rich->findPrimaryMirror(sphReflPoint, detectorSide);
+    auto primMirror = detector->findPrimaryMirror(sphReflPoint, detectorSide);
 
     float3 dir = virtDetPoint - sphReflPoint;
-    secReflPoint = Allen::Rich::intersectPlane(sphReflPoint, dir, rich->nominalPlane(detectorSide));
-    auto secMirror = rich->findSecondaryMirror(secReflPoint, detectorSide);
+    secReflPoint = Allen::Rich::intersectPlane(sphReflPoint, dir, detector->nominalPlane(detectorSide));
+    auto secMirror = detector->findSecondaryMirror(secReflPoint, detectorSide);
 
     // Iterate
-    constexpr unsigned nIters = richIdx == 0 ? 1 : 3; // 3
+    constexpr unsigned nIters = rich == Detector::Rich1 ? 1 : 3; // 3
     for (unsigned it = 0; it < nIters; it++) {
       // TODO: early exit if mirror set did not change
       dir = virtDetPoint - sphReflPoint;
       secReflPoint =
         Allen::Rich::intersectSpherical(sphReflPoint, dir, secMirror.centreOfCurvature, secMirror.radiusOfCurvature);
-      secMirror = rich->findSecondaryMirror(secReflPoint, detectorSide);
+      secMirror = detector->findSecondaryMirror(secReflPoint, detectorSide);
 
       virtDetPoint = Allen::Rich::virtualPointSpherical(detectionPoint, secMirror.centreOfCurvature, secReflPoint);
 
       Allen::Rich::QuarticSolverNewton<2, 3>::solve(
         emissionPoint, primMirror.centreOfCurvature, virtDetPoint, primMirror.radiusOfCurvature, sphReflPoint);
 
-      primMirror = rich->findPrimaryMirror(sphReflPoint, detectorSide);
+      primMirror = detector->findPrimaryMirror(sphReflPoint, detectorSide);
     }
 
     return sphReflPoint - emissionPoint;

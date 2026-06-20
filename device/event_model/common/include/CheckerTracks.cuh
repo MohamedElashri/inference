@@ -51,8 +51,8 @@ namespace Checker {
     float muon_catboost_output = 0.f;
     bool is_muon = false;
     // Rich:
-    int pid = -1;
-    float ckThetaExp[Allen::Rich::NRealParticleTypes];
+    Allen::Rich::ParticleIDType pid = Allen::Rich::ParticleIDType::Unknown;
+    Allen::Rich::RealParticleArray<float> ckThetaExp {};
 
     __device__ __host__ void addId(LHCbID id)
     { // 0-26 VELO , 26-30 UT, 30 - 42 SciFi, 42-46 Muon

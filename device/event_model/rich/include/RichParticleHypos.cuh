@@ -19,19 +19,19 @@
 namespace Allen::Rich {
   template<typename T>
   struct HypoData {
-    __device__ const T& operator[](unsigned i) const { return m_data[i]; }
-    __device__ T& operator[](unsigned i) { return m_data[i]; }
+    __device__ const T& operator[](const ParticleIDType particle) const { return m_data[particle]; }
+    __device__ T& operator[](const ParticleIDType particle) { return m_data[particle]; }
 
     __host__ friend inline std::ostream& operator<<(std::ostream& os, const HypoData<T>& data)
     {
       os << "[ ";
-      for (unsigned id = 0; id < NParticleTypes; id++) {
-        os << data[id] << " ";
+      for (const auto particle : particles()) {
+        os << data.m_data[particle] << " ";
       }
       return os << "]";
     }
 
-    std::array<T, NParticleTypes> m_data {};
+    ParticleArray<T> m_data {};
   };
 
   struct ParticleHypos {
@@ -40,26 +40,31 @@ namespace Allen::Rich {
      * @brief Simple constructor from momentum and average refractive index.
      * Assume constant refractive index through the radiator and energy spectra.
      */
-    __device__
-    ParticleHypos(float momentum, float pathLength, float nTheta, float nYield, float deltaE, unsigned richIdx)
+    __device__ ParticleHypos(
+      float momentum,
+      float pathLength,
+      float nTheta,
+      float nYield,
+      float deltaE,
+      const Detector::DetectorType rich)
     {
       UNROLL(NRealParticleTypes)
-      for (unsigned i = 0; i < NRealParticleTypes; i++) {
-        const float E2 = momentum * momentum + particleMass2[i];
+      for (const auto particle : realParticles()) {
+        const float E2 = momentum * momentum + particleMass2[particle];
         const float beta = momentum / sqrtf(E2);
-        ckTheta[i] = acosf(1.f / (nTheta * beta));
+        ckTheta[particle] = acosf(1.f / (nTheta * beta));
 
         // Use parametrized resolutions:
         // https://gitlab.cern.ch/lhcb/Rec/-/blob/master/Rich/RichFutureRecTrackAlgorithms/src/RichTrackParameterisedCherenkovResolutions.cpp
         Allen::TabulatedFunction1D interp(
-          LongMomentum_x[richIdx][i], LongMomentum_y[richIdx][i], LongMomentum_size[richIdx][i]);
-        ckRes[i] = interp.value(momentum);
+          LongMomentum_x[rich][particle], LongMomentum_y[rich][particle], LongMomentum_size[rich][particle]);
+        ckRes[particle] = interp.value(momentum);
 
         // const float sinTheta = sinf(ckTheta[i]);
         // yield[i] = 37.f * pathLength * sinTheta * sinTheta * deltaE;
         const float invBeta2 = E2 / (momentum * momentum);
         float val = 37.f * pathLength * (1.f - invBeta2 / (nYield * nYield)) * deltaE;
-        yield[i] = val > 0.f ? val : 0.f;
+        yield[particle] = val > 0.f ? val : 0.f;
       }
       ckTheta[ParticleIDType::BelowThreshold] = NAN;
       ckRes[ParticleIDType::BelowThreshold] = 0.f;
@@ -75,7 +80,7 @@ namespace Allen::Rich {
       const std::array<float, Allen::Rich::NPhotonSpectraBins>& paraWDiff,
       const std::array<float, Allen::Rich::NPhotonSpectraBins>& spectraEffs,
       const std::array<float, Allen::Rich::NPhotonSpectraBins>& refIndexPerBin,
-      unsigned richIdx)
+      const Detector::DetectorType rich)
     {
 
       const float momentum2 = momentum * momentum;
@@ -84,15 +89,15 @@ namespace Allen::Rich {
 
       // Loop over (real) PID types. Below threshold excluded.
       UNROLL(NRealParticleTypes)
-      for (unsigned id = 0; id < NRealParticleTypes; id++) {
+      for (const auto particle : realParticles()) {
 
         float detectableSignal = 0.f;
         float angleSum = 0.f;
 
         // Compute some segment ID dependent parameters
-        const auto Esq = momentum2 + particleMass2[id];
+        const auto Esq = momentum2 + particleMass2[particle];
         const auto invBetaSqA = 37.f * (momentum2 > 0.f ? Esq / momentum2 : 0.f);
-        const auto invGammaSqE = (Esq > 0.f ? particleMass2[id] / Esq : 0.f) * binSize;
+        const auto invGammaSqE = (Esq > 0.f ? particleMass2[particle] / Esq : 0.f) * binSize;
 
         // MassHypothesisRings acceptance check would go here.
         // In HLT2, this verifies that at least one point of the CK ring
@@ -134,15 +139,15 @@ namespace Allen::Rich {
           }
         } // Energy bins
 
-        yield[id] = detectableSignal;
-        ckTheta[id] =
+        yield[particle] = detectableSignal;
+        ckTheta[particle] =
           (detectableSignal > 0.f) ? (angleSum / detectableSignal) : NAN; // Normalise the angle by total yield
 
         // Use parametrized resolutions for now
         // TODO: probably should adapt Rich/RichFutureRecTrackAlgorithms/src/RichTrackFunctionalCherenkovResolutions.cpp
         Allen::TabulatedFunction1D interp(
-          LongMomentum_x[richIdx][id], LongMomentum_y[richIdx][id], LongMomentum_size[richIdx][id]);
-        ckRes[id] = interp.value(momentum);
+          LongMomentum_x[rich][particle], LongMomentum_y[rich][particle], LongMomentum_size[rich][particle]);
+        ckRes[particle] = interp.value(momentum);
       } // Particle hypos
       ckTheta[ParticleIDType::BelowThreshold] = NAN;
       ckRes[ParticleIDType::BelowThreshold] = 0.f;

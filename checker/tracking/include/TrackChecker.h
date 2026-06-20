@@ -75,7 +75,7 @@ protected:
   std::size_t n_matched_not_muons = 0;
   std::size_t n_is_muon_ghost = 0;
 
-  std::array<std::array<std::size_t, 7>, 7> pid_table {};
+  Allen::Rich::ParticleArray<Allen::Rich::ParticleArray<std::size_t>> pid_table {};
 
 public:
   TrackChecker(CheckerInvoker const* invoker, std::string const& root_file, std::string const& name) :
@@ -159,29 +159,29 @@ public:
     }
 
     if constexpr (std::is_same_v<T, Checker::Subdetector::Rich>) {
-      const std::array<std::string, 7> p_sym {{"e", "μ", "π", "K", "p", "d", "X"}};
-      const std::array<std::string, 7> p_sym2 {{"  e", "R μ", "e π", "c K", "o p", "  d", "  X"}};
+      const Allen::Rich::ParticleArray<std::string> p_sym {{"e", "μ", "π", "K", "p", "d", "X"}};
+      const Allen::Rich::ParticleArray<std::string> p_sym2 {{"  e", "R μ", "e π", "c K", "o p", "  d", "  X"}};
       printf("                   True particle type\n");
       printf("     ");
-      for (unsigned j = 0; j < pid_table.size(); j++) {
-        printf("     %s ", p_sym[j].c_str());
+      for (const auto true_pid : Allen::Rich::particles()) {
+        printf("     %s ", p_sym[true_pid].c_str());
       }
       printf("\n");
-      for (unsigned i = 0; i < pid_table.size(); i++) {
-        printf("%s ", p_sym2[i].c_str());
-        for (unsigned j = 0; j < pid_table.size(); j++) {
-          printf(" %6ld", pid_table[i][j]);
+      for (const auto reco_pid : Allen::Rich::particles()) {
+        printf("%s ", p_sym2[reco_pid].c_str());
+        for (const auto true_pid : Allen::Rich::particles()) {
+          printf(" %6ld", pid_table[reco_pid][true_pid]);
         }
         printf("\n");
       }
 
       printf("eff ");
-      for (unsigned j = 0; j < pid_table.size() - 1; j++) { // exclude X in eff computation
+      for (const auto true_pid : Allen::Rich::realParticles()) {
         size_t sum = 0;
-        for (unsigned i = 0; i < pid_table.size() - 1; i++) {
-          sum += pid_table[i][j];
+        for (const auto reco_pid : Allen::Rich::realParticles()) {
+          sum += pid_table[reco_pid][true_pid];
         }
-        printf("   %.2f", (double) pid_table[j][j] / sum);
+        printf("   %.2f", (double) pid_table[true_pid][true_pid] / sum);
       }
       printf("\n");
     }
@@ -664,28 +664,28 @@ public:
     const std::vector<Allen::Rich::PhotonReco::Photon>& photons,
     MCParticles::const_reference& mcp)
   {
-    int true_pid = 6;
+    auto true_pid = Allen::Rich::ParticleIDType::BelowThreshold;
     if (std::abs(mcp.pid) == 11) { // Electron
-      true_pid = 0;
+      true_pid = Allen::Rich::ParticleIDType::Electron;
     }
     else if (std::abs(mcp.pid) == 13) { // Muon
-      true_pid = 1;
+      true_pid = Allen::Rich::ParticleIDType::Muon;
     }
     else if (std::abs(mcp.pid) == 211) { // Pion
-      true_pid = 2;
+      true_pid = Allen::Rich::ParticleIDType::Pion;
     }
     else if (std::abs(mcp.pid) == 321) { // Kaon
-      true_pid = 3;
+      true_pid = Allen::Rich::ParticleIDType::Kaon;
     }
     else if (std::abs(mcp.pid) == 2212) { // Proton
-      true_pid = 4;
+      true_pid = Allen::Rich::ParticleIDType::Proton;
     }
     else if (std::abs(mcp.pid) == 1000010020L) { // Deuteron mcp pid should probably be 64bit
-      true_pid = 5;
+      true_pid = Allen::Rich::ParticleIDType::Deuteron;
     }
 
-    int reco_pid = track.pid;
-    if (reco_pid == -1) reco_pid = 6; // unknown
+    const auto reco_pid =
+      track.pid == Allen::Rich::ParticleIDType::Unknown ? Allen::Rich::ParticleIDType::BelowThreshold : track.pid;
 
     m_histos->fillRichHistos(track, photons, true_pid);
 

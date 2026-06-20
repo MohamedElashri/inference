@@ -31,10 +31,10 @@ namespace rich_make_hypos {
 
     void set_arguments_size(ArgumentReferences<Parameters>, const RuntimeOptions&, const Constants&) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void updateRich(const Allen::Rich::RichDetector<richIdx>*) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void launchForRich(
       const ArgumentReferences<Parameters>&,
       const RuntimeOptions&,
@@ -52,16 +52,20 @@ namespace rich_make_hypos {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
     Allen::Property<unsigned> m_current_rich {this, "current_rich", 1, "current rich"};
 
-    Allen::Property<std::array<float, 2>> m_mirrShift {
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_mirrShift {
       this,
       "MirrorShiftCorr",
       {350, 1500},
       "z shift values to move state to be on the 'inside' of the primary mirrors."};
-    Allen::Property<std::array<float, 2>> m_radScale {this, "RadScale", {0.0117f, -0.021f}, "Rich1Gas, Rich2Gas"};
-    Allen::Property<std::array<float, 2>> m_minRadLength {this,
-                                                          "MinRadiatorPathLength",
-                                                          {500.f, 1500.f},
-                                                          "Minimum path length in each RICH radiator volume."};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_radScale {this,
+                                                                   "RadScale",
+                                                                   {0.0117f, -0.021f},
+                                                                   "Rich1Gas, Rich2Gas"};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_minRadLength {
+      this,
+      "MinRadiatorPathLength",
+      {500.f, 1500.f},
+      "Minimum path length in each RICH radiator volume."};
 
     /// CK angle computation strategy
     Allen::Property<bool> m_useYieldWeightedAngles {

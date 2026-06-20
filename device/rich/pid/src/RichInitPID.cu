@@ -28,5 +28,6 @@ void rich_init_pid::rich_init_pid_t::operator()(
   const Constants&,
   const Allen::Context& context) const
 {
-  Allen::memset_async<dev_pid_t>(arguments, m_default_pid.value(), context);
+  const auto default_pid = static_cast<Allen::Rich::ParticleIDType>(m_default_pid.value());
+  Allen::memset_async<dev_pid_t>(arguments, default_pid, context);
 }

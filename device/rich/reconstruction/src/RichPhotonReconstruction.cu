@@ -17,7 +17,7 @@
 
 INSTANTIATE_ALGORITHM(rich_photon_reconstruction::rich_photon_reconstruction_t);
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_prefilter_photon_count_k(
   const short2* pixels_lpos,
   const unsigned* rich_hit_offsets,
@@ -39,11 +39,11 @@ __global__ void rich_prefilter_photon_count_k(
   for (unsigned i = track_offset + threadIdx.x; i < track_end; i += blockDim.x) {
 
     // Load segment data
-    const unsigned side = Allen::Rich::side<richIdx>(segs_best_point[i]);
+    const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
     const auto segPanelPnt = segs_point_at_panel[i];
     auto hypos = track_hypos[i];
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       hypos.ckRes[hypo] *= nSigmaPreSel;
     }
 
@@ -69,7 +69,7 @@ __global__ void rich_prefilter_photon_count_k(
         // Is any hit close to any mass hypo in local coordinate space ?
         bool keep = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+        for (const auto hypo : Allen::Rich::realParticles()) {
           if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < hypos.ckRes[hypo];
         }
@@ -81,7 +81,7 @@ __global__ void rich_prefilter_photon_count_k(
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_prefilter_photon_fill_k(
   const short2* pixels_lpos,
   const unsigned* rich_hit_offsets,
@@ -104,11 +104,11 @@ __global__ void rich_prefilter_photon_fill_k(
   for (unsigned i = track_offset + threadIdx.x; i < track_end; i += blockDim.x) {
 
     // Load segment data
-    const unsigned side = Allen::Rich::side<richIdx>(segs_best_point[i]);
+    const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
     const auto segPanelPnt = segs_point_at_panel[i];
     auto hypos = track_hypos[i];
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       hypos.ckRes[hypo] *= nSigmaPreSel;
     }
 
@@ -135,7 +135,7 @@ __global__ void rich_prefilter_photon_fill_k(
         // Is any hit close to any mass hypo in local coordinate space ?
         bool keep = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+        for (const auto hypo : Allen::Rich::realParticles()) {
           if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < hypos.ckRes[hypo];
         }
@@ -149,7 +149,7 @@ __global__ void rich_prefilter_photon_fill_k(
   }
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_photon_reco_k(
   const Allen::Rich::RichDetector<richIdx>* rich,
   const float3* pixels_gpos,
@@ -202,7 +202,7 @@ __global__ void rich_photon_reco_k(
 
     bool keep = false;
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (unsigned hypo = 0; hypo < Allen::Rich::NRealParticleTypes; hypo++) {
+    for (const auto hypo : Allen::Rich::realParticles()) {
       if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
       keep |= fabsf(hypos.ckTheta[hypo] - thetaCherenkov) < (hypos.ckRes[hypo] * nSigma);
     }
@@ -259,7 +259,7 @@ void rich_photon_reconstruction::rich_photon_reconstruction_t::set_arguments_siz
   set_size<dev_rich_photons_t>(arguments, 1);           // will be allocated when we know the count
 }
 
-template<unsigned richIdx>
+template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_photon_reconstruction::rich_photon_reconstruction_t::launchForRich(
   const ArgumentReferences<Parameters>& arguments,
   const RuntimeOptions&,
@@ -359,11 +359,11 @@ void rich_photon_reconstruction::rich_photon_reconstruction_t::operator()(
   const Constants& constants,
   const Allen::Context& context) const
 {
-  const unsigned richValue = m_current_rich;
-  if (richValue == 1) {
-    launchForRich<0>(arguments, options, constants, context, constants.dev_rich_1_geometry);
+  const auto rich = Allen::Rich::Detector::detectorTypeFromNumber(m_current_rich.value());
+  if (rich == Allen::Rich::Detector::Rich1) {
+    launchForRich<Allen::Rich::Detector::Rich1>(arguments, options, constants, context, constants.dev_rich_1_geometry);
   }
   else {
-    launchForRich<1>(arguments, options, constants, context, constants.dev_rich_2_geometry);
+    launchForRich<Allen::Rich::Detector::Rich2>(arguments, options, constants, context, constants.dev_rich_2_geometry);
   }
 }

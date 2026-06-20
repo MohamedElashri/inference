@@ -40,7 +40,7 @@ namespace rich_photon_reconstruction {
 
     void set_arguments_size(ArgumentReferences<Parameters>, const RuntimeOptions&, const Constants&) const;
 
-    template<unsigned richIdx>
+    template<Allen::Rich::Detector::DetectorType richIdx>
     void launchForRich(
       const ArgumentReferences<Parameters>&,
       const RuntimeOptions&,
@@ -60,43 +60,50 @@ namespace rich_photon_reconstruction {
 
     // Pre-filtering:
 
-    Allen::Property<std::array<float, 2>> m_radScale {this, "RadScale", {0.0117f, -0.021f}, "Rich1Gas, Rich2Gas"};
-    Allen::Property<std::array<float, 2>> m_minROIPreSel {this, "PreSelMinTrackROI", {0.f, 0.f}, ""};
-    Allen::Property<std::array<float, 2>> m_maxROIPreSel {this, "PreSelMaxTrackROI", {110.f, 165.f}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_radScale {this,
+                                                                   "RadScale",
+                                                                   {0.0117f, -0.021f},
+                                                                   "Rich1Gas, Rich2Gas"};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_minROIPreSel {this, "PreSelMinTrackROI", {0.f, 0.f}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_maxROIPreSel {this, "PreSelMaxTrackROI", {110.f, 165.f}, ""};
 
     // The CK theta value
-    Allen::Property<std::array<float, 2>> m_ckThetaScale {this, "ScaleFactorCKTheta", {0.045f, 0.024f}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_ckThetaScale {this,
+                                                                       "ScaleFactorCKTheta",
+                                                                       {0.045f, 0.024f},
+                                                                       ""};
 
     // The seperation the scale factors apply to
-    Allen::Property<std::array<float, 2>> m_sepGScale {this, "ScaleFactorSepG", {83.f, 107.f}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_sepGScale {this, "ScaleFactorSepG", {83.f, 107.f}, ""};
 
     /// N sigma for acceptance bands for preselection
-    Allen::Property<std::array<float, 2>> m_nSigmaPreSel {this, "PreSelNSigma", {5.f, 24.f}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_nSigmaPreSel {this, "PreSelNSigma", {5.f, 24.f}, ""};
 
 #ifdef USE_DD4HEP
-    Allen::Property<std::array<float, 2>> m_ckBiasCorrs {this, "CKThetaBiasCorr", {2.15e-4, 1.8e-5}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_ckBiasCorrs {this, "CKThetaBiasCorr", {2.15e-4, 1.8e-5}, ""};
 #else
-    Allen::Property<std::array<float, 2>> m_ckBiasCorrs {this, "CKThetaBiasCorr", {0.6e-4, 0.5e-5}, ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_ckBiasCorrs {this, "CKThetaBiasCorr", {0.6e-4, 0.5e-5}, ""};
 #endif
 
     /// Absolute minimum allowed Cherenkov Angle
-    Allen::Property<std::array<float, 2>> m_minCKtheta {
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_minCKtheta {
       this,
       "MinAllowedCherenkovTheta",
       {0.005, 0.005},
       "The minimum allowed CK theta values for each RICH (R1Gas/R2Gas)"};
 
     /// Absolute maximum allowed Cherenkov Angle
-    Allen::Property<std::array<float, 2>> m_maxCKtheta {
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_maxCKtheta {
       this,
       "MaxAllowedCherenkovTheta",
       {0.055, 0.032},
       "The maximum allowed CK theta values for each RICH (R1Gas/R2Gas)"};
 
     /// N sigma for acceptance bands
-    Allen::Property<std::array<float, 2>> m_nSigma {this,
-                                                    "NSigma",
-                                                    {3.6f, 4.5f},
-                                                    "The CK theta # sigma selection range for each RICH (R1Gas/R2Gas)"};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_nSigma {
+      this,
+      "NSigma",
+      {3.6f, 4.5f},
+      "The CK theta # sigma selection range for each RICH (R1Gas/R2Gas)"};
   };
 } // namespace rich_photon_reconstruction

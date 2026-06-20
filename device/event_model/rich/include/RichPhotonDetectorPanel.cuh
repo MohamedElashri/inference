@@ -17,7 +17,7 @@ namespace Allen::Rich::Detector {
   // https://gitlab.cern.ch/lhcb/LHCb/-/blob/master/Rich/RichDetectors/include/RichDetectors/RichPDPanel.h?ref_type=heads#L697
   struct PDPanelLookup {
     __host__ void
-    init(unsigned richIdx, const std::array<float, 12>& g2panel, const PhotonDetector* pds, unsigned n_pds)
+    init(const DetectorType rich, const std::array<float, 12>& g2panel, const PhotonDetector* pds, unsigned n_pds)
     {
       std::vector<unsigned> non_null_pds;
       std::vector<float2> lpos;
@@ -91,7 +91,7 @@ namespace Allen::Rich::Detector {
       m_maxX += 0.5f * minXdiff_N;
       m_minY -= 0.5f * minYdiff_N;
       m_maxY += 0.5f * minYdiff_N;
-      if (richIdx == 1) {
+      if (rich == Rich2) {
         // Do not fully understand this but RICH2 requires a 1/2 shift in Y..
         m_minY -= 0.5f * minYdiff_N;
         m_maxY -= 0.5f * minYdiff_N;
@@ -191,17 +191,17 @@ namespace Allen::Rich::Detector {
     short2* m_tols {nullptr};
   };
 
-  template<unsigned RichID>
+  template<DetectorType RichID>
   struct PDPanel {
     static constexpr unsigned ModuleColumnsPerPanel = RichID == Rich1 ? 11 : 12;
     static constexpr unsigned ModulesPerPanel = 6 * ModuleColumnsPerPanel;
     static constexpr unsigned ECsPerPanel = ModulesPerPanel * Decoding::SmartID::ECsPerModule;
     static constexpr unsigned PDsPerPanel =
       Decoding::SmartID::MaPMT::MaxPDsPerModule * ModulesPerPanel; // TODO: tighter for R2
-    static constexpr unsigned PDsPerRich = 2 * PDsPerPanel;
+    static constexpr unsigned PDsPerRich = NPDPanelsPerRICH * PDsPerPanel;
 
     static constexpr unsigned modNumOffset =
-      RichID == Rich1 ? 1 : (2 * 6 * 11 + 6); // TODO: eliminate DD4HEP module offset?
+      RichID == Rich1 ? 1 : (NPDPanelsPerRICH * 6 * 11 + 6); // TODO: eliminate DD4HEP module offset?
     static constexpr unsigned modNumOffsetSide = RichID == Rich1 ? ModulesPerPanel : 6 * 14;
 
     __host__ __device__ static inline unsigned smartID2denseID(const Decoding::SmartID smartID)
@@ -279,8 +279,8 @@ namespace Allen::Rich::Detector {
     std::array<float, 12> m_gloToPDPanelM {}; // 3D Transform
     Allen::Rich::Plane m_detectionPlane {};
     uint32_t m_modNumOffset {0};
-    std::array<int8_t, 3> m_panelID {Type::InvalidDetector, Side::InvalidSide, -1};
-    Type m_rich {Type::InvalidDetector};
+    std::array<int8_t, 3> m_panelID {DetectorType::InvalidDetector, Side::InvalidSide, -1};
+    DetectorType m_rich {DetectorType::InvalidDetector};
     Side m_side {Side::InvalidSide};
   };
 } // namespace Allen::Rich::Detector
