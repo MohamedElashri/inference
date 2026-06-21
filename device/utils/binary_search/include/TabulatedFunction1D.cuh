@@ -11,6 +11,7 @@
 #pragma once
 
 #include <BinarySearch.cuh>
+#include <limits>
 
 namespace Allen {
   struct TabulatedFunction1D {
@@ -18,10 +19,15 @@ namespace Allen {
 
     __device__ float value(float x) const
     {
-      unsigned bin = binary_search_leftmost(m_x, m_nbins, x);
-      // TODO: check bounds
-      float r = (x - m_x[bin]) / (m_x[bin + 1] - m_x[bin]);
-      return m_y[bin] + r * (m_y[bin + 1] - m_y[bin]);
+      if (m_nbins == 0) return std::numeric_limits<float>::quiet_NaN();
+      if (m_nbins == 1 || x <= m_x[0]) return m_y[0];
+      if (x >= m_x[m_nbins - 1]) return m_y[m_nbins - 1];
+      if (x != x) return x;
+
+      const unsigned upper_bin = binary_search_leftmost(m_x, m_nbins, x);
+      const unsigned lower_bin = upper_bin - 1;
+      const float r = (x - m_x[lower_bin]) / (m_x[upper_bin] - m_x[lower_bin]);
+      return m_y[lower_bin] + r * (m_y[upper_bin] - m_y[lower_bin]);
     }
 
   private:
