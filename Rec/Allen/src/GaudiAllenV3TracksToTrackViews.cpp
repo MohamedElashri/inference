@@ -12,7 +12,6 @@
 // Gaudi
 #include "Gaudi/Accumulators.h"
 #include "GaudiAlg/Transformer.h"
-#include "GaudiKernel/GaudiException.h"
 #include "GaudiKernel/StdArrayAsProperty.h"
 
 // LHCb
@@ -166,7 +165,7 @@ namespace GaudiAllen::Converters::v3 {
           const auto make_allen_state = [&](const SL location) {
             if (!track.has_state(location)) {
               ++m_missing_rich_states;
-              throw GaudiException {"Input track is missing a required RICH state", this->name(), StatusCode::FAILURE};
+              return SimpleKalmanState {};
             }
 
             const auto& state = track.template field<InTag::States>()[track.state_index(location)];
@@ -180,7 +179,7 @@ namespace GaudiAllen::Converters::v3 {
               !std::isfinite(allen_state.x) || !std::isfinite(allen_state.y) || !std::isfinite(allen_state.z) ||
               !std::isfinite(allen_state.tx) || !std::isfinite(allen_state.ty) || !std::isfinite(allen_state.qop)) {
               ++m_nonfinite_rich_states;
-              throw GaudiException {"Input track has a non-finite RICH state", this->name(), StatusCode::FAILURE};
+              return SimpleKalmanState {};
             }
             ++m_converted_rich_states;
             return allen_state;
@@ -197,8 +196,12 @@ namespace GaudiAllen::Converters::v3 {
 
   private:
     mutable Gaudi::Accumulators::Counter<> m_converted_rich_states {this, "Converted RICH track states"};
-    mutable Gaudi::Accumulators::Counter<> m_missing_rich_states {this, "Missing RICH track states"};
-    mutable Gaudi::Accumulators::Counter<> m_nonfinite_rich_states {this, "Non-finite RICH track states"};
+    mutable Gaudi::Accumulators::MsgCounter<MSG::WARNING> m_missing_rich_states {
+      this,
+      "Input track is missing a required RICH state; using a default state"};
+    mutable Gaudi::Accumulators::MsgCounter<MSG::WARNING> m_nonfinite_rich_states {
+      this,
+      "Input track has a non-finite RICH state; using a default state"};
   };
 
   using GaudiAllenV3TracksToMEBasicParticlesRichStates = GaudiAllenV3TracksToTrackViews<
