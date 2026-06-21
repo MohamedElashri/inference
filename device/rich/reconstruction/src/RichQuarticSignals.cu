@@ -100,6 +100,31 @@ void rich_quartic_signals::rich_quartic_signals_t::update(const Constants& const
   }
 }
 
+__device__ inline bool pdPassesPrefilter(
+  const short2 lpos16,
+  const float diag,
+  const float2 segPanelPnt,
+  const Allen::Rich::ParticleHypos& hypos,
+  const float min_separation2,
+  const float max_separation2,
+  const float scalePreSel,
+  const float nSigmaPreSel)
+{
+  const auto pixP = make_float2(lpos16.x * (750.f / (1 << 15)), lpos16.y * (750.f / (1 << 15)));
+  const auto dx = pixP.x - segPanelPnt.x;
+  const auto dy = pixP.y - segPanelPnt.y;
+  const auto sep2 = dx * dx + dy * dy;
+  if (!(min_separation2 < sep2 && sep2 < max_separation2)) return false;
+
+  const auto ckThetaEsti = sqrtf(sep2) * scalePreSel;
+  UNROLL(Allen::Rich::NRealParticleTypes)
+  for (const auto hypo : Allen::Rich::realParticles()) {
+    if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
+    if (fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] * nSigmaPreSel + diag)) return true;
+  }
+  return false;
+}
+
 template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_prefilter_pd_count_k(
   const unsigned n_pds,
@@ -122,37 +147,23 @@ __global__ void rich_prefilter_pd_count_k(
     // Load segment data
     const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
     const auto segPanelPnt = segs_point_at_panel[i];
-    auto hypos = track_hypos[i];
-    UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
-      hypos.ckRes[hypo] *= nSigmaPreSel;
-    }
+    const auto& hypos = track_hypos[i];
 
     // Count hits
     unsigned count_prefilter = 0; // Mass hypo prefilter
 
     for (unsigned j = 0; j < n_pds; j++) {
-      const auto lpos16 = pd_lpos16[j + side * n_pds];
-      const auto pixP = make_float2(lpos16.x * (750.f / (1 << 15)), lpos16.y * (750.f / (1 << 15)));
-
-      const auto dx = pixP.x - segPanelPnt.x;
-      const auto dy = pixP.y - segPanelPnt.y;
-      const auto sep2 = dx * dx + dy * dy;
-
-      if (min_separation2 < sep2 && sep2 < max_separation2) {
-        // estimated CK theta
-        const float diag = pd_diag[j + side * n_pds];
-        const auto ckThetaEsti = sqrtf(sep2) * scalePreSel;
-
-        // Is any hit close to any mass hypo in local coordinate space ?
-        bool keep = false;
-        UNROLL(Allen::Rich::NRealParticleTypes)
-        for (const auto hypo : Allen::Rich::realParticles()) {
-          if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
-          keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] + diag);
-        }
-
-        if (keep) count_prefilter++;
+      const auto pd_index = j + side * n_pds;
+      if (pdPassesPrefilter(
+            pd_lpos16[pd_index],
+            pd_diag[pd_index],
+            segPanelPnt,
+            hypos,
+            min_separation2,
+            max_separation2,
+            scalePreSel,
+            nSigmaPreSel)) {
+        count_prefilter++;
       }
     }
     pd_counts[i] = count_prefilter;
@@ -187,11 +198,7 @@ __global__ void rich_prefilter_pd_fill_k(
     // Load segment data
     const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
     const auto segPanelPnt = segs_point_at_panel[i];
-    auto hypos = track_hypos[i];
-    UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
-      hypos.ckRes[hypo] *= nSigmaPreSel;
-    }
+    const auto& hypos = track_hypos[i];
 
     const auto event_number = binary_search_rightmost(track_offsets, number_of_events + 1, i);
     const auto pd_offset =
@@ -203,31 +210,18 @@ __global__ void rich_prefilter_pd_fill_k(
     unsigned* track_pixel_counts = pix_counts + track_signal_offsets[i];
 
     for (unsigned j = 0; j < n_pds; j++) {
-      const auto lpos16 = pd_lpos16[j + side * n_pds];
-      const auto pixP = make_float2(lpos16.x * (750.f / (1 << 15)), lpos16.y * (750.f / (1 << 15)));
-
-      const auto dx = pixP.x - segPanelPnt.x;
-      const auto dy = pixP.y - segPanelPnt.y;
-      const auto sep2 = dx * dx + dy * dy;
-
-      if (min_separation2 < sep2 && sep2 < max_separation2) {
-        // estimated CK theta
-        const float diag = pd_diag[j + side * n_pds];
-        const auto ckThetaEsti = sqrtf(sep2) * scalePreSel;
-
-        // Is any hit close to any mass hypo in local coordinate space ?
-        bool keep = false;
-        UNROLL(Allen::Rich::NRealParticleTypes)
-        for (const auto hypo : Allen::Rich::realParticles()) {
-          if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
-          keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] + diag);
-        }
-
-        if (keep) {
-          // All prefilter passed
-          track_pixel_counts[pd_count] = __popcll(pd_pixels[pd_offset + pd_infos[j + side * n_pds].index()]);
-          track_pd_indices[pd_count++] = j + side * n_pds;
-        }
+      const auto pd_index = j + side * n_pds;
+      if (pdPassesPrefilter(
+            pd_lpos16[pd_index],
+            pd_diag[pd_index],
+            segPanelPnt,
+            hypos,
+            min_separation2,
+            max_separation2,
+            scalePreSel,
+            nSigmaPreSel)) {
+        track_pixel_counts[pd_count] = __popcll(pd_pixels[pd_offset + pd_infos[pd_index].index()]);
+        track_pd_indices[pd_count++] = pd_index;
       }
     }
   }
