@@ -166,24 +166,21 @@ namespace GaudiAllen::Converters::v3 {
           const auto make_allen_state = [&](const SL location) {
             if (!track.has_state(location)) {
               ++m_missing_rich_states;
-              throw GaudiException {
-                "Input track is missing a required RICH state", this->name(), StatusCode::FAILURE};
+              throw GaudiException {"Input track is missing a required RICH state", this->name(), StatusCode::FAILURE};
             }
 
             const auto& state = track.template field<InTag::States>()[track.state_index(location)];
-            const SimpleKalmanState allen_state {
-              state.x().cast(),
-              state.y().cast(),
-              state.z().cast(),
-              state.tx().cast(),
-              state.ty().cast(),
-              state.qOverP().cast()};
+            const SimpleKalmanState allen_state {state.x().cast(),
+                                                 state.y().cast(),
+                                                 state.z().cast(),
+                                                 state.tx().cast(),
+                                                 state.ty().cast(),
+                                                 state.qOverP().cast()};
             if (
               !std::isfinite(allen_state.x) || !std::isfinite(allen_state.y) || !std::isfinite(allen_state.z) ||
               !std::isfinite(allen_state.tx) || !std::isfinite(allen_state.ty) || !std::isfinite(allen_state.qop)) {
               ++m_nonfinite_rich_states;
-              throw GaudiException {
-                "Input track has a non-finite RICH state", this->name(), StatusCode::FAILURE};
+              throw GaudiException {"Input track has a non-finite RICH state", this->name(), StatusCode::FAILURE};
             }
             ++m_converted_rich_states;
             return allen_state;

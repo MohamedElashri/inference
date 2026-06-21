@@ -147,8 +147,7 @@ namespace Allen::Rich::Detector {
     }
     __device__ short find(float2 P) const
     {
-      if (
-        P.x != P.x || P.y != P.y || P.x < m_minX || P.x > m_maxX || P.y < m_minY || P.y > m_maxY) {
+      if (P.x != P.x || P.y != P.y || P.x < m_minX || P.x > m_maxX || P.y < m_minY || P.y > m_maxY) {
         return -1;
       }
       // Note: handle acceptance here for now as we don't have the information dumped in the panel

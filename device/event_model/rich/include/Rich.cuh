@@ -189,8 +189,7 @@ namespace Allen::Rich {
 
     auto gPosTest = gPos;
     auto gDirTest = gDir;
-    if (!reflectSpherical(
-          gPosTest, gDirTest, detector->nominalCentreOfCurvature(side), detector->sphMirrorRadius())) {
+    if (!reflectSpherical(gPosTest, gDirTest, detector->nominalCentreOfCurvature(side), detector->sphMirrorRadius())) {
       return invalid;
     }
 
