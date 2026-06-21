@@ -105,6 +105,18 @@ inline __device__ void moveState(Extrapolators::State& state, float z, const Mag
   }
 }
 
+inline __device__ auto invalidHypos()
+{
+  Allen::Rich::ParticleHypos hypos {};
+  UNROLL(Allen::Rich::NRealParticleTypes)
+  for (const auto hypo : Allen::Rich::realParticles()) {
+    hypos.ckTheta[hypo] = NAN;
+    hypos.ckRes[hypo] = 0.f;
+    hypos.yield[hypo] = 0.f;
+  }
+  return hypos;
+}
+
 template<Allen::Rich::Detector::DetectorType richIdx, bool useYieldWeightedAngles>
 __global__ void rich_hypos_k(
   const Allen::Rich::RichDetector<richIdx>* rich,
@@ -122,7 +134,8 @@ __global__ void rich_hypos_k(
   const float refIndexTheta,
   const float refIndexYield,
   const float deltaE,
-  const std::array<float, Allen::Rich::NPhotonSpectraBins> paraWDiff)
+  const std::array<float, Allen::Rich::NPhotonSpectraBins> paraWDiff,
+  Allen::Monitoring::Counter<>::DeviceType failed_ray_traces)
 {
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
@@ -139,8 +152,15 @@ __global__ void rich_hypos_k(
 
     auto gDir = exit_state.dir();
     float3 exit_point = exit_state.pos();
-    Allen::Rich::reflectSpherical(
-      exit_point, gDir, rich->nominalCentreOfCurvature(detectorSide), rich->sphMirrorRadius());
+    if (!Allen::Rich::reflectSpherical(
+          exit_point, gDir, rich->nominalCentreOfCurvature(detectorSide), rich->sphMirrorRadius())) {
+      segs_best_point[i] = {NAN, NAN, NAN};
+      segs_best_momentum[i] = {NAN, NAN, NAN};
+      segs_point_at_panel[i] = {NAN, NAN};
+      hypos_tracks[i] = invalidHypos();
+      failed_ray_traces.increment();
+      continue;
+    }
 
     // Find real entry state
     float3 entry_point = entry_state.pos();
@@ -165,7 +185,10 @@ __global__ void rich_hypos_k(
       Allen::Rich::pointAtPanel(rich, middle_state.pos(), middle_state.dir(), detectorSide), rad_scale);
 
     Allen::Rich::ParticleHypos hypos {};
-    if (useYieldWeightedAngles) {
+    if (!std::isfinite(pathLength) || !std::isfinite(momentum) || pathLength < minRadLength) {
+      hypos = invalidHypos();
+    }
+    else if (useYieldWeightedAngles) {
       // Compute emitted and detectable photon yields and spectra, and CK angles
       // then fill ParticleHypos from the computed Cherenkov angles
       hypos =
@@ -174,15 +197,6 @@ __global__ void rich_hypos_k(
     else { // CK angle computation with average refractive index
       // Create ck angles, res and yields for each hypo
       hypos = Allen::Rich::ParticleHypos(momentum, pathLength, refIndexTheta, refIndexYield, deltaE, richIdx);
-    }
-
-    if (pathLength < minRadLength) {
-      UNROLL(Allen::Rich::NRealParticleTypes)
-      for (const auto hypo : Allen::Rich::realParticles()) {
-        hypos.ckTheta[hypo] = NAN;
-        hypos.ckRes[hypo] = 0.f;
-        hypos.yield[hypo] = 0.f;
-      }
     }
 
     hypos_tracks[i] = hypos;
@@ -235,7 +249,8 @@ void rich_make_hypos::rich_make_hypos_t::launchForRich(
     m_refIndexTheta,
     m_refIndexYield,
     m_deltaE,
-    m_paraWDiff);
+    m_paraWDiff,
+    m_failed_ray_traces.data(context));
 }
 
 void rich_make_hypos::rich_make_hypos_t::operator()(

@@ -11,6 +11,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <ostream>
@@ -28,6 +29,11 @@ namespace Allen::Rich {
   using BitPackType = KeyType;
   using ADCTimeType = std::uint16_t;
   using Plane = std::array<float, 4>; // Plane represented as Ax + By + Cz + D = 0
+
+  __host__ __device__ inline bool isFinite(const Point& point)
+  {
+    return std::isfinite(point.x) && std::isfinite(point.y) && std::isfinite(point.z);
+  }
 
   //// Constants related to pixel reconstruction, value definition based on those in HLT2's
   /// Rec/Rich/RichFutureRecPixelAlgorithms/src/RichSIMDSummaryPixels.cpp
