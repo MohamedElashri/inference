@@ -172,14 +172,16 @@ namespace Allen::Rich::Detector {
     {
       if (x <= m_minX) return 0;
       if (x >= m_maxX) return m_binsX - 1;
-      return min(static_cast<unsigned>((x - m_minX) * m_incX), m_binsX - 1);
+      const auto index = static_cast<unsigned>((x - m_minX) * m_incX);
+      return index < m_binsX ? index : m_binsX - 1;
     }
 
     __device__ unsigned yindex(float y) const
     {
       if (y <= m_minY) return 0;
       if (y >= m_maxY) return m_binsY - 1;
-      return min(static_cast<unsigned>((y - m_minY) * m_incY), m_binsY - 1);
+      const auto index = static_cast<unsigned>((y - m_minY) * m_incY);
+      return index < m_binsY ? index : m_binsY - 1;
     }
 
     float m_minX {9e9};  ///< Minimum X
