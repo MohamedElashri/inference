@@ -10,7 +10,9 @@
 \*****************************************************************************/
 
 // Gaudi
+#include "Gaudi/Accumulators.h"
 #include "GaudiAlg/Transformer.h"
+#include "GaudiKernel/GaudiException.h"
 #include "GaudiKernel/StdArrayAsProperty.h"
 
 // LHCb
@@ -32,6 +34,7 @@
 
 #include <AIDA/IHistogram1D.h>
 #include <algorithm>
+#include <cmath>
 #include <type_traits>
 #include <functional>
 
@@ -160,52 +163,45 @@ namespace GaudiAllen::Converters::v3 {
 
       if constexpr (sizeof...(AllenStates) > 0) {
         for (const auto& track : tracks.scalar()) {
-          // Rich 1:
-          {
-            const auto& state_r1_F = track.template field<InTag::States>()[track.state_index(SL::BegRich1)];
-            const auto& state_r1_B = track.template field<InTag::States>()[track.state_index(SL::EndRich1)];
+          const auto make_allen_state = [&](const SL location) {
+            if (!track.has_state(location)) {
+              ++m_missing_rich_states;
+              throw GaudiException {
+                "Input track is missing a required RICH state", this->name(), StatusCode::FAILURE};
+            }
 
-            r1_front_states.emplace_back(
-              state_r1_F.x().cast(),
-              state_r1_F.y().cast(),
-              state_r1_F.z().cast(),
-              state_r1_F.tx().cast(),
-              state_r1_F.ty().cast(),
-              state_r1_F.qOverP().cast());
+            const auto& state = track.template field<InTag::States>()[track.state_index(location)];
+            const SimpleKalmanState allen_state {
+              state.x().cast(),
+              state.y().cast(),
+              state.z().cast(),
+              state.tx().cast(),
+              state.ty().cast(),
+              state.qOverP().cast()};
+            if (
+              !std::isfinite(allen_state.x) || !std::isfinite(allen_state.y) || !std::isfinite(allen_state.z) ||
+              !std::isfinite(allen_state.tx) || !std::isfinite(allen_state.ty) || !std::isfinite(allen_state.qop)) {
+              ++m_nonfinite_rich_states;
+              throw GaudiException {
+                "Input track has a non-finite RICH state", this->name(), StatusCode::FAILURE};
+            }
+            ++m_converted_rich_states;
+            return allen_state;
+          };
 
-            r1_end_states.emplace_back(
-              state_r1_B.x().cast(),
-              state_r1_B.y().cast(),
-              state_r1_B.z().cast(),
-              state_r1_B.tx().cast(),
-              state_r1_B.ty().cast(),
-              state_r1_B.qOverP().cast());
-          }
-          // Rich 2:
-          {
-            const auto& state_r2_F = track.template field<InTag::States>()[track.state_index(SL::BegRich2)];
-            const auto& state_r2_B = track.template field<InTag::States>()[track.state_index(SL::EndRich2)];
-
-            r2_front_states.emplace_back(
-              state_r2_F.x().cast(),
-              state_r2_F.y().cast(),
-              state_r2_F.z().cast(),
-              state_r2_F.tx().cast(),
-              state_r2_F.ty().cast(),
-              state_r2_F.qOverP().cast());
-
-            r2_end_states.emplace_back(
-              state_r2_B.x().cast(),
-              state_r2_B.y().cast(),
-              state_r2_B.z().cast(),
-              state_r2_B.tx().cast(),
-              state_r2_B.ty().cast(),
-              state_r2_B.qOverP().cast());
-          }
+          r1_front_states.emplace_back(make_allen_state(SL::BegRich1));
+          r1_end_states.emplace_back(make_allen_state(SL::EndRich1));
+          r2_front_states.emplace_back(make_allen_state(SL::BegRich2));
+          r2_end_states.emplace_back(make_allen_state(SL::EndRich2));
         }
       }
       return output;
     }
+
+  private:
+    mutable Gaudi::Accumulators::Counter<> m_converted_rich_states {this, "Converted RICH track states"};
+    mutable Gaudi::Accumulators::Counter<> m_missing_rich_states {this, "Missing RICH track states"};
+    mutable Gaudi::Accumulators::Counter<> m_nonfinite_rich_states {this, "Non-finite RICH track states"};
   };
 
   using GaudiAllenV3TracksToMEBasicParticlesRichStates = GaudiAllenV3TracksToTrackViews<
