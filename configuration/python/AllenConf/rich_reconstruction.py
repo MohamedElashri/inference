@@ -334,7 +334,20 @@ def make_global_pid(
 ):
     number_of_events = initialize_number_of_events()
 
-    useCones = options["BackgroundEstimationMethod"] == "FromCones"  # noqa: F841
+    background_method = options["BackgroundEstimationMethod"]
+    if background_method not in ("FromReco", "FromCones"):
+        raise ValueError(
+            f"Unknown BackgroundEstimationMethod {background_method!r}, "
+            "must be one of 'FromReco', 'FromCones'"
+        )
+    if background_method == "FromCones":
+        # The per-track/hypo/PD geometrical efficiencies needed for this method are
+        # wired in below, but the background estimator that would consume them is
+        # not yet implemented. See https://gitlab.cern.ch/lhcb/Allen/-/issues/618
+        raise NotImplementedError(
+            "BackgroundEstimationMethod 'FromCones' is not yet implemented in "
+            "Allen (see lhcb/Allen#618); use 'FromReco' for now"
+        )
 
     rich_global_pid = make_algorithm(
         rich_global_pid_t,
@@ -343,14 +356,12 @@ def make_global_pid(
         host_number_of_tracks_t=tracks["host_number_of_reconstructed_scifi_tracks"],
         dev_offsets_tracks_t=tracks["dev_offsets_long_tracks"],
         dev_pid_in_t=pid["dev_pid"],
-        # Since optionals and aggregate are broken, we need to create a dependency:
-        # TODO: either fix optionals or give dummy objects
-        # dev_rich_geomeff_offsets_r1_t=photons[RICH_1]["dev_rich_geomeff_offsets"],
-        # dev_rich_geomeff_pd_ids_r1_t=photons[RICH_1]["dev_rich_geomeff_pd_ids"],
-        # dev_rich_geomeff_fractions_r1_t=photons[RICH_1]["dev_rich_geomeff_fractions"],
-        # dev_rich_geomeff_offsets_r2_t=photons[RICH_2]["dev_rich_geomeff_offsets"],
-        # dev_rich_geomeff_pd_ids_r2_t=photons[RICH_2]["dev_rich_geomeff_pd_ids"],
-        # dev_rich_geomeff_fractions_r2_t=photons[RICH_2]["dev_rich_geomeff_fractions"],
+        dev_rich_geomeff_offsets_r1_t=photons[RICH_1]["dev_rich_geomeff_offsets"],
+        dev_rich_geomeff_pd_ids_r1_t=photons[RICH_1]["dev_rich_geomeff_pd_ids"],
+        dev_rich_geomeff_fractions_r1_t=photons[RICH_1]["dev_rich_geomeff_fractions"],
+        dev_rich_geomeff_offsets_r2_t=photons[RICH_2]["dev_rich_geomeff_offsets"],
+        dev_rich_geomeff_pd_ids_r2_t=photons[RICH_2]["dev_rich_geomeff_pd_ids"],
+        dev_rich_geomeff_fractions_r2_t=photons[RICH_2]["dev_rich_geomeff_fractions"],
         host_number_of_pixels_r1_t=pixels[RICH_1]["host_number_of_pixels"],
         host_number_of_photons_r1_t=photons[RICH_1]["host_number_of_photons"],
         dev_rich_pd_offsets_r1_t=pixels[RICH_1]["dev_rich_pd_offsets"],

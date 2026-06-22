@@ -29,13 +29,17 @@ namespace rich_global_pid {
     DEVICE_INPUT(dev_offsets_tracks_t, unsigned) dev_offsets_tracks;
     DEVICE_INPUT(dev_pid_in_t, Allen::Rich::ParticleIDType) dev_pid_in;
 
-    // For "FromCones" background estimation, optionals are buggy so commented for now:
-    /*DEVICE_INPUT_OPTIONAL(dev_rich_geomeff_offsets_r1_t, unsigned) dev_rich_geomeff_offsets_r1;
-    DEVICE_INPUT_OPTIONAL(dev_rich_geomeff_pd_ids_r1_t, int) dev_rich_geomeff_pd_ids_r1;
-    DEVICE_INPUT_OPTIONAL(dev_rich_geomeff_fractions_r1_t, float) dev_rich_geomeff_fractions_r1;
-    DEVICE_INPUT_OPTIONAL(dev_rich_geomeff_offsets_r2_t, unsigned) dev_rich_geomeff_offsets_r2;
-    DEVICE_INPUT_OPTIONAL(dev_rich_geomeff_pd_ids_r2_t, int) dev_rich_geomeff_pd_ids_r2;
-    DEVICE_INPUT_OPTIONAL(dev_rich_geomeff_fractions_r2_t, float) dev_rich_geomeff_fractions_r2;*/
+    // Per-track/hypothesis/PD geometrical efficiencies from the ray-traced Cherenkov
+    // cones, needed by the "FromCones" background estimation method (not yet
+    // implemented, see rich_global_pid_t::backgroundsForRichFromReco and Allen#618).
+    // Allen has no DEVICE_INPUT_OPTIONAL macro, and rich_raytrace_cherenkov_cones_t
+    // already computes these unconditionally upstream, so take them as plain inputs.
+    DEVICE_INPUT(dev_rich_geomeff_offsets_r1_t, unsigned) dev_rich_geomeff_offsets_r1;
+    DEVICE_INPUT(dev_rich_geomeff_pd_ids_r1_t, int) dev_rich_geomeff_pd_ids_r1;
+    DEVICE_INPUT(dev_rich_geomeff_fractions_r1_t, float) dev_rich_geomeff_fractions_r1;
+    DEVICE_INPUT(dev_rich_geomeff_offsets_r2_t, unsigned) dev_rich_geomeff_offsets_r2;
+    DEVICE_INPUT(dev_rich_geomeff_pd_ids_r2_t, int) dev_rich_geomeff_pd_ids_r2;
+    DEVICE_INPUT(dev_rich_geomeff_fractions_r2_t, float) dev_rich_geomeff_fractions_r2;
 
     DEVICE_INPUT(dev_rich_pd_offsets_r1_t, unsigned) dev_rich_pd_offsets_r1;
     DEVICE_INPUT(dev_offsets_rich_photons_r1_t, unsigned) dev_offsets_rich_photons_r1;
