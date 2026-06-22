@@ -106,12 +106,18 @@ namespace Allen::Rich {
 
     __device__ unsigned xindex(float x) const
     {
-      return x < m_minX ? 0 : x > m_maxX ? n_binsX - 1 : ((x - m_minX) * m_incX);
+      if (x != x || x <= m_minX) return 0;
+      if (x >= m_maxX) return n_binsX - 1;
+      const auto index = static_cast<unsigned>((x - m_minX) * m_incX);
+      return index < n_binsX ? index : n_binsX - 1;
     }
 
     __device__ unsigned yindex(float y) const
     {
-      return y < m_minY ? 0 : y > m_maxY ? n_binsY - 1 : ((y - m_minY) * m_incY);
+      if (y != y || y <= m_minY) return 0;
+      if (y >= m_maxY) return n_binsY - 1;
+      const auto index = static_cast<unsigned>((y - m_minY) * m_incY);
+      return index < n_binsY ? index : n_binsY - 1;
     }
 
     float m_minX {9e9};  ///< Minimum X

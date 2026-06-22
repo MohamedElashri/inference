@@ -184,26 +184,33 @@ namespace Allen::Rich {
     float3 gDir,
     const Allen::Rich::Detector::Side side)
   {
+    constexpr auto invalid = float2 {NAN, NAN};
+    if (!isFinite(gPos) || !isFinite(gDir)) return invalid;
+
     auto gPosTest = gPos;
     auto gDirTest = gDir;
-    reflectSpherical(gPosTest, gDirTest, detector->nominalCentreOfCurvature(side), detector->sphMirrorRadius());
+    if (!reflectSpherical(gPosTest, gDirTest, detector->nominalCentreOfCurvature(side), detector->sphMirrorRadius())) {
+      return invalid;
+    }
 
     const auto& primMirror = detector->findPrimaryMirror(gPosTest, side);
-    reflectSpherical(gPos, gDir, primMirror.centreOfCurvature, primMirror.radiusOfCurvature);
+    if (!reflectSpherical(gPos, gDir, primMirror.centreOfCurvature, primMirror.radiusOfCurvature)) return invalid;
 
     gPosTest = gPos;
     gDirTest = gDir;
     reflectPlane(gPosTest, gDirTest, detector->nominalPlane(side));
+    if (!isFinite(gPosTest) || !isFinite(gDirTest)) return invalid;
 
     const auto& secMirror = detector->findSecondaryMirror(gPosTest, side);
-    reflectSpherical(gPos, gDir, secMirror.centreOfCurvature, secMirror.radiusOfCurvature);
+    if (!reflectSpherical(gPos, gDir, secMirror.centreOfCurvature, secMirror.radiusOfCurvature)) return invalid;
 
     const Allen::Rich::Detector::PDPanel<rich>& panel = detector->pdPanels()[side];
     gPos = intersectPlane(gPos, gDir, panel.detectionPlane());
+    if (!isFinite(gPos)) return invalid;
 
     const auto g2panel = panel.globalToPDPanel();
     const auto lPos = transform3DTimesPoint(g2panel, gPos);
-    return {lPos.x, lPos.y};
+    return isFinite(lPos) ? float2 {lPos.x, lPos.y} : invalid;
   }
 
   template<Detector::DetectorType rich>
@@ -212,10 +219,14 @@ namespace Allen::Rich {
     const float3 emissionPoint,
     const float3 detectionPoint)
   {
+    constexpr auto invalid = float3 {NAN, NAN, NAN};
+    if (!isFinite(emissionPoint) || !isFinite(detectionPoint)) return invalid;
+
     // TODO: return summary of which mirrors were used
     const auto detectorSide = Allen::Rich::side<rich>(detectionPoint);
 
     auto virtDetPoint = Allen::Rich::virtualPointPlane(detectionPoint, detector->nominalPlane(detectorSide));
+    if (!isFinite(virtDetPoint)) return invalid;
 
     float3 sphReflPoint, secReflPoint;
     Allen::Rich::QuarticSolverNewton<2, 2>::solve(
@@ -224,11 +235,13 @@ namespace Allen::Rich {
       virtDetPoint,
       detector->sphMirrorRadius(),
       sphReflPoint);
+    if (!isFinite(sphReflPoint)) return invalid;
 
     auto primMirror = detector->findPrimaryMirror(sphReflPoint, detectorSide);
 
     float3 dir = virtDetPoint - sphReflPoint;
     secReflPoint = Allen::Rich::intersectPlane(sphReflPoint, dir, detector->nominalPlane(detectorSide));
+    if (!isFinite(secReflPoint)) return invalid;
     auto secMirror = detector->findSecondaryMirror(secReflPoint, detectorSide);
 
     // Iterate
@@ -238,16 +251,20 @@ namespace Allen::Rich {
       dir = virtDetPoint - sphReflPoint;
       secReflPoint =
         Allen::Rich::intersectSpherical(sphReflPoint, dir, secMirror.centreOfCurvature, secMirror.radiusOfCurvature);
+      if (!isFinite(secReflPoint)) return invalid;
       secMirror = detector->findSecondaryMirror(secReflPoint, detectorSide);
 
       virtDetPoint = Allen::Rich::virtualPointSpherical(detectionPoint, secMirror.centreOfCurvature, secReflPoint);
+      if (!isFinite(virtDetPoint)) return invalid;
 
       Allen::Rich::QuarticSolverNewton<2, 3>::solve(
         emissionPoint, primMirror.centreOfCurvature, virtDetPoint, primMirror.radiusOfCurvature, sphReflPoint);
+      if (!isFinite(sphReflPoint)) return invalid;
 
       primMirror = detector->findPrimaryMirror(sphReflPoint, detectorSide);
     }
 
-    return sphReflPoint - emissionPoint;
+    const auto direction = sphReflPoint - emissionPoint;
+    return isFinite(direction) ? direction : invalid;
   }
 } // namespace Allen::Rich

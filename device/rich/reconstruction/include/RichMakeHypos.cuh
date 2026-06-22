@@ -11,6 +11,7 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
+#include "AllenMonitoring.h"
 #include "States.cuh"
 #include "RichParticleHypos.cuh"
 
@@ -79,5 +80,6 @@ namespace rich_make_hypos {
     mutable float m_refIndexYield {};
     mutable float m_deltaE {};
     mutable std::array<float, Allen::Rich::NPhotonSpectraBins> m_paraWDiff {};
+    Allen::Monitoring::Counter<> m_failed_ray_traces {this, "n_failed_ray_traces"};
   };
 } // namespace rich_make_hypos

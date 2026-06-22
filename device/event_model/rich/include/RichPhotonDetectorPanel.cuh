@@ -147,7 +147,9 @@ namespace Allen::Rich::Detector {
     }
     __device__ short find(float2 P) const
     {
-      if (P.x < m_minX || P.x > m_maxX || P.y < m_minY || P.y > m_maxY) return -1;
+      if (P.x != P.x || P.y != P.y || P.x < m_minX || P.x > m_maxX || P.y < m_minY || P.y > m_maxY) {
+        return -1;
+      }
       // Note: handle acceptance here for now as we don't have the information dumped in the panel
       unsigned x = xindex(P.x);
       unsigned y = yindex(P.y);
@@ -168,12 +170,18 @@ namespace Allen::Rich::Detector {
 
     __device__ unsigned xindex(float x) const
     {
-      return x < m_minX ? 0 : x > m_maxX ? m_binsX - 1 : ((x - m_minX) * m_incX);
+      if (x <= m_minX) return 0;
+      if (x >= m_maxX) return m_binsX - 1;
+      const auto index = static_cast<unsigned>((x - m_minX) * m_incX);
+      return index < m_binsX ? index : m_binsX - 1;
     }
 
     __device__ unsigned yindex(float y) const
     {
-      return y < m_minY ? 0 : y > m_maxY ? m_binsY - 1 : ((y - m_minY) * m_incY);
+      if (y <= m_minY) return 0;
+      if (y >= m_maxY) return m_binsY - 1;
+      const auto index = static_cast<unsigned>((y - m_minY) * m_incY);
+      return index < m_binsY ? index : m_binsY - 1;
     }
 
     float m_minX {9e9};  ///< Minimum X
