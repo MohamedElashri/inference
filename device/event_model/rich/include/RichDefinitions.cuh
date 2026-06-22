@@ -343,14 +343,18 @@ namespace Allen::Rich::Maths {
 } // namespace Allen::Rich::Maths
 
 namespace Allen::Rich::Detector {
+  // Keep collection-returning traversal helpers host-only. Runtime indexing of
+  // a returned std::array in device code can materialise the temporary in
+  // per-thread local memory; device code should use direct enum casts instead.
+
   /// Access all valid detector types
-  __device__ __host__ inline constexpr Detectors detectors() noexcept { return {Rich1, Rich2}; }
+  __host__ inline constexpr Detectors detectors() noexcept { return {Rich1, Rich2}; }
 
   /// Access all valid panel sides
-  __device__ __host__ inline constexpr Sides sides() noexcept { return {firstSide, secondSide}; }
+  __host__ inline constexpr Sides sides() noexcept { return {firstSide, secondSide}; }
 
   /// Access all active radiator types
-  __device__ __host__ inline constexpr Radiators radiators() noexcept { return {Rich1Gas, Rich2Gas}; }
+  __host__ inline constexpr Radiators radiators() noexcept { return {Rich1Gas, Rich2Gas}; }
 
   /// Convert the user-facing one-based RICH number into its semantic type
   __device__ __host__ inline constexpr DetectorType detectorTypeFromNumber(const unsigned rich)
@@ -372,14 +376,17 @@ namespace Allen::Rich::Detector {
 } // namespace Allen::Rich::Detector
 
 namespace Allen::Rich {
+  // Keep these collection-returning traversal helpers host-only for the same
+  // device-code generation reason documented above.
+
   /// Access all valid particle ID types
-  __device__ __host__ inline constexpr Particles particles() noexcept
+  __host__ inline constexpr Particles particles() noexcept
   {
     return {Electron, Muon, Pion, Kaon, Proton, Deuteron, BelowThreshold};
   }
 
   /// Access all physical particle ID types
-  __device__ __host__ inline constexpr RealParticles realParticles() noexcept
+  __host__ inline constexpr RealParticles realParticles() noexcept
   {
     return {Electron, Muon, Pion, Kaon, Proton, Deuteron};
   }

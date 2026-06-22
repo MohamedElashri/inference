@@ -23,7 +23,7 @@ __global__ void rich_make_pixels_from_pd_k(
   rich_make_pixels_from_pd::Parameters parameters,
   const Allen::Rich::RichDetector<richIdx>* deRich)
 {
-  const auto side = Allen::Rich::Detector::sides()[blockIdx.y];
+  const auto side = static_cast<Allen::Rich::Detector::Side>(blockIdx.y);
   const auto number_of_events = parameters.dev_event_list.size();
   auto offset = side * number_of_events * Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 

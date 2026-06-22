@@ -98,7 +98,7 @@ namespace Allen::Rich::Decoding {
     __device__ const auto& tel40Data(const int16_t sID) const
     {
       const auto payload = sID & 0x3FF;
-      const auto side = Detector::sides()[(sID >> 10) & 0x1];
+      const auto side = static_cast<Detector::Side>((sID >> 10) & 0x1);
       const auto rich = (sID >> 11) == 9 ? Detector::Rich2 : Detector::Rich1;
       return m_tel40ConnData[rich][side][payload];
     }
@@ -107,7 +107,7 @@ namespace Allen::Rich::Decoding {
     __device__ const auto& tel40Meta(const int16_t sID) const
     {
       const auto payload = sID & 0x3FF;
-      const auto side = Detector::sides()[(sID >> 10) & 0x1];
+      const auto side = static_cast<Detector::Side>((sID >> 10) & 0x1);
       const auto rich = (sID >> 11) == 9 ? Detector::Rich2 : Detector::Rich1;
       return m_tel40ConnMeta[rich][side][payload];
     }

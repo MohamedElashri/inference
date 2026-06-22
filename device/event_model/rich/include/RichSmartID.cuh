@@ -134,12 +134,12 @@ namespace Allen::Rich::Decoding {
 
     __host__ __device__ constexpr auto rich() const noexcept
     {
-      return Detector::detectors()[getData(ShiftRich, MaskRich)];
+      return static_cast<Detector::DetectorType>(getData(ShiftRich, MaskRich));
     }
 
     __host__ __device__ constexpr auto panel() const noexcept
     {
-      return Detector::sides()[getData(ShiftPanel, MaskPanel)];
+      return static_cast<Detector::Side>(getData(ShiftPanel, MaskPanel));
     }
 
     __host__ __device__ constexpr auto side() const noexcept { return panel(); }

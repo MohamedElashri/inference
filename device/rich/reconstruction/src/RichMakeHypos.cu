@@ -109,7 +109,8 @@ inline __device__ auto invalidHypos()
 {
   Allen::Rich::ParticleHypos hypos {};
   UNROLL(Allen::Rich::NRealParticleTypes)
-  for (const auto hypo : Allen::Rich::realParticles()) {
+  for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+    const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
     hypos.ckTheta[hypo] = NAN;
     hypos.ckRes[hypo] = 0.f;
     hypos.yield[hypo] = 0.f;

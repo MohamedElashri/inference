@@ -32,7 +32,8 @@ __global__ void rich_validator_k(rich_validator::Parameters parameters)
     const auto hypos = parameters.dev_rich_hypos[trackId];
 
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       rich_checker_tracks_event[i].ckThetaExp[hypo] = hypos.ckTheta[hypo];
     }
 

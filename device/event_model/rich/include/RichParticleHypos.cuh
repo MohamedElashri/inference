@@ -49,7 +49,8 @@ namespace Allen::Rich {
       const Detector::DetectorType rich)
     {
       UNROLL(NRealParticleTypes)
-      for (const auto particle : realParticles()) {
+      for (unsigned particle_index = 0; particle_index < NRealParticleTypes; ++particle_index) {
+        const auto particle = static_cast<ParticleIDType>(particle_index);
         const float E2 = momentum * momentum + particleMass2[particle];
         const float beta = momentum / sqrtf(E2);
         ckTheta[particle] = acosf(1.f / (nTheta * beta));
@@ -89,7 +90,8 @@ namespace Allen::Rich {
 
       // Loop over (real) PID types. Below threshold excluded.
       UNROLL(NRealParticleTypes)
-      for (const auto particle : realParticles()) {
+      for (unsigned particle_index = 0; particle_index < NRealParticleTypes; ++particle_index) {
+        const auto particle = static_cast<ParticleIDType>(particle_index);
 
         float detectableSignal = 0.f;
         float angleSum = 0.f;
