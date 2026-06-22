@@ -59,7 +59,7 @@ __global__ void rich_photon_predicted_pixel_signal_k(
     const float theta = photons[photon_id].ckTheta;
 
     unsigned pd_id = binary_search_rightmost(pixels_offsets, number_of_pds + 1, pix_id);
-    const auto side = Allen::Rich::Detector::sides()[pd_id / (number_of_pds / Allen::Rich::NPDPanelsPerRICH)];
+    const auto side = static_cast<Allen::Rich::Detector::Side>(pd_id / (number_of_pds / Allen::Rich::NPDPanelsPerRICH));
     pd_id = pd_id % Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 
     const float A = rich->pdPanels()[side].pds()[pd_id].effectivePixelArea();
@@ -67,7 +67,8 @@ __global__ void rich_photon_predicted_pixel_signal_k(
     const float hypo_indep = validTheta ? A * factor / theta : 0.f;
 
     UNROLL(Allen::Rich::NParticleTypes)
-    for (const auto hypo : Allen::Rich::particles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       const float expTheta = hypos[track_id].ckTheta[hypo];
       float sig = 0.f;
       if (validTheta && expTheta == expTheta && expTheta > minExpCKT) {

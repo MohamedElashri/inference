@@ -133,7 +133,7 @@ __global__ void rich_avg_bkg_from_reco_k(
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned i = threadId; i < Allen::Rich::NPDPanelsPerRICH * number_of_events * ec_per_panel; i += stride) {
-    const auto side = Allen::Rich::Detector::sides()[i / (number_of_events * ec_per_panel)];
+    const auto side = static_cast<Allen::Rich::Detector::Side>(i / (number_of_events * ec_per_panel));
     const unsigned ec_index = i % ec_per_panel;
 
     const unsigned effNumPixs = effNumPixsEC[ec_index + side * ec_per_panel];
@@ -232,7 +232,8 @@ __global__ void rich_acc_pixel_dll_k(
     pix_sig_bkg -= cur_sig;
 
     UNROLL(Allen::Rich::NParticleTypes)
-    for (const auto new_pid : Allen::Rich::particles()) {
+    for (unsigned pid_index = 0; pid_index < Allen::Rich::NParticleTypes; ++pid_index) {
+      const auto new_pid = static_cast<Allen::Rich::ParticleIDType>(pid_index);
       if (new_pid == cur_pid) continue;
 
       const float new_sig = photon_pix_signals[i][new_pid];
@@ -266,7 +267,8 @@ __global__ void rich_init_dll_best_hypo_k(
 
     Allen::Rich::ParticleIDType bestPID = cur_pid;
     float bestDLL = 0.f;
-    for (const auto new_pid : Allen::Rich::particles()) {
+    for (unsigned pid_index = 0; pid_index < Allen::Rich::NParticleTypes; ++pid_index) {
+      const auto new_pid = static_cast<Allen::Rich::ParticleIDType>(pid_index);
       if (new_pid == cur_pid) continue;
 
       const float new_sig = track_signals_r1[track_id][new_pid] + track_signals_r2[track_id][new_pid];
@@ -295,7 +297,8 @@ __global__ void rich_normalise_dlls_k(const unsigned number_of_tracks, Allen::Ri
     // Get dll relative to pion
     const float dll_pion = dlls[t][Allen::Rich::ParticleIDType::Pion];
 
-    for (const auto particle : Allen::Rich::particles()) {
+    for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
+      const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
       // Internally, the Global PID normalises the DLL values to the best hypothesis
       // and also works in "-loglikelihood" space.
       // For final storage, renormalise the DLLS w.r.t. the pion hypothesis and
@@ -393,7 +396,8 @@ __global__ void rich_global_pid_iterations_k(
       float track_best_dll = 0.f;
       auto track_best_pid = Allen::Rich::ParticleIDType::Unknown;
 
-      for (const auto new_pid : Allen::Rich::particles()) {
+      for (unsigned pid_index = 0; pid_index < Allen::Rich::NParticleTypes; ++pid_index) {
+        const auto new_pid = static_cast<Allen::Rich::ParticleIDType>(pid_index);
         if (new_pid == cur_pid) continue;
         const float dll = dlls[gt][new_pid];
 
@@ -467,7 +471,8 @@ __global__ void rich_global_pid_iterations_k(
 
     // Step 2: recompute DLLs for t*
     // t* changed hypothesis so its old DLL values are wrong
-    for (const auto particle : Allen::Rich::particles()) {
+    for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
+      const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
       if (particle == new_pid) {
         if (lane_id == 0) dlls[gt][particle] = 0.f;
         continue;
@@ -522,7 +527,8 @@ __global__ void rich_global_pid_iterations_k(
         const unsigned ph_end_tp = dev_offsets_rich_photons_r1[tp + 1];
         for (unsigned p2 = ph_start_tp; p2 < ph_end_tp; p2++) {
           if (dev_rich_photons_r1[p2].pixelIdx != pix) continue;
-          for (const auto particle : Allen::Rich::particles()) {
+          for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
+            const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
             if (particle == cur_pid_tp) continue;
             const float sig_cur = dev_photon_pix_signals_r1[p2][cur_pid_tp];
             const float sig_h = dev_photon_pix_signals_r1[p2][particle];
@@ -552,7 +558,8 @@ __global__ void rich_global_pid_iterations_k(
         const unsigned ph_end_tp = dev_offsets_rich_photons_r2[tp + 1];
         for (unsigned p2 = ph_start_tp; p2 < ph_end_tp; p2++) {
           if (dev_rich_photons_r2[p2].pixelIdx != pix) continue;
-          for (const auto particle : Allen::Rich::particles()) {
+          for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
+            const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
             if (particle == cur_pid_tp) continue;
             const float sig_cur = dev_photon_pix_signals_r2[p2][cur_pid_tp];
             const float sig_h = dev_photon_pix_signals_r2[p2][particle];

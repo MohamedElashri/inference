@@ -60,7 +60,8 @@ __global__ void rich_raytrace_npoints_k(
     const auto hypos = hypos_tracks[i];
     float lightestCKtheta = 0.f;
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       const float ckTheta = hypos.ckTheta[hypo];
       if (std::isfinite(ckTheta) && ckTheta > 0.f) {
         lightestCKtheta = ckTheta;
@@ -69,7 +70,8 @@ __global__ void rich_raytrace_npoints_k(
     }
 
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       const float ckTheta = hypos.ckTheta[hypo];
       unsigned count = 0; // if invalid hypo
       if (std::isfinite(ckTheta) && ckTheta > 0.f && lightestCKtheta > 0.f) {
@@ -106,7 +108,7 @@ __global__ void rich_raytrace_ck_cones_k(
 
     const unsigned track_id = track_hypo_id / Allen::Rich::NRealParticleTypes;
     const unsigned event_number = binary_search_rightmost(track_offsets, number_of_events + 1, track_id);
-    const auto hypo = Allen::Rich::realParticles()[track_hypo_id % Allen::Rich::NRealParticleTypes];
+    const auto hypo = static_cast<Allen::Rich::ParticleIDType>(track_hypo_id % Allen::Rich::NRealParticleTypes);
     const unsigned photon_id = i - hypo_offset;
 
     const float3 emission_point = segs_best_point[track_id];
@@ -199,7 +201,7 @@ __global__ void rich_raytrace_fill_geomeffs_k(
     }
 
     const unsigned track_id = i / Allen::Rich::NRealParticleTypes;
-    const auto hypo = Allen::Rich::realParticles()[i % Allen::Rich::NRealParticleTypes];
+    const auto hypo = static_cast<Allen::Rich::ParticleIDType>(i % Allen::Rich::NRealParticleTypes);
     geomeffs_fractions_per_hypo[track_id][hypo] = total_fraction;
   }
 }
@@ -215,7 +217,7 @@ __global__ void rich_sum_track_signal_rec_k(
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned i = threadId; i < number_of_tracks * Allen::Rich::NParticleTypes; i += stride) {
     const unsigned track_id = i / Allen::Rich::NParticleTypes;
-    const auto hypo = Allen::Rich::particles()[i % Allen::Rich::NParticleTypes];
+    const auto hypo = static_cast<Allen::Rich::ParticleIDType>(i % Allen::Rich::NParticleTypes);
 
     track_total_signals[track_id][hypo] = hypos[track_id].yield[hypo] * geomEffs[track_id][hypo];
 

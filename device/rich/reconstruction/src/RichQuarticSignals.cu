@@ -118,7 +118,8 @@ __device__ inline bool pdPassesPrefilter(
 
   const auto ckThetaEsti = sqrtf(sep2) * scalePreSel;
   UNROLL(Allen::Rich::NRealParticleTypes)
-  for (const auto hypo : Allen::Rich::realParticles()) {
+  for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+    const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
     if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
     if (fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] * nSigmaPreSel + diag)) return true;
   }
@@ -356,7 +357,8 @@ __global__ void rich_interp_pixel_signals_k(
     // Precompute pixel independent values:
     Allen::Rich::HypoData<float> invRes {};
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       const float res = hypos.ckRes[hypo];
       invRes[hypo] = 1.f / res;
     }
@@ -388,7 +390,8 @@ __global__ void rich_interp_pixel_signals_k(
         //[[maybe_unused]] Allen::Rich::HypoData<float> signals{};
         bool has_signal_over_threshold = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (const auto hypo : Allen::Rich::realParticles()) {
+        for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+          const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
           const float expTheta = hypos.ckTheta[hypo];
           if (expTheta != expTheta) break; // break on first below threshold
           if (!validTheta) break;
@@ -439,7 +442,8 @@ __global__ void rich_interp_pixel_signals_k(
       }
     }
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       fractions[hypo] *= hypos.yield[hypo];
     }
     pd_fractions[i] = fractions;
@@ -483,7 +487,7 @@ __global__ void rich_sum_track_geomeffs_k(
   const unsigned stride = gridDim.x * blockDim.x;
   for (unsigned i = threadId; i < number_of_tracks * Allen::Rich::NParticleTypes; i += stride) {
     const unsigned track_id = i / Allen::Rich::NParticleTypes;
-    const auto hypo = Allen::Rich::particles()[i % Allen::Rich::NParticleTypes];
+    const auto hypo = static_cast<Allen::Rich::ParticleIDType>(i % Allen::Rich::NParticleTypes);
 
     const unsigned start = track_signal_offsets[track_id];
     const unsigned end = track_signal_offsets[track_id + 1];

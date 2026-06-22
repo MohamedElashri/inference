@@ -43,7 +43,8 @@ __global__ void rich_prefilter_photon_count_k(
     const auto segPanelPnt = segs_point_at_panel[i];
     auto hypos = track_hypos[i];
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       hypos.ckRes[hypo] *= nSigmaPreSel;
     }
 
@@ -69,7 +70,8 @@ __global__ void rich_prefilter_photon_count_k(
         // Is any hit close to any mass hypo in local coordinate space ?
         bool keep = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (const auto hypo : Allen::Rich::realParticles()) {
+        for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+          const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
           if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < hypos.ckRes[hypo];
         }
@@ -108,7 +110,8 @@ __global__ void rich_prefilter_photon_fill_k(
     const auto segPanelPnt = segs_point_at_panel[i];
     auto hypos = track_hypos[i];
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       hypos.ckRes[hypo] *= nSigmaPreSel;
     }
 
@@ -135,7 +138,8 @@ __global__ void rich_prefilter_photon_fill_k(
         // Is any hit close to any mass hypo in local coordinate space ?
         bool keep = false;
         UNROLL(Allen::Rich::NRealParticleTypes)
-        for (const auto hypo : Allen::Rich::realParticles()) {
+        for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+          const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
           if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < hypos.ckRes[hypo];
         }
@@ -202,7 +206,8 @@ __global__ void rich_photon_reco_k(
 
     bool keep = false;
     UNROLL(Allen::Rich::NRealParticleTypes)
-    for (const auto hypo : Allen::Rich::realParticles()) {
+    for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
+      const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
       keep |= fabsf(hypos.ckTheta[hypo] - thetaCherenkov) < (hypos.ckRes[hypo] * nSigma);
     }

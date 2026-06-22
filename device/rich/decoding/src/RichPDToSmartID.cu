@@ -34,7 +34,7 @@ __global__ void rich_pd_to_smartid_k(
     uint64_t pixels = pd_pixels[i];
     Allen::Rich::Decoding::SmartID* out = smartids + pd_offsets[i];
 
-    const auto side = Allen::Rich::Detector::sides()[i / (number_of_pds / Allen::Rich::NPDPanelsPerRICH)];
+    const auto side = static_cast<Allen::Rich::Detector::Side>(i / (number_of_pds / Allen::Rich::NPDPanelsPerRICH));
     const unsigned denseID = i % Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
 
     const auto& pd = deRich->pdPanels()[side].pds()[denseID];

@@ -183,7 +183,7 @@ __global__ void rich_make_pd_pixels_k(
 
   for (unsigned bank_number = threadIdx.y; bank_number < raw_event.number_of_raw_banks; bank_number += blockDim.y) {
     const auto bank = raw_event.raw_bank(bank_number);
-    const auto side = Allen::Rich::Detector::sides()[(bank.source_id >> 10) & 0x1];
+    const auto side = static_cast<Allen::Rich::Detector::Side>((bank.source_id >> 10) & 0x1);
     const Allen::Rich::Detector::PDPanel<richIdx>& panel = rich->pdPanels()[side];
     uint64_t* pd_pixels = parameters.dev_pd_pixels + (number_of_events * side + event_number) *
                                                        Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
@@ -208,7 +208,7 @@ __global__ void rich_make_pd_pixels_StreamIDs_k(
 
   for (unsigned bank_number = threadIdx.y; bank_number < raw_event.number_of_raw_banks; bank_number += blockDim.y) {
     const auto bank = raw_event.raw_bank(bank_number);
-    const auto side = Allen::Rich::Detector::sides()[(bank.source_id >> 10) & 0x1];
+    const auto side = static_cast<Allen::Rich::Detector::Side>((bank.source_id >> 10) & 0x1);
     uint64_t* pd_pixels = parameters.dev_pd_pixels + (number_of_events * side + event_number) *
                                                        Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
     const word_t* bank_data = reinterpret_cast<const word_t*>(bank.data);
