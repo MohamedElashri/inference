@@ -12,6 +12,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <iomanip>
 #include <unordered_set>
 #include <map>
@@ -143,6 +144,45 @@ IInputProvider* mep_provider()
   return dynamic_cast<IInputProvider*>(provider.get());
 }
 
+bool acquire_slices(
+  IInputProvider* provider,
+  std::unordered_map<EventID, unsigned>& slices,
+  std::string_view provider_name)
+{
+  constexpr unsigned slice_timeout_ms = 60'000;
+  size_t total_events = 0;
+
+  for (size_t s = 0; s < s_config.n_slices; ++s) {
+    auto [good, done, timed_out, slice_id, n_filled, odin] = provider->get_slice(slice_timeout_ms);
+    if (timed_out) {
+      std::cerr << "Timed out waiting for " << provider_name << " slice " << s << "\n";
+      return false;
+    }
+    if (!good) {
+      std::cerr << "Failed to obtain " << provider_name << " slice " << s << "\n";
+      return false;
+    }
+    if (n_filled == 0) {
+      std::cerr << provider_name << " input ended before slice " << s << " (done=" << done << ")\n";
+      return false;
+    }
+
+    auto events = provider->event_ids(slice_id);
+    if (events.empty()) {
+      std::cerr << provider_name << " slice " << s << " has no event IDs\n";
+      return false;
+    }
+    slices.emplace(events.front(), slice_id);
+    total_events += n_filled;
+  }
+
+  if (total_events != s_config.n_events) {
+    std::cerr << provider_name << " provided " << total_events << " events; expected " << s_config.n_events << "\n";
+    return false;
+  }
+  return true;
+}
+
 int main(int argc, char* argv[])
 {
 
@@ -215,30 +255,10 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    bool good = false, timed_out = false, done = false;
-    unsigned slice_id = 0, n_filled = 0;
-
-    for (size_t s = 0; s < s_config.n_slices; ++s) {
-      std::any odin;
-      std::tie(good, done, timed_out, slice_id, n_filled, odin) = mdf->get_slice();
-      if (!good) {
-        std::cerr << "Failed to obtain MDF slice " << s << "\n";
-        return 1;
-      }
-
-      auto events_mdf = mdf->event_ids(slice_id);
-      auto first_id = events_mdf.front();
-      s_config.mdf_slices.emplace(std::move(first_id), slice_id);
-
-      std::tie(good, done, timed_out, slice_id, n_filled, odin) = mep->get_slice();
-      if (!good) {
-        std::cerr << "Failed to obtain MEP slice " << s << "\n";
-        return 1;
-      }
-
-      auto events_mep = mep->event_ids(slice_id);
-      first_id = events_mep.front();
-      s_config.mep_slices.emplace(std::move(first_id), slice_id);
+    if (!acquire_slices(mdf.get(), s_config.mdf_slices, "MDF") || !acquire_slices(mep, s_config.mep_slices, "MEP")) {
+      mdf.reset();
+      app->finalize().ignore();
+      return 1;
     }
   }
 
