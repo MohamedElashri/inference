@@ -121,7 +121,6 @@ IInputProvider* mep_provider()
   sc &= provider_prop->setProperty("NSlices", std::to_string(s_config.n_slices)).isSuccess();
   sc &= provider_prop->setProperty("EventsPerSlice", std::to_string(s_config.eps));
   sc &= provider_prop->setProperty("EvtMax", std::to_string(s_config.n_events));
-  sc &= provider_prop->setProperty("SplitByRun", "0");
   sc &= provider_prop->setProperty("Source", "\"Files\"");
   sc &= provider_prop->setProperty("BufferConfig", "(2, 2)");
   sc &= provider_prop->setProperty("TransposeMEPs", std::to_string(s_config.transpose_mep));
