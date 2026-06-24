@@ -139,7 +139,8 @@ IInputProvider* mep_provider()
 
   sc &= app->initialize();
   sc &= app->start();
-  sc &= app->stop();
+
+  if (!sc) return nullptr;
 
   return dynamic_cast<IInputProvider*>(provider.get());
 }
@@ -257,6 +258,7 @@ int main(int argc, char* argv[])
 
     if (!acquire_slices(mdf.get(), s_config.mdf_slices, "MDF") || !acquire_slices(mep, s_config.mep_slices, "MEP")) {
       mdf.reset();
+      app->stop().ignore();
       app->finalize().ignore();
       return 1;
     }
@@ -278,6 +280,7 @@ int main(int argc, char* argv[])
   std::cout << "Finalising" << std::endl;
   mdf.reset();
   if (app) {
+    app->stop().ignore();
     app->finalize().ignore();
   }
 
