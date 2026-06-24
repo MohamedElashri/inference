@@ -163,7 +163,7 @@ bool acquire_slices(
       return false;
     }
     if (n_filled == 0) {
-      std::cerr << provider_name << " input ended before slice " << s << " (done=" << done << ")\n";
+      std::cout << provider_name << " input ended before slice " << s << " (done=" << done << ")\n";
       return false;
     }
 
@@ -177,10 +177,28 @@ bool acquire_slices(
   }
 
   if (total_events != s_config.n_events) {
-    std::cerr << provider_name << " provided " << total_events << " events; expected " << s_config.n_events << "\n";
+    std::cout << provider_name << " provided " << total_events << " events; expected " << s_config.n_events << "\n";
     return false;
   }
   return true;
+}
+
+// Stop and finalize the application, reporting any failure instead of
+// silently discarding it.
+bool shutdown_app()
+{
+  if (!app) return true;
+
+  bool ok = true;
+  if (auto sc = app->stop(); !sc.isSuccess()) {
+    std::cerr << "Failed to stop application: " << sc << "\n";
+    ok = false;
+  }
+  if (auto sc = app->finalize(); !sc.isSuccess()) {
+    std::cerr << "Failed to finalize application: " << sc << "\n";
+    ok = false;
+  }
+  return ok;
 }
 
 int main(int argc, char* argv[])
@@ -257,8 +275,7 @@ int main(int argc, char* argv[])
 
     if (!acquire_slices(mdf.get(), s_config.mdf_slices, "MDF") || !acquire_slices(mep, s_config.mep_slices, "MEP")) {
       mdf.reset();
-      app->stop().ignore();
-      app->finalize().ignore();
+      shutdown_app();
       return 1;
     }
   }
@@ -278,9 +295,8 @@ int main(int argc, char* argv[])
 
   std::cout << "Finalising" << std::endl;
   mdf.reset();
-  if (app) {
-    app->stop().ignore();
-    app->finalize().ignore();
+  if (!shutdown_app() && r == 0) {
+    r = 1;
   }
 
   return r;
