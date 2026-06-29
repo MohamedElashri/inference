@@ -645,6 +645,8 @@ namespace Allen::Monitoring {
 
   template<typename HistogramType>
   struct HistogramBinAsCounter {
+    HistogramBinAsCounter() = default;
+
     HistogramBinAsCounter(
       [[maybe_unused]] const Allen::Algorithm* owner,
       [[maybe_unused]] std::string name,
@@ -655,15 +657,25 @@ namespace Allen::Monitoring {
     {
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(owner->name(), name, "counter:Counter:d", *this);
+      m_registered = true;
+#endif
+    }
+    ~HistogramBinAsCounter()
+    {
+#ifndef ALLEN_STANDALONE
+      if (m_registered) {
+        Gaudi::svcLocator()->monitoringHub().removeEntity(*this);
+      }
 #endif
     }
     friend void to_json(nlohmann::json& j, HistogramBinAsCounter const& c)
     {
-      j = {{"type", "counter:Counter:d"},
-           {"empty", c.m_histo->m_bins[c.m_bin + 1] == 0},
-           {"nEntries", c.m_histo->m_bins[c.m_bin + 1]}};
+      const auto entries =
+        (c.m_histo != nullptr && c.m_bin + 1 < c.m_histo->m_bins.size()) ? c.m_histo->m_bins[c.m_bin + 1] : 0.0;
+      j = {{"type", "counter:Counter:d"}, {"empty", entries == 0}, {"nEntries", entries}};
     }
-    const HistogramType* m_histo;
-    unsigned m_bin;
+    const HistogramType* m_histo {nullptr};
+    unsigned m_bin {0};
+    bool m_registered {false};
   };
 } // namespace Allen::Monitoring

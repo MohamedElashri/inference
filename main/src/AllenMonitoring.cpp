@@ -14,7 +14,12 @@
 
 namespace Allen::Monitoring {
 
-  AccumulatorBase::~AccumulatorBase() {}
+  AccumulatorBase::~AccumulatorBase()
+  {
+#ifndef ALLEN_STANDALONE
+    Gaudi::svcLocator()->monitoringHub().removeEntity(*this);
+#endif
+  }
 
   void AccumulatorManager::registerAccumulator(AccumulatorBase* acc)
   {
