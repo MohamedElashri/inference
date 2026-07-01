@@ -17,7 +17,6 @@ from AllenConf.hlt1_heavy_ions_lines import *
 from AllenConf.hlt1_inclusive_hadron_lines import *
 from AllenConf.hlt1_charm_lines import *
 from AllenConf.hlt1_muon_lines import *
-from AllenConf.codex_lines import make_codex_passthrough_line, make_codex_coincidence_line
 from AllenConf.velo_reconstruction import decode_velo
 from AllenConf.calo_reconstruction import decode_calo
 from AllenConf.validators import rate_validation
@@ -336,22 +335,6 @@ def create_filter_manager(reconstructed_objects,
     return filter_manager
 
 
-@configurable
-def codex_lines():
-    lines = []
-    lines += [
-        line_maker(
-            make_codex_passthrough_line(
-                name="Hlt1CodexPassthrough", pre_scaler=1.), )
-    ]
-    lines += [
-        line_maker(
-            make_codex_coincidence_line(
-                name="Hlt1CodexCoincidence", pre_scaler=1.), )
-    ]
-    return lines
-
-
 def setup_hlt1_node(withMCChecking=False,
                     max_ecal_upc=94000,
                     min_ecal_hadro=94000,
@@ -379,7 +362,6 @@ def setup_hlt1_node(withMCChecking=False,
                     mini=False,
                     with_fullKF=False,
                     with_downstream_KF=False,
-                    withCODEX=True,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[],
                     preset_modifiers=None,
@@ -418,7 +400,6 @@ def setup_hlt1_node(withMCChecking=False,
 
     physics_lines = []
     smog2_lines = []
-    codex_lines_list = []
     technical_lines = []
 
     if mini:
@@ -479,8 +460,6 @@ def setup_hlt1_node(withMCChecking=False,
                     make_passthrough_line(
                         name="Hlt1TAEPassthrough", pre_scaler=1))
             ]
-    if withCODEX:
-        codex_lines_list = codex_lines()
     if preset_modifiers:
         for modifier in preset_modifiers:
             modifier()
@@ -492,7 +471,6 @@ def setup_hlt1_node(withMCChecking=False,
         physics_lines=physics_lines,
         smog2_lines=smog2_lines,
         technical_lines=technical_lines,
-        codex_lines=codex_lines_list,
         enabled_lines=enabled_lines,
         disabled_lines=disabled_lines,
         with_lumi=with_lumi,
