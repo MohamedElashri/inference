@@ -23,7 +23,6 @@ from AllenConf.hlt1_smog2_lines import *
 from AllenConf.hlt1_downstream_lines import *
 from AllenConf.filters import *
 from AllenConf.hlt1_charged_kaon_lines import *
-from AllenConf.codex_lines import make_codex_passthrough_line, make_codex_coincidence_line
 
 from AllenConf.hlt1_photon_lines import make_diphotonhighmass_line
 from PyConf.tonic import configurable
@@ -1247,22 +1246,6 @@ def create_filter_manager(reconstructed_objects,
     return filter_manager
 
 
-@configurable
-def codex_lines():
-    lines = []
-    lines += [
-        line_maker(
-            make_codex_passthrough_line(
-                name="Hlt1CodexPassthrough", pre_scaler=1.), )
-    ]
-    lines += [
-        line_maker(
-            make_codex_coincidence_line(
-                name="Hlt1CodexCoincidence", pre_scaler=1.), )
-    ]
-    return lines
-
-
 def setup_hlt1_node(enablePhysics=True,
                     withMCChecking=False,
                     EnableGEC=True,
@@ -1296,8 +1279,7 @@ def setup_hlt1_node(enablePhysics=True,
                     enabled_lines=[r'.*?'],
                     disabled_lines=[],
                     preset_modifiers=None,
-                    user_hooks=False,
-                    withCODEX=False):
+                    user_hooks=False):
 
     if with_fullKF:
         from AllenConf.secondary_vertex_reconstruction import ParKF_cuts as chi2_cuts
@@ -1332,7 +1314,6 @@ def setup_hlt1_node(enablePhysics=True,
     physics_lines = []
     smog2_lines = []
     smog2_technical_lines = []
-    mycodex_lines = []
     technical_lines = []
 
     if enablePhysics:
@@ -1393,8 +1374,6 @@ def setup_hlt1_node(enablePhysics=True,
             filter_manager.get_prefilter_set('odin_only'), with_calo,
             EnableGEC, with_muon, with_v0s, enableTupling)
 
-    if withCODEX:
-        mycodex_lines = codex_lines()
     if preset_modifiers:
         for modifier in preset_modifiers:
             modifier()
@@ -1406,7 +1385,6 @@ def setup_hlt1_node(enablePhysics=True,
         physics_lines=physics_lines,
         smog2_lines=smog2_lines,
         technical_lines=technical_lines + smog2_technical_lines,
-        codex_lines=mycodex_lines,
         enabled_lines=enabled_lines,
         disabled_lines=disabled_lines,
         with_lumi=with_lumi,

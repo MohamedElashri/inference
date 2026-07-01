@@ -181,15 +181,6 @@ full:
       - a5000
       - geforcertx3090
 
-  #run throughput, LHCb + CODEX samples
-  #Just use pp running options.
-  - type: "throughput"
-    sequence:
-      - hlt1_pp_forward_then_matching_and_downstream_with_parkf_1300kHz_enableCodex
-    dataset: "expected_nominal_codex"
-    geometry: "geometry_run3_2025-v00.01"
-    timeout: 2400
-
   ####################################Efficiency tests  
 
   # run physics efficiency for downstream reconstruction

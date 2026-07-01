@@ -32,7 +32,6 @@ gaudi_add_module(AllenWrapper
                    src/ProvideRuntimeOptions.cpp
                    src/CompareRecAllenCaloDigits.cpp
                    src/CompareRecAllenPlume.cpp
-                   src/CompareRecAllenCodex.cpp
                    src/CompareRecAllenMuonHits.cpp
                    src/CompareRecAllenUTHits.cpp
                    src/GaudiAllenTransformAllenRecUTHits.cpp
@@ -76,9 +75,7 @@ gaudi_add_module(AllenWrapper
                    LHCb::MCEvent
                    LHCb::RecEvent
                    LHCb::RichFutureUtils
-                   Rec::PrKernel
-                   Rec::CodexRecoLib)
-
+                   Rec::PrKernel)
 
 target_include_directories(AllenWrapper PRIVATE ${PROJECT_BINARY_DIR}/code_generation)
 
@@ -122,8 +119,7 @@ gaudi_add_module(AllenAlgorithms
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MCEvent
-                   Rec::PrKernel
-                   Rec::CodexRecoLib)
+                   Rec::PrKernel)
 
 target_include_directories(AllenAlgorithms PRIVATE Allen)
 add_custom_target(gaudi_wrappers_of_allen_algorithms DEPENDS ${WRAPPED_ALGORITHM_SOURCES})
