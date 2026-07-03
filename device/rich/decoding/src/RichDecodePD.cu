@@ -215,12 +215,10 @@ __global__ void rich_make_pd_pixels_StreamIDs_k(
 
     for (unsigned iW = threadIdx.x; iW < bank.size / sizeof(word_t); iW += blockDim.x) {
       auto hitID = Allen::Rich::Decoding::SmartID {bank_data[iW]};
-#ifdef USE_DD4HEP
       if (hitID.rich() == Allen::Rich::Detector::Rich2) {
         const auto pdMod = hitID.pdMod() + (hitID.panel() == Allen::Rich::Detector::firstSide ? 6 : 18);
         hitID.setData(pdMod, Allen::Rich::Decoding::SmartID::ShiftPDMod, Allen::Rich::Decoding::SmartID::MaskPDMod);
       }
-#endif
       const auto denseID = Allen::Rich::Detector::PDPanel<richIdx>::smartID2denseID(hitID);
       atomicOr(&pd_pixels[denseID], 1ULL << hitID.anodeIndex());
     }
