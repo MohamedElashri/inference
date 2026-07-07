@@ -827,7 +827,6 @@ def setup_hlt1_base(
         physics_lines: List[Tuple],
         smog2_lines: List[Tuple],
         technical_lines: List[Tuple],
-        codex_lines: List[Tuple] = [],
         # Parameters with default values
         enabled_lines: List[str] = None,
         disabled_lines: List[str] = None,
@@ -875,8 +874,6 @@ def setup_hlt1_base(
         "SMOG2": smog2_lines,
         "Technical": technical_lines,
     }
-    if codex_lines:
-        grouped_lines["CODEX"] = codex_lines
     grouped_line_algs = {
         key: [tup[0] for tup in lines]
         for key, lines in grouped_lines.items()
