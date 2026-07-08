@@ -22,7 +22,7 @@ def gen_header(header=True):
 * In applying this licence, CERN does not waive the privileges and immunities *
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
-\*****************************************************************************/
+\\*****************************************************************************/
 
 // *** Auto-generated file do not edit *** //
 
@@ -160,32 +160,26 @@ def call_paral_exch(ept, tmask, swbit, with_val=True):
     return f"    exch_{name}({', '.join(kv)}, {hex(tmask)}, bit{swbit});\n"
 
 
-def gen_regsort_kernel(threads, ept, with_perm=True):
+def gen_regsort_function(threads, ept, with_perm=True):
     rg_k = [f"rg_k{i}" for i in range(ept)]
     rg_v = [f"rg_v{i}" for i in range(ept)]
     c = f"// {threads * ept} = {threads} threads x {ept} elements per thread\n"
     c += "template<typename KeyType>\n"
     if with_perm:
-        c += f"__global__ void regsort_{threads*ept}_{threads}t_{ept}ept(const unsigned* bins, unsigned n_segments, const KeyType* keys, const unsigned* seg_offsets, unsigned* permutations) {{\n"
+        c += f"__device__ void regsort_{threads*ept}_{threads}t_{ept}ept_f(unsigned start, unsigned size, const KeyType* keys, unsigned* permutations) {{\n"
     else:
-        c += f"__global__ void regsort_{threads*ept}_{threads}t_{ept}ept(const unsigned* bins, unsigned n_segments, KeyType* keys, const unsigned* seg_offsets) {{\n"
-    c += f"  unsigned step = (gridDim.x * blockDim.x) / {threads};\n"
-    c += f"  unsigned first_seg = (blockIdx.x * blockDim.x + threadIdx.x) / {threads};\n"
+        c += f"__device__ void regsort_{threads*ept}_{threads}t_{ept}ept_f(unsigned start, unsigned size, KeyType* keys) {{\n"
     c += f"  unsigned tid = threadIdx.x & {threads-1};\n"
     for i in range(int(math.log2(threads))):
         c += f"  const bool bit{i} = (tid >> {i}) & 1;\n"  # TODO: predicate packing ?
     c += f"  KeyType {', '.join(rg_k)};\n"
     c += f"  unsigned {', '.join(rg_v)};\n"
-    c += "  for (unsigned s = first_seg; s < n_segments; s += step) {\n"
-    c += "    unsigned seg = bins[s];\n"
-    c += "    const unsigned start = seg_offsets[seg];\n"
-    c += "    const unsigned size = seg_offsets[seg + 1] - seg_offsets[seg];\n\n"
     # LOAD
     for i in range(ept):
-        c += f"    {rg_v[i]} = tid + {i*threads};\n"
+        c += f"  {rg_v[i]} = tid + {i*threads};\n"
     for i in range(ept):
-        c += f"    {rg_k[i]} = ({rg_v[i]} < size) ? keys[start + {rg_v[i]}] : std::numeric_limits<KeyType>::max();\n"
-    c += "\n"
+        c += f"  {rg_k[i]} = ({rg_v[i]} < size) ? keys[start + {rg_v[i]}] : std::numeric_limits<KeyType>::max();\n"
+    c += "\n  {\n"
 
     # SORT
     log_size = int(math.log2(threads * ept))
@@ -220,25 +214,17 @@ def gen_regsort_kernel(threads, ept, with_perm=True):
                 tmask = tmask - tmask // 2
                 swbit = int(math.log2(threads_per_group) - 1)
                 c += call_paral_exch(ept, tmask, swbit, with_val=with_perm)
-    c += "\n"
+    c += "  }\n"
 
     # STORE BACK
     if with_perm:
         for i in range(ept):
             #c += f"    if (tid * {ept} + {i} < size) permutations[start + {rg_v[i]}] = start + tid * {ept} + {i};\n"
-            c += f"    if (tid * {ept} + {i} < size) permutations[start + tid * {ept} + {i}] = start + {rg_v[i]};\n"
+            c += f"  if (tid * {ept} + {i} < size) permutations[start + tid * {ept} + {i}] = start + {rg_v[i]};\n"
     else:
         for i in range(ept):
-            c += f"    if (tid * {ept} + {i} < size) keys[start + tid * {ept} + {i}] = {rg_k[i]};\n"
-    c += "  }\n"
+            c += f"  if (tid * {ept} + {i} < size) keys[start + tid * {ept} + {i}] = {rg_k[i]};\n"
     c += "}\n\n"
-    # instantiate:
-    for t in ["uint32_t", "int64_t", "uint64_t"]:
-        if with_perm:
-            c += f"template __global__ void regsort_{threads*ept}_{threads}t_{ept}ept<{t}>(const unsigned* bins, unsigned n_segments, const {t}* keys, const unsigned* seg_offsets, unsigned* permutations);\n"
-        else:
-            c += f"template __global__ void regsort_{threads*ept}_{threads}t_{ept}ept<{t}>(const unsigned* bins, unsigned n_segments, {t}* keys, const unsigned* seg_offsets);\n"
-    c += "\n"
     return c
 
 
@@ -279,32 +265,9 @@ __device__ inline void cond_swap_regs(bool condition, T1& a, T1& b) {
         f.write(c)
 
 
-def gen_regsort_header(filename):
+def gen_regsort_functions(filename):
     c = gen_header()
-
-    c += "#ifndef TARGET_DEVICE_CPU\n\n"
-
-    for size in [2, 4, 8, 16, 32, 64, 128, 256, 512]:
-        c += f"// Sorts for size <= {size}:\n\n"
-        for threads in [2, 4, 8, 16, 32]:
-            for ept in [1, 2, 4, 8, 16]:
-                if ept * threads == size:
-                    c += "template<typename KeyType>\n"
-                    c += f"__global__ void regsort_{threads*ept}_{threads}t_{ept}ept(const unsigned* bins, unsigned n_segments, const KeyType* keys, const unsigned* seg_offsets, unsigned* permutations);\n"
-                    c += "template<typename KeyType>\n"
-                    c += f"__global__ void regsort_{threads*ept}_{threads}t_{ept}ept(const unsigned* bins, unsigned n_segments, KeyType* keys, const unsigned* seg_offsets);\n"
-        c += "\n"
-
-    c += "#endif\n"
-
-    with open(filename, "w") as f:
-        f.write(c)
-
-
-def gen_regsort_kernels(filename):
-    c = gen_header(header=False)
     c += "#include <regsort_exch.h>\n"
-    c += "#include <regsort_kernels.h>\n\n"
 
     c += "#ifndef TARGET_DEVICE_CPU\n\n"
 
@@ -313,8 +276,8 @@ def gen_regsort_kernels(filename):
         for threads in [2, 4, 8, 16, 32]:
             for ept in [1, 2, 4, 8, 16]:
                 if ept * threads == size:
-                    c += gen_regsort_kernel(threads, ept)
-                    c += gen_regsort_kernel(threads, ept, with_perm=False)
+                    c += gen_regsort_function(threads, ept)
+                    c += gen_regsort_function(threads, ept, with_perm=False)
 
     c += "#endif\n"
 
@@ -324,5 +287,4 @@ def gen_regsort_kernels(filename):
 
 if __name__ == '__main__':
     gen_exch_header("../include/regsort_exch.h")
-    gen_regsort_header("../include/regsort_kernels.h")
-    gen_regsort_kernels("../src/regsort_kernels.cu")
+    gen_regsort_functions("../include/regsort_functions.cuh")

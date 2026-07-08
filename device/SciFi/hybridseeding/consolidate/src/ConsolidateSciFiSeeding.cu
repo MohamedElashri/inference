@@ -110,7 +110,7 @@ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate_t::operator(
 
   global_function(seed_confirmTracks_consolidate)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
-    constants.dev_magnet_polarity.data(),
+    constants.magnet_polarity,
     m_histogram_scifi_track_eta.data(context),
     m_histogram_scifi_track_phi.data(context),
     m_histogram_scifi_track_nhits.data(context),
@@ -132,7 +132,7 @@ __device__ void populate(const SciFi::Seeding::Track& track, const F& assign)
 
 __global__ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate(
   seed_confirmTracks_consolidate::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_scifi_track_eta,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_scifi_track_phi,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_scifi_track_nhits,
@@ -185,7 +185,7 @@ __global__ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate(
 
     scifi_seeds.states(i) = seeding_state;
 
-    const auto magSign = dev_magnet_polarity[0];
+    const auto magSign = magnet_polarity;
     tracks_qop[i] = qop_seeding_calculation(magSign, seeding_state, true);
     // tracks_chi2X[i] = scifiseed.chi2X;
     tracks_chi2Y[i] = scifiseed.chi2Y;

@@ -12,7 +12,7 @@ set(host_gec_sources
   "src/HostSciFiGEC.cpp"
   "src/HostUTGEC.cpp")
 
-allen_add_host_library(HostGEC STATIC
+allen_add_host_library(HostGEC OBJECT
   ${host_gec_sources}
 )
 

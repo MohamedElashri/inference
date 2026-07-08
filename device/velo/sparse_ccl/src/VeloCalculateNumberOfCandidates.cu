@@ -60,7 +60,7 @@ __global__ void velo_count_sp_per_sensor(
 
         if (sp == 0) continue;
 
-        unsigned count = VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
+        unsigned count = Allen::VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
         if (sensor_bit == 0) {
           sensor0_count += count;
         }
@@ -126,7 +126,7 @@ __global__ void velo_partition_superpixels(
 
         sp_word |= (sensor_base + sensor_bit) << 24;
 
-        unsigned count = VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
+        unsigned count = Allen::VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
         unsigned out_index = atomicAdd(&sensor_index[sensor_base + sensor_bit], count);
         if (count == 1) {
           if (sensor_bit == 0)

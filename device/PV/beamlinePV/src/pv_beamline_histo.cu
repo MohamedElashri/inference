@@ -42,6 +42,8 @@ void pv_beamline_histo::pv_beamline_histo_t::operator()(
     m_order_polynomial);
 }
 
+__constant__ struct BeamlinePVConstants::Common::Beamline dev_beamline;
+
 void updateCommon(const Constants& constants)
 {
   struct BeamlinePVConstants::Common::Beamline host_beamline;
@@ -65,15 +67,8 @@ void updateCommon(const Constants& constants)
                             static_cast<double>(constants.host_beamline[9]) /
                               (2 * std::pow(10, 6)); // Convert crossing angles between beams from microrad to rad,
                                                      // take half to convert the angle to the beam inclination
-  if ((CrossingAngleh == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
-    CrossingAngleh = fabs(static_cast<double>(constants.host_gen_crossing_angles[0])) / 2;
-  }
   double CrossingAnglev =
     constants.host_beamline.size() == 9 ? 0 : static_cast<double>(constants.host_beamline[10]) / (2 * std::pow(10, 6));
-
-  if ((CrossingAnglev == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
-    CrossingAnglev = fabs(static_cast<double>(constants.host_gen_crossing_angles[1])) / 2;
-  }
 
   host_beamline.tx_SMOG.x = 0.;
   host_beamline.tx_SMOG.y = 0.;

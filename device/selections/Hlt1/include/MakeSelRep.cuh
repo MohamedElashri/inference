@@ -30,18 +30,6 @@ namespace make_selrep {
     HOST_OUTPUT(host_sel_reports_t, unsigned) host_sel_reports;
   };
 
-  __host__ __device__ void make_selrep_bank(
-    unsigned* selrep,
-    const unsigned* rb_objtyp,
-    const unsigned* rb_hits,
-    const unsigned* rb_substr,
-    const unsigned* rb_stdinfo,
-    const unsigned bank_size,
-    const unsigned objtyp_size,
-    const unsigned hits_size,
-    const unsigned substr_size,
-    const unsigned stdinfo_size);
-
   __global__ void make_selrep(Parameters, const unsigned number_of_events);
 
   struct make_selrep_t : public DeviceAlgorithm, Parameters {

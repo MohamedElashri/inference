@@ -240,6 +240,12 @@ std::unique_ptr<IInputProvider> Allen::make_provider(
 
   logger::setVerbosity(verbosity);
 
+  // The Allen number of "all events" is 0 requested, but the LHCb
+  // norm is -1 requested, so make sure that also works
+  if (number_of_events_requested == -1) {
+    number_of_events_requested = 0;
+  }
+
   // Set a sane default for the number of events per input slice
   if (number_of_events_requested != 0 && events_per_slice > number_of_events_requested) {
     events_per_slice = number_of_events_requested;

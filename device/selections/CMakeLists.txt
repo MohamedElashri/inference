@@ -13,13 +13,13 @@ file(GLOB filters_src "filters/src/*cu")
 file(GLOB lines_src "lines/calibration/src/*cu" "lines/charm/src/*cu" "lines/inclusive_hadron/src/*cu" "lines/downstream/src/*cu" "lines/inclusive_hadron/src/*cpp" "lines/muon/src/*cu" "lines/photon/src/*cu" "lines/electron/src/*cu" "lines/monitoring/src/*cu" "lines/SMOG2/src/*cu" "lines/heavy_ions/src/*cu" "lines/exclusive_strange/src/*cu" "lines/ttracks/src/*cu")
 
 if(SEPARABLE_COMPILATION)
-  allen_add_device_library(Selections STATIC
+  allen_add_device_library(Selections OBJECT
     ${lines_src}
     ${selections_src}
     ${filters_src}
   )
 else()
-  allen_add_device_library_unified(Selections STATIC
+  allen_add_device_library_unified(Selections OBJECT
     ${lines_src}
     ${selections_src}
     ${filters_src}

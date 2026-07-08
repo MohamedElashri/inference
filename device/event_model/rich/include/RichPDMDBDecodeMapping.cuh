@@ -30,11 +30,11 @@ namespace Allen::Rich::Decoding {
     /// The data for each anode
     struct BitData final {
       /// The EC number (0-3)
-      int8_t ec;
+      int8_t ec {};
       /// The PMT number in EC
-      int8_t pmtInEC;
+      int8_t pmtInEC {};
       /// The Anode index (0-63)
-      int8_t anode;
+      int8_t anode {};
 
       /// Default constructor
       BitData() = default;
@@ -48,7 +48,9 @@ namespace Allen::Rich::Decoding {
       {}
     };
 
-    using FrameBitmask = std::array<uint8_t, 11>; // first half (6bytes) + second half (5bytes)
+    static constexpr const unsigned BytesPerFrameBitmask = 11;
+
+    using FrameBitmask = std::array<uint8_t, BytesPerFrameBitmask>; // first half (6bytes) + second half (5bytes)
 
     // defines
 
@@ -74,15 +76,15 @@ namespace Allen::Rich::Decoding {
     using PDMData = std::array<PDMDBData, PDMDBPerModule>;
 
     ///  R-Type Module data for each RICH
-    using RTypeRichData = std::array<PDMData, 2>;
+    using RTypeRichData = DetectorArray<PDMData>;
 
     // methods
 
     /// Get the PDMDB data for given RICH, PDMDB and frame
     __host__ __device__ inline const auto& getFrameData(
-      const int8_t rich,  //
-      const int8_t pdmdb, //
-      const int8_t link,  //
+      const Detector::DetectorType rich, //
+      const int8_t pdmdb,                //
+      const int8_t link,                 //
       const bool isHType) const
     {
       // Note as this is called many times from the decoding, avoid runtime range checking
@@ -106,13 +108,13 @@ namespace Allen::Rich::Decoding {
     /// Get PDMDB data for given Tel40 data
     __host__ __device__ inline const auto& getFrameData(const Tel40CableMapping::Tel40LinkData& cData) const
     {
-      const auto rich = cData.smartID.getData(SmartID::ShiftRich, SmartID::MaskRich);
+      const auto rich = cData.smartID.rich();
       return getFrameData(rich, cData.pdmdbNum, cData.linkNum, cData.isHType);
     }
 
     __host__ __device__ inline const auto& getFrameValidMask(const Tel40CableMapping::Tel40LinkData& cData) const
     {
-      const auto rich = cData.smartID.getData(SmartID::ShiftRich, SmartID::MaskRich);
+      const auto rich = cData.smartID.rich();
       if (!cData.isHType) {
         // R type PMT
         return m_pdmMaskR[rich][cData.pdmdbNum][cData.linkNum];
@@ -125,10 +127,10 @@ namespace Allen::Rich::Decoding {
     // data
 
     /// R type data
-    RTypeRichData m_pdmDataR; // std::array<PDMData, 2>
+    RTypeRichData m_pdmDataR {};
 
     /// H type data
-    PDMData m_pdmDataH; // std::array<PDMDBData, 2>
+    PDMData m_pdmDataH {};
 
     /// Flag to indicate initialisation status
     bool m_isInitialised {false};
@@ -136,7 +138,7 @@ namespace Allen::Rich::Decoding {
     /// Mapping version
     int m_mappingVer {-1};
 
-    std::array<std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule>, 2> m_pdmMaskR {};
+    DetectorArray<std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule>> m_pdmMaskR {};
     std::array<std::array<FrameBitmask, FramesPerPDMDB>, PDMDBPerModule> m_pdmMaskH {};
   };
 

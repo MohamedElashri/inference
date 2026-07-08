@@ -17,7 +17,7 @@ if(STANDALONE AND NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{CMAKE_TOOLCHA
   set(CMAKE_TOOLCHAIN_FILE $ENV{CMAKE_TOOLCHAIN_FILE})
 endif()
 
-project(Allen VERSION 7.16
+project(Allen VERSION 8.4
         LANGUAGES C CXX)
 
 # ---------------
@@ -28,6 +28,7 @@ option(BUILD_TESTING "Build test programs" OFF)
 option(USE_KALMAN_DOUBLE_PRECISION "Use double precision Kalman filter" OFF)
 option(CPU_USE_REAL_HALF "Use half_t with uint16_t backend" OFF)
 option(STANDALONE "Build Allen standalone" OFF)
+option(USE_DD4HEP "Use DD4HEP" ON)
 option(TREAT_WARNINGS_AS_ERRORS "Treat all warnings as errors" OFF)
 option(ALWAYS_DISPATCH_TO_DEFAULT "Dispatch architecture-specific functions always to default target" OFF)
 option(USE_BOOST_FILESYSTEM "Use Boost filesystem library instead of std::filesystem" OFF)
@@ -47,6 +48,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DALLEN_DEBUG")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Add -DUSE_DD4HEP flag if USE_DD4HEP is ON
+if(USE_DD4HEP AND STANDALONE)
+  # Add the definition for all targets
+  add_compile_definitions(USE_DD4HEP)
+endif()
 
 # -----------------------
 # Multiple-choice options
@@ -204,23 +211,42 @@ set(TARGET_DEFINITION "TARGET_DEVICE_${TARGET_DEVICE}")
 
 include(CTest)
 
-if (NOT STANDALONE)
-  # Disable messages from the LHCb configuration checks that fire as
-  # a result of the different directory/source structure of Allen
-  if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
-    set(LHCB_UNUSED_SUBDIR_MESSAGE_TYPE "VERBOSE")
-    set(LHCB_UNUSED_SOURCE_MESSAGE_TYPE "IGNORE")
-  endif()
-
-  lhcb_add_subdirectories(
-    Rec/Allen
-    Dumpers/BinaryDumpers
-    Dumpers/RootDumpers)
-
-  lhcb_env(
-    SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
-    SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
+# The list of libraries containing algorithms:
+set(ALLEN_ALGORITHM_LIB
+  Associate
+  Calo
+  Combiners
+  DeviceValidators
+  Downstream
+  Examples
+  HostCombiners
+  HostDataProvider
+  HostDummyMaker
+  HostErrorBanks
+  HostGEC
+  HostInitEventList
+  HostRoutingBits
+  HostTAEFilter
+  Kalman
+  Lumi
+  Muon
+  PVChecking
+  PV_beamline
+  Plume
+  Rich
+  SciFi
+  SelChecking
+  Selections
+  TrackChecking
+  TTrack
+  UT
+  Utils
+  Validators
+  Velo
+  VertexFitter
+  track_matching
+  Jets
+)
 
 # Detect CUDA architecture
 if(TARGET_DEVICE STREQUAL "CUDA")
@@ -261,17 +287,15 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   #CUDA_ARCH can be set to MIN
     elseif(CUDA_ARCH STREQUAL "MIN")
       message(STATUS "Setting lowest CUDA compute capability:")
-      list(APPEND CUDA_ARCH_LIST 70)
+      list(APPEND CUDA_ARCH_LIST 75)
   #By default, compile for compatibility
     elseif(CUDA_ARCH STREQUAL "COMPATIBILITY")
   #Compatibility arch flag.
-  #* These settings support natively archs 5.0, 6.0, 7.0, 7.5, 8.0 and 8.6.
-  #* All other 5.X and 6.X architectures are supported through their respective
-  #major number builds, specifics of those architectures are not used.
+  #* These settings support natively archs 7.5, 8.0 and 8.6.
   #* Forward compatibility with newer devices is also supported by generating PTX from 8.6
   #(- gencode = arch = compute_86, compute = compute_86)
       message(STATUS "Setting compute capability to COMPATIBILITY:")
-      foreach(arch 70 75 80 86)
+      foreach(arch 75 80 86)
         list(APPEND CUDA_ARCH_LIST ${arch})
       endforeach()
   #Finally, compile for the specified architecture
@@ -280,10 +304,7 @@ if(TARGET_DEVICE STREQUAL "CUDA")
       list(APPEND CUDA_ARCH_LIST ${CUDA_ARCH})
     endif()
 
-    # Compatibility with CMake 3.18
-    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18.0")
-      set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_LIST})
-    endif()
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_LIST})
 
     set(DEVICE_ARCHITECTURE "")
     foreach(arch ${CUDA_ARCH_LIST})
@@ -293,6 +314,7 @@ if(TARGET_DEVICE STREQUAL "CUDA")
       string(APPEND DEVICE_ARCHITECTURE " -gencode=arch=compute_86,code=sm_86")
     endif()
   endif()
+  message(STATUS "CMAKE_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}")
   message(STATUS "Device architecture set to ${DEVICE_ARCHITECTURE}")
 endif()
 
@@ -315,7 +337,9 @@ if(TARGET_DEVICE STREQUAL "CPU")
     add_library(${ARGV})
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     if (${is_static} EQUAL -1)
       install(TARGETS ${ARGV0}
         EXPORT Allen
@@ -335,7 +359,9 @@ if(TARGET_DEVICE STREQUAL "CPU")
     add_library(${ARGV})
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
 
     if (${is_static} EQUAL -1)
       install(TARGETS ${ARGV0}
@@ -352,7 +378,9 @@ if(TARGET_DEVICE STREQUAL "CPU")
     endforeach()
 
     add_executable(${ARGV})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     install(TARGETS ${ARGV0} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endfunction()
 
@@ -395,7 +423,9 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
     message(STATUS "Adding host library: ${ARGV0}")
     add_library(${ARGV})
     target_include_directories(${ARGV0} PRIVATE ${HIP_PATH}/include ${ROCM_PATH}/hsa/include)
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
 
@@ -413,7 +443,9 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
 
     add_library(Allen::${ARGV0} ALIAS ${ARGV0})
     target_include_directories(${ARGV0} PRIVATE ${HIP_PATH}/include ${ROCM_PATH}/hsa/include)
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
 
     if (${is_static} EQUAL -1)
       install(TARGETS ${ARGV0}
@@ -430,9 +462,10 @@ elseif(TARGET_DEVICE STREQUAL "HIP")
   endfunction()
 elseif(TARGET_DEVICE STREQUAL "CUDA")
   set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
-  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG --generate-line-info")
-  set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG --generate-line-info")
-  set(CMAKE_CUDA_FLAGS_DEBUG "-G -g -DALLEN_DEBUG")
+  set(CMAKE_CUDA_WARNING_FLAGS "-Wno-cpp")
+  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG --generate-line-info ${CMAKE_CUDA_WARNING_FLAGS}")
+  set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG --generate-line-info ${CMAKE_CUDA_WARNING_FLAGS}")
+  set(CMAKE_CUDA_FLAGS_DEBUG "-G -g -DALLEN_DEBUG ${CMAKE_CUDA_WARNING_FLAGS}")
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
   option(CUDA_VEBOSE_BUILD "CUDA verbose build" OFF)
@@ -441,9 +474,6 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
   else()
     set(CUDA_VERBOSE_FLAGS "")
   endif()
-
-  # The cxx standard seems to get lost somehwere for .cu files, so add it explicitly
-  string(APPEND CMAKE_CUDA_FLAGS "  -std=c++${CMAKE_CUDA_STANDARD}")
 
   string(APPEND CMAKE_CUDA_FLAGS " ${DEVICE_ARCHITECTURE} ${CUDA_TOOLCHAIN_OPTIONS} -Xcudafe --display_error_number --use_fast_math --expt-relaxed-constexpr ${CUDA_VERBOSE_FLAGS}")
   if (NOT CMAKE_CUDA_HOST_COMPILER)
@@ -466,7 +496,9 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
 
     add_library(${ARGV})
     target_include_directories(${ARGV0} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${PROJECT_BINARY_DIR}/code_generation)
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     if(SEPARABLE_COMPILATION)
       set_property(TARGET ${ARGV0} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
     endif()
@@ -485,7 +517,9 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
 
     add_library(${ARGV})
     target_include_directories(${ARGV0} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-    target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    if(STANDALONE)
+      target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION} ODIN_WITHOUT_GAUDI)
+    endif()
     if(SEPARABLE_COMPILATION)
       set_property(TARGET ${ARGV0} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
     endif()
@@ -501,9 +535,6 @@ elseif(TARGET_DEVICE STREQUAL "CUDA")
 
   function(allen_add_executable)
     add_executable(${ARGV})
-    if(SEPARABLE_COMPILATION)
-      set_property(TARGET ${ARGV0} PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS OFF)
-    endif()
     target_include_directories(${ARGV0} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_compile_definitions(${ARGV0} PRIVATE ${TARGET_DEFINITION})
     install(TARGETS ${ARGV0} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -598,6 +629,24 @@ endif()
 
 if (USE_KALMAN_DOUBLE_PRECISION)
   add_compile_definitions(KALMAN_DOUBLE_PRECISION)
+endif()
+
+if (NOT STANDALONE)
+  # Disable messages from the LHCb configuration checks that fire as
+  # a result of the different directory/source structure of Allen
+  if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
+    set(LHCB_UNUSED_SUBDIR_MESSAGE_TYPE "VERBOSE")
+    set(LHCB_UNUSED_SOURCE_MESSAGE_TYPE "IGNORE")
+  endif()
+
+  lhcb_add_subdirectories(
+    Rec/Allen
+    Dumpers/BinaryDumpers
+    Dumpers/RootDumpers)
+
+  lhcb_env(
+    SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
+    SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 # Determine which sequences to generate or copy configurations for
@@ -712,7 +761,6 @@ allen_add_host_library(AllenLib SHARED
   main/src/AllenThreads.cpp
   main/src/OutputHandler.cpp
   main/src/Provider.cpp
-  main/src/RegisterConsumers.cpp
   main/src/ZMQOutputSender.cpp)
 
 target_compile_definitions(AllenLib PUBLIC ${TARGET_DEFINITION})
@@ -723,44 +771,13 @@ target_include_directories(AllenLib PUBLIC
 
 target_link_libraries(AllenLib
   PRIVATE
-    algorithm_db
-    Associate
     Backend
-    Calo
-    Combiners
-    DeviceValidators
     EventModel
-    Examples
-    HostCombiners
-    HostDataProvider
-    HostDummyMaker
-    HostErrorBanks
     HostEventModel
-    HostGEC
-    HostInitEventList
-    HostRoutingBits
-    HostTAEFilter
-    Kalman
     LHCbEvent
-    Lumi
-    Muon
-    NonEventData
-    PVChecking
-    PV_beamline
-    Plume
-    SciFi
-    SelChecking
-    Selections
-    Stream
-    TrackChecking
-    UT
-    Utils
-    Validators
-    Velo
-    VertexFitter
     mdf
-    track_matching
-    Jets
+    NonEventData
+    Stream
   PUBLIC
     Gear
     AllenCommon
@@ -790,6 +807,10 @@ add_dependencies(Allen Sequences)
 
 target_link_libraries(Allen PRIVATE AllenLib)
 set_target_properties(Allen PROPERTIES BUILD_RPATH_USE_ORIGIN TRUE)
+
+if (STANDALONE)
+  target_link_libraries(Allen PRIVATE ${ALLEN_ALGORITHM_LIB})
+endif()
 
 if (NOT STANDALONE)
     include(FileContentMetadataRepository)

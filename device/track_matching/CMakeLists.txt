@@ -11,7 +11,7 @@
 file(GLOB matching_match "match/src/*cu")
 file(GLOB matching_consolidate "consolidate/src/*cu")
 
-allen_add_device_library(track_matching STATIC
+allen_add_device_library(track_matching OBJECT
   ${matching_match}
   ${matching_consolidate}
 )

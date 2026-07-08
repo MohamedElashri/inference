@@ -10,7 +10,7 @@
 \*****************************************************************************/
 #pragma once
 
-#include <zmq/zmq.hpp>
+#include <zmq.hpp>
 
 #if !defined(CPPZMQ_VERSION)
 namespace zmq {

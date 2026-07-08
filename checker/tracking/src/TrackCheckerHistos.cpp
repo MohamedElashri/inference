@@ -196,6 +196,12 @@ TrackCheckerHistos::TrackCheckerHistos(
     std::make_unique<TH1D>("ghost_isMuon_Eta_reconstructed", "ghost_isMuon_Eta_reconstructed", 20, 0, 7);
   h_ghost_isMuon_nPV_reconstructed =
     std::make_unique<TH1D>("ghost_isMuon_nPV_reconstructed", "ghost_isMuon_nPV_reconstructed", 21, -0.5, 20.5);
+
+  // Histos for rich
+  h_rich_ckResAll = std::make_unique<TH1D>("rich_ckResAll", "Rec-Exp CKTheta - True Type", 100, -0.0026f, 0.0026f);
+  h_rich_ckThetaExp = std::make_unique<TH1D>("rich_ckThetaExp", "Exp CKTheta - True Type", 100, 0.010f, 0.056f);
+  h_rich_ckThetaRec =
+    std::make_unique<TH1D>("rich_ckThetaRec", "Reconstructed CKTheta - All photons", 100, 0.010f, 0.056f);
 }
 
 void TrackCheckerHistos::write()
@@ -259,7 +265,10 @@ void TrackCheckerHistos::write()
                          std::ref(h_matched_FromB_isMuon_nPV_reconstructed),
                          std::ref(h_not_matched_isMuon_nPV_reconstructed),
                          std::ref(h_ghost_isMuon_nPV_reconstructed),
-                         std::ref(h_ghost_isMuon_Eta_reconstructed)};
+                         std::ref(h_ghost_isMuon_Eta_reconstructed),
+                         std::ref(h_rich_ckResAll),
+                         std::ref(h_rich_ckThetaExp),
+                         std::ref(h_rich_ckThetaRec)};
   for_each(histograms, [dir](auto& histo) {
     histo.get()->SetDirectory(nullptr);
     dir->WriteTObject(histo.get().get());
@@ -450,4 +459,21 @@ void TrackCheckerHistos::fillMuonIDMatchedHistos(const Checker::Track& track, co
       h_muon_catboost_output_matched_notMuon_ismuon_false->Fill(static_cast<double>(track.muon_catboost_output));
     }
   }
+}
+
+void TrackCheckerHistos::fillRichHistos(
+  const Checker::Track& track,
+  const std::vector<Allen::Rich::PhotonReco::Photon>& photons,
+  const Allen::Rich::ParticleIDType true_pid)
+{
+  if (true_pid == Allen::Rich::ParticleIDType::BelowThreshold) return;
+  float ckThetaExp = track.ckThetaExp[true_pid];
+  for (const auto& photon : photons) {
+    if (ckThetaExp != ckThetaExp) continue;
+    float delta = photon.ckTheta - ckThetaExp;
+    h_rich_ckResAll->Fill(static_cast<double>(delta));
+    h_rich_ckThetaRec->Fill(static_cast<double>(photon.ckTheta));
+  }
+
+  h_rich_ckThetaExp->Fill(static_cast<double>(ckThetaExp));
 }

@@ -11,7 +11,6 @@
 #pragma once
 
 namespace Allen {
-
   constexpr float mEl = 0.51099891f;
   constexpr float mMu = 105.65837f;
   constexpr float mPi = 139.57018f;
@@ -22,5 +21,6 @@ namespace Allen {
   constexpr float mXi = 1321.71f;
   constexpr float mOmega = 1672.45f;
   constexpr float mDz = 1864.83f;
+  constexpr float mD = 1875.612945f; // TODO: check
   constexpr float mPhi = 1019.461f;
 } // namespace Allen

@@ -28,6 +28,7 @@
 #include <sys/types.h>
 
 #include "Event/ODIN.h"
+#include "Event/RawBank.h"
 #include "mdf_header.hpp"
 
 namespace {
@@ -44,6 +45,16 @@ namespace MDF {
   Allen::IO open(std::string const& filepath, int flags, int mode = 0);
 
   void dump_hex(const char* start, int size, std::ostream& out = std::cout);
+
+  inline size_t read_banks_buffer_size(const LHCb::MDFHeader& header)
+  {
+    const auto raw_size = static_cast<size_t>(LHCb::MDFHeader::sizeOf(header.headerVersion()));
+    const auto read_size = static_cast<size_t>(header.recordSize()) - raw_size;
+    const auto compress = header.compression() & 0xF;
+    const auto expand = (header.compression() >> 4) + 1;
+    return 2 * raw_size + read_size + 2 * (sizeof(LHCb::RawBank) + sizeof(int)) +
+           (compress ? static_cast<size_t>(expand) * read_size : 0);
+  }
 
   std::tuple<bool, bool, std::vector<std::tuple<int, std::span<const char>>>> read_event(
     Allen::IO& input,

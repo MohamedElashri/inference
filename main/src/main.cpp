@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
 
   auto [config, config_source] = Allen::sequence_conf(allen_options);
 
-  Allen::NonEventData::Updater updater {allen_options};
+  Allen::NonEventData::Updater updater {};
 
   auto input_provider = Allen::make_provider(allen_options, config);
   if (!input_provider) return -1;

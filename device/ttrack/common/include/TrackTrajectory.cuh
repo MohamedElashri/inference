@@ -18,7 +18,6 @@
 #include "BinarySearch.cuh"
 
 #include "TTrackDefinitions.cuh"
-#include "FloatOperations.cuh"
 
 namespace Trajectories {
 

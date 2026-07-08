@@ -18,7 +18,6 @@
 #include "VeloDefinitions.cuh"
 #include "VeloEventModel.cuh"
 #include "patPV_Definitions.cuh"
-#include "FloatOperations.cuh"
 #include <cstdint>
 
 namespace pv_beamline_peak {

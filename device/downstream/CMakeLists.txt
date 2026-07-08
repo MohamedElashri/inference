@@ -15,7 +15,7 @@ file(GLOB downstream_uthits_filter "uthits_filter/src/*.cu")
 file(GLOB downstream_consolidate_tracking "consolidate_tracking/src/*.cu")
 file(GLOB downstream_tracking "tracking/src/*.cu")
 
-allen_add_device_library(Downstream STATIC
+allen_add_device_library(Downstream OBJECT
   ${downstream_reconstruction}
   ${downstream_consolidate}
   ${downstream_uthits_filter}

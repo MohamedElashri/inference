@@ -119,7 +119,7 @@ namespace quirks_tools {
     __syncthreads();
 
     const unsigned seed = threadIdx.x;
-    const auto& clusters = parameters.dev_velo_clusters[event_number];
+    const auto& clusters = parameters.dev_velo_clusters[0];
 
     // main search: each seed-thread processes multiple seed indices
     for (unsigned seed_layer = seed; seed_layer < effective_layers; seed_layer += blockDim.x) {

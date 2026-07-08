@@ -10,7 +10,8 @@
 ###############################################################################
 from AllenCore.algorithms import (
     data_provider_t, calo_count_digits_t, calo_decode_t,
-    track_digit_selective_matching_t, brem_recovery_t,
+    track_digit_selective_matching_long_t,
+    track_digit_selective_matching_downstream_t, brem_recovery_t,
     momentum_brem_correction_t, calo_seed_clusters_t, calo_find_clusters_t,
     calo_prefilter_clusters_t, calo_filter_clusters_t, calo_find_twoclusters_t,
     total_ecal_energy_t, make_neutral_particles_t, calo_overlap_clusters_t,
@@ -62,10 +63,18 @@ def decode_calo(empty_banks=False):
     }
 
 
-def make_is_electron(decoded_calo, host_number_of_tracks,
-                     dev_multi_event_tracks_ptr, dev_velo_states,
-                     dev_scifi_states):
+def make_is_electron(decoded_calo,
+                     host_number_of_tracks,
+                     dev_multi_event_tracks_ptr,
+                     dev_velo_states,
+                     dev_scifi_states,
+                     track_type="long"):
     number_of_events = initialize_number_of_events()
+
+    track_digit_selective_matching_t = {
+        "long": track_digit_selective_matching_long_t,
+        "downstream": track_digit_selective_matching_downstream_t
+    }[track_type]
 
     track_digit_selective_matching = make_algorithm(
         track_digit_selective_matching_t,
@@ -108,9 +117,18 @@ def make_is_electron(decoded_calo, host_number_of_tracks,
     }
 
 
-def make_track_matching(decoded_calo, velo_tracks, velo_states, long_tracks,
-                        kalman_velo_only):
+def make_track_matching(decoded_calo,
+                        velo_tracks,
+                        velo_states,
+                        long_tracks,
+                        kalman_velo_only,
+                        track_type="long"):
     number_of_events = initialize_number_of_events()
+
+    track_digit_selective_matching_t = {
+        "long": track_digit_selective_matching_long_t,
+        "downstream": track_digit_selective_matching_downstream_t
+    }[track_type]
 
     track_digit_selective_matching = make_algorithm(
         track_digit_selective_matching_t,
@@ -118,8 +136,7 @@ def make_track_matching(decoded_calo, velo_tracks, velo_states, long_tracks,
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
             "host_number_of_reconstructed_scifi_tracks"],
         dev_scifi_states_t=long_tracks["dev_scifi_states"],
-        # dev_long_tracks_view_t=long_tracks["dev_multi_event_long_tracks_view"],
-        dev_tracks_view_t=long_tracks["dev_multi_event_long_tracks_ptr"],
+        dev_tracks_view_t=long_tracks["dev_multi_event_long_tracks_view"],
         host_ecal_number_of_digits_t=decoded_calo[
             "host_ecal_number_of_digits"],
         dev_ecal_digits_t=decoded_calo["dev_ecal_digits"],

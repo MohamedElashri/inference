@@ -10,8 +10,8 @@
 \*****************************************************************************/
 #include <HostBuffersManager.cuh>
 #include <Logger.h>
-#include <MakeSubBanks.cuh>
-#include <MakeSelRep.cuh>
+#include <HltSubBanks.cuh>
+#include <HltSelReport.cuh>
 #include <HltDecReport.cuh>
 #include <regex>
 

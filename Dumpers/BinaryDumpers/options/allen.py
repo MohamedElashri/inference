@@ -17,16 +17,15 @@ import json
 from pathlib import Path
 from Configurables import ApplicationMgr
 from Configurables import Gaudi__RootCnvSvc as RootCnvSvc
-from Configurables import DDDBConf
 
 from AllenCore.configuration_options import is_allen_standalone
 is_allen_standalone.global_bind(standalone=True)
 
 from Allen.config import (setup_allen_non_event_data_service, allen_odin,
                           configured_bank_types)
-from PyConf.application import (configure, setup_component, ComponentConfig,
-                                ApplicationOptions, make_odin,
-                                default_raw_event)
+from PyConf.application import (configure, configure_geometry_and_conditions,
+                                setup_component, ComponentConfig,
+                                ApplicationOptions)
 from PyConf.control_flow import CompositeNode, NodeLogic
 from GaudiKernel.Constants import ERROR
 from DDDB.CheckDD4Hep import UseDD4Hep
@@ -39,6 +38,7 @@ from GaudiPython.Bindings import AppMgr, gbl
 # Load Allen entry point and helpers
 gbl.gSystem.Load("libAllenLib")
 gbl.gSystem.Load("libBinaryDumpers")
+gbl.gSystem.Load("libAllenAlgorithms")
 interpreter = gbl.gInterpreter
 
 # FIXME: Once the headers are installed properly, this should not be
@@ -50,12 +50,11 @@ interpreter.Declare("#include <Allen/Provider.h>")
 interpreter.Declare("""
 #include <GaudiKernel/IService.h>
 #include <Allen/InputProvider.h>
-#include <zmq/zmq.hpp>
+#include <zmq.hpp>
 // Helper function to cast the LHCb-implementation of the Allen
 // non-event data manager to its shared interface
 template<typename TO>
 struct cast_service { TO* operator()(IService* svc) { return dynamic_cast<TO*>(svc); } };
-Allen::NonEventData::IUpdater* binary_updater(std::map<std::string, std::string> const& options);
 uintptr_t czmq_context(zmq::context_t& ctx) { return reinterpret_cast<uintptr_t>(ctx.operator void*()); }
 """)
 
@@ -167,13 +166,6 @@ parser.add_argument(
     help="Enables printing counters information",
 )
 parser.add_argument(
-    "--binary-geometry",
-    dest="binary_geometry",
-    action="store_true",
-    default=False,
-    help="Use binary files as the geometry",
-)
-parser.add_argument(
     "--tck-no-bindings",
     help="Avoid using python bindings to TCK utils",
     dest="bindings",
@@ -272,18 +264,17 @@ online_cond_path = '/group/online/hlt/conditions.run3/lhcb-conditions-database'
 if not args.simulation:
     if os.path.exists(online_cond_path):
         if UseDD4Hep:
-            from Configurables import LHCb__Det__LbDD4hep__DD4hepSvc as DD4hepSvc
-            dd4hepSvc = DD4hepSvc()
-            dd4hepSvc.ConditionsLocation = 'file://' + online_cond_path
+            options.conditions_location = 'file://' + online_cond_path
         else:
             from Configurables import XmlCnvSvc
             XmlCnvSvc().OutputLevel = ERROR
             options.velo_motion_system_yaml = os.path.join(
                 online_cond_path + '/Conditions/VP/Motion.yml')
-    make_odin = allen_odin
-
+make_odin = allen_odin
 options.finalize()
 config = ComponentConfig()
+
+configure_geometry_and_conditions(ApplicationMgr(), config, options)
 
 # Some extra stuff for timing table
 extSvc = ["ToolSvc", "AuditorSvc", "ZeroMQSvc"]
@@ -382,32 +373,22 @@ if args.mep:
 ApplicationMgr().EvtSel = "NONE"
 ApplicationMgr().ExtSvc += extSvc
 
-# Copeid from PyConf.application.configure_input
-default_raw_event.global_bind(raw_event_format=options.input_raw_format)
-if not args.binary_geometry:
-    if UseDD4Hep:
-        config.add(
-            setup_component(
-                'DDDBConf',
-                Simulation=options.simulation,
-                DataType=options.data_type,
-                GeometryVersion=options.geometry_version,
-                ConditionsVersion=options.conditions_version))
-    else:
-        config.add(DDDBConf(Simulation=options.simulation, DataType="Upgrade"))
-        config.add(
-            setup_component(
-                'CondDB',
-                Upgrade=True,
-                Tags={
-                    'DDDB': options.dddb_tag,
-                    'SIMCOND': options.conddb_tag,
-                }))
+if not UseDD4Hep:
+    from Configurables import DDDBConf
+    config.add(DDDBConf(Simulation=options.simulation, DataType="Upgrade"))
+    config.add(
+        setup_component(
+            'CondDB',
+            Upgrade=True,
+            Tags={
+                'DDDB': options.dddb_tag,
+                'SIMCOND': options.conddb_tag,
+            }))
 
-    bank_types = configured_bank_types(sequence_json)
-    cf_node = setup_allen_non_event_data_service(
-        allen_event_loop=True, bank_types=bank_types)
-    config.update(configure(options, cf_node, make_odin=make_odin))
+bank_types = configured_bank_types(sequence_json)
+cf_node = setup_allen_non_event_data_service(
+    allen_event_loop=True, bank_types=bank_types)
+config.update(configure(options, cf_node, make_odin=make_odin))
 
 # Start Gaudi and get the AllenUpdater service
 gaudi = AppMgr()
@@ -441,11 +422,8 @@ for flag, value in [("g", args.det_folder), ("params", params),
     if value is not None:
         options[flag] = str(value)
 
-if args.binary_geometry:
-    updater = gbl.binary_updater(options)
-else:
-    svc = gaudi.service("AllenUpdater", interface=gbl.IService)
-    updater = cast_service(gbl.Allen.NonEventData.IUpdater, svc)
+svc = gaudi.service("AllenUpdater", interface=gbl.IService)
+updater = cast_service(gbl.Allen.NonEventData.IUpdater, svc)
 
 con = gbl.std.string("")
 

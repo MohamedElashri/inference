@@ -51,8 +51,8 @@ public:
   {
     LHCb::RawEvent raw_event;
     auto dec_reports = HltDecReports {allen_dec_reports, 0};
-    auto sel_reports = LHCb::span {allen_sel_reports}.first(allen_selrep_offsets[1]);
-    auto routing_bits = LHCb::span {allen_routing_bits}.first(RoutingBitsDefinition::n_words);
+    auto sel_reports = std::span {allen_sel_reports}.first(allen_selrep_offsets[1]);
+    auto routing_bits = std::span {allen_routing_bits}.first(RoutingBitsDefinition::n_words);
     raw_event.addBank(
       Hlt1::Constants::sourceID_sel_reports,
       LHCb::RawBank::BankType::HltSelReports,

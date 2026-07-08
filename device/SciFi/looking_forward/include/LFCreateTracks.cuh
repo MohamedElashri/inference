@@ -23,7 +23,6 @@ namespace lf_create_tracks {
     Allen::KernelInvocationConfiguration config;
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
     HOST_INPUT(host_number_of_reconstructed_input_tracks_t, unsigned) host_number_of_reconstructed_input_tracks;
-    HOST_INPUT(host_track_type_id_t, Allen::TypeIDs) host_track_type_id;
     MASK_INPUT(dev_event_list_t) dev_event_list;
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
     DEVICE_INPUT(dev_scifi_lf_initial_windows_t, int) dev_scifi_lf_initial_windows;

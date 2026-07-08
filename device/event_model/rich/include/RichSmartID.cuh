@@ -106,77 +106,81 @@ namespace Allen::Rich::Decoding {
     // Currently use the lowest 32 bits for this.
     static constexpr const BitPackType NChannelBits = 32;
 
-    __host__ __device__ constexpr inline void
+    __host__ __device__ constexpr void
     setData(const DataType value, const BitPackType shift, const BitPackType mask) noexcept
     {
       m_key = ((BitPackType {value} << shift) & mask) | (m_key & ~mask);
     }
 
-    __host__ __device__ constexpr inline void
+    __host__ __device__ constexpr void
     setData(const DataType value, const BitPackType shift, const BitPackType mask, const BitPackType okMask) noexcept
     {
       m_key = ((BitPackType {value} << shift) & mask) | (m_key & ~mask) | okMask;
     }
 
-    __host__ __device__ constexpr inline BitPackType getData(const BitPackType shift, const BitPackType mask) const
-      noexcept
+    __host__ __device__ constexpr BitPackType getData(const BitPackType shift, const BitPackType mask) const noexcept
     {
       return (m_key & mask) >> shift;
     }
 
-    __host__ __device__ constexpr inline BitPackType key() const noexcept { return m_key; }
+    __host__ __device__ constexpr BitPackType key() const noexcept { return m_key; }
 
-    __host__ __device__ constexpr inline bool operator==(const SmartID& other) const noexcept
-    {
-      return m_key == other.key();
-    }
+    __host__ __device__ constexpr bool operator==(const SmartID& other) const noexcept { return m_key == other.key(); }
 
-    __host__ __device__ constexpr inline auto isLargePMT() const noexcept
+    __host__ __device__ constexpr auto isLargePMT() const noexcept
     {
       return 0 != getData(ShiftLargePixel, MaskLargePixel);
     }
 
-    __host__ __device__ constexpr inline auto rich() const noexcept { return getData(ShiftRich, MaskRich); }
+    __host__ __device__ constexpr auto rich() const noexcept
+    {
+      return static_cast<Detector::DetectorType>(getData(ShiftRich, MaskRich));
+    }
 
-    __host__ __device__ constexpr inline auto panel() const noexcept { return getData(ShiftPanel, MaskPanel); }
+    __host__ __device__ constexpr auto panel() const noexcept
+    {
+      return static_cast<Detector::Side>(getData(ShiftPanel, MaskPanel));
+    }
 
-    __host__ __device__ constexpr inline auto side() const noexcept { return panel(); }
+    __host__ __device__ constexpr auto side() const noexcept { return panel(); }
 
-    __host__ __device__ constexpr inline DataType pdMod() const noexcept { return getData(ShiftPDMod, MaskPDMod); }
+    __host__ __device__ constexpr DataType pdMod() const noexcept { return getData(ShiftPDMod, MaskPDMod); }
 
-    __host__ __device__ constexpr inline DataType pdNumInMod() const noexcept
+    __host__ __device__ constexpr DataType pdNumInMod() const noexcept
     {
       return getData(ShiftPDNumInMod, MaskPDNumInMod);
     }
 
-    __host__ __device__ constexpr inline DataType panelLocalModuleNum() const noexcept
+    __host__ __device__ constexpr DataType panelLocalModuleNum() const noexcept
     {
-      return pdMod() - PanelModuleOffsets()[rich()][panel()];
+      return pdMod() - panelModuleOffsets(rich(), panel());
     }
 
-    __host__ __device__ constexpr inline DataType columnLocalModuleNum() const noexcept
+    __host__ __device__ constexpr DataType panelLocalModuleColumn() const noexcept
+    {
+      return panelLocalModuleNum() / ModulesPerColumn;
+    }
+
+    __host__ __device__ constexpr DataType columnLocalModuleNum() const noexcept
     {
       return panelLocalModuleNum() % ModulesPerColumn;
     }
 
-    __host__ __device__ constexpr inline DataType numPMTsPerEC() const noexcept
+    __host__ __device__ constexpr DataType numPMTsPerEC() const noexcept
     {
       return isLargePMT() ? HTypePMTsPerEC : RTypePMTsPerEC;
     }
 
-    __host__ __device__ constexpr inline DataType elementaryCell() const noexcept
-    {
-      return pdNumInMod() / numPMTsPerEC();
-    }
+    __host__ __device__ constexpr DataType elementaryCell() const noexcept { return pdNumInMod() / numPMTsPerEC(); }
 
-    __host__ __device__ constexpr inline DataType pdNumInEC() const noexcept { return pdNumInMod() % numPMTsPerEC(); }
+    __host__ __device__ constexpr DataType pdNumInEC() const noexcept { return pdNumInMod() % numPMTsPerEC(); }
 
-    __host__ __device__ constexpr inline auto pixelColIsSet() const noexcept
+    __host__ __device__ constexpr auto pixelColIsSet() const noexcept
     {
       return 0 != getData(ShiftPixelColIsSet, MaskPixelColIsSet);
     }
 
-    __host__ __device__ constexpr inline auto pixelRowIsSet() const noexcept
+    __host__ __device__ constexpr auto pixelRowIsSet() const noexcept
     {
       return 0 != getData(ShiftPixelRowIsSet, MaskPixelRowIsSet);
     }
@@ -198,7 +202,8 @@ namespace Allen::Rich::Decoding {
 
     __host__ __device__ constexpr inline DataType anodeIndex() const noexcept
     {
-      return pixelRow() * PixelsPerCol + PixelsPerRow - 1 - pixelCol();
+      // return pixelRow() * PixelsPerCol + PixelsPerRow - 1 - pixelCol();
+      return pixelRow() * PixelsPerCol + pixelCol();
     }
 
     __host__ __device__ constexpr inline bool adcTimeIsSet() const noexcept
@@ -224,12 +229,12 @@ namespace Allen::Rich::Decoding {
       str << "{ ";
       str << "PMT";
       str << (id.isLargePMT() ? ":h " : ":r ");
-      str << (rich == 0 ? "Rich1 " : "Rich2 ");
-      if (rich == 0) {
-        str << (panel == 0 ? "Top " : "Bot ");
+      str << (rich == Detector::Rich1 ? "Rich1 " : "Rich2 ");
+      if (rich == Detector::Rich1) {
+        str << (panel == Detector::top ? "Top " : "Bot ");
       }
       else {
-        str << (panel == 0 ? "L-A " : "R-C ");
+        str << (panel == Detector::left ? "L-A " : "R-C ");
       }
       str << "PD[Mod,NInMod]: ";
       str << std::setfill('0') << std::setw(3) << id.pdMod() << ',';
@@ -278,34 +283,36 @@ namespace Allen::Rich::Decoding {
     static constexpr const DataType HTypePMTsPerEC = 1;
     // Number of ECs per module
     static constexpr const DataType ECsPerModule = 4;
+    static constexpr const DataType MaxPDsPerEC = 4;
     // Number of modules per column
     static constexpr const DataType ModulesPerColumn = 6;
     // Number of module columns per panel, in each RICH
-    static constexpr const std::array<DataType, 2> ModuleColumnsPerPanel = {
+    static constexpr DataType ModuleColumnsPerRich1Panel = 11;
 #ifdef USE_DD4HEP
-      {11, 14} // With dd4hep we have an extra column reserved at the end of each RICH2 panel
+    // With dd4hep we have an extra column reserved at the end of each RICH2 panel:
+    static constexpr DataType ModuleColumnsPerRich2Panel = 14;
 #else
-      {11, 12}
+    static constexpr DataType ModuleColumnsPerRich2Panel = 12;
 #endif
-    };
+
     // Maximum number of module columns in any panel, RICH1 or RICH2
-    static constexpr const DataType MaxModuleColumnsAnyPanel =
-      std::max(ModuleColumnsPerPanel[0], ModuleColumnsPerPanel[1]);
-    // Number of modules per panel, in each RICH
-    static constexpr const std::array<DataType, 2> ModulesPerPanel {
-      {(ModulesPerColumn * ModuleColumnsPerPanel[0]), (ModulesPerColumn * ModuleColumnsPerPanel[1])}};
+    static constexpr DataType MaxModuleColumnsAnyPanel =
+      std::max(ModuleColumnsPerRich1Panel, ModuleColumnsPerRich2Panel);
 
     /// Number of modules in RICH1
-    static constexpr const DataType RICH1Modules = 2 * ModulesPerPanel[Rich::Detector::Type::Rich1];
+    static constexpr const DataType RICH1Modules = NPDPanelsPerRICH * ModulesPerColumn * ModuleColumnsPerRich1Panel;
     /// Number of modules in RICH2
-    static constexpr const DataType RICH2Modules = 2 * ModulesPerPanel[Rich::Detector::Type::Rich2];
+    static constexpr const DataType RICH2Modules = NPDPanelsPerRICH * ModulesPerColumn * ModuleColumnsPerRich2Panel;
     /// Total number of modules
     static constexpr const DataType TotalModules = RICH1Modules + RICH2Modules;
 
-    __host__ __device__ static constexpr std::array<std::array<DataType, 2>, 2> PanelModuleOffsets()
+    __host__ __device__ constexpr unsigned panelModuleOffsets(
+      const Detector::DetectorType rich,
+      const Detector::Side panel) const noexcept
     {
-      return {std::array<DataType, 2> {0, ModulesPerPanel[0]},
-              std::array<DataType, 2> {2 * ModulesPerPanel[0], (2 * ModulesPerPanel[0]) + ModulesPerPanel[1]}};
+      return (NPDPanelsPerRICH * rich * ModulesPerColumn * ModuleColumnsPerRich1Panel) +
+             (panel * (rich == Detector::Rich2 ? ModulesPerColumn * ModuleColumnsPerRich2Panel :
+                                                 ModulesPerColumn * ModuleColumnsPerRich1Panel));
     }
 
     class MaPMT {

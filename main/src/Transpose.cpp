@@ -206,11 +206,7 @@ std::tuple<bool, bool, size_t> read_events(
     ssize_t n_bytes = input.read(reinterpret_cast<char*>(&header), mdf_header_size);
     if (n_bytes != 0) {
       // Check if there is enough space to read this event
-      int compress = header.compression() & 0xF;
-      int expand = (header.compression() >> 4) + 1;
-      int event_size =
-        (header.recordSize() + mdf_header_size + 2 * (sizeof(LHCb::RawBank) + sizeof(int)) +
-         (compress ? expand * (header.recordSize() - mdf_header_size) : 0));
+      const auto event_size = MDF::read_banks_buffer_size(header);
       if (event_offsets[n_filled + 1] + event_size > buffer.size()) {
         buffer.resize(static_cast<size_t>(1.5 * buffer.size()));
       }

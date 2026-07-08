@@ -18,9 +18,9 @@ namespace MagneticField {
 #ifdef __CUDA_ARCH__
     __device__ float3 fieldVectorLinearInterpolation(float3 pos) const
     {
-      const float x = (pos.x - minX) * invDx;
-      const float y = (pos.y - minY) * invDy;
-      const float z = (pos.z - minZ) * invDz;
+      const float x = (pos.x - minX) * invDx + 0.5f;
+      const float y = (pos.y - minY) * invDy + 0.5f;
+      const float z = (pos.z - minZ) * invDz + 0.5f;
       return {tex3D<float>(tex_Bx, x, y, z), tex3D<float>(tex_By, x, y, z), tex3D<float>(tex_Bz, x, y, z)};
     }
 #else

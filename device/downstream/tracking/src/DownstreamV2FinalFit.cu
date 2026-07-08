@@ -57,10 +57,7 @@ void downstream_v2_final_fits::downstream_v2_final_fits_t::operator()(
   Allen::memset_async<dev_final_downstream_compact_track_offsets_t>(arguments, 0, context);
 
   global_function(downstream_v2_final_fits)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
-    arguments,
-    constants.host_magnet_polarity[0],
-    m_downstream_ghost_killer.getDevicePointer(),
-    m_ghost_killing_threshold);
+    arguments, constants.magnet_polarity, m_downstream_ghost_killer.getDevicePointer(), m_ghost_killing_threshold);
 
   if (m_verbosity >= logger::debug) {
     print<dev_final_downstream_compact_track_offsets_t>(arguments);

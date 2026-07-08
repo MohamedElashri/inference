@@ -62,7 +62,7 @@ namespace seed_confirmTracks_consolidate {
   };
   __global__ void seed_confirmTracks_consolidate(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,

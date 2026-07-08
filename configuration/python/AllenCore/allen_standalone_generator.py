@@ -72,7 +72,7 @@ def build_sequence(root, verbose=True):
     with flush_key_registry():
         best_order, score = get_execution_list_for(root)
         final_seq = add_event_list_combiners(best_order)
-
+    """
     if verbose:
         print(
             "Generated sequence represented as algorithms with execution masks:"
@@ -85,6 +85,7 @@ def build_sequence(root, verbose=True):
             elif isinstance(mask_in, BoolNode):
                 mask_in_str = f" in:{mask_in}"
             print(f"  {alg}{mask_in_str}")
+    """
 
     return [alg for (alg, _) in final_seq]
 
