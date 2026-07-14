@@ -87,6 +87,19 @@ private:
         this, "use_fp16", false,
         "Phase M benchmark: use FP16 Tensor Core path for CBR layers (physics approximate)"};
 
+    // Skip-connection ablation (FP32 path only; ignored when use_fp16=true).
+    // "concat" — current physics-validated behaviour (default).
+    // "add"    — replace both channel-concat skips with element-wise add
+    //            (halves the channel count feeding the merge conv/deconv);
+    //            reuses one arbitrary half of the concat-trained weights,
+    //            so output is NOT physics-valid — throughput only.
+    // "none"   — drop both skip connections entirely; decoder only sees the
+    //            upsampled main path. Also throughput only.
+    Allen::Property<std::string> m_skip_mode {
+        this, "skip_mode", "concat",
+        "Skip-connection ablation for throughput testing: concat | add | none "
+        "(add/none are not physics-valid, benchmark only)"};
+
     // m_init_done: set to true after init() completes. Guards call_once.
     mutable bool m_init_done = false;
     mutable bool m_dump_done = false;

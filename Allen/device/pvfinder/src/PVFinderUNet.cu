@@ -73,6 +73,19 @@ struct GlobalDescriptors {
     void*                          ws_up2_t     = nullptr;
     size_t                         ws_up1_bytes = 0;
     size_t                         ws_up2_bytes = 0;
+
+    // Skip-connection ablation ("add"/"none" modes): slimmed ConvTranspose2 with
+    // N_FEAT (not 2*N_FEAT) input channels, used when the up1/x2 merge is either
+    // an element-wise add or dropped entirely. The first N_FEAT*N_FEAT*2 floats
+    // of w_up2t_w (loaded for the full 2*N_FEAT-in filter) are already exactly
+    // the [K=N_FEAT, C=N_FEAT, 1, 2] slice we need (row-major [K][C][1][2]
+    // layout — the first N_FEAT of 2*N_FEAT "K" slices), so no new weight
+    // buffer is allocated; only new descriptors + algorithm/workspace.
+    cudnnFilterDescriptor_t       filter_up2_t_slim = nullptr;
+    cudnnConvolutionDescriptor_t  conv_up2_t_slim   = nullptr;
+    cudnnConvolutionBwdDataAlgo_t algo_up2_t_slim   = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
+    void*                         ws_up2_t_slim     = nullptr;
+    size_t                        ws_up2_bytes_slim = 0;
 };
 
 static GlobalDescriptors s_desc;
@@ -308,6 +321,40 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
                     s_desc.algo_up2_t   = perf[i].algo;
                     s_desc.ws_up2_bytes = perf[i].memory;
                     if (s_desc.ws_up2_bytes > 0) cudaMalloc(&s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                    break;
+                }
+            }
+        }
+        cudnnDestroyTensorDescriptor(dy_desc);
+        cudnnDestroyTensorDescriptor(dx_desc);
+    }
+
+    // up2_t_slim: skip-ablation variant ("add"/"none" modes) with N_FEAT (not
+    // 2*N_FEAT) input channels — dy=[N, N_FEAT, 1, W_HALF], dx=[N, N_FEAT, 1, W_IN].
+    // Reuses w_up2t_w/w_up2t_b as-is (see field comment in GlobalDescriptors).
+    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up2_t_slim));
+    ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
+        s_desc.filter_up2_t_slim, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
+    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t_slim));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
+        s_desc.conv_up2_t_slim, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up2_t_slim, CUDNN_TENSOR_OP_MATH));
+    {
+        cudnnTensorDescriptor_t dy_desc, dx_desc;
+        cudnnCreateTensorDescriptor(&dy_desc);
+        cudnnCreateTensorDescriptor(&dx_desc);
+        cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_HALF);
+        cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_IN);
+        int returned = 0;
+        cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
+        if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
+                handle, s_desc.filter_up2_t_slim, dy_desc, s_desc.conv_up2_t_slim, dx_desc,
+                kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
+            for (int i = 0; i < returned; ++i) {
+                if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
+                    s_desc.algo_up2_t_slim   = perf[i].algo;
+                    s_desc.ws_up2_bytes_slim = perf[i].memory;
+                    if (s_desc.ws_up2_bytes_slim > 0) cudaMalloc(&s_desc.ws_up2_t_slim, s_desc.ws_up2_bytes_slim);
                     break;
                 }
             }
@@ -661,10 +708,12 @@ void pvfinder_unet_t::operator()(
     // threads each have their own (cudnnSetTensor4dDescriptor is not thread-safe on shared).
     cudnnTensorDescriptor_t td_up1_in = nullptr, td_up1_out = nullptr;
     cudnnTensorDescriptor_t td_up2_in = nullptr, td_up2_out = nullptr;
+    cudnnTensorDescriptor_t td_up2_in_slim = nullptr;  // skip-ablation: N_FEAT-in variant
     ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up1_in));
     ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up1_out));
     ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up2_in));
     ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up2_out));
+    ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&td_up2_in_slim));
     ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
         td_up1_in,  CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_QTR));
     ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
@@ -673,6 +722,8 @@ void pvfinder_unet_t::operator()(
         td_up2_in,  CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT*2, 1, W_HALF));
     ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
         td_up2_out, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT,   1, W_IN));
+    ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
+        td_up2_in_slim, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_HALF));
 
     const float* ncw_base = data<dev_pvfinder_interval_features_t>(arguments);
     float*       kde_base = data<dev_pvfinder_kde_output_t>(arguments);
@@ -680,6 +731,9 @@ void pvfinder_unet_t::operator()(
     const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
 
     const bool use_fp16 = m_use_fp16.value();
+    // Skip-connection ablation ("concat" | "add" | "none") — applies to the FP32
+    // path only; the FP16 Tensor Core path below always uses "concat".
+    const std::string& skip_mode = m_skip_mode.value();
 
     // FP16 pool pointers (only used when use_fp16 is true)
     __half* fp16_ncw  = s_desc.fp16_ncw;
@@ -710,20 +764,44 @@ void pvfinder_unet_t::operator()(
                 s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
             run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
 
-            launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
-            run_conv_transpose(cat2, logits,
-                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
-                s_wb.w_up2t_w, s_wb.w_up2t_b,
-                N, N_FEAT, W_IN, block, context, handle,
-                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+            // Skip 1: merge up1 (decoder) with x2 (encoder) ahead of ConvTranspose2.
+            if (skip_mode == "concat") {
+                launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
+                run_conv_transpose(cat2, logits,
+                    s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
+                    s_wb.w_up2t_w, s_wb.w_up2t_b,
+                    N, N_FEAT, W_IN, block, context, handle,
+                    s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+            } else {
+                // "add": up1 += x2 in place, then a slim N_FEAT-in ConvTranspose.
+                // "none": same slim ConvTranspose, x2 never touches up1.
+                if (skip_mode == "add") {
+                    launch_accumulate(up1, x2, N * N_FEAT * W_HALF, block, context);
+                }
+                run_conv_transpose(up1, logits,
+                    s_desc.filter_up2_t_slim, s_desc.conv_up2_t_slim, td_up2_in_slim, td_up2_out,
+                    s_wb.w_up2t_w, s_wb.w_up2t_b,
+                    N, N_FEAT, W_IN, block, context, handle,
+                    s_desc.algo_up2_t_slim, s_desc.ws_up2_t_slim, s_desc.ws_up2_bytes_slim);
+            }
             run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
 
-            run_conv(s_desc.oint_half, x1, logits,
-                s_wb.w_oint_b_w, nullptr,
-                N, N_FEAT, W_IN, block, context, handle, 0.f);
-            run_conv(s_desc.oint_half, up2, logits,
-                s_wb.w_oint_a_w, nullptr,
-                N, N_FEAT, W_IN, block, context, handle, 1.f);
+            // Skip 2: merge up2 (decoder) with x1 (encoder) ahead of the output conv.
+            if (skip_mode == "concat") {
+                run_conv(s_desc.oint_half, x1, logits,
+                    s_wb.w_oint_b_w, nullptr,
+                    N, N_FEAT, W_IN, block, context, handle, 0.f);
+                run_conv(s_desc.oint_half, up2, logits,
+                    s_wb.w_oint_a_w, nullptr,
+                    N, N_FEAT, W_IN, block, context, handle, 1.f);
+            } else {
+                if (skip_mode == "add") {
+                    launch_accumulate(up2, x1, N * N_FEAT * W_IN, block, context);
+                }
+                run_conv(s_desc.oint_half, up2, logits,
+                    s_wb.w_oint_a_w, nullptr,
+                    N, N_FEAT, W_IN, block, context, handle, 0.f);
+            }
             launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
             run_conv(s_desc.outc, logits, oint,
                 s_wb.w_outc_w, s_wb.w_outc_b,
@@ -800,6 +878,7 @@ void pvfinder_unet_t::operator()(
     cudnnDestroyTensorDescriptor(td_up1_out);
     cudnnDestroyTensorDescriptor(td_up2_in);
     cudnnDestroyTensorDescriptor(td_up2_out);
+    cudnnDestroyTensorDescriptor(td_up2_in_slim);
 
     // Validation dump (first slice only, when dump_dir property is set)
     const std::string& dump_dir = m_dump_dir.value();

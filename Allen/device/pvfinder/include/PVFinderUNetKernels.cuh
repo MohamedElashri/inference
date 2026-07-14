@@ -290,6 +290,16 @@ inline void launch_concat(
         a, b, dst, N, C1, C2, W);
 }
 
+// Skip-connection ablation: a[i] += b[i] in place (same shape tensors).
+// Used to replace a channel-concat skip with an element-wise add skip.
+inline void launch_accumulate(
+    float* a, const float* b, int total,
+    const dim3& block, const Allen::Context& ctx)
+{
+    dim3 grid((total + block.x - 1) / block.x);
+    accumulate_add_kernel<<<grid, block, 0, ctx.stream()>>>(a, b, total);
+}
+
 inline void launch_softplus_scale(
     float* x, float scale, int total,
     const dim3& block, const Allen::Context& ctx)
