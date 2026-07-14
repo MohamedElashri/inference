@@ -25,7 +25,7 @@ Options:
   --cnn-weights PATH         Override pvfinder_unet weight_file
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
   --use-allen-external-workspace BOOL
-                              Set pvfinder_unet.use_allen_external_workspace true/false (default: false)
+                              Set pvfinder_unet.use_allen_external_workspace true/false (default: true)
   --dump-dir DIR              Set pvfinder_unet.dump_validation for UNet validation dumps
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
@@ -52,7 +52,7 @@ REPS=500
 REPEATS=3
 CNN_WEIGHTS_OVERRIDE=""
 USE_FP16=false
-USE_ALLEN_EXTERNAL_WORKSPACE=false
+USE_ALLEN_EXTERNAL_WORKSPACE=true
 DUMP_DIR_OVERRIDE=""
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"

@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <stdexcept>
@@ -625,8 +626,9 @@ void pvfinder_unet_t::init()
 
 // ---------------------------------------------------------------------------
 // set_arguments_size
-// Workspace for cuDNN is owned per plan by default. In the V2.5 opt-in
-// AllenExternal mode, dev_unet_conv_ws_t is a single reusable Allen buffer.
+// Workspace for cuDNN uses the accepted AllenExternal path by default:
+// dev_unet_conv_ws_t is a single reusable Allen buffer. If explicitly
+// disabled, cuDNN plans own any selected init-time workspace internally.
 // The first sizing pass reserves the plan workspace limit because algorithm
 // selection happens later with a live cudnnHandle_t; later passes may use the
 // exact selected non-overlapping max once descriptors exist.
@@ -922,6 +924,13 @@ void pvfinder_unet_t::operator()(
     const std::string& dump_dir = m_dump_dir.value();
     if (!dump_dir.empty() && !m_dump_done) {
         cudaStreamSynchronize(context.stream());
+        std::error_code mkdir_error;
+        std::filesystem::create_directories(dump_dir, mkdir_error);
+        if (mkdir_error) {
+            throw std::runtime_error(
+                "pvfinder_unet: failed to create validation dump directory '" + dump_dir + "': " +
+                mkdir_error.message());
+        }
         const unsigned ncw_elems = n_events * N_INTERVALS * N_BATCH_CHANNELS * W_IN;
         const unsigned kde_elems = n_events * N_INTERVALS * W_IN;
         std::vector<float> h_ncw(ncw_elems), h_kde(kde_elems);
@@ -932,9 +941,15 @@ void pvfinder_unet_t::operator()(
         const uint32_t magic = 0xAB1EU;
         auto write_bin = [&](const std::string& path, const float* d, unsigned n) {
             std::ofstream f(path, std::ios::binary);
+            if (!f) {
+                throw std::runtime_error("pvfinder_unet: failed to open validation dump file '" + path + "'");
+            }
             f.write(reinterpret_cast<const char*>(&magic),    sizeof(magic));
             f.write(reinterpret_cast<const char*>(&n_events), sizeof(n_events));
             f.write(reinterpret_cast<const char*>(d),         n * sizeof(float));
+            if (!f) {
+                throw std::runtime_error("pvfinder_unet: failed to write validation dump file '" + path + "'");
+            }
         };
         write_bin(dump_dir + "/allen_ncw_input.bin",  h_ncw.data(), ncw_elems);
         write_bin(dump_dir + "/allen_kde_output.bin", h_kde.data(), kde_elems);

@@ -478,8 +478,8 @@ recommended patterns:
   bias and ReLU
 * non-CBR forward and backward-data convolution plans are created once and
   reused
-* optional Allen external workspace uses a single reusable Allen buffer for
-  sequential cuDNN plans
+* the accepted Allen external workspace path uses a single reusable Allen
+  buffer for sequential cuDNN plans by default
 * FP16 remains an opt-in experimental mode with client-owned conversion kernels
   and separate validation records
 

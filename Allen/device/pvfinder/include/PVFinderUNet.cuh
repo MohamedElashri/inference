@@ -18,8 +18,8 @@
 //     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
 //   - AllenCuDNN plans make algorithm selection, fused CBR execution, and
 //     workspace ownership explicit. FP32 CBR layers use FusedConvPlan directly;
-//     transposed convolutions use BackwardDataConvPlan; init-time owned
-//     workspaces remain the default unless AllenExternal is requested.
+//     transposed convolutions use BackwardDataConvPlan; AllenExternal workspace
+//     is the default accepted workspace policy.
 //   - Weight tensors loaded once through the Allen::CuDNN::DeviceWeights facade via std::call_once.
 // ---------------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ struct Parameters {
     DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, 64, 100] (also logits)
     DEVICE_OUTPUT(dev_unet_up1_t,     float) dev_unet_up1;   // [N, 64, 50]
     DEVICE_OUTPUT(dev_unet_cat2_t,    float) dev_unet_cat2;  // [N, 128, 50] (also up2[N,64,100])
-    // conv_ws: used only when AllenExternal workspace is requested; otherwise
+    // conv_ws: used by the default AllenExternal workspace path; when disabled,
     // cuDNN plans own any init-time workspace internally.
     DEVICE_OUTPUT(dev_unet_conv_ws_t, float) dev_unet_conv_ws;
 
@@ -92,8 +92,8 @@ private:
         "Experimental validation-gated FP16 Tensor Core path for CBR layers (physics approximate)"};
 
     Allen::Property<bool> m_use_allen_external_workspace {
-        this, "use_allen_external_workspace", false,
-        "Opt-in V2.5 Allen-managed external workspace for cuDNN plans"};
+        this, "use_allen_external_workspace", true,
+        "Use the accepted Allen-managed external workspace path for cuDNN plans"};
 
     // m_init_done: set to true after init() completes. Guards call_once.
     mutable bool m_init_done = false;
