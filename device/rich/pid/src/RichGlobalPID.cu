@@ -24,6 +24,12 @@ inline __device__ float signalFromFixedPoint(const int signal)
   return static_cast<float>(signal) * inv_pix_signals_scale;
 }
 
+// Same fixed-point convention used for the DLL values themselves (as opposed
+// to the pixel signals above): a delta log-likelihood of 1e-3 is the
+// smallest step that's tracked.
+constexpr float dll_fixed_point_scale = 1e3f;
+constexpr float inv_dll_fixed_point_scale = 1.f / dll_fixed_point_scale;
+
 template<Allen::Rich::Detector::DetectorType richIdx>
 void rich_global_pid::rich_global_pid_t::updateRich(const Allen::Rich::RichDetector<richIdx>* rich) const
 {
@@ -238,7 +244,7 @@ __global__ void rich_acc_pixel_dll_k(
 
       const float new_sig = photon_pix_signals[i][new_pid];
       const float deltaLL = deltaLLbase - sigFunc(pix_sig_bkg + new_sig);
-      const auto deltaInt = static_cast<int>(deltaLL * 1e3f);
+      const auto deltaInt = static_cast<int>(deltaLL * dll_fixed_point_scale);
 
       if (deltaInt != 0) atomicAdd(&dlls_int[track_id][new_pid], deltaInt);
     }
@@ -273,12 +279,17 @@ __global__ void rich_init_dll_best_hypo_k(
 
       const float new_sig = track_signals_r1[track_id][new_pid] + track_signals_r2[track_id][new_pid];
 
-      const float cur_dll = static_cast<float>(dlls_int[track_id][new_pid]) * 1e-3f + (new_sig - cur_sig);
+      const float cur_dll =
+        static_cast<float>(dlls_int[track_id][new_pid]) * inv_dll_fixed_point_scale + (new_sig - cur_sig);
       if (cur_dll < bestDLL) {
         bestDLL = cur_dll;
         bestPID = new_pid;
       }
-      dlls[track_id][new_pid] = cur_dll;
+      // Store back in fixed-point: dlls stays int across every kernel in this
+      // algorithm (only converted to float once, by rich_dll_finalise_k,
+      // after all outer likelihood iterations are done) so it never needs
+      // converting back and forth per iteration.
+      dlls_int[track_id][new_pid] = static_cast<int>(cur_dll * dll_fixed_point_scale);
     }
 
     // std::cout << "[Allen] Track " << track_id << " pid " << cur_pid << " -> " << bestPID << " DLL " << dlls[track_id]
@@ -288,22 +299,40 @@ __global__ void rich_init_dll_best_hypo_k(
   }
 }
 
-__global__ void rich_normalise_dlls_k(const unsigned number_of_tracks, Allen::Rich::HypoData<float>* dlls)
+// Finalise the whole DLL buffer: convert it out of the fixed-point integer
+// representation used throughout every kernel above (to keep GPU atomicAdd
+// accumulation associative) back to real floats, and normalise it to the
+// pion-relative, inverted convention expected by the rest of the pipeline.
+// Both are a single post-processing pass over the same per-track DLL array
+// - done together in one kernel rather than two back-to-back launches - run
+// once, after all of the outer likelihood iterations are done (not per
+// iteration, since dlls is discarded (memset back to 0) at the start of
+// every outer iteration anyway).
+__global__ void rich_dll_finalise_k(const unsigned number_of_tracks, Allen::Rich::HypoData<float>* dlls)
 {
+  const Allen::Rich::HypoData<int>* dlls_int = reinterpret_cast<const Allen::Rich::HypoData<int>*>(dlls);
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
 
   for (unsigned t = threadId; t < number_of_tracks; t += stride) {
-    // Get dll relative to pion
-    const float dll_pion = dlls[t][Allen::Rich::ParticleIDType::Pion];
+    float dll[Allen::Rich::NParticleTypes];
+    UNROLL(Allen::Rich::NParticleTypes)
+    for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
+      const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
+      dll[particle_index] = static_cast<float>(dlls_int[t][particle]) * inv_dll_fixed_point_scale;
+    }
 
+    // Get dll relative to pion
+    const float dll_pion = dll[Allen::Rich::ParticleIDType::Pion];
+
+    UNROLL(Allen::Rich::NParticleTypes)
     for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
       const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
       // Internally, the Global PID normalises the DLL values to the best hypothesis
       // and also works in "-loglikelihood" space.
       // For final storage, renormalise the DLLS w.r.t. the pion hypothesis and
       // invert the values
-      dlls[t][particle] = dll_pion - dlls[t][particle];
+      dlls[t][particle] = dll_pion - dll[particle_index];
     }
 
     // Ensure pion is exactly 0
@@ -377,13 +406,24 @@ __global__ void rich_global_pid_iterations_k(
 
   if (n_tracks == 0) return;
 
+  // dlls is kept as a fixed-point integer representation throughout this
+  // whole algorithm (every kernel, across every outer likelihood iteration -
+  // only converted to float once, at the very end, by
+  // rich_dll_finalise_k), precisely so that no kernel needs to convert
+  // back and forth: this kernel's Step 3 atomicAdd below can then accumulate
+  // over associative integer addition instead of order-dependent float
+  // addition, without any entry/exit conversion of its own.
+  auto* dlls_int = reinterpret_cast<Allen::Rich::HypoData<int>*>(dlls);
+
+  const int epsilon_int = static_cast<int>(epsilon * dll_fixed_point_scale);
+
   unsigned iteration = 0;
   while (true) {
 
     // Phase A: track scan to read existing DLL values
     // find best log likelihood
     // thread "local" variables
-    float local_best_dll = 0.f; // 0 = no improvement found yet
+    int local_best_dll_int = 0; // 0 = no improvement found yet
     int local_best_track = -1;  // event-local index
     auto local_best_pid = Allen::Rich::ParticleIDType::Unknown;
 
@@ -393,49 +433,51 @@ __global__ void rich_global_pid_iterations_k(
       const auto cur_pid = pids[gt];
       if (cur_pid == Allen::Rich::ParticleIDType::Unknown) continue;
 
-      float track_best_dll = 0.f;
+      int track_best_dll_int = 0;
       auto track_best_pid = Allen::Rich::ParticleIDType::Unknown;
 
       for (unsigned pid_index = 0; pid_index < Allen::Rich::NParticleTypes; ++pid_index) {
         const auto new_pid = static_cast<Allen::Rich::ParticleIDType>(pid_index);
         if (new_pid == cur_pid) continue;
-        const float dll = dlls[gt][new_pid];
+        const int dll_int = dlls_int[gt][new_pid];
 
         // update dll
-        if (dll < track_best_dll) {
-          track_best_dll = dll;
+        if (dll_int < track_best_dll_int) {
+          track_best_dll_int = dll_int;
           track_best_pid = new_pid;
         }
       } // end hypo loop
 
       // update thread values
-      if (track_best_dll < local_best_dll) {
-        local_best_dll = track_best_dll;
+      if (track_best_dll_int < local_best_dll_int) {
+        local_best_dll_int = track_best_dll_int;
         local_best_track = static_cast<int>(t);
         local_best_pid = track_best_pid;
       }
     } // end track loop
 
     // Phase B: Warp butterly reduction
-    float global_best_dll = local_best_dll;
+    int global_best_dll_int = local_best_dll_int;
     int global_best_trk = local_best_track;
 
     for (int offset = warp_size / 2; offset > 0; offset /= 2) {
-      const float neighbor_dll = __shfl_xor_sync(0xffffffff, global_best_dll, offset);
+      const int neighbor_dll_int = __shfl_xor_sync(0xffffffff, global_best_dll_int, offset);
       const int neighbor_trk = __shfl_xor_sync(0xffffffff, global_best_trk, offset);
-      if (neighbor_dll < global_best_dll || (neighbor_dll == global_best_dll && neighbor_trk < global_best_trk)) {
-        global_best_dll = neighbor_dll;
+      if (
+        neighbor_dll_int < global_best_dll_int ||
+        (neighbor_dll_int == global_best_dll_int && neighbor_trk < global_best_trk)) {
+        global_best_dll_int = neighbor_dll_int;
         global_best_trk = neighbor_trk;
       }
     }
-    // All lanes now have the same global_best_dll and global_best_trk.
+    // All lanes now have the same global_best_dll_int and global_best_trk.
     // Find the winning lane and broadcast its local_best_pid.
     const unsigned winner_lane = __ffs(__ballot_sync(0xffffffff, local_best_track == global_best_trk)) - 1;
     const auto global_best_pid =
       static_cast<Allen::Rich::ParticleIDType>(__shfl_sync(0xffffffff, static_cast<int>(local_best_pid), winner_lane));
 
     // Phase C: convergence check
-    if (global_best_dll >= epsilon || global_best_trk == -1) break;
+    if (global_best_dll_int >= epsilon_int || global_best_trk == -1) break;
     if (++iteration >= max_iterations) break;
 
     // Phase D: update values for next iter (hypothesis change)
@@ -464,7 +506,7 @@ __global__ void rich_global_pid_iterations_k(
 
     if (lane_id == 0) {
       pids[gt] = new_pid;
-      dlls[gt][new_pid] = 0.f;
+      dlls_int[gt][new_pid] = 0;
     }
 
     __syncwarp();
@@ -474,7 +516,7 @@ __global__ void rich_global_pid_iterations_k(
     for (unsigned particle_index = 0; particle_index < Allen::Rich::NParticleTypes; ++particle_index) {
       const auto particle = static_cast<Allen::Rich::ParticleIDType>(particle_index);
       if (particle == new_pid) {
-        if (lane_id == 0) dlls[gt][particle] = 0.f;
+        if (lane_id == 0) dlls_int[gt][particle] = 0;
         continue;
       }
 
@@ -503,7 +545,7 @@ __global__ void rich_global_pid_iterations_k(
       if (lane_id == 0) {
         dll += (dev_track_total_signals_r1[gt][particle] + dev_track_total_signals_r2[gt][particle]) -
                (dev_track_total_signals_r1[gt][new_pid] + dev_track_total_signals_r2[gt][new_pid]);
-        dlls[gt][particle] = dll;
+        dlls_int[gt][particle] = static_cast<int>(dll * dll_fixed_point_scale);
       }
     } // end of step 2
     __syncwarp();
@@ -534,7 +576,7 @@ __global__ void rich_global_pid_iterations_k(
             const float sig_h = dev_photon_pix_signals_r1[p2][particle];
             const float d_dll =
               (sigFunc(S_new) - sigFunc(S_new - sig_cur + sig_h)) - (sigFunc(S_old) - sigFunc(S_old - sig_cur + sig_h));
-            atomicAdd(&dlls[tp][particle], d_dll);
+            atomicAdd(&dlls_int[tp][particle], static_cast<int>(d_dll * dll_fixed_point_scale));
           }
         }
       }
@@ -565,7 +607,7 @@ __global__ void rich_global_pid_iterations_k(
             const float sig_h = dev_photon_pix_signals_r2[p2][particle];
             const float d_dll =
               (sigFunc(S_new) - sigFunc(S_new - sig_cur + sig_h)) - (sigFunc(S_old) - sigFunc(S_old - sig_cur + sig_h));
-            atomicAdd(&dlls[tp][particle], d_dll);
+            atomicAdd(&dlls_int[tp][particle], static_cast<int>(d_dll * dll_fixed_point_scale));
           }
         }
       }
@@ -768,7 +810,10 @@ void rich_global_pid::rich_global_pid_t::operator()(
     std::swap(pids_in, pids_out);
   }
 
-  // Normalise DLLs to pion convention expected by the converter
-  global_function(rich_normalise_dlls_k)(dim3(32), dim3(m_block_dim), context)(
+  // Convert the fixed-point DLL state (kept as int across every kernel above
+  // to make atomicAdd accumulation associative) back to float, and normalise
+  // to the pion convention expected by the converter - now that all outer
+  // likelihood iterations are done.
+  global_function(rich_dll_finalise_k)(dim3(32), dim3(m_block_dim), context)(
     number_of_tracks, data<dev_dll_out_t>(arguments));
 }
