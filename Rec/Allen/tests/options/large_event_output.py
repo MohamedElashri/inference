@@ -9,12 +9,18 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from PyConf.application import ApplicationOptions
+from AllenTesting.datasets import TEST_DATASETS
+
+large_event_dataset = TEST_DATASETS["allen.large_event_passthrough"]
 
 options = ApplicationOptions(_enabled=False)
-options.geometry_version = 'run3/trunk'
-options.conditions_version = 'master'
-options.conddb_tag = 'sim-20220705-vc-md100'
-options.dddb_tag = 'dddb-20220705'
-options.input_files = ['large_event_passthrough.mdf']
-options.input_type = 'MDF'
-options.simulation = True
+
+# Start from the same dataset used to produce the passthrough file. This keeps
+# its simulation, geometry, and conditions metadata consistent with the input.
+options.set_input_and_conds_from_testfiledb(
+    large_event_dataset.test_file_db_key)
+
+# Read the MDF produced by the test fixture instead of the original dataset
+# files.
+options.input_files = [large_event_dataset.file_name]
+options.input_type = large_event_dataset.input_type
