@@ -27,6 +27,10 @@ namespace pv_beamline_histo {
     DEVICE_INPUT(dev_velo_tracks_view_t, Allen::Views::Velo::Consolidated::Tracks) dev_velo_tracks_view;
     DEVICE_INPUT(dev_pvtracks_t, PVTrack) dev_pvtracks;
     DEVICE_OUTPUT(dev_zhisto_t, float) dev_zhisto;
+    // Fixed-point scratch accumulator backing dev_zhisto: integer atomicAdd is
+    // associative, unlike the float atomicAdd previously used to fill dev_zhisto
+    // directly, so the histogram no longer depends on GPU thread scheduling order.
+    DEVICE_OUTPUT(dev_zhisto_fixed_t, unsigned long long) dev_zhisto_fixed;
   };
 
   __global__ void pv_beamline_histo(
