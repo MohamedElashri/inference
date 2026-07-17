@@ -32,15 +32,26 @@ target_link_libraries(NonEventData
   )
 
 if(NOT STANDALONE)
+  target_link_libraries(NonEventDataHeaders INTERFACE
+    LHCb::GenEvent
+    LHCb::LHCbDetLib
+    LHCb::MagnetLib
+    LHCb::RichFutureKernel
+    LHCb::RichFutureDAQLib)
   target_link_libraries(NonEventData
     PRIVATE
       Rangev3::rangev3
       TBB::tbb
       Gaudi::GaudiAlgLib
       LHCb::AssociatorsBase
+      LHCb::GenEvent
       LHCb::LHCbAlgsLib
+      LHCb::LHCbDetLib
       LHCb::LinkerEvent
+      LHCb::MagnetLib
       LHCb::MCEvent
+      LHCb::RichFutureDAQLib
+      LHCb::RichFutureKernel
       LHCb::DAQEventLib
       LHCb::RecEvent
       LHCb::VPDetLib
