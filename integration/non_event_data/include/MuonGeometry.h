@@ -164,8 +164,9 @@ namespace Allen::Conditions {
           Allen::malloc((void**) &dev_muon_geometry, sizeof(Muon::MuonGeometry));
         }
         else if (host_geometry_raw.size() != m_data.size()) {
-          throw StrException {std::string {"[muon geom] sizes don't match: "} +
-                              std::to_string(host_geometry_raw.size()) + " " + std::to_string(m_data.size())};
+          throw StrException {
+            std::string {"[muon geom] sizes don't match: "} + std::to_string(host_geometry_raw.size()) + " " +
+            std::to_string(m_data.size())};
         }
         host_geometry_raw = m_data;
         Allen::memcpy(dev_geometry_raw, host_geometry_raw.data(), host_geometry_raw.size(), Allen::memcpyHostToDevice);
@@ -246,8 +247,9 @@ namespace Allen::Conditions {
           Allen::malloc((void**) &dev_muon_geometry, sizeof(Muon::MuonGeometry));
         }
         else if (host_geometry_raw.size() != m_data.size()) {
-          throw StrException {std::string {"[muon geom] sizes don't match: "} +
-                              std::to_string(host_geometry_raw.size()) + " " + std::to_string(m_data.size())};
+          throw StrException {
+            std::string {"[muon geom] sizes don't match: "} + std::to_string(host_geometry_raw.size()) + " " +
+            std::to_string(m_data.size())};
         }
         host_geometry_raw = m_data;
         Allen::memcpy(dev_geometry_raw, host_geometry_raw.data(), host_geometry_raw.size(), Allen::memcpyHostToDevice);

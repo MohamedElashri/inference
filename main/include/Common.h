@@ -97,12 +97,10 @@ void for_each(Tuple&& tup, F&& f)
 // Detection idiom
 namespace detail {
   template<template<class...> class Trait, class Enabler, class... Args>
-  struct is_detected : std::false_type {
-  };
+  struct is_detected : std::false_type {};
 
   template<template<class...> class Trait, class... Args>
-  struct is_detected<Trait, std::void_t<Trait<Args...>>, Args...> : std::true_type {
-  };
+  struct is_detected<Trait, std::void_t<Trait<Args...>>, Args...> : std::true_type {};
 } // namespace detail
 
 template<template<class...> class Trait, class... Args>

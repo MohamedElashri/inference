@@ -53,12 +53,12 @@ __global__ void create_ttrack_particle_views::create_ttrack_event_views(Paramete
 
   for (unsigned i = threadIdx.x; i < n_states; i += blockDim.x) {
 
-    new (parameters.dev_track_particle_view + offset + i)
-      Allen::Views::Physics::BasicParticle {parameters.dev_ttrack_view + offset + i,
-                                            parameters.dev_track_kalman_states_view + event_number,
-                                            nullptr, // no PV
-                                            i,       // index
-                                            parameters.dev_lepton_id[offset + i]};
+    new (parameters.dev_track_particle_view + offset + i) Allen::Views::Physics::BasicParticle {
+      parameters.dev_ttrack_view + offset + i,
+      parameters.dev_track_kalman_states_view + event_number,
+      nullptr, // no PV
+      i,       // index
+      parameters.dev_lepton_id[offset + i]};
   }
 
   if (threadIdx.x == 0) {

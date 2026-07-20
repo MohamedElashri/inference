@@ -57,10 +57,10 @@ namespace {
     if constexpr (Allen::Store::is_output<t>::value) {
       store.register_entry(
         arguments[I],
-        Allen::Store::AllenArgument {std::in_place_type<typename t::type>,
-                                     arguments[I],
-                                     std::is_base_of_v<Allen::Store::host_datatype, t> ? Allen::Store::Scope::Host :
-                                                                                         Allen::Store::Scope::Device});
+        Allen::Store::AllenArgument {
+          std::in_place_type<typename t::type>,
+          arguments[I],
+          std::is_base_of_v<Allen::Store::host_datatype, t> ? Allen::Store::Scope::Host : Allen::Store::Scope::Device});
     }
     else {
       _unused(arguments);
@@ -136,8 +136,9 @@ namespace {
 
       // Convert dependencies to JSON array
       std::vector<std::string> deps;
-      [&]<typename... Deps>(Allen::Store::dependencies<Deps...>*) { (deps.push_back(demangled_type<Deps>()), ...); }
-      (static_cast<deps_type*>(nullptr));
+      [&]<typename... Deps>(Allen::Store::dependencies<Deps...>*) {
+        (deps.push_back(demangled_type<Deps>()), ...);
+      }(static_cast<deps_type*>(nullptr));
 
       arg["dependencies"] = deps;
     }
@@ -148,8 +149,9 @@ namespace {
   std::vector<nlohmann::json> arguments_json_infos(std::tuple<Types...>)
   {
     std::vector<nlohmann::json> out;
-    [&]<typename... Ts>(std::tuple<Ts...>*) { (out.emplace_back(argument_to_json<Ts>()), ...); }
-    (static_cast<std::tuple<Types...>*>(nullptr));
+    [&]<typename... Ts>(std::tuple<Ts...>*) {
+      (out.emplace_back(argument_to_json<Ts>()), ...);
+    }(static_cast<std::tuple<Types...>*>(nullptr));
     return out;
   }
 } // namespace
@@ -306,7 +308,7 @@ namespace Allen {
           const Allen::Context& context) {
           using store_ref_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType;
           using preconditions_t = typename AlgorithmContracts<typename ALGORITHM::contracts>::preconditions;
-          if constexpr (std::tuple_size_v<preconditions_t>> 0) {
+          if constexpr (std::tuple_size_v < preconditions_t >> 0) {
             auto preconditions = preconditions_t {};
             const auto location = static_cast<ALGORITHM const*>(p)->name();
             std::apply(
@@ -329,7 +331,7 @@ namespace Allen {
           const Allen::Context& context) {
           using store_ref_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType;
           using postconditions_t = typename AlgorithmContracts<typename ALGORITHM::contracts>::postconditions;
-          if constexpr (std::tuple_size_v<postconditions_t>> 0) {
+          if constexpr (std::tuple_size_v < postconditions_t >> 0) {
             auto postconditions = postconditions_t {};
             const auto location = static_cast<ALGORITHM const*>(p)->name();
             std::apply(

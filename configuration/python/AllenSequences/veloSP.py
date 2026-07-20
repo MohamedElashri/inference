@@ -8,14 +8,13 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.velo_reconstruction import velo_tracking, decode_velo
-from PyConf.control_flow import NodeLogic, CompositeNode
+from AllenConf.velo_reconstruction import decode_velo, velo_tracking
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 with decode_velo.bind(retina_decoding=False):
     velo_tracking_sequence = CompositeNode(
-        "VeloTracking", [velo_tracking()],
-        NodeLogic.LAZY_AND,
-        force_order=True)
+        "VeloTracking", [velo_tracking()], NodeLogic.LAZY_AND, force_order=True
+    )
 
 generate(velo_tracking_sequence)

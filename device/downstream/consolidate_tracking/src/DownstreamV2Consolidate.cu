@@ -188,12 +188,12 @@ __global__ void downstream_v2_consolidate::downstream_v2_create_track_views(Para
   for (unsigned track_idx = threadIdx.x; track_idx < size; track_idx += blockDim.x) {
     const auto idx = offset + track_idx;
     // UT only track
-    new (parameters.dev_downstream_ut_track_view + idx)
-      Allen::Views::UT::Consolidated::Track {parameters.dev_downstream_hits_view,
-                                             parameters.dev_downstream_track_offsets,
-                                             parameters.dev_downstream_track_hit_offsets,
-                                             track_idx,
-                                             event_number};
+    new (parameters.dev_downstream_ut_track_view + idx) Allen::Views::UT::Consolidated::Track {
+      parameters.dev_downstream_hits_view,
+      parameters.dev_downstream_track_offsets,
+      parameters.dev_downstream_track_hit_offsets,
+      track_idx,
+      event_number};
     // UT+SciFi track
     new (parameters.dev_downstream_track_view + idx) Allen::Views::Physics::DownstreamTrack {
       parameters.dev_downstream_ut_track_view + idx,
@@ -207,12 +207,12 @@ __global__ void downstream_v2_consolidate::downstream_v2_create_track_views(Para
   //
   if (threadIdx.x == 0) {
     // Hits container
-    new (parameters.dev_downstream_hits_view + event_number)
-      Allen::Views::UT::Consolidated::Hits {parameters.dev_downstream_track_hits,
-                                            parameters.dev_downstream_track_offsets,
-                                            parameters.dev_downstream_track_hit_offsets,
-                                            event_number,
-                                            number_of_events};
+    new (parameters.dev_downstream_hits_view + event_number) Allen::Views::UT::Consolidated::Hits {
+      parameters.dev_downstream_track_hits,
+      parameters.dev_downstream_track_offsets,
+      parameters.dev_downstream_track_hit_offsets,
+      event_number,
+      number_of_events};
     // UT tracks container
     new (parameters.dev_downstream_ut_tracks_view + event_number) Allen::Views::UT::Consolidated::Tracks {
       parameters.dev_downstream_ut_track_view, parameters.dev_downstream_track_offsets, event_number};

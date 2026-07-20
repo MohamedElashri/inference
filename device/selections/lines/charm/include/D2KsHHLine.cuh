@@ -152,18 +152,21 @@ namespace d2kshh_line {
   private:
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 20.f, "max VertexChi2 of the two vertices"};
     Allen::Property<float> m_maxDOCA {this, "maxDOCA", 0.5f * Allen::Units::mm, "max DOCA of the two vertices"};
-    Allen::Property<float> m_minTrackPt_piKs {this,
-                                              "minTrackPt_Ks",
-                                              200.f * Allen::Units::MeV,
-                                              "min Pt of KS vertex tracks"};
-    Allen::Property<float> m_minTrackP_piKs {this,
-                                             "minTrackP_Ks",
-                                             1500.f * Allen::Units::MeV,
-                                             "min P of KS vertex tracks"};
-    Allen::Property<float> m_minTrackIP_Ks {this,
-                                            "minTrackIP_Ks",
-                                            0.2f * Allen::Units::mm,
-                                            "min IP of KS vertex tracks"};
+    Allen::Property<float> m_minTrackPt_piKs {
+      this,
+      "minTrackPt_Ks",
+      200.f * Allen::Units::MeV,
+      "min Pt of KS vertex tracks"};
+    Allen::Property<float> m_minTrackP_piKs {
+      this,
+      "minTrackP_Ks",
+      1500.f * Allen::Units::MeV,
+      "min P of KS vertex tracks"};
+    Allen::Property<float> m_minTrackIP_Ks {
+      this,
+      "minTrackIP_Ks",
+      0.2f * Allen::Units::mm,
+      "min IP of KS vertex tracks"};
     Allen::Property<float> m_minComboPt_Ks {this, "minComboPt_Ks", 200.f * Allen::Units::MeV, "min Pt of Ks candidate"};
     Allen::Property<float> m_minEta_Ks {this, "minEta_Ks", 2.0f, "min Pseudorapidity of KS candidate"};
     Allen::Property<float> m_maxEta_Ks {this, "maxEta_Ks", 5.0f, "max Pseudorapidity of KS candidate"};
@@ -172,31 +175,36 @@ namespace d2kshh_line {
     Allen::Property<float> m_maxDOCA_hh {this, "maxDOCA_hh", 0.05f, "max DOCA of hh tracks"};
     Allen::Property<float> m_minEta_hh {this, "minEta_hh", 2.0f, "min Pseudorapidity of hh candidate"};
     Allen::Property<float> m_maxEta_hh {this, "maxEta_hh", 5.0f, "max Pseudorapidity of hh candidate"};
-    Allen::Property<float> m_minTrackPt_hh {this,
-                                            "minTrackPt_hh",
-                                            250.f * Allen::Units::MeV,
-                                            "min Pt of D0 candidate tracks"};
-    Allen::Property<float> m_minTrackP_hh {this,
-                                           "minTrackP_hh",
-                                           1500.f * Allen::Units::MeV,
-                                           "min P of hh candidate tracks"};
-    Allen::Property<float> m_minTrackIP_hh {this,
-                                            "minTrackIP_hh",
-                                            0.06f * Allen::Units::mm,
-                                            "min IP of D0 candidate tracks"};
-    Allen::Property<float> m_minComboPt_D0 {this,
-                                            "minComboPt_D0",
-                                            1500.0f * Allen::Units::MeV,
-                                            "min Pt of D0 candidate"};
+    Allen::Property<float> m_minTrackPt_hh {
+      this,
+      "minTrackPt_hh",
+      250.f * Allen::Units::MeV,
+      "min Pt of D0 candidate tracks"};
+    Allen::Property<float> m_minTrackP_hh {
+      this,
+      "minTrackP_hh",
+      1500.f * Allen::Units::MeV,
+      "min P of hh candidate tracks"};
+    Allen::Property<float> m_minTrackIP_hh {
+      this,
+      "minTrackIP_hh",
+      0.06f * Allen::Units::mm,
+      "min IP of D0 candidate tracks"};
+    Allen::Property<float> m_minComboPt_D0 {
+      this,
+      "minComboPt_D0",
+      1500.0f * Allen::Units::MeV,
+      "min Pt of D0 candidate"};
     Allen::Property<float> m_minCTau_D0 {this, "minCTau_D0", 0.5f * 0.1229f, "minimum D0 proper time"}; // 0.5 * D0 ctau
     Allen::Property<float> m_massWindow {this, "massWindow", 100.f * Allen::Units::MeV, "D0 massWindow"};
 
     Allen::Monitoring::Histogram<> m_histogram_d02kshh_mass {this, "d02kshh_mass", "m(D0)", {100u, 1765.f, 1965.f}};
     Allen::Monitoring::Histogram<> m_histogram_d02kshh_pt {this, "d02kshh_pt", "pT(D0)", {100u, 0.f, 1e4f}};
-    Allen::Monitoring::Histogram<> m_histogram_d02kshh_ctau {this,
-                                                             "d02kshh_ctau",
-                                                             "ctau(D0)",
-                                                             {100u, 0.f, 10.f * 0.1229f}};
+    Allen::Monitoring::Histogram<> m_histogram_d02kshh_ctau {
+      this,
+      "d02kshh_ctau",
+      "ctau(D0)",
+      {100u, 0.f, 10.f * 0.1229f}};
     Allen::Monitoring::Histogram<> m_histogram_d02kshh_mKS {this, "d02kshh_mKS", "m(KS)", {100u, 455.f, 545.f}};
     Allen::Monitoring::Histogram<> m_histogram_d02kshh_mhh {this, "d02kshh_mhh", "m(hh)", {100u, 275.f, 1555.f}};
   };

@@ -70,11 +70,12 @@ namespace TTracks {
     // matrix (Cprop = J * Cold * J^T)
     __device__ inline void updateCovMatrix(Vector<5>& gain, SymmMatrix<5>& cov, float hit_dxdy)
     {
-      Vector<5> transform = {cov(0, 0) - cov(0, 1) * hit_dxdy,
-                             cov(0, 1) - cov(1, 1) * hit_dxdy,
-                             cov(0, 2) - cov(1, 2) * hit_dxdy,
-                             cov(0, 3) - cov(1, 3) * hit_dxdy,
-                             cov(0, 4) - cov(1, 4) * hit_dxdy};
+      Vector<5> transform = {
+        cov(0, 0) - cov(0, 1) * hit_dxdy,
+        cov(0, 1) - cov(1, 1) * hit_dxdy,
+        cov(0, 2) - cov(1, 2) * hit_dxdy,
+        cov(0, 3) - cov(1, 3) * hit_dxdy,
+        cov(0, 4) - cov(1, 4) * hit_dxdy};
 
       UNROLL(5)
       for (short i = 0; i < 5; i++) {
@@ -110,11 +111,12 @@ namespace TTracks {
       // Evaluate the Gain vector
       const float gain_denominator =
         1.f / (cov(0, 0) - 2.f * cov(0, 1) * hit_dxdy + cov(1, 1) * hit_dxdy * hit_dxdy + hit_x0_cov);
-      Vector<5> gain {(cov(0, 0) - cov(0, 1) * hit_dxdy) * gain_denominator,
-                      (cov(0, 1) - cov(1, 1) * hit_dxdy) * gain_denominator,
-                      (cov(0, 2) - cov(1, 2) * hit_dxdy) * gain_denominator,
-                      (cov(0, 3) - cov(1, 3) * hit_dxdy) * gain_denominator,
-                      (cov(0, 4) - cov(1, 4) * hit_dxdy) * gain_denominator};
+      Vector<5> gain {
+        (cov(0, 0) - cov(0, 1) * hit_dxdy) * gain_denominator,
+        (cov(0, 1) - cov(1, 1) * hit_dxdy) * gain_denominator,
+        (cov(0, 2) - cov(1, 2) * hit_dxdy) * gain_denominator,
+        (cov(0, 3) - cov(1, 3) * hit_dxdy) * gain_denominator,
+        (cov(0, 4) - cov(1, 4) * hit_dxdy) * gain_denominator};
 
       // Update the covariance matrix
       updateCovMatrix(gain, cov, hit_dxdy);

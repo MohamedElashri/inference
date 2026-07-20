@@ -106,8 +106,9 @@ namespace Allen::Conditions {
         Allen::malloc((void**) &dev_ut_magnet_tool, sizeof(UTMagnetTool));
       }
       if (sizeof(UTMagnetTool) != (m_data.size() - 7 * sizeof(int) - 2 * sizeof(size_t))) {
-        throw StrException {std::string {"[ut lut] sizes don't match: "} + std::to_string(sizeof(UTMagnetTool)) + " " +
-                            std::to_string(m_data.size())};
+        throw StrException {
+          std::string {"[ut lut] sizes don't match: "} + std::to_string(sizeof(UTMagnetTool)) + " " +
+          std::to_string(m_data.size())};
       }
 
       UTMagnetTool host_tool {deflection, bdl};

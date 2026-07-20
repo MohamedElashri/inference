@@ -25,12 +25,9 @@ target_include_directories(TTrack PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prepare_tracks/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/make_vertices/include>)
-  
+
   target_include_directories(WrapperInterface INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prepare_tracks/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/make_vertices/include>)
-
-
-

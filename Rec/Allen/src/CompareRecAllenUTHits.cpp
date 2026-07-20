@@ -43,14 +43,16 @@ private:
 
   Gaudi::Property<std::string> m_weighting_method {this, "WeightingMethod"};
   Gaudi::Property<unsigned> m_max_cluster_size {this, "MaxClusterSize"};
-  Gaudi::Property<float> m_abs_tol {this,
-                                    "AbsoluteTolerance",
-                                    1e-5,
-                                    "Absolute difference tolerance between Allen vs Rec Hits"};
-  Gaudi::Property<float> m_rel_tol {this,
-                                    "RelativeTolerance",
-                                    1e-5,
-                                    "Relative difference tolerance between Allen vs Rec Hits"};
+  Gaudi::Property<float> m_abs_tol {
+    this,
+    "AbsoluteTolerance",
+    1e-5,
+    "Absolute difference tolerance between Allen vs Rec Hits"};
+  Gaudi::Property<float> m_rel_tol {
+    this,
+    "RelativeTolerance",
+    1e-5,
+    "Relative difference tolerance between Allen vs Rec Hits"};
 };
 
 DECLARE_COMPONENT(CompareRecAllenUTHits)

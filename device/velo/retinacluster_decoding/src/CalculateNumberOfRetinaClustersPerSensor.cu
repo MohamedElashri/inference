@@ -43,12 +43,12 @@ __global__ void calculate_number_of_retinaclusters_each_sensor_pair_kernel(
   }
 
   // Read raw event
-  const auto velo_raw_event =
-    Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_retina_raw_input,
-                                                  parameters.dev_velo_retina_raw_input_offsets,
-                                                  parameters.dev_velo_retina_raw_input_sizes,
-                                                  parameters.dev_velo_retina_raw_input_types,
-                                                  event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_retina_raw_input,
+    parameters.dev_velo_retina_raw_input_offsets,
+    parameters.dev_velo_retina_raw_input_sizes,
+    parameters.dev_velo_retina_raw_input_types,
+    event_number + event_start};
 
   unsigned number_of_raw_banks = velo_raw_event.number_of_raw_banks();
   for (unsigned raw_bank_number = threadIdx.x; raw_bank_number < number_of_raw_banks; raw_bank_number += blockDim.x) {
@@ -102,17 +102,16 @@ operator()(
     return; // no VP banks present in data
   }
 
-  auto kernel_fn = (bank_version == 2) ?
-                     (runtime_options.mep_layout ?
-                        global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<2, true>) :
-                        global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<2, false>)) :
-                     (bank_version == 3) ?
-                     (runtime_options.mep_layout ?
-                        global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<3, true>) :
-                        global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<3, false>)) :
-                     (runtime_options.mep_layout ?
-                        global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<4, true>) :
-                        global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<4, false>));
+  auto kernel_fn =
+    (bank_version == 2) ? (runtime_options.mep_layout ?
+                             global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<2, true>) :
+                             global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ?
+                             global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<3, true>) :
+                             global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<3, false>)) :
+                          (runtime_options.mep_layout ?
+                             global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<4, true>) :
+                             global_function(calculate_number_of_retinaclusters_each_sensor_pair_kernel<4, false>));
 
   kernel_fn(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,

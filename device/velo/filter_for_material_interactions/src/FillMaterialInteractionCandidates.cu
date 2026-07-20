@@ -79,9 +79,10 @@ __global__ void FillMaterialInteractionCandidates::fill_materialinteraction_cand
         auto poca_bool_AC = Allen::Views::Physics::state_poca(stateA, stateC, seed_AC.x, seed_AC.y, seed_AC.z);
 
         if (tracks_doca_AC > 0.f && tracks_doca_AC < max_doca_for_close_track_pairs && poca_bool_AC) {
-          float3 seed {(seed_AB.x + seed_BC.x + seed_AC.x) / 3,
-                       (seed_AB.y + seed_BC.y + seed_AC.y) / 3,
-                       (seed_AB.z + seed_BC.z + seed_AC.z) / 3};
+          float3 seed {
+            (seed_AB.x + seed_BC.x + seed_AC.x) / 3,
+            (seed_AB.y + seed_BC.y + seed_AC.y) / 3,
+            (seed_AB.z + seed_BC.z + seed_AC.z) / 3};
           auto insert_index = atomicAdd(&shared_number_of_seeds, 1);
           event_interaction_seeds[insert_index] = seed;
         }

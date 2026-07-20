@@ -91,36 +91,38 @@ namespace ParKalmanFilter {
   // TODO: move definitions to ParamFiles
   constexpr KalmanFloat RICH1_F_zTo = (KalmanFloat) 990.f;
   constexpr KalmanFloat RICH1_B_zTo = (KalmanFloat) 2165.f;
-  [[maybe_unused]] __constant__ constexpr float PAR_RICH1_F[15] = {-0.27461,
-                                                                   0.02130,
-                                                                   0.13020,
-                                                                   0.63412,
-                                                                   0.00629,
-                                                                   0.66392,
-                                                                   -0.57832,
-                                                                   -0.12243,
-                                                                   0.11905,
-                                                                   0.67957,
-                                                                   -0.04346,
-                                                                   41.12807,
-                                                                   -0.36773,
-                                                                   0.01405,
-                                                                   0.13020};
-  [[maybe_unused]] __constant__ constexpr float PAR_RICH1_B[15] = {-1.79468,
-                                                                   0.09097,
-                                                                   0.13020,
-                                                                   0.92482,
-                                                                   0.01176,
-                                                                   2.25478,
-                                                                   -0.59956,
-                                                                   -1.26963,
-                                                                   0.14044,
-                                                                   1.41178,
-                                                                   0.00099,
-                                                                   27.52532,
-                                                                   -2.78371,
-                                                                   0.03879,
-                                                                   0.13020};
+  [[maybe_unused]] __constant__ constexpr float PAR_RICH1_F[15] = {
+    -0.27461,
+    0.02130,
+    0.13020,
+    0.63412,
+    0.00629,
+    0.66392,
+    -0.57832,
+    -0.12243,
+    0.11905,
+    0.67957,
+    -0.04346,
+    41.12807,
+    -0.36773,
+    0.01405,
+    0.13020};
+  [[maybe_unused]] __constant__ constexpr float PAR_RICH1_B[15] = {
+    -1.79468,
+    0.09097,
+    0.13020,
+    0.92482,
+    0.01176,
+    2.25478,
+    -0.59956,
+    -1.26963,
+    0.14044,
+    1.41178,
+    0.00099,
+    27.52532,
+    -2.78371,
+    0.03879,
+    0.13020};
   constexpr KalmanFloat RICH2_F_zTo = (KalmanFloat) 9450.f;
   constexpr KalmanFloat RICH2_B_zTo = (KalmanFloat) 11900.f;
   [[maybe_unused]] __constant__ constexpr float PAR_RICH2_F[1 * 12] =

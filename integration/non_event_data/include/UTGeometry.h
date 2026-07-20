@@ -78,12 +78,13 @@ namespace {
     const auto station = layer / 2;
     const auto num_large_columns = 6 + station;
 
-    const unsigned offsets[] = {0,
-                                14 * num_large_columns,
-                                14 * num_large_columns + 18,
-                                14 * num_large_columns + 18 + 22 * 2,
-                                14 * num_large_columns + 18 * 2 + 22 * 2,
-                                14 * num_large_columns * 2 + 18 * 2 + 22 * 2};
+    const unsigned offsets[] = {
+      0,
+      14 * num_large_columns,
+      14 * num_large_columns + 18,
+      14 * num_large_columns + 18 + 22 * 2,
+      14 * num_large_columns + 18 * 2 + 22 * 2,
+      14 * num_large_columns * 2 + 18 * 2 + 22 * 2};
     std::array<const unsigned*, 5> maps = {r0_map, r1_map, r2_map, r1_map, r0_map};
     const unsigned maps_size[5] = {14, 18, 22, 18, 14};
     for (unsigned region = 0; region < 5; region++) {
@@ -306,8 +307,9 @@ namespace Allen::Conditions {
         initialize(constants);
       }
       else if (static_cast<size_t>(dev_ut_geometry.size()) != m_data.size()) {
-        throw StrException {std::string {"[ut geom] sizes don't match: "} + std::to_string(dev_ut_geometry.size()) +
-                            " " + std::to_string(m_data.size())};
+        throw StrException {
+          std::string {"[ut geom] sizes don't match: "} + std::to_string(dev_ut_geometry.size()) + " " +
+          std::to_string(m_data.size())};
       }
 
       auto& host_ut_geometry = constants.host_ut_geometry;

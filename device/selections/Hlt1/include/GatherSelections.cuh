@@ -70,10 +70,11 @@ namespace gather_selections {
   private:
     std::vector<unsigned> m_indices_active_line_algorithms;
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
-    Allen::Property<std::string> m_names_of_active_line_algorithms {this,
-                                                                    "names_of_active_line_algorithms",
-                                                                    "",
-                                                                    "names of active line algorithms"};
+    Allen::Property<std::string> m_names_of_active_line_algorithms {
+      this,
+      "names_of_active_line_algorithms",
+      "",
+      "names of active line algorithms"};
     Allen::Property<std::string> m_names_of_active_lines {this, "names_of_active_lines", "", "names of active lines"};
 
     std::vector<std::unique_ptr<Allen::Monitoring::HistogramBinAsCounter<Allen::Monitoring::Histogram<>>>>

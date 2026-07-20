@@ -9,21 +9,22 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 
-from AllenGeneratorUtils import get_namespace
-
 
 class AllenExternLinesGenerator:
     """Generates extern declarations and dispatch code for lines"""
 
     @staticmethod
-    def write_extern_lines(selection_algorithms, filename,
-                           separable_compilation):
-        code = "\n".join(("#pragma once", "", "#include \"BackendCommon.h\"",
-                          "\n"))
+    def write_extern_lines(selection_algorithms, filename, separable_compilation):
+        code = "\n".join(("#pragma once", "", '#include "BackendCommon.h"', "\n"))
         for namespace, name in selection_algorithms:
             code += "\n".join(
-                (f"namespace {namespace} {{", f"  struct {name};",
-                 "  struct Parameters;", "}\n"))
+                (
+                    f"namespace {namespace} {{",
+                    f"  struct {name};",
+                    "  struct Parameters;",
+                    "}\n",
+                )
+            )
         code += "\n"
         if separable_compilation:
             for namespace, name in selection_algorithms:
@@ -33,7 +34,7 @@ class AllenExternLinesGenerator:
                 code += f"extern template void line_output_monitor<{namespace}::{name}, {namespace}::Parameters>(char*, const RuntimeOptions&, const Allen::Context&);\n"
         code += "\nconstexpr auto line_strings = {\n"
         for i, (namespace, name) in enumerate(selection_algorithms):
-            code += f"  \"{name}\""
+            code += f'  "{name}"'
             if i != len(selection_algorithms) - 1:
                 code += ",\n"
         code += "\n};\n\n"
@@ -45,7 +46,9 @@ class AllenExternLinesGenerator:
         code += "  }\n}\n\n"
         code += f"constexpr std::array<void(*)(char*, const RuntimeOptions&, const Allen::Context&), {len(selection_algorithms)}> line_output_monitor_functions = {{\n"
         for i, (namespace, name) in enumerate(selection_algorithms):
-            code += f"  line_output_monitor<{namespace}::{name}, {namespace}::Parameters>"
+            code += (
+                f"  line_output_monitor<{namespace}::{name}, {namespace}::Parameters>"
+            )
             if i != len(selection_algorithms) - 1:
                 code += ",\n"
         code += "\n};\n"

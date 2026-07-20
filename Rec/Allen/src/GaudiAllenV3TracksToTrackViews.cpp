@@ -169,12 +169,13 @@ namespace GaudiAllen::Converters::v3 {
             }
 
             const auto& state = track.template field<InTag::States>()[track.state_index(location)];
-            const SimpleKalmanState allen_state {state.x().cast(),
-                                                 state.y().cast(),
-                                                 state.z().cast(),
-                                                 state.tx().cast(),
-                                                 state.ty().cast(),
-                                                 state.qOverP().cast()};
+            const SimpleKalmanState allen_state {
+              state.x().cast(),
+              state.y().cast(),
+              state.z().cast(),
+              state.tx().cast(),
+              state.ty().cast(),
+              state.qOverP().cast()};
             if (
               !std::isfinite(allen_state.x) || !std::isfinite(allen_state.y) || !std::isfinite(allen_state.z) ||
               !std::isfinite(allen_state.tx) || !std::isfinite(allen_state.ty) || !std::isfinite(allen_state.qop)) {

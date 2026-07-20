@@ -560,12 +560,13 @@ __global__ void downstream_find_hits::downstream_find_rest_hits(
       // Load extrapolation
       using Downstream::DownstreamExtrapolation::ExtrapolateTrack;
       auto findhits_extrapolation = findhits_extrapolations[candidate_idx];
-      ExtrapolateTrack exTrack {findhits_extrapolation.xMagnet,
-                                findhits_extrapolation.yMagnet,
-                                findhits_extrapolation.zMagnet,
-                                findhits_extrapolation.tx,
-                                findhits_extrapolation.ty,
-                                findhits_extrapolation.qop};
+      ExtrapolateTrack exTrack {
+        findhits_extrapolation.xMagnet,
+        findhits_extrapolation.yMagnet,
+        findhits_extrapolation.zMagnet,
+        findhits_extrapolation.tx,
+        findhits_extrapolation.ty,
+        findhits_extrapolation.qop};
 
       auto xTol = 0.f;
       auto yTol = 0.f;

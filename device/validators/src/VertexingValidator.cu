@@ -180,8 +180,8 @@ void vertexing_validator::vertexing_validator_t::operator()(
     const auto evnum = event_list[i];
     const auto event_offset = event_composites_offsets[evnum];
     const auto n_tracks = event_composites_offsets[evnum + 1] - event_offset;
-    std::vector<Checker::Composite> event_composites = {host_checker_composites.begin() + event_offset,
-                                                        host_checker_composites.begin() + event_offset + n_tracks};
+    std::vector<Checker::Composite> event_composites = {
+      host_checker_composites.begin() + event_offset, host_checker_composites.begin() + event_offset + n_tracks};
     composites[i] = event_composites;
   }
 

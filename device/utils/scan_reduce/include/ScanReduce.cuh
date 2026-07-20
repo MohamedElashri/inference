@@ -27,16 +27,13 @@ namespace ScanReduce {
   concept BlockSize = (BLOCK_SIZE % warp_size == 0) && (BLOCK_SIZE / warp_size <= warp_size);
 
   template<typename OPERATOR>
-  concept BinaryOperator = requires(OPERATOR op, typename OPERATOR::Type a, typename OPERATOR::Type b)
-  {
+  concept BinaryOperator = requires(OPERATOR op, typename OPERATOR::Type a, typename OPERATOR::Type b) {
     {
       op(a, b)
-    }
-    ->std::same_as<typename OPERATOR::Type>;
+    } -> std::same_as<typename OPERATOR::Type>;
     {
       OPERATOR::Identity
-    }
-    ->std::convertible_to<typename OPERATOR::Type>;
+    } -> std::convertible_to<typename OPERATOR::Type>;
   };
 
   __inline__ __device__ int laneid() { return threadIdx.x % warp_size; }

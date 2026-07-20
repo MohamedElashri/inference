@@ -38,14 +38,16 @@ namespace velo_clusters_gec {
 
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
-    Allen::Property<unsigned int> m_min_clusters {this,
-                                                  "min_clusters",
-                                                  0,
-                                                  "minimum number of Velo clusters in the event"};
-    Allen::Property<unsigned int> m_max_clusters {this,
-                                                  "max_clusters",
-                                                  UINT_MAX,
-                                                  "maximum number of Velo clusters in the event"};
+    Allen::Property<unsigned int> m_min_clusters {
+      this,
+      "min_clusters",
+      0,
+      "minimum number of Velo clusters in the event"};
+    Allen::Property<unsigned int> m_max_clusters {
+      this,
+      "max_clusters",
+      UINT_MAX,
+      "maximum number of Velo clusters in the event"};
   }; // velo_clusters_gec_t
 
 } // namespace velo_clusters_gec

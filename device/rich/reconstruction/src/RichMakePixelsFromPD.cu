@@ -51,7 +51,7 @@ __global__ void rich_make_pixels_from_pd_k(
     unsigned half_count = __popc((uint32_t) pixels);
 
     unsigned anode = pixId < half_count ? __fns((uint32_t) pixels, 0, pixId + 1) :
-                                          __fns((uint32_t)(pixels >> 32), 0, pixId - half_count + 1) + 32;
+                                          __fns((uint32_t) (pixels >> 32), 0, pixId - half_count + 1) + 32;
 
     Allen::Rich::Decoding::SmartID hitID {pd.pdSmartID()}; // sets RICH, side, module and PMT type
     hitID.setData(

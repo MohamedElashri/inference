@@ -141,13 +141,14 @@ namespace Allen::Conditions {
             // loop over quarters
             for (auto [quarter, yx] : views::cartesian_product(views::ints(0, 4), yxRange)) {
               auto [y, x] = yx;
-              LHCb::Detector::Muon::TileID tile {station,
-                                                 LHCb::Detector::Muon::Layout {static_cast<unsigned int>(gridX[gidx]),
-                                                                               static_cast<unsigned int>(gridY[gidx])},
-                                                 region,
-                                                 quarter,
-                                                 x,
-                                                 y};
+              LHCb::Detector::Muon::TileID tile {
+                station,
+                LHCb::Detector::Muon::Layout {
+                  static_cast<unsigned int>(gridX[gidx]), static_cast<unsigned int>(gridY[gidx])},
+                region,
+                quarter,
+                x,
+                y};
               auto pos = det.position(tile);
               if (!pos) {
                 std::stringstream e;
@@ -159,9 +160,10 @@ namespace Allen::Conditions {
                 auto sizeIdx = 4 * tile.station() + tile.region();
 
                 // positions are always indexed by station
-                table[station][index++] = {boost::numeric_cast<float>(pos->x()),
-                                           boost::numeric_cast<float>(pos->y()),
-                                           boost::numeric_cast<float>(pos->z())};
+                table[station][index++] = {
+                  boost::numeric_cast<float>(pos->x()),
+                  boost::numeric_cast<float>(pos->y()),
+                  boost::numeric_cast<float>(pos->z())};
 
                 // sizes are specially indexed
                 if (y < gridY[gidx]) {
@@ -271,8 +273,9 @@ namespace Allen::Conditions {
         Allen::malloc((void**) &constants.dev_muon_tables, sizeof(Muon::MuonTables));
       }
       else if (host_muon_tables_raw.size() != m_data.size()) {
-        throw StrException {std::string {"[muon lut] sizes don't match: "} +
-                            std::to_string(host_muon_tables_raw.size()) + " " + std::to_string(m_data.size())};
+        throw StrException {
+          std::string {"[muon lut] sizes don't match: "} + std::to_string(host_muon_tables_raw.size()) + " " +
+          std::to_string(m_data.size())};
       }
       host_muon_tables_raw = m_data;
       Allen::memcpy(

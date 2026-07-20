@@ -29,40 +29,40 @@ __global__ void create_muon_views(muon_consolidate_tracks::Parameters parameters
     const auto n_muon_hits = parameters.dev_muon_hit_offsets[event_tracks_offset + track_index + 1] -
                              parameters.dev_muon_hit_offsets[event_tracks_offset + track_index];
 
-    new (parameters.dev_muon_track_view + event_tracks_offset + track_index)
-      Allen::Views::Muon::Consolidated::Track {parameters.dev_muon_hits_view,
-                                               parameters.dev_track_offsets,
-                                               parameters.dev_muon_hit_offsets,
-                                               track_index,
-                                               event_number};
+    new (parameters.dev_muon_track_view + event_tracks_offset + track_index) Allen::Views::Muon::Consolidated::Track {
+      parameters.dev_muon_hits_view,
+      parameters.dev_track_offsets,
+      parameters.dev_muon_hit_offsets,
+      track_index,
+      event_number};
     // Only include the muon segment if there is at least one muon hit.
     if (n_muon_hits > 0) {
-      new (parameters.dev_muon_long_track_view + event_tracks_offset + track_index)
-        Allen::Views::Physics::LongTrack {long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::velo>(),
-                                          long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::ut>(),
-                                          long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::scifi>(),
-                                          parameters.dev_muon_track_view + event_tracks_offset + track_index,
-                                          long_track.qop_ptr(),
-                                          long_track.ghost_probability_ptr()};
+      new (parameters.dev_muon_long_track_view + event_tracks_offset + track_index) Allen::Views::Physics::LongTrack {
+        long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::velo>(),
+        long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::ut>(),
+        long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::scifi>(),
+        parameters.dev_muon_track_view + event_tracks_offset + track_index,
+        long_track.qop_ptr(),
+        long_track.ghost_probability_ptr()};
     }
     else {
-      new (parameters.dev_muon_long_track_view + event_tracks_offset + track_index)
-        Allen::Views::Physics::LongTrack {long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::velo>(),
-                                          long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::ut>(),
-                                          long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::scifi>(),
-                                          nullptr,
-                                          long_track.qop_ptr(),
-                                          long_track.ghost_probability_ptr()};
+      new (parameters.dev_muon_long_track_view + event_tracks_offset + track_index) Allen::Views::Physics::LongTrack {
+        long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::velo>(),
+        long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::ut>(),
+        long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::scifi>(),
+        nullptr,
+        long_track.qop_ptr(),
+        long_track.ghost_probability_ptr()};
     }
   }
 
   if (threadIdx.x == 0) {
-    new (parameters.dev_muon_hits_view + event_number)
-      Allen::Views::Muon::Consolidated::Hits {parameters.dev_consolidated_muon_hits_data,
-                                              parameters.dev_track_offsets,
-                                              parameters.dev_muon_hit_offsets,
-                                              event_number,
-                                              number_of_events};
+    new (parameters.dev_muon_hits_view + event_number) Allen::Views::Muon::Consolidated::Hits {
+      parameters.dev_consolidated_muon_hits_data,
+      parameters.dev_track_offsets,
+      parameters.dev_muon_hit_offsets,
+      event_number,
+      number_of_events};
 
     new (parameters.dev_muon_tracks_view + event_number) Allen::Views::Muon::Consolidated::Tracks {
       parameters.dev_muon_track_view, parameters.dev_track_offsets, event_number};

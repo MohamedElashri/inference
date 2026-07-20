@@ -26,7 +26,7 @@ allen_add_device_library(Downstream OBJECT
 
 target_link_libraries(Downstream PRIVATE Backend HostEventModel EventModel Utils UTCommon)
 
-target_include_directories(Downstream PUBLIC 
+target_include_directories(Downstream PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reconstruction/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/uthits_filter/include>
@@ -35,14 +35,11 @@ target_include_directories(Downstream PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/consolidate_tracking/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/consolidate/include>)
 
-target_include_directories(WrapperInterface INTERFACE 
+target_include_directories(WrapperInterface INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reconstruction/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/uthits_filter/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/vertexing/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tracking/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/consolidate_tracking/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/consolidate/include>) 
-
-
-
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/consolidate/include>)

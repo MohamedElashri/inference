@@ -74,6 +74,7 @@ void load_geometry(
 
   using UnconditionalConsumers = std::tuple<Allen::Conditions::MagneticField, Allen::Conditions::MagneticFieldPolarity>;
 
-  [&]<typename... Ts>(std::tuple<Ts...>*) { (updater->update_constants(Ts {reader.read_geometry(Ts::filename)}), ...); }
-  (static_cast<UnconditionalConsumers*>(nullptr));
+  [&]<typename... Ts>(std::tuple<Ts...>*) {
+    (updater->update_constants(Ts {reader.read_geometry(Ts::filename)}), ...);
+  }(static_cast<UnconditionalConsumers*>(nullptr));
 }

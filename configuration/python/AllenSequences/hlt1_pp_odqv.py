@@ -13,9 +13,9 @@
 # For instructions as to its use see:
 # https://gitlab.cern.ch/lhcb-rta/piquet-guide/-/wikis/home/#offline-monitoring
 
+from AllenConf.enum_types import TrackingType
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
-from AllenConf.enum_types import TrackingType
 
 hlt1_node = setup_hlt1_node(
     EnableGEC=False,
@@ -27,5 +27,6 @@ hlt1_node = setup_hlt1_node(
     enableBGI=False,
     withSMOG2=False,
     enablePhysics=True,
-    with_calo=True)
+    with_calo=True,
+)
 generate(hlt1_node)

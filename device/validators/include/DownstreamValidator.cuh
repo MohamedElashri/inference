@@ -58,9 +58,10 @@ namespace downstream_validator {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {1, 1, 1}, "block dimensions"};
-    Allen::Property<std::string> m_root_output_filename {this,
-                                                         "root_output_filename",
-                                                         "PrCheckerPlots.root",
-                                                         "root output filename"};
+    Allen::Property<std::string> m_root_output_filename {
+      this,
+      "root_output_filename",
+      "PrCheckerPlots.root",
+      "root output filename"};
   };
 } // namespace downstream_validator

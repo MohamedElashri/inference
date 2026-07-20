@@ -827,10 +827,10 @@ __device__ inline void CreateVeloSeedState(
   // Set the state.
   x(0) = (KalmanFloat) track.hit(nVeloHits - 1).x();
   x(1) = (KalmanFloat) track.hit(nVeloHits - 1).y();
-  x(2) = (KalmanFloat)(
-    (track.hit(0).x() - track.hit(nVeloHits - 1).x()) / (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
-  x(3) = (KalmanFloat)(
-    (track.hit(0).y() - track.hit(nVeloHits - 1).y()) / (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
+  x(2) = (KalmanFloat) ((track.hit(0).x() - track.hit(nVeloHits - 1).x()) /
+                        (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
+  x(3) = (KalmanFloat) ((track.hit(0).y() - track.hit(nVeloHits - 1).y()) /
+                        (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
   tI.m_Lastz = (KalmanFloat) track.hit(nVeloHits - 1).z();
 
   // Set covariance matrix with large uncertainties and no correlations.

@@ -11,14 +11,14 @@ Existing MVA models in MVA Models Manager
 Adding another MVA Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Create header file in `Allen/device/utils/mva_models/include/` to keep all models in same place. 
+Create header file in `Allen/device/utils/mva_models/include/` to keep all models in same place.
 
 In a header file create a new device class to define a model:
 
 .. code-block:: c++
 
     namespace Allen::MVAModels {
-      struct DeviceAbsolutelyNewModel 
+      struct DeviceAbsolutelyNewModel
       {
         float* parameters;
         __device__ inline float evaluate(float* input) const;
@@ -29,7 +29,7 @@ Define evaluation function for your MVA Model:
 
 .. code-block:: c++
 
-    __device__ inline float 
+    __device__ inline float
     Allen::MVAModels::DeviceAbsolutelyNewModel::evaluate(float* input) const
     {
         // insert your code to evaluate model output here
@@ -43,7 +43,7 @@ Create a new host class to load the model.
     struct AbsolutelyNewModel : public MVAModelBase {
         using DeviceType = DeviceAbsolutelyNewModel;
 
-        AbsolutelyNewModel(std::string name, std::string path) : 
+        AbsolutelyNewModel(std::string name, std::string path) :
             MVAModelBase(name, path) { m_device_pointer = nullptr; }
 
         const DeviceType* getDevicePointer() const { return m_device_pointer; }
@@ -72,7 +72,7 @@ Define readData function for model loading from the file and saving data in devi
         unsigned total_size = weights.size() * sizeof(float);
 
         Allen::malloc((void**) &(m_device_view.parameters), total_size);
-        Allen::memcpy(m_device_view.parameters, weights.data(), 
+        Allen::memcpy(m_device_view.parameters, weights.data(),
             total_size, Allen::memcpyHostToDevice);
     }
 
@@ -87,9 +87,9 @@ Register your model in the definition of Allen algorithm:
         using MVAModelType = Allen::MVAModels::AbsolutelyNewModel;
 
         ...
-        
+
         struct algorithm_with_new_model_t : public DeviceAlgorithm, Parameters {
-        
+
         ...
 
         private:
@@ -97,17 +97,17 @@ Register your model in the definition of Allen algorithm:
             MVAModelType new_mva_model {"new_mva_model", "parameter_values.json"};
         };
     } // namespace algorithm_with_new_model
-    
+
 Pass device view to global function.
 
 code in `.cuh` file:
 
 .. code-block:: c++
 
-    __global__ void algorithm_with_new_model(  
+    __global__ void algorithm_with_new_model(
         Parameters,
         const MVAModelType::DeviceType*);
-        
+
 code in `.cu` file:
 
 .. code-block:: c++
@@ -121,13 +121,13 @@ code in `.cu` file:
       global_function(algorithm_with_new_model)(
         dim3(size<dev_event_list_t>(arguments)), property<block_dim_t>(), context)(
         arguments,
-        new_mva_model.getDevicePointer()); 
-    }    
-    
+        new_mva_model.getDevicePointer());
+    }
+
 Call the evaluation function in global function:
 
 .. code-block:: c++
-    
+
     __global__ void algorithm_with_new_model::algorithm_with_new_model(
       algorithm_with_new_model::Parameters parameters,
       const MVAModelType::DeviceType* new_mva_model_device_view)
@@ -135,5 +135,3 @@ Call the evaluation function in global function:
         float* some_inputs;
         float mva_output = new_mva_model_device_view->evaluate(some_inputs);
     }
-
-

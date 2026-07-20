@@ -46,7 +46,7 @@ Where ``<input_and_conditions.py>`` follows a similar formula to ``Moore/Hlt/Moo
 If you would like to dump a large amount of events into MDF files, it is convenient to produce several MDF output files to avoid too large single files. A special script is provided for this use case. In this case, TestFileDB entry is specified within the script to select the input. The output MDF files combine a number of input files, configurable with `n_files_per_chunk`::
 
   ./Moore/run gaudirun.py Moore/Hlt/RecoConf/scripts/mdf_split_for_standalone_Allen.py
-  
+
 The splitting script calls as options script `multiple_mdf_for_standalone_Allen.py <https://gitlab.cern.ch/lhcb/Moore/-/blob/master/Hlt/RecoConf/scripts/multiple_mdf_for_standalone_Allen.py>`_, where the usage of Retina clusters can be specified as in the script `mdf_for_standalone_Allen.py <https://gitlab.cern.ch/lhcb/Moore/-/blob/master/Hlt/RecoConf/options/mdf_for_standalone_Allen.py>`_.
 
 DIGI files containing RetinaClusters
@@ -75,7 +75,7 @@ This sequence performs VELO clustering within Allen, not requiring the VPRetinaC
 When running Allen within Gaudi the switch from RetinaClusters to VeloSP can be done using the following lines::
 
   from AllenConf.velo_reconstruction import decode_velo
-    
+
   with decode_velo.bind(retina_decoding=False):
     #call reconstruction as before
 

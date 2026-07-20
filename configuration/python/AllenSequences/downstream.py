@@ -9,13 +9,13 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.downstream_reconstruction import downstream_track_reconstruction
-
-from AllenConf.filters import make_gec
-from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 downstream_sequence = CompositeNode(
-    "DownstreamReconstruction", [downstream_track_reconstruction()],
+    "DownstreamReconstruction",
+    [downstream_track_reconstruction()],
     NodeLogic.LAZY_AND,
-    force_order=True)
+    force_order=True,
+)
 generate(downstream_sequence)

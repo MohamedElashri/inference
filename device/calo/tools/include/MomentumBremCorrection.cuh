@@ -54,14 +54,16 @@ namespace momentum_brem_correction {
     Allen::Property<float> min_bremeop {this, "min_bremeop", 0.05f, "Minimum E/p for hist_Eop_hasBrem"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {32, 1, 1}, "block dimensions"};
     Allen::Monitoring::Histogram<> m_hist_Eop {this, "EoverP", "E (Ecal) / P (track)", {100u, 1e-5f, 2.f}};
-    Allen::Monitoring::Histogram<> m_hist_Eop_hasBrem {this,
-                                                       "EoverP_hasbrem",
-                                                       "E (Ecal) / P (track) (with HasBrem)",
-                                                       {100u, 1e-5f, 2.f}};
-    Allen::Monitoring::Histogram<> m_hist_brem {this,
-                                                "BremEoverP",
-                                                "BremE/ ( BremE + P (track) )",
-                                                {100u, 1e-5f, 1.01f}};
+    Allen::Monitoring::Histogram<> m_hist_Eop_hasBrem {
+      this,
+      "EoverP_hasbrem",
+      "E (Ecal) / P (track) (with HasBrem)",
+      {100u, 1e-5f, 2.f}};
+    Allen::Monitoring::Histogram<> m_hist_brem {
+      this,
+      "BremEoverP",
+      "BremE/ ( BremE + P (track) )",
+      {100u, 1e-5f, 1.01f}};
   };
 
 } // namespace momentum_brem_correction

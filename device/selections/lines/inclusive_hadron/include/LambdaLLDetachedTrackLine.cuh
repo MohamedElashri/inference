@@ -169,29 +169,33 @@ namespace lambda_ll_detached_track_line {
     Allen::Property<float> m_L_PT_min {this, "L_PT_min", 1400.f * Allen::Units::MeV, "pT of Lambda candidate"};
     Allen::Property<float> m_L_DOCA_max {this, "L_DOCA_max", 100.f * Allen::Units::um, "DOCA of proton and pion"};
     Allen::Property<float> m_L_VCHI2_max {this, "L_VCHI2_max", 16.f, "Lambda vertex chi2"};
-    Allen::Property<float> m_L_BPVFDCHI2_min {this,
-                                              "L_BPVFDCHI2_min",
-                                              240.f,
-                                              "flight distance chi2 of Lambda candidate"};
+    Allen::Property<float> m_L_BPVFDCHI2_min {
+      this,
+      "L_BPVFDCHI2_min",
+      240.f,
+      "flight distance chi2 of Lambda candidate"};
     Allen::Property<float> m_L_M_min {this, "L_M_min", 1090.f * Allen::Units::MeV, "min mass of Lambda candidate"};
     Allen::Property<float> m_L_M_max {this, "L_M_max", 1140.f * Allen::Units::MeV, "max mass of Lambda candidate"};
     Allen::Property<float> m_t_MIPCHI2_min {this, "t_MIPCHI2_min", 12.f, "min companion track IP chi2"};
     Allen::Property<float> m_t_PT_min {this, "t_PT_min", 700.f * Allen::Units::MeV, "min companion track PT"};
     Allen::Property<float> m_VZ_min {this, "VZ_min", -200.f * Allen::Units::mm, "min vertex z position"};
     Allen::Property<float> m_VZ_max {this, "VZ_max", 250.f * Allen::Units::mm, "max vertex z position"};
-    Allen::Property<float> m_M_max {this,
-                                    "M_max",
-                                    3.6f * Allen::Units::GeV,
-                                    "max mass given pion mass hypothesis for companion track"};
+    Allen::Property<float> m_M_max {
+      this,
+      "M_max",
+      3.6f * Allen::Units::GeV,
+      "max mass given pion mass hypothesis for companion track"};
     Allen::Property<float> m_BPVVDZ_min {this, "BPVVDZ_min", 1.5f * Allen::Units::mm, "min distance (in z) to best PV"};
-    Allen::Property<float> m_BPVVDRHO_min {this,
-                                           "BPVVDRHO_min",
-                                           120.f * Allen::Units::um,
-                                           "min distance (in z) to best PV"};
-    Allen::Property<float> m_LVDZ_min {this,
-                                       "LVDZ_min",
-                                       8.f * Allen::Units::mm,
-                                       "min distance (in z) to Lambda vertex"};
+    Allen::Property<float> m_BPVVDRHO_min {
+      this,
+      "BPVVDRHO_min",
+      120.f * Allen::Units::um,
+      "min distance (in z) to best PV"};
+    Allen::Property<float> m_LVDZ_min {
+      this,
+      "LVDZ_min",
+      8.f * Allen::Units::mm,
+      "min distance (in z) to Lambda vertex"};
     Allen::Property<float> m_SUMPT_min {this, "SUMPT_min", 2.8f * Allen::Units::GeV, "sum of Lambda and track pT"};
 
     Allen::Monitoring::Histogram<> m_histogram_Lambda_mass {

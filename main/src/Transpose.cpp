@@ -11,12 +11,13 @@
 #include <Transpose.h>
 
 namespace {
-  std::unordered_set<LHCb::RawBank::BankType> dont_count = {LHCb::RawBank::BankType::DAQ,
-                                                            LHCb::RawBank::BankType::TAEHeader,
-                                                            LHCb::RawBank::BankType::HltDecReports,
-                                                            LHCb::RawBank::BankType::HltSelReports,
-                                                            LHCb::RawBank::BankType::HltRoutingBits,
-                                                            LHCb::RawBank::BankType::HltLumiSummary};
+  std::unordered_set<LHCb::RawBank::BankType> dont_count = {
+    LHCb::RawBank::BankType::DAQ,
+    LHCb::RawBank::BankType::TAEHeader,
+    LHCb::RawBank::BankType::HltDecReports,
+    LHCb::RawBank::BankType::HltSelReports,
+    LHCb::RawBank::BankType::HltRoutingBits,
+    LHCb::RawBank::BankType::HltLumiSummary};
 }
 
 std::array<int, LHCb::NBankTypes> Allen::bank_ids()

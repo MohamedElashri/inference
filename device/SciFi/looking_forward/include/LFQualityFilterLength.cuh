@@ -49,10 +49,11 @@ namespace lf_quality_filter_length {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
-    Allen::Property<unsigned> m_maximum_number_of_candidates_per_ut_track {this,
-                                                                           "maximum_number_of_candidates_per_ut_track",
-                                                                           12,
-                                                                           "maximum_number_of_candidates_per_ut_track"};
+    Allen::Property<unsigned> m_maximum_number_of_candidates_per_ut_track {
+      this,
+      "maximum_number_of_candidates_per_ut_track",
+      12,
+      "maximum_number_of_candidates_per_ut_track"};
     Allen::Property<unsigned> m_min_tot_scifi_hits {this, "min_tot_scifi_hits", 9, "min_tot_scifi_hits"};
     Allen::Property<unsigned> m_min_UV_scifi_hits {this, "min_UV_scifi_hits", 3, "min_UV_scifi_hits"};
     Allen::Property<unsigned> m_min_X_scifi_hits {this, "min_X_scifi_hits", 3, "min_X_scifi_hits"};

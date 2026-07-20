@@ -192,18 +192,19 @@ namespace Allen::Conditions {
       det.toLocalMatrix().GetComponents(toLocalMatrix_elements.begin(), toLocalMatrix_elements.end());
 
       // Get front, showermax and back planes a,b,c,d parameters (A plane in 3D is defined as a*x+b*y+c*z+d=0)
-      std::vector<float> calo_planes {static_cast<float>(det.plane(CaloPlane::Front).A()),
-                                      static_cast<float>(det.plane(CaloPlane::Front).B()),
-                                      static_cast<float>(det.plane(CaloPlane::Front).C()),
-                                      static_cast<float>(det.plane(CaloPlane::Front).D()),
-                                      static_cast<float>(det.plane(CaloPlane::ShowerMax).A()),
-                                      static_cast<float>(det.plane(CaloPlane::ShowerMax).B()),
-                                      static_cast<float>(det.plane(CaloPlane::ShowerMax).C()),
-                                      static_cast<float>(det.plane(CaloPlane::ShowerMax).D()),
-                                      static_cast<float>(det.plane(CaloPlane::Back).A()),
-                                      static_cast<float>(det.plane(CaloPlane::Back).B()),
-                                      static_cast<float>(det.plane(CaloPlane::Back).C()),
-                                      static_cast<float>(det.plane(CaloPlane::Back).D())};
+      std::vector<float> calo_planes {
+        static_cast<float>(det.plane(CaloPlane::Front).A()),
+        static_cast<float>(det.plane(CaloPlane::Front).B()),
+        static_cast<float>(det.plane(CaloPlane::Front).C()),
+        static_cast<float>(det.plane(CaloPlane::Front).D()),
+        static_cast<float>(det.plane(CaloPlane::ShowerMax).A()),
+        static_cast<float>(det.plane(CaloPlane::ShowerMax).B()),
+        static_cast<float>(det.plane(CaloPlane::ShowerMax).C()),
+        static_cast<float>(det.plane(CaloPlane::ShowerMax).D()),
+        static_cast<float>(det.plane(CaloPlane::Back).A()),
+        static_cast<float>(det.plane(CaloPlane::Back).B()),
+        static_cast<float>(det.plane(CaloPlane::Back).C()),
+        static_cast<float>(det.plane(CaloPlane::Back).D())};
 
       // Get Module size
       float module_size = static_cast<float>(det.cellSize(det.firstCellID(1)));
@@ -277,8 +278,9 @@ namespace Allen::Conditions {
         Allen::malloc((void**) &dev_geometry, m_data.size());
       }
       else if (host_geometry.size() != m_data.size()) {
-        throw StrException {std::string {"[ecal] sizes don't match: "} + std::to_string(host_geometry.size()) + " " +
-                            std::to_string(m_data.size())};
+        throw StrException {
+          std::string {"[ecal] sizes don't match: "} + std::to_string(host_geometry.size()) + " " +
+          std::to_string(m_data.size())};
       }
       host_geometry = m_data;
       Allen::memcpy(dev_geometry, host_geometry.data(), host_geometry.size(), Allen::memcpyHostToDevice);

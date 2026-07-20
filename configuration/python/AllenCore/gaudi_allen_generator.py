@@ -8,11 +8,12 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from PyConf.application import default_raw_banks
-from PyConf.Algorithms import (TransposeRawBanks, ProvideRuntimeOptions)
+from functools import cache
+
 from GaudiKernel.DataHandle import DataHandle
 from PyConf import configurable
-from functools import cache
+from PyConf.Algorithms import ProvideRuntimeOptions, TransposeRawBanks
+from PyConf.application import default_raw_banks
 
 
 # Get the LHCb::RawBank::BankTypes that correspond to and HLT1/Allen
@@ -20,6 +21,7 @@ from functools import cache
 @cache
 def lhcb_bank_types(allen_sd):
     from Allen.bank_mapping import mapping
+
     lhcb_bts = set()
     for lhcb_bt, allen_sds in mapping.items():
         if allen_sd in allen_sds:
@@ -34,13 +36,14 @@ def make_transposed_raw_banks(subdetector, make_raw_banks=default_raw_banks):
 
     return TransposeRawBanks(
         RawBankLocations=[make_raw_banks(k) for k in bank_types],
-        BankTypes=[subdetector]
-        if subdetector is not None else []).AllenRawInput
+        BankTypes=[subdetector] if subdetector is not None else [],
+    ).AllenRawInput
 
 
 @configurable
 def allen_runtime_options(subdetector, filename="allen_monitor.root"):
     from Configurables import AllenROOTService
+
     rootService = AllenROOTService()
     prop = "MonitorFile"
     value = rootService.getProp(prop)
@@ -52,38 +55,41 @@ def allen_runtime_options(subdetector, filename="allen_monitor.root"):
         rootService.MonitorFile = filename
 
     return ProvideRuntimeOptions(
-        AllenBanksLocation=make_transposed_raw_banks(subdetector=subdetector))
+        AllenBanksLocation=make_transposed_raw_banks(subdetector=subdetector)
+    )
 
 
 def initialize_event_lists(**kwargs):
     from PyConf.Algorithms import host_init_event_list_t
+
     name = kwargs.pop("name", "make_event_list_{hash}")
-    initialize_lists = make_algorithm(
-        host_init_event_list_t, name=name, **kwargs)
+    initialize_lists = make_algorithm(host_init_event_list_t, name=name, **kwargs)
     return initialize_lists
 
 
 # Gaudi configuration wrapper
 def make_algorithm(algorithm, name, *args, **kwargs):
-    from PyConf.Algorithms import odin_provider_t, host_init_event_list_t
+    from PyConf.Algorithms import host_init_event_list_t, odin_provider_t
 
     # Only ODIN has a dedicated provider that doesn't have the
     # `bank_type` property
     if algorithm.type is odin_provider_t.type:
         subdetector = "ODIN"
     else:
-        subdetector = kwargs.get('bank_type', None)
+        subdetector = kwargs.get("bank_type", None)
 
     rto = allen_runtime_options(subdetector)
 
     # Pass dev_event_list to inputs that are of type dev_event_list
     if algorithm is not host_init_event_list_t:
         dev_event_list = initialize_event_lists(
-            name="make_event_list_{hash}",
-            runtime_options_t=rto).dev_event_list_output_t
+            name="make_event_list_{hash}", runtime_options_t=rto
+        ).dev_event_list_output_t
         event_list_names = [
-            k for k, w in algorithm.getDefaultProperties().items()
-            if isinstance(w, DataHandle) and dev_event_list.type == w.type()
+            k
+            for k, w in algorithm.getDefaultProperties().items()
+            if isinstance(w, DataHandle)
+            and dev_event_list.type == w.type()
             and w.mode() == "R"
         ]
         for dev_event_list_name in event_list_names:

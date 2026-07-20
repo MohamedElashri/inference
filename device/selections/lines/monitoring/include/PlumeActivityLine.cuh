@@ -41,13 +41,15 @@ namespace plume_activity_line {
 
   private:
     Allen::Property<float> m_min_plume_adc {this, "min_plume_adc", 1.f, "ADC threshold"};
-    Allen::Property<unsigned> m_min_number_plume_adcs_over_min {this,
-                                                                "min_number_plume_adcs_over_min",
-                                                                1,
-                                                                "Number of ADCs over configured threshold"};
-    Allen::Property<uint64_t> m_plume_channel_mask {this,
-                                                    "plume_channel_mask",
-                                                    0x003FFFFF003FFFFF,
-                                                    "PLUME channel mask as a 64-bit bitset"};
+    Allen::Property<unsigned> m_min_number_plume_adcs_over_min {
+      this,
+      "min_number_plume_adcs_over_min",
+      1,
+      "Number of ADCs over configured threshold"};
+    Allen::Property<uint64_t> m_plume_channel_mask {
+      this,
+      "plume_channel_mask",
+      0x003FFFFF003FFFFF,
+      "PLUME channel mask as a 64-bit bitset"};
   };
 } // namespace plume_activity_line

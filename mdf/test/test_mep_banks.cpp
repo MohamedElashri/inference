@@ -259,13 +259,14 @@ int main(int argc, char* argv[])
     }
 
     // Allocate providers and get slices
-    std::map<std::string, std::string> options = {{"s", std::to_string(s_config.n_slices)},
-                                                  {"n", std::to_string(s_config.n_events)},
-                                                  {"v", std::to_string(s_config.debug ? 4 : 3)},
-                                                  {"mdf", s_config.mdf_files},
-                                                  {"sequence", "null"},
-                                                  {"events-per-slice", std::to_string(s_config.eps)},
-                                                  {"disable-run-changes", "1"}};
+    std::map<std::string, std::string> options = {
+      {"s", std::to_string(s_config.n_slices)},
+      {"n", std::to_string(s_config.n_events)},
+      {"v", std::to_string(s_config.debug ? 4 : 3)},
+      {"mdf", s_config.mdf_files},
+      {"sequence", "null"},
+      {"events-per-slice", std::to_string(s_config.eps)},
+      {"disable-run-changes", "1"}};
 
     auto [config, config_source] = Allen::sequence_conf(options);
     mdf = Allen::make_provider(options, config);

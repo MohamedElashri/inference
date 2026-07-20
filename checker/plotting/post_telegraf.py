@@ -9,16 +9,14 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import sys
-import os
-import re
-import traceback
-import operator
 import csv
-import requests
+import os
+import sys
 import time
+import traceback
 from optparse import OptionParser
-from group_algos import group_algos
+
+import requests
 
 
 def send_to_telegraf(throughput, device, options):
@@ -27,12 +25,15 @@ def send_to_telegraf(throughput, device, options):
     now = time.time()
     timestamp = int(now) * 1000000000
 
-    telegraf_string = "AllenCIPerformance_v3,branch=%s,device=%s,sequence=%s,dataset=%s,build_options=%s " % (
-        options.branch,
-        device,
-        options.sequence,
-        options.dataset,
-        options.buildopts if len(options.buildopts) > 0 else "default",
+    telegraf_string = (
+        "AllenCIPerformance_v3,branch=%s,device=%s,sequence=%s,dataset=%s,build_options=%s "
+        % (
+            options.branch,
+            device,
+            options.sequence,
+            options.dataset,
+            options.buildopts if len(options.buildopts) > 0 else "default",
+        )
     )
 
     telegraf_string += "performance=%.2f " % (throughput)
@@ -59,8 +60,7 @@ def main(argv):
         "-f",
         "--filename",
         dest="filename",
-        default=
-        "devices_throughputs_hlt1_pp_default_upgrade_mc_minbias_scifi_v5_000.csv",
+        default="devices_throughputs_hlt1_pp_default_upgrade_mc_minbias_scifi_v5_000.csv",
         help="The csv file containing the throughput and device name",
     )
     parser.add_option(
@@ -112,8 +112,7 @@ def main(argv):
         os.path.isfile(options.filename)
 
     except:
-        print("Failed to open csv file with rates and devices: %s" %
-              options.filename)
+        print("Failed to open csv file with rates and devices: %s" % options.filename)
         traceback.print_exc()
         return
 
@@ -122,10 +121,9 @@ def main(argv):
         for row in csv_reader:
             device = row[0]
             device_string = device.strip()
-            device_string = device_string.replace(" ", "\ ")
+            device_string = device_string.replace(" ", r"\ ")
             throughput = float(row[1])
-            print("Device: " + device_string +
-                  ", Throughput: %.2f" % (throughput))
+            print("Device: " + device_string + ", Throughput: %.2f" % (throughput))
 
             send_to_telegraf(throughput, device_string, options)
 

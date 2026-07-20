@@ -56,8 +56,8 @@ __global__ void brem_recovery::brem_recovery(
     parameters.dev_atomics_velo, parameters.dev_velo_track_hit_number, event_number, number_of_events};
 
   // Get velo kalman beamline states
-  Velo::Consolidated::ConstStates velo_Kalman_beamline_states {parameters.dev_velo_kalman_beamline_states,
-                                                               velo_tracks.total_number_of_tracks()};
+  Velo::Consolidated::ConstStates velo_Kalman_beamline_states {
+    parameters.dev_velo_kalman_beamline_states, velo_tracks.total_number_of_tracks()};
 
   // Get ECAL digits
   auto ecal_geometry = CaloGeometry(raw_ecal_geometry);

@@ -326,17 +326,18 @@ __global__ void downstream_create_tracks::downstream_create_tracks(
 
       // Ghost killing
       const auto eta = asinhf(1.f / hypotf(ut_tx, ut_ty));
-      float ghost_killer_input[DownstreamGhostKiller::DeviceType::nInput] = {dist1 + dist2,
-                                                                             dist0,
-                                                                             dist3,
-                                                                             ft_chi2,
-                                                                             eta,
-                                                                             ut_x,
-                                                                             ut_y,
-                                                                             ut_tx,
-                                                                             ut_ty,
-                                                                             ft_tx - ut_tx,
-                                                                             ft_y - (ut_y + ut_ty * (ZEndT - zMidUT))};
+      float ghost_killer_input[DownstreamGhostKiller::DeviceType::nInput] = {
+        dist1 + dist2,
+        dist0,
+        dist3,
+        ft_chi2,
+        eta,
+        ut_x,
+        ut_y,
+        ut_tx,
+        ut_ty,
+        ft_tx - ut_tx,
+        ft_y - (ut_y + ut_ty * (ZEndT - zMidUT))};
       const auto ghost_killer_score = dev_downstream_ghostkiller->evaluate(ghost_killer_input);
 
       if (ghost_killer_score > ghost_killer_threshold * scaling_factor) continue;

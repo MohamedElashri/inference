@@ -78,10 +78,11 @@ namespace downstream_kstopipi_line {
     Allen::Property<float> m_minMass {this, "minMass", (497.6f - 80.f) * Allen::Units::MeV, "Minimum invariant mass"};
     Allen::Property<float> m_maxMass {this, "maxMass", (497.6f + 80.f) * Allen::Units::MeV, "Maximum invariat mass"};
     Allen::Property<float> m_mva_ks_threshold {this, "mva_ks_threshold", 0.5f, "MVA threshold for Kshort selection"};
-    Allen::Property<float> m_mva_detached_ks_threshold {this,
-                                                        "mva_detached_ks_threshold",
-                                                        0.5f,
-                                                        "MVA threshold for detached kshort selection"};
+    Allen::Property<float> m_mva_detached_ks_threshold {
+      this,
+      "mva_detached_ks_threshold",
+      0.5f,
+      "MVA threshold for detached kshort selection"};
 
     Allen::Monitoring::Histogram<> m_histogram_ks_mass {this, "ks_mass", "m(ks)", {100u, 400.f, 600.f}};
     Allen::Monitoring::Histogram<> m_histogram_ks_pt {this, "ks_pt", "pT(ks)", {100u, 0.f, 1e4f}};

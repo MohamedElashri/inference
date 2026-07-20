@@ -9,27 +9,38 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import (
-    single_high_pt_muon_line_t, single_high_pt_muon_no_muid_line_t,
-    low_pt_muon_line_t, di_muon_mass_line_t, di_muon_soft_line_t,
-    low_pt_di_muon_line_t, track_muon_mva_line_t, di_muon_no_ip_line_t,
-    one_muon_track_line_t, di_muon_drell_yan_line_t, displaced_di_muon_line_t,
-    det_jpsitomumu_tap_line_t)
-from AllenConf.utils import initialize_number_of_events, mep_layout
+    det_jpsitomumu_tap_line_t,
+    di_muon_drell_yan_line_t,
+    di_muon_mass_line_t,
+    di_muon_no_ip_line_t,
+    di_muon_soft_line_t,
+    displaced_di_muon_line_t,
+    low_pt_di_muon_line_t,
+    low_pt_muon_line_t,
+    one_muon_track_line_t,
+    single_high_pt_muon_line_t,
+    single_high_pt_muon_no_muid_line_t,
+    track_muon_mva_line_t,
+)
+from AllenCore.configuration_options import is_allen_standalone
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
-from AllenCore.configuration_options import is_allen_standalone
+
+from AllenConf.utils import initialize_number_of_events
 
 
 @configurable
-def make_one_muon_track_line(muon_tracks,
-                             dev_muon_tracks_offsets,
-                             host_muon_total_number_of_tracks,
-                             name="Hlt1OneMuonTrack",
-                             pre_scaler=1.,
-                             post_scaler=1.,
-                             pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None,
-                             enable_tupling=False):
+def make_one_muon_track_line(
+    muon_tracks,
+    dev_muon_tracks_offsets,
+    host_muon_total_number_of_tracks,
+    name="Hlt1OneMuonTrack",
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -44,19 +55,22 @@ def make_one_muon_track_line(muon_tracks,
         dev_muon_tracks_t=muon_tracks,
         host_muon_total_number_of_tracks_t=host_muon_total_number_of_tracks,
         dev_muon_tracks_offsets_t=dev_muon_tracks_offsets,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_single_high_pt_muon_line(long_tracks,
-                                  long_track_particles,
-                                  maxChi2Ndof,
-                                  name="Hlt1SingleHighPtMuon",
-                                  pre_scaler_hash_string=None,
-                                  post_scaler_hash_string=None,
-                                  enable_tupling=False,
-                                  pre_scaler=1.,
-                                  singleMinPt=6000):
+def make_single_high_pt_muon_line(
+    long_tracks,
+    long_track_particles,
+    maxChi2Ndof,
+    name="Hlt1SingleHighPtMuon",
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    pre_scaler=1.0,
+    singleMinPt=6000,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -67,24 +81,29 @@ def make_single_high_pt_muon_line(long_tracks,
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         pre_scaler=pre_scaler,
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         enable_tupling=enable_tupling,
         maxChi2Ndof=maxChi2Ndof,
-        singleMinPt=singleMinPt)
+        singleMinPt=singleMinPt,
+    )
 
 
 @configurable
-def make_single_high_pt_muon_no_muid_line(long_tracks,
-                                          long_track_particles,
-                                          maxChi2Ndof,
-                                          name="Hlt1SingleHighPtMuonNoMuID",
-                                          pre_scaler_hash_string=None,
-                                          post_scaler_hash_string=None,
-                                          enable_tupling=False,
-                                          pre_scaler=0.05,
-                                          singleMinPt=8000):
+def make_single_high_pt_muon_no_muid_line(
+    long_tracks,
+    long_track_particles,
+    maxChi2Ndof,
+    name="Hlt1SingleHighPtMuonNoMuID",
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    pre_scaler=0.05,
+    singleMinPt=8000,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -95,22 +114,27 @@ def make_single_high_pt_muon_no_muid_line(long_tracks,
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         pre_scaler=pre_scaler,
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         enable_tupling=enable_tupling,
         maxChi2Ndof=maxChi2Ndof,
-        singleMinPt=singleMinPt)
+        singleMinPt=singleMinPt,
+    )
 
 
 @configurable
-def make_low_pt_muon_line(long_tracks,
-                          long_track_particles,
-                          name="Hlt1LowPtMuon",
-                          pre_scaler=1.,
-                          post_scaler=1.,
-                          pre_scaler_hash_string=None,
-                          post_scaler_hash_string=None):
+def make_low_pt_muon_line(
+    long_tracks,
+    long_track_particles,
+    name="Hlt1LowPtMuon",
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -122,32 +146,37 @@ def make_low_pt_muon_line(long_tracks,
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"])
+            "dev_multi_event_basic_particles"
+        ],
+    )
 
 
 @configurable
-def make_di_muon_mass_line(long_tracks,
-                           secondary_vertices,
-                           muonid,
-                           pre_scaler_hash_string=None,
-                           post_scaler_hash_string=None,
-                           enable_monitoring=True,
-                           minHighMassTrackPt=300.,
-                           minHighMassTrackP=6000.,
-                           minMass=2700.,
-                           maxDoca=0.2,
-                           maxVertexChi2=25.,
-                           minIPChi2=0.,
-                           maxChi2Corr=1.8,
-                           minMuonNN=0.1,
-                           useMuonNN=False,
-                           oppositeSign=True,
-                           vetoSharedHits=False,
-                           name="Hlt1DiMuonHighMass",
-                           pre_scaler=1.,
-                           enable_tupling=False):
+def make_di_muon_mass_line(
+    long_tracks,
+    secondary_vertices,
+    muonid,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_monitoring=True,
+    minHighMassTrackPt=300.0,
+    minHighMassTrackP=6000.0,
+    minMass=2700.0,
+    maxDoca=0.2,
+    maxVertexChi2=25.0,
+    minIPChi2=0.0,
+    maxChi2Corr=1.8,
+    minMuonNN=0.1,
+    useMuonNN=False,
+    oppositeSign=True,
+    vetoSharedHits=False,
+    name="Hlt1DiMuonHighMass",
+    pre_scaler=1.0,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -156,8 +185,7 @@ def make_di_muon_mass_line(long_tracks,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonidnn_t=muonid["dev_muonidnn"],
@@ -175,17 +203,20 @@ def make_di_muon_mass_line(long_tracks,
         useNN=useMuonNN,
         OppositeSign=oppositeSign,
         vetoSharedHits=vetoSharedHits,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_di_muon_soft_line(long_tracks,
-                           secondary_vertices,
-                           name="Hlt1DiMuonSoft",
-                           pre_scaler_hash_string=None,
-                           post_scaler_hash_string=None,
-                           pre_scaler=1.,
-                           enable_tupling=False):
+def make_di_muon_soft_line(
+    long_tracks,
+    secondary_vertices,
+    name="Hlt1DiMuonSoft",
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    pre_scaler=1.0,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -193,8 +224,7 @@ def make_di_muon_soft_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         pre_scaler=pre_scaler,
@@ -203,12 +233,14 @@ def make_di_muon_soft_line(long_tracks,
 
 
 @configurable
-def make_low_pt_di_muon_line(long_tracks,
-                             secondary_vertices,
-                             name="Hlt1LowPtDiMuon",
-                             pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None,
-                             pre_scaler=1.):
+def make_low_pt_di_muon_line(
+    long_tracks,
+    secondary_vertices,
+    name="Hlt1LowPtDiMuon",
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    pre_scaler=1.0,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -216,27 +248,29 @@ def make_low_pt_di_muon_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
-        pre_scaler=pre_scaler)
+        pre_scaler=pre_scaler,
+    )
 
 
 @configurable
-def make_track_muon_mva_line(long_tracks,
-                             long_track_particles,
-                             muonid,
-                             maxChi2Ndof,
-                             maxChi2Corr=1.8,
-                             minMuonNN=0.1,
-                             useMuonNN=False,
-                             name="Hlt1TrackMuonMVA",
-                             pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None,
-                             enable_tupling=False,
-                             pre_scaler=1.,
-                             alpha=0.):
+def make_track_muon_mva_line(
+    long_tracks,
+    long_track_particles,
+    muonid,
+    maxChi2Ndof,
+    maxChi2Corr=1.8,
+    minMuonNN=0.1,
+    useMuonNN=False,
+    name="Hlt1TrackMuonMVA",
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    pre_scaler=1.0,
+    alpha=0.0,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -244,9 +278,11 @@ def make_track_muon_mva_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonidnn_t=muonid["dev_muonidnn"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
@@ -258,28 +294,31 @@ def make_track_muon_mva_line(long_tracks,
         enable_tupling=enable_tupling,
         pre_scaler=pre_scaler,
         maxChi2Ndof=maxChi2Ndof,
-        alpha=alpha)
+        alpha=alpha,
+    )
 
 
 @configurable
-def make_di_muon_no_ip_line(long_tracks,
-                            secondary_vertices,
-                            muonid,
-                            maxTrChi2,
-                            pre_scaler_hash_string="di_muon_no_ip_line_pre",
-                            post_scaler_hash_string="di_muon_no_ip_line_post",
-                            minTrackPtPROD=1000000.,
-                            minTrackP=8000.,
-                            maxDoca=.3,
-                            maxVertexChi2=9.,
-                            minPt=1000.,
-                            minNN=0.2,
-                            name="Hlt1DiMuonNoIP",
-                            ss_on=False,
-                            enable_monitoring=True,
-                            enable_tupling=False,
-                            pre_scaler=1.,
-                            post_scaler=1.):
+def make_di_muon_no_ip_line(
+    long_tracks,
+    secondary_vertices,
+    muonid,
+    maxTrChi2,
+    pre_scaler_hash_string="di_muon_no_ip_line_pre",
+    post_scaler_hash_string="di_muon_no_ip_line_post",
+    minTrackPtPROD=1000000.0,
+    minTrackP=8000.0,
+    maxDoca=0.3,
+    maxVertexChi2=9.0,
+    minPt=1000.0,
+    minNN=0.2,
+    name="Hlt1DiMuonNoIP",
+    ss_on=False,
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -289,8 +328,7 @@ def make_di_muon_no_ip_line(long_tracks,
         enable_tupling=enable_tupling,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonid_nn_t=muonid["dev_muonidnn"],
@@ -305,31 +343,33 @@ def make_di_muon_no_ip_line(long_tracks,
         minNN=minNN,
         ss_on=ss_on,
         pre_scaler=pre_scaler,
-        post_scaler=post_scaler)
+        post_scaler=post_scaler,
+    )
 
 
 @configurable
 def make_di_muon_drell_yan_line(
-        long_tracks,
-        secondary_vertices,
-        muonid,
-        pre_scaler_hash_string="di_muon_drell_yan_line_pre",
-        post_scaler_hash_string="di_muon_drell_yan_line_post",
-        minTrackPt=1200.,
-        minTrackP=15000.,
-        maxTrackEta=4.9,
-        maxDoca=.15,
-        maxVertexChi2=16.,
-        name="Hlt1DiMuonDrellYan",
-        OppositeSign=True,
-        enable_monitoring=False,
-        enable_tupling=False,
-        minMass=5000.,
-        maxMass=250000,
-        maxChi2Corr=2.2,
-        minMuonNN=0.05,
-        useMuonNN=False,
-        pre_scaler=1.):
+    long_tracks,
+    secondary_vertices,
+    muonid,
+    pre_scaler_hash_string="di_muon_drell_yan_line_pre",
+    post_scaler_hash_string="di_muon_drell_yan_line_post",
+    minTrackPt=1200.0,
+    minTrackP=15000.0,
+    maxTrackEta=4.9,
+    maxDoca=0.15,
+    maxVertexChi2=16.0,
+    name="Hlt1DiMuonDrellYan",
+    OppositeSign=True,
+    enable_monitoring=False,
+    enable_tupling=False,
+    minMass=5000.0,
+    maxMass=250000,
+    maxChi2Corr=2.2,
+    minMuonNN=0.05,
+    useMuonNN=False,
+    pre_scaler=1.0,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -337,8 +377,7 @@ def make_di_muon_drell_yan_line(
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonidnn_t=muonid["dev_muonidnn"],
@@ -357,24 +396,26 @@ def make_di_muon_drell_yan_line(
         enable_tupling=enable_tupling,
         minMass=minMass,
         maxMass=maxMass,
-        pre_scaler=pre_scaler)
+        pre_scaler=pre_scaler,
+    )
 
 
 @configurable
 def make_displaced_dimuon_line(
-        long_tracks,
-        secondary_vertices,
-        muonid,
-        maxChi2Corr=1.8,
-        maxVertexChi2=25,
-        minMuonNN=0.8,
-        minIPChi2=6,
-        minPT=100,
-        pre_scaler_hash_string="displaced_di_muon_line_pre",
-        post_scaler_hash_string='displaced_di_muon_line_post',
-        name="Hlt1DisplacedDiMuon",
-        enable_monitoring=True,
-        pre_scaler=1.):
+    long_tracks,
+    secondary_vertices,
+    muonid,
+    maxChi2Corr=1.8,
+    maxVertexChi2=25,
+    minMuonNN=0.8,
+    minIPChi2=6,
+    minPT=100,
+    pre_scaler_hash_string="displaced_di_muon_line_pre",
+    post_scaler_hash_string="displaced_di_muon_line_post",
+    name="Hlt1DisplacedDiMuon",
+    enable_monitoring=True,
+    pre_scaler=1.0,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -382,8 +423,7 @@ def make_displaced_dimuon_line(
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonidnn_t=muonid["dev_muonid_response"],
@@ -395,32 +435,34 @@ def make_displaced_dimuon_line(
         pre_scaler_hash_string=pre_scaler_hash_string,
         post_scaler_hash_string=post_scaler_hash_string,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        pre_scaler=pre_scaler)
+        pre_scaler=pre_scaler,
+    )
 
 
 @configurable
 def make_det_jpsitomumu_tap_line(
-        long_tracks,
-        secondary_vertices,
-        pre_scaler_hash_string="jpsitomumutap_line_pre",
-        post_scaler_hash_string='jpsitomumutap_line_post',
-        name="Hlt1DetJPsiToMuMuTaP",
-        JpsiMaxDoca=1.,
-        JpsiMinFDChi2=50.,
-        JpsiMinCosDira=0.99,
-        JpsiMaxVChi2=15.,
-        JpsiMinPt=1000.,
-        JpsiMinMass=2950.,
-        JpsiMaxMass=3250.,
-        mutagMinP=3000.,
-        mutagMinPt=1200.,
-        mutagMinIPChi2=9.,
-        muprobeMinIPChi2=9.,
-        muprobeMinP=3000.,
-        posTag=True,
-        enable_monitoring=True,
-        enable_tupling=False,
-        pre_scaler=1.):
+    long_tracks,
+    secondary_vertices,
+    pre_scaler_hash_string="jpsitomumutap_line_pre",
+    post_scaler_hash_string="jpsitomumutap_line_post",
+    name="Hlt1DetJPsiToMuMuTaP",
+    JpsiMaxDoca=1.0,
+    JpsiMinFDChi2=50.0,
+    JpsiMinCosDira=0.99,
+    JpsiMaxVChi2=15.0,
+    JpsiMinPt=1000.0,
+    JpsiMinMass=2950.0,
+    JpsiMaxMass=3250.0,
+    mutagMinP=3000.0,
+    mutagMinPt=1200.0,
+    mutagMinIPChi2=9.0,
+    muprobeMinIPChi2=9.0,
+    muprobeMinP=3000.0,
+    posTag=True,
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler=1.0,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -428,8 +470,7 @@ def make_det_jpsitomumu_tap_line(
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string,
         post_scaler_hash_string=post_scaler_hash_string,
         JpsiMaxDoca=JpsiMaxDoca,
@@ -447,4 +488,5 @@ def make_det_jpsitomumu_tap_line(
         posTag=posTag,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         enable_tupling=enable_tupling,
-        pre_scaler=pre_scaler)
+        pre_scaler=pre_scaler,
+    )

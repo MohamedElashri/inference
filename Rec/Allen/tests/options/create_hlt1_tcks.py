@@ -16,8 +16,8 @@ different git repositories with the same TCK.
 """
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 seq_dir = os.path.expandvars("${ALLEN_INSTALL_DIR}/constants")
@@ -39,10 +39,9 @@ for i, seq in enumerate(sequences):
     # Create TCKs from python configurations
     # Note, these are created first such that missing encoding keys
     # will be added to the test-local metainfo repository
-    r = subprocess.run([
-        "python", tck_script, "RTA/2050.01.01", seq.stem, "config_python.git",
-        tck
-    ])
+    r = subprocess.run(
+        ["python", tck_script, "RTA/2050.01.01", seq.stem, "config_python.git", tck]
+    )
     if r.returncode != 0:
         error = True
     else:
@@ -50,10 +49,9 @@ for i, seq in enumerate(sequences):
     os.rename(f"{tck}.json", f"{tck}_python.json")
 
     # Create TCKs from JSON files
-    r = subprocess.run([
-        "python", tck_script, "RTA/2050.01.01",
-        str(seq), "config_json.git", tck
-    ])
+    r = subprocess.run(
+        ["python", tck_script, "RTA/2050.01.01", str(seq), "config_json.git", tck]
+    )
     if r.returncode != 0:
         error = True
     else:

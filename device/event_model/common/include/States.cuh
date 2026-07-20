@@ -207,37 +207,43 @@ namespace Allen {
           m_index(index), m_total_number_of_tracks(total_number_of_tracks)
         {}
 
-        __host__ __device__ inline T& x() requires MutableView<T>
+        __host__ __device__ inline T& x()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_index];
         }
         __host__ __device__ inline T x() const { return m_base_pointer[nb_elements_state * m_index]; }
 
-        __host__ __device__ inline T& y() requires MutableView<T>
+        __host__ __device__ inline T& y()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_index + 1];
         }
         __host__ __device__ inline T y() const { return m_base_pointer[nb_elements_state * m_index + 1]; }
 
-        __host__ __device__ inline T& z() requires MutableView<T>
+        __host__ __device__ inline T& z()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_index + 2];
         }
         __host__ __device__ inline T z() const { return m_base_pointer[nb_elements_state * m_index + 2]; }
 
-        __host__ __device__ inline T& tx() requires MutableView<T>
+        __host__ __device__ inline T& tx()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_index + 3];
         }
         __host__ __device__ inline T tx() const { return m_base_pointer[nb_elements_state * m_index + 3]; }
 
-        __host__ __device__ inline T& ty() requires MutableView<T>
+        __host__ __device__ inline T& ty()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_index + 4];
         }
         __host__ __device__ inline T ty() const { return m_base_pointer[nb_elements_state * m_index + 4]; }
 
-        __host__ __device__ inline T& qop() requires MutableView<T>
+        __host__ __device__ inline T& qop()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_index + 5];
         }
@@ -245,7 +251,8 @@ namespace Allen {
 
         __host__ __device__ inline int charge() const { return qop() > 0 ? +1 : -1; }
 
-        __host__ __device__ inline T& c00() requires MutableView<T>
+        __host__ __device__ inline T& c00()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index];
         }
@@ -254,7 +261,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index];
         }
 
-        __host__ __device__ inline T& c20() requires MutableView<T>
+        __host__ __device__ inline T& c20()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 1];
         }
@@ -263,7 +271,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 1];
         }
 
-        __host__ __device__ inline T& c22() requires MutableView<T>
+        __host__ __device__ inline T& c22()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 2];
         }
@@ -272,7 +281,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 2];
         }
 
-        __host__ __device__ inline T& c11() requires MutableView<T>
+        __host__ __device__ inline T& c11()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 3];
         }
@@ -281,7 +291,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 3];
         }
 
-        __host__ __device__ inline T& c31() requires MutableView<T>
+        __host__ __device__ inline T& c31()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 4];
         }
@@ -290,7 +301,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 4];
         }
 
-        __host__ __device__ inline T& c33() requires MutableView<T>
+        __host__ __device__ inline T& c33()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 5];
         }
@@ -299,7 +311,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 5];
         }
 
-        __host__ __device__ inline T& chi2() requires MutableView<T>
+        __host__ __device__ inline T& chi2()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 6];
         }
@@ -308,7 +321,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 6];
         }
 
-        __host__ __device__ inline unsigned& ndof() requires MutableView<T>
+        __host__ __device__ inline unsigned& ndof()
+          requires MutableView<T>
         {
           return reinterpret_cast<unsigned*>(
             m_base_pointer)[nb_elements_state * m_total_number_of_tracks + nb_elements_cov * m_index + 7];
@@ -424,40 +438,50 @@ namespace Allen {
           m_index(index), m_total_number_of_vrts(total_number_of_vrts)
         {}
 
-        __host__ __device__ inline T& x() requires MutableView<T> { return m_base_pointer[nb_elements_vrt * m_index]; }
+        __host__ __device__ inline T& x()
+          requires MutableView<T>
+        {
+          return m_base_pointer[nb_elements_vrt * m_index];
+        }
         __host__ __device__ inline T x() const { return m_base_pointer[nb_elements_vrt * m_index]; }
 
-        __host__ __device__ inline T& y() requires MutableView<T>
+        __host__ __device__ inline T& y()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_index + 1];
         }
         __host__ __device__ inline T y() const { return m_base_pointer[nb_elements_vrt * m_index + 1]; }
 
-        __host__ __device__ inline T& z() requires MutableView<T>
+        __host__ __device__ inline T& z()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_index + 2];
         }
         __host__ __device__ inline T z() const { return m_base_pointer[nb_elements_vrt * m_index + 2]; }
 
-        __host__ __device__ inline T& px() requires MutableView<T>
+        __host__ __device__ inline T& px()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_index + 3];
         }
         __host__ __device__ inline T px() const { return m_base_pointer[nb_elements_vrt * m_index + 3]; }
 
-        __host__ __device__ inline T& py() requires MutableView<T>
+        __host__ __device__ inline T& py()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_index + 4];
         }
         __host__ __device__ inline T py() const { return m_base_pointer[nb_elements_vrt * m_index + 4]; }
 
-        __host__ __device__ inline T& pz() requires MutableView<T>
+        __host__ __device__ inline T& pz()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_index + 5];
         }
         __host__ __device__ inline T pz() const { return m_base_pointer[nb_elements_vrt * m_index + 5]; }
 
-        __host__ __device__ inline T& c00() requires MutableView<T>
+        __host__ __device__ inline T& c00()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index];
         }
@@ -466,7 +490,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index];
         }
 
-        __host__ __device__ inline T& c11() requires MutableView<T>
+        __host__ __device__ inline T& c11()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 1];
         }
@@ -475,7 +500,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 1];
         }
 
-        __host__ __device__ inline T& c10() requires MutableView<T>
+        __host__ __device__ inline T& c10()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 2];
         }
@@ -484,7 +510,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 2];
         }
 
-        __host__ __device__ inline T& c22() requires MutableView<T>
+        __host__ __device__ inline T& c22()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 3];
         }
@@ -493,7 +520,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 3];
         }
 
-        __host__ __device__ inline T& c21() requires MutableView<T>
+        __host__ __device__ inline T& c21()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 4];
         }
@@ -502,7 +530,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 4];
         }
 
-        __host__ __device__ inline T& c20() requires MutableView<T>
+        __host__ __device__ inline T& c20()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 5];
         }
@@ -511,7 +540,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 5];
         }
 
-        __host__ __device__ inline T& chi2() requires MutableView<T>
+        __host__ __device__ inline T& chi2()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 6];
         }
@@ -520,7 +550,8 @@ namespace Allen {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 6];
         }
 
-        __host__ __device__ inline unsigned& ndof() requires MutableView<T>
+        __host__ __device__ inline unsigned& ndof()
+          requires MutableView<T>
         {
           return reinterpret_cast<unsigned*>(
             m_base_pointer)[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 7];
@@ -563,7 +594,8 @@ namespace Allen {
         }
 
         // The same holds also for T-Tracks.
-        __host__ __device__ inline float& ttracks_doca() requires MutableView<T>
+        __host__ __device__ inline float& ttracks_doca()
+          requires MutableView<T>
         {
           return m_base_pointer[nb_elements_vrt * m_total_number_of_vrts + nb_elements_cov * m_index + 0];
         }

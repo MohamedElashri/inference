@@ -77,9 +77,10 @@ namespace single_calo_cluster_line {
     Allen::Property<float> m_minEt {this, "minEt", 200.0f, "minEt description"};                     // MeV
     Allen::Property<float> m_maxEt {this, "maxEt", 999999.f, "maxEt description"};                   // MeV
     Allen::Property<float> m_minAbsY_cluster {this, "minAbsY_cluster", -1.0f, "min |Y| of cluster"}; // mm
-    Allen::Property<unsigned> m_max_ecal_clusters {this,
-                                                   "max_ecal_clusters",
-                                                   UINT_MAX,
-                                                   "Maximum number of VELO tracks"};
+    Allen::Property<unsigned> m_max_ecal_clusters {
+      this,
+      "max_ecal_clusters",
+      UINT_MAX,
+      "Maximum number of VELO tracks"};
   };
 } // namespace single_calo_cluster_line

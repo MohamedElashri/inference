@@ -60,14 +60,15 @@ RuntimeOptions ProvideRuntimeOptions::operator()(std::array<TransposedBanks, NBa
   const size_t slice_index = 0;
   const bool mep_layout = false;
 
-  return {tes_provider,
-          slice_index,
-          {event_start, event_end},
-          number_of_repetitions,
-          mep_layout,
-          param_inject_mem_fail,
-          nullptr,
-          m_rootService->rootService()};
+  return {
+    tes_provider,
+    slice_index,
+    {event_start, event_end},
+    number_of_repetitions,
+    mep_layout,
+    param_inject_mem_fail,
+    nullptr,
+    m_rootService->rootService()};
 }
 
 DECLARE_COMPONENT(ProvideRuntimeOptions)

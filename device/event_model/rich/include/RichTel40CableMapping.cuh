@@ -83,7 +83,7 @@ namespace Allen::Rich::Decoding {
       const uint32_t id,  // PD ID
       const int8_t pdmdb, // PDMDB ID
       const int8_t frame  // PDMDB Frame
-      ) const
+    ) const
     {
       // module number
       const auto modN = (id >> 6) & 0xF; // TODO: RichSmartID.h:912

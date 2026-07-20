@@ -12,6 +12,10 @@ repos:
     rev: v16.0.6
     hooks:
     -   id: clang-format
+        # Allen's .clang-format has no Json style section (unlike the other
+        # LHCb repos), and devcontainer.json is JSONC (has comments), so
+        # excluding it here rather than formatting it as strict JSON.
+        exclude: "\\.devcontainer/devcontainer\\.json$"
     -   id: clang-format
         name: clang-format (non-standard extensions)
         types_or: [file]

@@ -8,10 +8,11 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import pytest
-from LHCbTesting import LHCbExeTest
-from AllenTesting.validators import check_large_event_histograms
 from pathlib import Path
+
+import pytest
+from AllenTesting.validators import check_large_event_histograms
+from LHCbTesting import LHCbExeTest
 
 
 @pytest.mark.ctest_fixture_required("allen.large_event_passthrough")
@@ -27,13 +28,16 @@ class Test(LHCbExeTest):
     def test_expected_files(self, cwd: Path):
         print(cwd)
         line_name, pass_counts, rb_counts = check_large_event_histograms(
-            str(cwd / "large_event_passthrough.root"))
+            str(cwd / "large_event_passthrough.root")
+        )
 
-        assert list(pass_counts.values()) == [
-            2
-        ], "Pass counts {} are not [2] as expected (line name is: {})".format(
-            rb_counts, line_name)
-        assert rb_counts == {
-            26: 2
-        }, "Routing bit counts {} are not [(26, 2)] as expected (line name is: {})".format(
-            rb_counts, line_name)
+        assert list(pass_counts.values()) == [2], (
+            "Pass counts {} are not [2] as expected (line name is: {})".format(
+                rb_counts, line_name
+            )
+        )
+        assert rb_counts == {26: 2}, (
+            "Routing bit counts {} are not [(26, 2)] as expected (line name is: {})".format(
+                rb_counts, line_name
+            )
+        )

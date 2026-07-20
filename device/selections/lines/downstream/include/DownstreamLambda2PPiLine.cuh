@@ -78,15 +78,17 @@ namespace downstream_lambdatoppi_line {
     Allen::Property<float> m_minMass {this, "minMass", (1115.7f - 30.f) * Allen::Units::MeV, "Minimum invariant mass"};
     Allen::Property<float> m_maxMass {this, "maxMass", (1115.7f + 30.f) * Allen::Units::MeV, "Maximum invariat mass"};
     Allen::Property<float> m_mva_l0_threshold {this, "mva_l0_threshold", 0.5f, "MVA threshold for Lambda selection"};
-    Allen::Property<float> m_mva_detached_l0_threshold {this,
-                                                        "mva_detached_l0_threshold",
-                                                        0.5f,
-                                                        "MVA threshold for detached Lambda selection"};
+    Allen::Property<float> m_mva_detached_l0_threshold {
+      this,
+      "mva_detached_l0_threshold",
+      0.5f,
+      "MVA threshold for detached Lambda selection"};
 
-    Allen::Monitoring::Histogram<> m_histogram_l0_mass {this,
-                                                        "l0_mass",
-                                                        "m(l0)",
-                                                        {100u, (1115.7f - 30.f), (1115.7f + 30.f)}};
+    Allen::Monitoring::Histogram<> m_histogram_l0_mass {
+      this,
+      "l0_mass",
+      "m(l0)",
+      {100u, (1115.7f - 30.f), (1115.7f + 30.f)}};
     Allen::Monitoring::Histogram<> m_histogram_l0_pt {this, "l0_pt", "pT(l0)", {100u, 0.f, 1e4f}};
   };
 } // namespace downstream_lambdatoppi_line

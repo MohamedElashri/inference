@@ -42,8 +42,9 @@ namespace {
     const Rich::DetectorType rich) noexcept
   {
     return (
-      Rich::Rich1 == rich ? mirror->mirrorCentre().y() > 0.0 ? Rich::top : Rich::bottom :
-                            mirror->mirrorCentre().x() > 0.0 ? Rich::left : Rich::right);
+      Rich::Rich1 == rich              ? mirror->mirrorCentre().y() > 0.0 ? Rich::top : Rich::bottom :
+      mirror->mirrorCentre().x() > 0.0 ? Rich::left :
+                                         Rich::right);
   }
 } // namespace
 #endif

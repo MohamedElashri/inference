@@ -110,13 +110,13 @@ __global__ void velo_pv_ip::velo_pv_ip(velo_pv_ip::Parameters parameters)
   const auto velo_tracks = parameters.dev_velo_tracks_view[event_number];
   const auto velo_kalman_states = parameters.dev_velo_kalman_beamline_states_view[event_number];
 
-  Associate::Consolidated::Table velo_pv_ip {parameters.dev_velo_pv_ip,
-                                             parameters.dev_offsets_all_velo_tracks[number_of_events]};
+  Associate::Consolidated::Table velo_pv_ip {
+    parameters.dev_velo_pv_ip, parameters.dev_offsets_all_velo_tracks[number_of_events]};
   velo_pv_ip.cutoff() = Associate::VeloPVIP::baseline;
 
-  Allen::device::span<const PV::Vertex> vertices {parameters.dev_multi_final_vertices +
-                                                    event_number * PV::max_number_vertices,
-                                                  *(parameters.dev_number_of_multi_final_vertices + event_number)};
+  Allen::device::span<const PV::Vertex> vertices {
+    parameters.dev_multi_final_vertices + event_number * PV::max_number_vertices,
+    *(parameters.dev_number_of_multi_final_vertices + event_number)};
 
   // The track <-> PV association table for this event
   auto pv_table = velo_pv_ip.event_table(velo_tracks.offset(), velo_tracks.size());

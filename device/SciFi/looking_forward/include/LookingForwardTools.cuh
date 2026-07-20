@@ -58,17 +58,19 @@ namespace LookingForward {
     const float magnet_polarity)
   {
     float tx_ty_corr = 0.f;
-    const float tx_pow[5] = {1,
-                             ut_state.tx(),
-                             ut_state.tx() * ut_state.tx(),
-                             ut_state.tx() * ut_state.tx() * ut_state.tx(),
-                             ut_state.tx() * ut_state.tx() * ut_state.tx() * ut_state.tx()};
+    const float tx_pow[5] = {
+      1,
+      ut_state.tx(),
+      ut_state.tx() * ut_state.tx(),
+      ut_state.tx() * ut_state.tx() * ut_state.tx(),
+      ut_state.tx() * ut_state.tx() * ut_state.tx() * ut_state.tx()};
 
-    const float ty_pow[5] = {1,
-                             ut_state.ty() * (-1.f) * magnet_polarity,
-                             ut_state.ty() * ut_state.ty(),
-                             ut_state.ty() * ut_state.ty() * ut_state.ty() * (-1.f) * magnet_polarity,
-                             ut_state.ty() * ut_state.ty() * ut_state.ty() * ut_state.ty()};
+    const float ty_pow[5] = {
+      1,
+      ut_state.ty() * (-1.f) * magnet_polarity,
+      ut_state.ty() * ut_state.ty(),
+      ut_state.ty() * ut_state.ty() * ut_state.ty() * (-1.f) * magnet_polarity,
+      ut_state.ty() * ut_state.ty() * ut_state.ty() * ut_state.ty()};
 
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {

@@ -101,9 +101,10 @@ namespace VertexFit {
     Allen::Property<float> m_maxassocipchi2 {this, "max_assoc_ipchi2", 16.0f, "maximum IP chi2 to associate to PV"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
 
-    Allen::Monitoring::Histogram<> m_histogram_nsvs {this,
-                                                     "number_of_svs",
-                                                     "NSVs",
-                                                     {VertexFit::max_svs + 1, -0.5f, VertexFit::max_svs + 0.5}};
+    Allen::Monitoring::Histogram<> m_histogram_nsvs {
+      this,
+      "number_of_svs",
+      "NSVs",
+      {VertexFit::max_svs + 1, -0.5f, VertexFit::max_svs + 0.5}};
   };
 } // namespace VertexFit

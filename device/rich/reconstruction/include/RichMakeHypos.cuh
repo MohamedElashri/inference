@@ -58,10 +58,11 @@ namespace rich_make_hypos {
       "MirrorShiftCorr",
       {350, 1500},
       "z shift values to move state to be on the 'inside' of the primary mirrors."};
-    Allen::Property<Allen::Rich::DetectorArray<float>> m_radScale {this,
-                                                                   "RadScale",
-                                                                   {0.0117f, -0.021f},
-                                                                   "Rich1Gas, Rich2Gas"};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_radScale {
+      this,
+      "RadScale",
+      {0.0117f, -0.021f},
+      "Rich1Gas, Rich2Gas"};
     Allen::Property<Allen::Rich::DetectorArray<float>> m_minRadLength {
       this,
       "MinRadiatorPathLength",

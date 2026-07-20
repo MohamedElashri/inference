@@ -8,13 +8,12 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from os import path, listdir, mkdir
-from sys import argv, exit, byteorder
-from binascii import unhexlify
+from os import listdir, mkdir, path
 from random import randint
+from sys import argv, byteorder, exit
 
 banksize = 56
-bankmagic = 0xcbcb
+bankmagic = 0xCBCB
 banksource = 0
 bankversion = 3
 banktype = 0x10
@@ -57,18 +56,18 @@ for filename in files:
     output.write(bankversion.to_bytes(1, byteorder))
     output.write(banktype.to_bytes(1, byteorder))
     output.write(int(runno).to_bytes(4, byteorder))
-    output.write(int(eventtype).to_bytes(4, byteorder))  #Event type(4bytes)
-    output.write(int(0).to_bytes(4, byteorder))  #Orbit ID(4bytes)
+    output.write(int(eventtype).to_bytes(4, byteorder))  # Event type(4bytes)
+    output.write(int(0).to_bytes(4, byteorder))  # Orbit ID(4bytes)
     output.write(int(int(evtno) / 0x100000000).to_bytes(4, byteorder))
     output.write(int(int(evtno) % 0x100000000).to_bytes(4, byteorder))
     output.write(int(gpstime / 0x100000000).to_bytes(4, byteorder))
     output.write(int(gpstime % 0x100000000).to_bytes(4, byteorder))
-    output.write(int(0).to_bytes(4, byteorder))  #Error bits(1), Det status(3)
-    output.write(int(word8bytes10).to_bytes(2,
-                                            byteorder))  #reserved/bunch ID (2)
-    output.write(int(word8byte2).to_bytes(
-        1, byteorder))  #BXtype/F/RoT/Trigger type (1)
-    output.write(int(bunchcurrent).to_bytes(1, byteorder))  #Bunch current(1)
-    output.write(int(0).to_bytes(12, byteorder))  #TCK(12)
+    output.write(int(0).to_bytes(4, byteorder))  # Error bits(1), Det status(3)
+    output.write(int(word8bytes10).to_bytes(2, byteorder))  # reserved/bunch ID (2)
+    output.write(
+        int(word8byte2).to_bytes(1, byteorder)
+    )  # BXtype/F/RoT/Trigger type (1)
+    output.write(int(bunchcurrent).to_bytes(1, byteorder))  # Bunch current(1)
+    output.write(int(0).to_bytes(12, byteorder))  # TCK(12)
     output.close()
     gpstime += 1

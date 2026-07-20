@@ -60,12 +60,13 @@ public:
       auto data_size = static_cast<span_size_t<char const>>(banks.data.size());
       std::span<char const> b {banks.data.data(), data_size};
 
-      m_banks_and_offsets[i] = {{std::move(b)},
-                                {banks.offsets.data(), banks.offsets.size()},
-                                static_cast<std::size_t>(data_size),
-                                {banks.sizes.data(), banks.sizes.size()},
-                                {banks.types.data(), banks.types.size()},
-                                banks.version};
+      m_banks_and_offsets[i] = {
+        {std::move(b)},
+        {banks.offsets.data(), banks.offsets.size()},
+        static_cast<std::size_t>(data_size),
+        {banks.sizes.data(), banks.sizes.size()},
+        {banks.types.data(), banks.types.size()},
+        banks.version};
     }
 
     return 0;

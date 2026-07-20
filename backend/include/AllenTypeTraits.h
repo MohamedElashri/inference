@@ -139,8 +139,7 @@ struct tuple_ref_index<Base, std::tuple<Head, Tail...>, I>
   : std::conditional_t<
       std::is_base_of_v<std::decay_t<Base>, std::decay_t<Head>>,
       std::integral_constant<std::size_t, I>,
-      tuple_ref_index<Base, std::tuple<Tail...>, I + 1>> {
-};
+      tuple_ref_index<Base, std::tuple<Tail...>, I + 1>> {};
 
 template<typename Base, typename Tuple>
 auto tuple_ref_by_inheritance(Tuple&& tuple)
@@ -201,49 +200,39 @@ namespace Allen {
   // the best way. You could use the Detection Idiom, for example
   // (http://en.cppreference.com/w/cpp/experimental/is_detected).
   template<typename T, typename = void>
-  struct has_init_member_fn : std::false_type {
-  };
+  struct has_init_member_fn : std::false_type {};
 
   // std::void_t is a C++17 library feature. It can be replaced
   // with your own implementation of void_t, or often by making the
   // decltype expression void, whether by casting or by comma operator
   // (`decltype(expr, void())`)
   template<typename T>
-  struct has_init_member_fn<T, std::void_t<decltype(std::declval<T>().init())>> : std::true_type {
-  };
+  struct has_init_member_fn<T, std::void_t<decltype(std::declval<T>().init())>> : std::true_type {};
 
   template<typename T, typename Base0, template<typename...> class Base1, typename = void>
-  struct has_dev_particle_container : std::false_type {
-  };
+  struct has_dev_particle_container : std::false_type {};
   template<typename T, typename Base0, template<typename...> class Base1>
   struct has_dev_particle_container<T, Base0, Base1, std::void_t<typename T::dev_particle_container_t>>
     : std::integral_constant<
         bool,
         std::is_base_of_v<Base0, typename T::dev_particle_container_t> &&
-          is_template_base_of_v<Base1, typename T::dev_particle_container_t>> {
-  };
+          is_template_base_of_v<Base1, typename T::dev_particle_container_t>> {};
 
   template<typename T, typename = void>
-  struct has_monitoring_types : std::false_type {
-  };
+  struct has_monitoring_types : std::false_type {};
   template<typename T>
-  struct has_monitoring_types<T, std::void_t<typename T::monitoring_types>> : std::true_type {
-  };
+  struct has_monitoring_types<T, std::void_t<typename T::monitoring_types>> : std::true_type {};
 
   template<typename T1, typename = void>
-  struct monitoring_has_evtNo : std::false_type {
-  };
+  struct monitoring_has_evtNo : std::false_type {};
 
   template<typename T1>
-  struct monitoring_has_evtNo<T1, std::void_t<typename T1::evtNo_t>> : std::true_type {
-  };
+  struct monitoring_has_evtNo<T1, std::void_t<typename T1::evtNo_t>> : std::true_type {};
 
   template<typename T1, typename = void>
-  struct monitoring_has_runNo : std::false_type {
-  };
+  struct monitoring_has_runNo : std::false_type {};
   template<typename T1>
-  struct monitoring_has_runNo<T1, std::void_t<typename T1::runNo_t>> : std::true_type {
-  };
+  struct monitoring_has_runNo<T1, std::void_t<typename T1::runNo_t>> : std::true_type {};
 
   template<typename T>
   void initialize_algorithm(T& alg)
@@ -254,8 +243,7 @@ namespace Allen {
   }
 
   template<typename T>
-  struct is_trivially_copyable : std::is_trivially_copyable<T> {
-  };
+  struct is_trivially_copyable : std::is_trivially_copyable<T> {};
 
   template<typename T>
   inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;

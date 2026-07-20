@@ -8,17 +8,17 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import itertools
-import functools
 import ast
-import sympy
+import functools
+import itertools
 import sys
-from pyeda.inter import *
-from pyeda.boolalg.expr import AndOp, OrOp
-from collections import defaultdict, OrderedDict
-from PyConf.control_flow import CompositeNode, NodeLogic
+from collections import OrderedDict, defaultdict
 from functools import lru_cache
-from PyConf.components import _get_unique_name, Algorithm
+
+from PyConf.components import Algorithm
+from PyConf.control_flow import CompositeNode
+from pyeda.boolalg.expr import AndOp, OrOp
+from pyeda.inter import *
 
 algorithms = dict()
 
@@ -36,8 +36,8 @@ class BoolNode:
 
     def __init__(self, combine_logic, children):
         assert all(
-            isinstance(c, Algorithm) or isinstance(c, BoolNode)
-            for c in children)
+            isinstance(c, Algorithm) or isinstance(c, BoolNode) for c in children
+        )
         assert combine_logic in (self.AND, self.OR, self.NOT)
         self.children = tuple(c for c in children)
         self.combine_logic = combine_logic
@@ -58,18 +58,22 @@ class BoolNode:
         return to_string(self)
 
     def __hash__(self):
-        return hash((
-            self.children,
-            self.combine_logic,
-        ))
+        return hash(
+            (
+                self.children,
+                self.combine_logic,
+            )
+        )
 
     def __eq__(self, other):
         return hash(self) == hash(other)
 
 
 def pyeda_to_string(expr):
-    if str(expr) == "1": return "true"
-    if str(expr) == "0": return "false"
+    if str(expr) == "1":
+        return "true"
+    if str(expr) == "0":
+        return "false"
     if isinstance(expr, OrOp):
         return "(" + " | ".join([pyeda_to_string(e) for e in expr.xs]) + ")"
     if isinstance(expr, AndOp):
@@ -86,14 +90,14 @@ def simplify(string):
     """
     # traveral of pyeda's ast can reach recursion limit of 1000 on some expressions...
     sys.setrecursionlimit(10000)
-    string = string.replace("false", '0')
-    string = pyeda_to_string(
-        espresso_exprs(expr(string, simplify=True).to_dnf())[0])
-    if string == 'true': return string
-    string = string.replace('true', '1')
-    if (str(expr(string, simplify=True)) == "1"): return "true"
-    string = pyeda_to_string(
-        espresso_exprs(expr(string, simplify=True).to_dnf())[0])
+    string = string.replace("false", "0")
+    string = pyeda_to_string(espresso_exprs(expr(string, simplify=True).to_dnf())[0])
+    if string == "true":
+        return string
+    string = string.replace("true", "1")
+    if str(expr(string, simplify=True)) == "1":
+        return "true"
+    string = pyeda_to_string(espresso_exprs(expr(string, simplify=True).to_dnf())[0])
     return string
 
 
@@ -117,22 +121,22 @@ def get_ordered_trees(node):
        ]
     """
     if isinstance(node, Algorithm):
-        return (node, )
+        return (node,)
     elif isinstance(node, CompositeNode):
         if not node.force_order and node.is_lazy:
             return [
-                CompositeNode(
-                    node.name, x, node.combine_logic, force_order=True)
+                CompositeNode(node.name, x, node.combine_logic, force_order=True)
                 for children in itertools.permutations(
-                    tuple(get_ordered_trees(c) for c in node.children))
+                    tuple(get_ordered_trees(c) for c in node.children)
+                )
                 for x in itertools.product(*children)
             ]
         else:
             return [
-                CompositeNode(
-                    node.name, x, node.combine_logic, force_order=True)
-                for x in itertools.product(*tuple(
-                    get_ordered_trees(c) for c in node.children))
+                CompositeNode(node.name, x, node.combine_logic, force_order=True)
+                for x in itertools.product(
+                    *tuple(get_ordered_trees(c) for c in node.children)
+                )
             ]
     else:
         raise TypeError("please provide CompositeNodes or Algorithms.")
@@ -159,14 +163,11 @@ def to_string(node):
         if node.uses_not:
             return f"~{to_string(node.children[0])}"
         elif node.uses_and:
-            return ("(" + f" & ".join([to_string(c)
-                                       for c in node.children]) + ")")
+            return "(" + " & ".join([to_string(c) for c in node.children]) + ")"
         elif node.uses_or:
-            return ("(" + f" | ".join([to_string(c)
-                                       for c in node.children]) + ")")
+            return "(" + " | ".join([to_string(c) for c in node.children]) + ")"
     else:
-        raise TypeError(
-            "please provide CompositeNodes, BoolNodes or Algorithms.")
+        raise TypeError("please provide CompositeNodes, BoolNodes or Algorithms.")
 
 
 def gather_leafs(node):
@@ -185,9 +186,9 @@ def gather_leafs(node):
 
 
 def gather_algs(node):
-    return frozenset([
-        alg for leaf in gather_leafs(node) for alg in leaf.all_producers(False)
-    ])
+    return frozenset(
+        [alg for leaf in gather_leafs(node) for alg in leaf.all_producers(False)]
+    )
 
 
 @lru_cache(1000)
@@ -204,7 +205,8 @@ def parse_boolean(expr):
         return None
     elif expr.lower() == "false":
         raise ValueError(
-            "your tree will never evaluate to true, do you really want this?")
+            "your tree will never evaluate to true, do you really want this?"
+        )
 
     def build_tree(node):
         if isinstance(node, ast.BinOp):
@@ -219,11 +221,10 @@ def parse_boolean(expr):
                     (build_tree(node.left), build_tree(node.right)),
                 )
             else:
-                raise NotImplementedError(
-                    "Unexpected binary operation in node")
+                raise NotImplementedError("Unexpected binary operation in node")
         elif isinstance(node, ast.UnaryOp):
             if isinstance(node.op, ast.Invert):
-                return BoolNode(BoolNode.NOT, (build_tree(node.operand), ))
+                return BoolNode(BoolNode.NOT, (build_tree(node.operand),))
             else:
                 raise NotImplementedError("Unexpected unary operation in node")
         elif isinstance(node, ast.Name):
@@ -255,8 +256,9 @@ def find_execution_masks_for_algorithms(root, execution_mask="true"):
 
     @returns tree decorated with execution masks."""
 
-    def impl(node, execution_mask="true"
-             ):  # for sympy.simplify we need lower case true and false
+    def impl(
+        node, execution_mask="true"
+    ):  # for sympy.simplify we need lower case true and false
         if isinstance(node, Algorithm):
             # TODO do we want to keep these if statements?
             # do we have a RL usecase for average efficiencies of 0 and 1?
@@ -268,8 +270,9 @@ def find_execution_masks_for_algorithms(root, execution_mask="true"):
                 leafmask == "false"
             else:
                 leafmask = node.name
-            return [(algorithm, execution_mask)
-                    for algorithm in node.all_producers(False)], leafmask
+            return [
+                (algorithm, execution_mask) for algorithm in node.all_producers(False)
+            ], leafmask
         elif isinstance(node, CompositeNode):
             outputs = []
             output_names = []
@@ -277,39 +280,36 @@ def find_execution_masks_for_algorithms(root, execution_mask="true"):
                 for child in node.children:
                     if node.is_lazy:
                         output, output_name = impl(
-                            child, " & ".join([execution_mask] + output_names))
+                            child, " & ".join([execution_mask] + output_names)
+                        )
                     else:
                         output, output_name = impl(child, execution_mask)
                     outputs.append(output)
                     output_names.append(output_name)
                 return (
                     [x for output in outputs for x in output],
-                    "(" + execution_mask + " & (" + " & ".join(output_names) +
-                    "))",
+                    "(" + execution_mask + " & (" + " & ".join(output_names) + "))",
                 )
             elif node.uses_or:
                 for child in node.children:
                     if node.is_lazy:
                         output, output_name = impl(
-                            child,
-                            " & ~ ".join([execution_mask] + output_names))
+                            child, " & ~ ".join([execution_mask] + output_names)
+                        )
                     else:
                         output, output_name = impl(child, execution_mask)
                     outputs.append(output)
                     output_names.append(output_name)
                 return (
                     [x for output in outputs for x in output],
-                    "(" + execution_mask + " & (" + " | ".join(output_names) +
-                    "))",
+                    "(" + execution_mask + " & (" + " | ".join(output_names) + "))",
                 )
             elif node.uses_not:
                 output, output_name = impl(node.children[0], execution_mask)
-                return (output,
-                        "(" + execution_mask + " & ~ (" + output_name + "))")
+                return (output, "(" + execution_mask + " & ~ (" + output_name + "))")
 
     # return impl(root, execution_mask)[0]
-    return [(alg, simplify(mask))
-            for alg, mask in impl(root, execution_mask)[0]]
+    return [(alg, simplify(mask)) for alg, mask in impl(root, execution_mask)[0]]
 
 
 def merge_execution_masks(execution_masks):
@@ -379,8 +379,9 @@ def make_independent_of_algs(node, algs):
 
     mini_repr = to_string(node)
     all_reprs = []
-    for decisions in itertools.product(*(["true", "false"]
-                                         for _ in unknown_outcome_algs)):
+    for decisions in itertools.product(
+        *(["true", "false"] for _ in unknown_outcome_algs)
+    ):
         curr_repr = mini_repr
         for i, leaf in enumerate(unknown_outcome_algs):
             curr_repr = curr_repr.replace(leaf.name, decisions[i])
@@ -456,12 +457,13 @@ def order_algs(alg_dependencies):
             # TODO review this logic
             alg = min(
                 insertable_algorithms,
-                key=
-                lambda x: get_weight(x, algorithms_already_sortd) * avrg_efficiency(alg_dependencies[x][2]),
+                key=lambda x: get_weight(x, algorithms_already_sortd)
+                * avrg_efficiency(alg_dependencies[x][2]),
             )
             minitree = alg_dependencies[alg][2]
-            score += get_weight(
-                alg, algorithms_already_sortd) * avrg_efficiency(minitree)
+            score += get_weight(alg, algorithms_already_sortd) * avrg_efficiency(
+                minitree
+            )
             sortd[algs.pop(algs.index(alg))] = minitree
         else:
             # there is no algorithm that can be executed next
@@ -480,8 +482,7 @@ def order_algs(alg_dependencies):
                 eval_mask = alg_dependencies[alg][2]
                 # now, lets see how the eval mask looks without the unknown outcomes
                 not_in_sortd = alg_dependencies[alg][0].difference(sortd)
-                eval_mask = make_independent_of_algs(eval_mask,
-                                                     frozenset(not_in_sortd))
+                eval_mask = make_independent_of_algs(eval_mask, frozenset(not_in_sortd))
                 efficiency = avrg_efficiency(eval_mask)
                 return weight * efficiency
 
@@ -493,8 +494,7 @@ def order_algs(alg_dependencies):
             alg = min(viable_algs, key=_get_adjusted_weight)
             eval_mask = alg_dependencies[alg][2]
             not_in_sortd = alg_dependencies[alg][0].difference(sortd)
-            eval_mask = make_independent_of_algs(eval_mask,
-                                                 frozenset(not_in_sortd))
+            eval_mask = make_independent_of_algs(eval_mask, frozenset(not_in_sortd))
             avrg_eff = avrg_efficiency(eval_mask)
             score += avrg_eff * get_weight(alg, algorithms_already_sortd)
             sortd[algs.pop(algs.index(alg))] = eval_mask

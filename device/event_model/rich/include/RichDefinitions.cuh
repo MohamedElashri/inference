@@ -65,9 +65,10 @@ namespace Allen::Rich {
   /// Matrix-point transform3D, adapted from ROOT::Math
   __host__ __device__ inline Point transform3DTimesPoint(Transform3D fM, Point point)
   {
-    return Point {fM[0] * point.x + fM[1] * point.y + fM[2] * point.z + fM[3],
-                  fM[4] * point.x + fM[5] * point.y + fM[6] * point.z + fM[7],
-                  fM[8] * point.x + fM[9] * point.y + fM[10] * point.z + fM[11]};
+    return Point {
+      fM[0] * point.x + fM[1] * point.y + fM[2] * point.z + fM[3],
+      fM[4] * point.x + fM[5] * point.y + fM[6] * point.z + fM[7],
+      fM[8] * point.x + fM[9] * point.y + fM[10] * point.z + fM[11]};
   }
 
   // Distance plane-point taken from https://root.cern/root/html516/src/ROOT__Math__Plane3D.cxx.html#hsnfzB
@@ -171,9 +172,10 @@ namespace Allen::Rich {
     const float scalar = direction.x * plane[0] + direction.y * plane[1] + direction.z * plane[2];
     const float planeScalarDistance = distance(plane, position) / scalar;
     // compute plane intersection
-    return Point {position.x - direction.x * planeScalarDistance,
-                  position.y - direction.y * planeScalarDistance,
-                  position.z - direction.z * planeScalarDistance};
+    return Point {
+      position.x - direction.x * planeScalarDistance,
+      position.y - direction.y * planeScalarDistance,
+      position.z - direction.z * planeScalarDistance};
   }
 
   /** Ray trace from given position in given direction off flat mirrors
@@ -418,8 +420,8 @@ namespace Allen::Rich::Decoding {
     static const IntType Shift0 = 0;
     static const IntType Shift1 = Shift0 + Bits0;
     // masks
-    static const IntType Mask0 = (IntType)((1 << Bits0) - 1) << Shift0;
-    static const IntType Mask1 = (IntType)((1 << Bits1) - 1) << Shift1;
+    static const IntType Mask0 = (IntType) ((1 << Bits0) - 1) << Shift0;
+    static const IntType Mask1 = (IntType) ((1 << Bits1) - 1) << Shift1;
     // max values
     static const IntType Max0 = (1 << Bits0) - 1;
     static const IntType Max1 = (1 << Bits1) - 1;

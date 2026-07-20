@@ -27,4 +27,3 @@ target_link_libraries(Lumi PRIVATE
 target_include_directories(Lumi PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/configuration/sequences>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-

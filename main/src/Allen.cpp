@@ -339,14 +339,15 @@ int allen(
 
   std::vector<std::unique_ptr<Stream>> streams;
   for (unsigned t = 0; t < number_of_threads; ++t) {
-    streams.emplace_back(new Stream {t,
-                                     config_reader.configured_sequence(),
-                                     sched_seq,
-                                     print_memory_usage,
-                                     reserve_mb,
-                                     device_memory_alignment,
-                                     constants,
-                                     buffers_manager.get()});
+    streams.emplace_back(new Stream {
+      t,
+      config_reader.configured_sequence(),
+      sched_seq,
+      print_memory_usage,
+      reserve_mb,
+      device_memory_alignment,
+      constants,
+      buffers_manager.get()});
   }
 
   // Print configured sequence
@@ -389,19 +390,20 @@ int allen(
     // memory management for Allen-in-Moore. When called from here it
     // shouldn't be managed, so provide an empty deleter.
     std::shared_ptr<IInputProvider> provider {input_provider, [](IInputProvider*) {}};
-    return std::thread {run_stream,
-                        thread_id,
-                        stream_id,
-                        device_id,
-                        streams[stream_id].get(),
-                        std::move(provider),
-                        zmqSvc,
-                        checker_invoker.get(),
-                        root_service.get(),
-                        io_conf.number_of_repetitions,
-                        input_provider->layout() == IInputProvider::Layout::MEP,
-                        inject_mem_fail,
-                        prefer_shared};
+    return std::thread {
+      run_stream,
+      thread_id,
+      stream_id,
+      device_id,
+      streams[stream_id].get(),
+      std::move(provider),
+      zmqSvc,
+      checker_invoker.get(),
+      root_service.get(),
+      io_conf.number_of_repetitions,
+      input_provider->layout() == IInputProvider::Layout::MEP,
+      inject_mem_fail,
+      prefer_shared};
   };
 
   // Lambda with the execution of the input thread that polls the
@@ -461,27 +463,32 @@ int allen(
 
   // Start all workers and check if the threads are ready
   size_t thread_id = 0;
-  for (auto& [workers, start, n, type, handle] : {std::tuple {&stream_threads,
-                                                              start_thread {stream_thread},
-                                                              number_of_threads,
-                                                              std::string("GPU"),
-                                                              handle_ready {handle_stream_ready}},
-                                                  std::tuple {&io_workers,
-                                                              start_thread {slice_thread},
-                                                              static_cast<unsigned>(n_input),
-                                                              std::string("Slices"),
-                                                              handle_ready {handle_default_ready}},
-                                                  std::tuple {&io_workers,
-                                                              start_thread {output_thread},
-                                                              static_cast<unsigned>(n_write),
-                                                              std::string("Output"),
-                                                              handle_ready {handle_default_ready}},
+  for (auto& [workers, start, n, type, handle] :
+       {std::tuple {
+          &stream_threads,
+          start_thread {stream_thread},
+          number_of_threads,
+          std::string("GPU"),
+          handle_ready {handle_stream_ready}},
+        std::tuple {
+          &io_workers,
+          start_thread {slice_thread},
+          static_cast<unsigned>(n_input),
+          std::string("Slices"),
+          handle_ready {handle_default_ready}},
+        std::tuple {
+          &io_workers,
+          start_thread {output_thread},
+          static_cast<unsigned>(n_write),
+          std::string("Output"),
+          handle_ready {handle_default_ready}},
 #ifndef ALLEN_STANDALONE
-                                                  std::tuple {&agg_workers,
-                                                              start_thread {agg_thread},
-                                                              static_cast<unsigned>(n_agg),
-                                                              std::string("Agg"),
-                                                              handle_ready {handle_default_ready}}
+        std::tuple {
+          &agg_workers,
+          start_thread {agg_thread},
+          static_cast<unsigned>(n_agg),
+          std::string("Agg"),
+          handle_ready {handle_default_ready}}
 #endif
        }) {
     size_t n_ready = 0;

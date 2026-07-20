@@ -27,7 +27,8 @@ def gen_header(header=True):
 // *** Auto-generated file do not edit *** //
 
 """
-    if header: c += "#pragma once\n\n"
+    if header:
+        c += "#pragma once\n\n"
     return c
 
 
@@ -43,15 +44,17 @@ def gen_exch_inter(N, with_val=True):
         c += "template<typename K>\n"
         c += f"__device__ inline void exch_inter_keys({', '.join(args)}, unsigned mask, const bool bit) {{\n"
     c += "  K ex_k0, ex_k1;\n"
-    if with_val: c += "  unsigned ex_v0, ex_v1;\n"
-    var_names = ['k']
-    if with_val: var_names = ['k', 'v']
+    if with_val:
+        c += "  unsigned ex_v0, ex_v1;\n"
+    var_names = ["k"]
+    if with_val:
+        var_names = ["k", "v"]
     if N > 2:
         for i in range(N // 2):
             if with_val:
-                c += f"  cond_swap_regs(bit, k{i}, k{N-1-(i^1)}, v{i}, v{N-1-(i^1)});\n"
+                c += f"  cond_swap_regs(bit, k{i}, k{N - 1 - (i ^ 1)}, v{i}, v{N - 1 - (i ^ 1)});\n"
             else:
-                c += f"  cond_swap_regs(bit, k{i}, k{N-1-(i^1)});\n"
+                c += f"  cond_swap_regs(bit, k{i}, k{N - 1 - (i ^ 1)});\n"
     if N == 1:
         for var in var_names:
             c += f"  ex_{var}0 = {var}0;\n"
@@ -65,21 +68,21 @@ def gen_exch_inter(N, with_val=True):
     else:
         for i in range(N // 2):
             for var in var_names:
-                c += f"  ex_{var}0 = {var}{i*2};\n"
-                c += f"  ex_{var}1 = __shfl_xor_sync(0xFFFFFFFF, {var}{i*2+1}, mask);\n"
+                c += f"  ex_{var}0 = {var}{i * 2};\n"
+                c += f"  ex_{var}1 = __shfl_xor_sync(0xFFFFFFFF, {var}{i * 2 + 1}, mask);\n"
             if with_val:
                 c += "  cond_swap_regs((ex_k0 > ex_k1) ^ (bit && ex_k0 != ex_k1), ex_k0, ex_k1, ex_v0, ex_v1);\n"
             else:
                 c += "  cond_swap_regs((ex_k0 > ex_k1) ^ (bit && ex_k0 != ex_k1), ex_k0, ex_k1);\n"
             for var in var_names:
-                c += f"  {var}{i*2} = ex_{var}0;\n"
-                c += f"  {var}{i*2+1} = __shfl_xor_sync(0xFFFFFFFF, ex_{var}1, mask);\n"
+                c += f"  {var}{i * 2} = ex_{var}0;\n"
+                c += f"  {var}{i * 2 + 1} = __shfl_xor_sync(0xFFFFFFFF, ex_{var}1, mask);\n"
     if N > 2:
         for i in range(N // 2):
             if with_val:
-                c += f"  cond_swap_regs(bit, k{i}, k{N-1-(i^1)}, v{i}, v{N-1-(i^1)});\n"
+                c += f"  cond_swap_regs(bit, k{i}, k{N - 1 - (i ^ 1)}, v{i}, v{N - 1 - (i ^ 1)});\n"
             else:
-                c += f"  cond_swap_regs(bit, k{i}, k{N-1-(i^1)});\n"
+                c += f"  cond_swap_regs(bit, k{i}, k{N - 1 - (i ^ 1)});\n"
     c += "}\n\n"
     return c
 
@@ -96,30 +99,32 @@ def gen_exch_paral(N, with_val=True):
         c += "template<typename K>\n"
         c += f"__device__ inline void exch_paral_keys({', '.join(args)}, unsigned mask, const bool bit) {{\n"
     c += "  K ex_k0, ex_k1;\n"
-    if with_val: c += "  unsigned ex_v0, ex_v1;\n"
-    var_names = ['k']
-    if with_val: var_names = ['k', 'v']
+    if with_val:
+        c += "  unsigned ex_v0, ex_v1;\n"
+    var_names = ["k"]
+    if with_val:
+        var_names = ["k", "v"]
     for i in range(N // 2):
         if with_val:
-            c += f"  cond_swap_regs(bit, k{i*2}, k{i*2+1}, v{i*2}, v{i*2+1});\n"
+            c += f"  cond_swap_regs(bit, k{i * 2}, k{i * 2 + 1}, v{i * 2}, v{i * 2 + 1});\n"
         else:
-            c += f"  cond_swap_regs(bit, k{i*2}, k{i*2+1});\n"
+            c += f"  cond_swap_regs(bit, k{i * 2}, k{i * 2 + 1});\n"
     for i in range(N // 2):
         for var in var_names:
-            c += f"  ex_{var}0 = {var}{i*2};\n"
-            c += f"  ex_{var}1 = __shfl_xor_sync(0xFFFFFFFF, {var}{i*2+1}, mask);\n"
+            c += f"  ex_{var}0 = {var}{i * 2};\n"
+            c += f"  ex_{var}1 = __shfl_xor_sync(0xFFFFFFFF, {var}{i * 2 + 1}, mask);\n"
         if with_val:
             c += "  cond_swap_regs((ex_k0 > ex_k1) ^ (bit && ex_k0 != ex_k1), ex_k0, ex_k1, ex_v0, ex_v1);\n"
         else:
             c += "  cond_swap_regs((ex_k0 > ex_k1) ^ (bit && ex_k0 != ex_k1), ex_k0, ex_k1);\n"
         for var in var_names:
-            c += f"  {var}{i*2} = ex_{var}0;\n"
-            c += f"  {var}{i*2+1} = __shfl_xor_sync(0xFFFFFFFF, ex_{var}1, mask);\n"
+            c += f"  {var}{i * 2} = ex_{var}0;\n"
+            c += f"  {var}{i * 2 + 1} = __shfl_xor_sync(0xFFFFFFFF, ex_{var}1, mask);\n"
     for i in range(N // 2):
         if with_val:
-            c += f"  cond_swap_regs(bit, k{i*2}, k{i*2+1}, v{i*2}, v{i*2+1});\n"
+            c += f"  cond_swap_regs(bit, k{i * 2}, k{i * 2 + 1}, v{i * 2}, v{i * 2 + 1});\n"
         else:
-            c += f"  cond_swap_regs(bit, k{i*2}, k{i*2+1});\n"
+            c += f"  cond_swap_regs(bit, k{i * 2}, k{i * 2 + 1});\n"
     c += "}\n\n"
     return c
 
@@ -128,7 +133,8 @@ def call_local_exch(ept, rmask, with_val=True):
     c = ""
     used = []
     for i in range(ept):
-        if i in used: continue
+        if i in used:
+            continue
         a = i
         b = i ^ rmask
         if with_val:
@@ -166,17 +172,17 @@ def gen_regsort_function(threads, ept, with_perm=True):
     c = f"// {threads * ept} = {threads} threads x {ept} elements per thread\n"
     c += "template<typename KeyType>\n"
     if with_perm:
-        c += f"__device__ void regsort_{threads*ept}_{threads}t_{ept}ept_f(unsigned start, unsigned size, const KeyType* keys, unsigned* permutations) {{\n"
+        c += f"__device__ void regsort_{threads * ept}_{threads}t_{ept}ept_f(unsigned start, unsigned size, const KeyType* keys, unsigned* permutations) {{\n"
     else:
-        c += f"__device__ void regsort_{threads*ept}_{threads}t_{ept}ept_f(unsigned start, unsigned size, KeyType* keys) {{\n"
-    c += f"  unsigned tid = threadIdx.x & {threads-1};\n"
+        c += f"__device__ void regsort_{threads * ept}_{threads}t_{ept}ept_f(unsigned start, unsigned size, KeyType* keys) {{\n"
+    c += f"  unsigned tid = threadIdx.x & {threads - 1};\n"
     for i in range(int(math.log2(threads))):
         c += f"  const bool bit{i} = (tid >> {i}) & 1;\n"  # TODO: predicate packing ?
     c += f"  KeyType {', '.join(rg_k)};\n"
     c += f"  unsigned {', '.join(rg_v)};\n"
     # LOAD
     for i in range(ept):
-        c += f"  {rg_v[i]} = tid + {i*threads};\n"
+        c += f"  {rg_v[i]} = tid + {i * threads};\n"
     for i in range(ept):
         c += f"  {rg_k[i]} = ({rg_v[i]} < size) ? keys[start + {rg_v[i]}] : std::numeric_limits<KeyType>::max();\n"
     c += "\n  {\n"
@@ -188,10 +194,10 @@ def gen_regsort_function(threads, ept, with_perm=True):
     step = 1
     for l in range(log_size, 0, -1):
         step += 1
-        n_groups = 2**(l - 1)
-        n_thread_groups = 2**(min(log_threads, l - 1))
-        elements_per_group = 2**(log_size - l + 1)
-        threads_per_group = 2**(log_threads - min(log_threads, l - 1))
+        n_groups = 2 ** (l - 1)
+        n_thread_groups = 2 ** (min(log_threads, l - 1))
+        elements_per_group = 2 ** (log_size - l + 1)
+        threads_per_group = 2 ** (log_threads - min(log_threads, l - 1))
         if threads_per_group == 1:
             rmask = elements_per_group - 1
             c += call_local_exch(ept, rmask, with_val=with_perm)
@@ -201,10 +207,10 @@ def gen_regsort_function(threads, ept, with_perm=True):
             c += call_inter_exch(ept, tmask, swbit, with_val=with_perm)
         for k in range(l + 1, log_size + 1):
             step += 1
-            n_groups = 2**(k - 1)
-            n_thread_groups = 2**(min(log_threads, k - 1))
-            elements_per_group = 2**(log_size - k + 1)
-            threads_per_group = 2**(log_threads - min(log_threads, k - 1))
+            n_groups = 2 ** (k - 1)  # noqa: F841
+            n_thread_groups = 2 ** (min(log_threads, k - 1))  # noqa: F841
+            elements_per_group = 2 ** (log_size - k + 1)
+            threads_per_group = 2 ** (log_threads - min(log_threads, k - 1))
             if threads_per_group == 1:
                 rmask = elements_per_group - 1
                 rmask = rmask - rmask // 2
@@ -219,7 +225,7 @@ def gen_regsort_function(threads, ept, with_perm=True):
     # STORE BACK
     if with_perm:
         for i in range(ept):
-            #c += f"    if (tid * {ept} + {i} < size) permutations[start + {rg_v[i]}] = start + tid * {ept} + {i};\n"
+            # c += f"    if (tid * {ept} + {i} < size) permutations[start + {rg_v[i]}] = start + tid * {ept} + {i};\n"
             c += f"  if (tid * {ept} + {i} < size) permutations[start + tid * {ept} + {i}] = start + {rg_v[i]};\n"
     else:
         for i in range(ept):
@@ -285,6 +291,6 @@ def gen_regsort_functions(filename):
         f.write(c)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     gen_exch_header("../include/regsort_exch.h")
     gen_regsort_functions("../include/regsort_functions.cuh")

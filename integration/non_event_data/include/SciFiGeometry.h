@@ -108,13 +108,14 @@ namespace Allen::Conditions {
           unsigned n_measurements = 0;
           unsigned index_layer = (i_station - 1) * number_of_layers_per_station + i_layer;
           LHCb::Detector::FTChannelID::LayerID layer_id {i_layer};
-          auto const& layer = det.findLayer(LHCb::Detector::FTChannelID {station_id,
-                                                                         layer_id,
-                                                                         LHCb::Detector::FTChannelID::QuarterID {0u},
-                                                                         LHCb::Detector::FTChannelID::ModuleID {0u},
-                                                                         LHCb::Detector::FTChannelID::MatID {0u},
-                                                                         0u,
-                                                                         0u});
+          auto const& layer = det.findLayer(LHCb::Detector::FTChannelID {
+            station_id,
+            layer_id,
+            LHCb::Detector::FTChannelID::QuarterID {0u},
+            LHCb::Detector::FTChannelID::ModuleID {0u},
+            LHCb::Detector::FTChannelID::MatID {0u},
+            0u,
+            0u});
           for (unsigned i_quarter = 0; i_quarter < number_of_quarters_per_layer; ++i_quarter) {
             LHCb::Detector::FTChannelID::QuarterID quarter_id {i_quarter};
             LHCb::Detector::FTChannelID quarterChanID(

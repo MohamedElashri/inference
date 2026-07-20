@@ -81,12 +81,13 @@ namespace {
   // detM
   __device__ float fitXZ(const hybrid_seeding::CaseLayers& currentCase, seed_xz::multiHitCombination& hitComb)
   {
-    const unsigned int layers[6] = {currentCase.iFirst,
-                                    currentCase.iLast,
-                                    currentCase.iMiddle,
-                                    currentCase.iRem[0],
-                                    currentCase.iRem[1],
-                                    currentCase.iRem[2]};
+    const unsigned int layers[6] = {
+      currentCase.iFirst,
+      currentCase.iLast,
+      currentCase.iMiddle,
+      currentCase.iRem[0],
+      currentCase.iRem[1],
+      currentCase.iRem[2]};
 
     float rhs[3] = {0.f};
     float lhs[6];
@@ -320,12 +321,13 @@ __global__ void seed_xz::seed_xz(seed_xz::Parameters parameters)
         __syncthreads();
 
         for (const auto& currentCase : {Case0, Case1}) {
-          const unsigned int layers[6] = {currentCase.iFirst,
-                                          currentCase.iLast,
-                                          currentCase.iMiddle,
-                                          currentCase.iRem[0],
-                                          currentCase.iRem[1],
-                                          currentCase.iRem[2]};
+          const unsigned int layers[6] = {
+            currentCase.iFirst,
+            currentCase.iLast,
+            currentCase.iMiddle,
+            currentCase.iRem[0],
+            currentCase.iRem[1],
+            currentCase.iRem[2]};
 
           __shared__ unsigned nTriplets;
           __syncthreads();

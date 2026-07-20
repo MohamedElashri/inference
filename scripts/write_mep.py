@@ -8,11 +8,11 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import os
-import subprocess
-import re
-import json
 import argparse
+import json
+import os
+import re
+import subprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument(dest="n_meps", type=int, help="number of MEPs")
@@ -23,16 +23,16 @@ parser.add_argument(
     "--failed",
     dest="failed",
     default="/daqarea1/fest/mep/failed.json",
-    help="JSON file contained MDFs to skip")
+    help="JSON file contained MDFs to skip",
+)
 
 args = parser.parse_args()
 
 
 def chunks(l, n):
-    """ Yield successive n-sized chunks from l.
-    """
+    """Yield successive n-sized chunks from l."""
     for i, j in zip(range(0, len(l), n), range(1, len(l) + 1)):
-        yield l[i:i + n], j
+        yield l[i : i + n], j
 
 
 # def size_chunks(l, sizes, target):
@@ -54,7 +54,7 @@ def chunks(l, n):
 #                 break
 #         yield (l[start:end], c)
 
-mdf_expr = re.compile(r'.*\.mdf$')
+mdf_expr = re.compile(r".*\.mdf$")
 mdf_files = set()
 
 for mdf_file in sorted(os.listdir(args.input_dir)):
@@ -67,7 +67,7 @@ with open(args.failed) as jf:
     failed_info = json.load(jf)
 
 for d in failed_info.values():
-    for failed in d['input']:
+    for failed in d["input"]:
         if failed in mdf_files:
             mdf_files.remove(failed)
 
@@ -80,16 +80,23 @@ for mdf_file in mdf_files:
 
 sc = [c for c in chunks(mdf_files, 1)]
 for input_files, i in sc:
-    output_basename = '00135282_%08d_1' % i
-    r = subprocess.run(['which', 'gentest.exe'],
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
+    output_basename = "00135282_%08d_1" % i
+    r = subprocess.run(
+        ["which", "gentest.exe"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     gentest = r.stdout.decode().strip()
     cmd = [
-        gentest, 'libDataflowUtils.so', 'pcie_encode_many', '-o',
-        f'/daqarea1/fest/mep/{output_basename}.mep', '-p', '10000', '-e', '8'
+        gentest,
+        "libDataflowUtils.so",
+        "pcie_encode_many",
+        "-o",
+        f"/daqarea1/fest/mep/{output_basename}.mep",
+        "-p",
+        "10000",
+        "-e",
+        "8",
     ]
     for f in input_files:
-        cmd += ['-i', f]
+        cmd += ["-i", f]
 
     r = subprocess.run(cmd)

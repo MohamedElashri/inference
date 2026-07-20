@@ -95,9 +95,10 @@ Vertices GaudiAllenPVsToPrimaryVertexContainer::operator()(
     poscov(2, 0) = static_cast<double>(vertex.cov20);
     poscov(2, 1) = static_cast<double>(vertex.cov21);
     poscov(2, 2) = static_cast<double>(vertex.cov22);
-    auto& recvertex = vertices.emplace_back(Gaudi::XYZPoint {static_cast<double>(vertex.position.x),
-                                                             static_cast<double>(vertex.position.y),
-                                                             static_cast<double>(vertex.position.z)});
+    auto& recvertex = vertices.emplace_back(Gaudi::XYZPoint {
+      static_cast<double>(vertex.position.x),
+      static_cast<double>(vertex.position.y),
+      static_cast<double>(vertex.position.z)});
     recvertex.setCovMatrix(poscov);
     recvertex.setChi2(static_cast<double>(vertex.chi2));
     // vertex.nTracks contains the sum of weights from Allen TBLV. To convert it to Number of Degrees of Freedom ->

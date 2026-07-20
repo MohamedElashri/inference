@@ -71,17 +71,18 @@ public:
   std::array<TransposedBanks, NBankTypes> operator()(VOC<LHCb::RawBank::View> const& rawEvents) const override;
 
 private:
-  Gaudi::Property<std::set<BankTypes>> m_bankTypes {this,
-                                                    "BankTypes",
-                                                    {BankTypes::VP,
-                                                     BankTypes::UT,
-                                                     BankTypes::FT,
-                                                     BankTypes::MUON,
-                                                     BankTypes::ODIN,
-                                                     BankTypes::Rich1,
-                                                     BankTypes::Rich2,
-                                                     BankTypes::ECal,
-                                                     BankTypes::Plume}};
+  Gaudi::Property<std::set<BankTypes>> m_bankTypes {
+    this,
+    "BankTypes",
+    {BankTypes::VP,
+     BankTypes::UT,
+     BankTypes::FT,
+     BankTypes::MUON,
+     BankTypes::ODIN,
+     BankTypes::Rich1,
+     BankTypes::Rich2,
+     BankTypes::ECal,
+     BankTypes::Plume}};
 
   std::array<std::unique_ptr<Gaudi::Accumulators::Histogram<1>>, NBankTypes> m_histos;
 

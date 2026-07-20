@@ -372,7 +372,7 @@ public:
 
   zmq::message_t encode(const TObject& item) const
   {
-    auto deleteBuffer = [](void* data, void * /* hint */) -> void { delete[](char*) data; };
+    auto deleteBuffer = [](void* data, void* /* hint */) -> void { delete[] (char*) data; };
 
     TBufferFile buffer(TBuffer::kWrite);
     buffer.WriteObject(&item);

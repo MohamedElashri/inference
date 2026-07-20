@@ -94,8 +94,8 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
       tx_beam_seed = dev_beamline.tx_SMOG.x;
       ty_beam_seed = dev_beamline.tx_SMOG.y;
     }
-    const float2 seed_pos_xy {dev_beamline.pos.x + tx_beam_seed * zseeds[i_thisseed],
-                              dev_beamline.pos.y + ty_beam_seed * zseeds[i_thisseed]};
+    const float2 seed_pos_xy {
+      dev_beamline.pos.x + tx_beam_seed * zseeds[i_thisseed], dev_beamline.pos.y + ty_beam_seed * zseeds[i_thisseed]};
 
     float2 vtxpos_xy = seed_pos_xy;
 

@@ -81,12 +81,13 @@ DECLARE_COMPONENT(PVDumper)
 //=============================================================================
 
 PVDumper::PVDumper(const std::string& name, ISvcLocator* pSvcLocator) :
-  MultiTransformer {name,
-                    pSvcLocator,
-                    {KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
-                     KeyValue {"MCPropertyLocation", LHCb::MCPropertyLocation::TrackInfo}},
-                    {KeyValue {"OutputRawEventLocation", "Allen/MCPVRawEvent"},
-                     KeyValue {"OutputRawBankLocation", "Allen/MCPVRawBank"}}}
+  MultiTransformer {
+    name,
+    pSvcLocator,
+    {KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
+     KeyValue {"MCPropertyLocation", LHCb::MCPropertyLocation::TrackInfo}},
+    {KeyValue {"OutputRawEventLocation", "Allen/MCPVRawEvent"},
+     KeyValue {"OutputRawBankLocation", "Allen/MCPVRawBank"}}}
 {}
 
 std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PVDumper::operator()(

@@ -70,26 +70,31 @@ namespace lf_create_tracks {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<dim3> m_calculate_parametrization_block_dim {this,
-                                                                 "calculate_parametrization_block_dim",
-                                                                 {128, 1, 1},
-                                                                 "block dimensions calculate parametrization"};
-    Allen::Property<dim3> m_extend_tracks_block_dim {this,
-                                                     "extend_tracks_block_dim",
-                                                     {256, 1, 1},
-                                                     "block dimensions extend tracks"};
-    Allen::Property<unsigned> m_max_triplets_per_input_track {this,
-                                                              "max_triplets_per_input_track",
-                                                              12,
-                                                              "max_triplets_per_input_track"};
-    Allen::Property<unsigned> m_maximum_number_of_triplets_per_warp {this,
-                                                                     "maximum_number_of_triplets_per_warp",
-                                                                     LookingForward::max_triplets_per_track,
-                                                                     "maximum_number_of_triplets_per_warp"};
-    Allen::Property<float> m_chi2_max_extrapolation_to_x_layers_single {this,
-                                                                        "chi2_max_extrapolation_to_x_layers_single",
-                                                                        2.,
-                                                                        "chi2_max_extrapolation_to_x_layers_single"};
+    Allen::Property<dim3> m_calculate_parametrization_block_dim {
+      this,
+      "calculate_parametrization_block_dim",
+      {128, 1, 1},
+      "block dimensions calculate parametrization"};
+    Allen::Property<dim3> m_extend_tracks_block_dim {
+      this,
+      "extend_tracks_block_dim",
+      {256, 1, 1},
+      "block dimensions extend tracks"};
+    Allen::Property<unsigned> m_max_triplets_per_input_track {
+      this,
+      "max_triplets_per_input_track",
+      12,
+      "max_triplets_per_input_track"};
+    Allen::Property<unsigned> m_maximum_number_of_triplets_per_warp {
+      this,
+      "maximum_number_of_triplets_per_warp",
+      LookingForward::max_triplets_per_track,
+      "maximum_number_of_triplets_per_warp"};
+    Allen::Property<float> m_chi2_max_extrapolation_to_x_layers_single {
+      this,
+      "chi2_max_extrapolation_to_x_layers_single",
+      2.,
+      "chi2_max_extrapolation_to_x_layers_single"};
     Allen::Property<float> m_uv_hits_chi2_factor_x {this, "uv_hits_chi2_factor_x", 50., "uv_hits_chi2_factor_x"};
     Allen::Property<float> m_uv_hits_chi2_factor_y {this, "uv_hits_chi2_factor_y", 50., "uv_hits_chi2_factor_y"};
   };

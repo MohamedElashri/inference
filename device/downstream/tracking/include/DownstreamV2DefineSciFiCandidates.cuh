@@ -67,18 +67,21 @@ namespace downstream_v2_define_scifi_candidates {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
-    Allen::Property<float> m_y_layer_tolerance {this,
-                                                "y_layer_tolerance",
-                                                18.f,
-                                                "the layer level tolerance window in Y"};
-    Allen::Property<std::array<float, 2>> m_tx_tolerance {this,
-                                                          "tx_tolerance",
-                                                          {2.803916e-04f, 1.920496e-01f},
-                                                          "the tolerance window in tx"};
-    Allen::Property<float> m_seed_max_ghost_prob {this,
-                                                  "seed_max_ghost_prob",
-                                                  0.9,
-                                                  "the maximum ghost probability for scifi seeds"};
+    Allen::Property<float> m_y_layer_tolerance {
+      this,
+      "y_layer_tolerance",
+      18.f,
+      "the layer level tolerance window in Y"};
+    Allen::Property<std::array<float, 2>> m_tx_tolerance {
+      this,
+      "tx_tolerance",
+      {2.803916e-04f, 1.920496e-01f},
+      "the tolerance window in tx"};
+    Allen::Property<float> m_seed_max_ghost_prob {
+      this,
+      "seed_max_ghost_prob",
+      0.9,
+      "the maximum ghost probability for scifi seeds"};
     GhostKiller m_seed_ghost_killer {"seed_ghost_killer", "/GhostProbability/Hlt1_SciFiSeedGhostKiller.json"};
   };
 

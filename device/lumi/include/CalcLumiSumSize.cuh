@@ -46,9 +46,10 @@ namespace calc_lumi_sum_size {
     Allen::Property<unsigned> m_line_index {this, "line_index", 0, "index of lumi line"};
     Allen::Property<unsigned> m_line_index_full {this, "line_index_full", 0, "index of 1kHz lumi line"};
     Allen::Property<unsigned> m_lumi_sum_length {this, "lumi_sum_length", 0u, "LumiSummary length"};
-    Allen::Property<unsigned> m_lumi_sum_length_full {this,
-                                                      "lumi_sum_length_full",
-                                                      0u,
-                                                      "LumiSummary length for the 1kHz line"};
+    Allen::Property<unsigned> m_lumi_sum_length_full {
+      this,
+      "lumi_sum_length_full",
+      0u,
+      "LumiSummary length for the 1kHz line"};
   };
 } // namespace calc_lumi_sum_size

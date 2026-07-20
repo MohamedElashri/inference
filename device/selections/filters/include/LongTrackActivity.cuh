@@ -36,14 +36,16 @@ namespace long_track_activity_filter {
 
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
-    Allen::Property<unsigned int> m_min_long_tracks {this,
-                                                     "min_long_tracks",
-                                                     1,
-                                                     "minimum number of long tracks in the event"};
-    Allen::Property<unsigned int> m_max_long_tracks {this,
-                                                     "max_long_tracks",
-                                                     UINT_MAX,
-                                                     "maximum number of long tracks in the event"};
+    Allen::Property<unsigned int> m_min_long_tracks {
+      this,
+      "min_long_tracks",
+      1,
+      "minimum number of long tracks in the event"};
+    Allen::Property<unsigned int> m_max_long_tracks {
+      this,
+      "max_long_tracks",
+      UINT_MAX,
+      "maximum number of long tracks in the event"};
   };
 
 } // namespace long_track_activity_filter

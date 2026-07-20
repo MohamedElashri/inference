@@ -23,7 +23,7 @@ function setupViews() {
         echo "Error: LCG_SYSTEM is unset"
         exit 1
     fi
-    
+
     # start building platform string
     LCG_PLATFORM="${LCG_SYSTEM}"
 
@@ -57,7 +57,7 @@ function setupViews() {
 
 function source_quietly() {
     set +x; set +u;
-    tput -T xterm bold 
+    tput -T xterm bold
     tput -T xterm setaf 2
     echo -e "$ source $1\e[0m"
     source $1
@@ -82,7 +82,7 @@ function check_build_exists() {
         echo "   ==> Please add this build and try again (see: scripts/ci/config/common-build.yaml)."
         echo "======="
         exit 1
-    fi 
+    fi
 }
 
 # Define OPTIONS as empty, if not already defined

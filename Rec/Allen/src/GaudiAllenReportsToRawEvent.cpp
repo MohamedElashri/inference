@@ -28,18 +28,19 @@ class GaudiAllenReportsToRawEvent
 public:
   // Standard constructor
   GaudiAllenReportsToRawEvent(const std::string& name, ISvcLocator* pSvcLocator) :
-    MultiTransformer {name,
-                      pSvcLocator,
-                      // Inputs
-                      {KeyValue {"allen_dec_reports", ""},
-                       KeyValue {"allen_selrep_offsets", ""},
-                       KeyValue {"allen_sel_reports", ""},
-                       KeyValue {"allen_routing_bits", ""}},
-                      // Outputs
-                      {KeyValue {"OutputRawReports", "Allen/Out/RawReports"},
-                       KeyValue {"OutputDecView", "Allen/Out/OutputDecView"},
-                       KeyValue {"OutputSelView", "Allen/Out/OutputSelView"},
-                       KeyValue {"OutputRoutingBitsView", "Allen/Out/OutputRoutingBitsView"}}}
+    MultiTransformer {
+      name,
+      pSvcLocator,
+      // Inputs
+      {KeyValue {"allen_dec_reports", ""},
+       KeyValue {"allen_selrep_offsets", ""},
+       KeyValue {"allen_sel_reports", ""},
+       KeyValue {"allen_routing_bits", ""}},
+      // Outputs
+      {KeyValue {"OutputRawReports", "Allen/Out/RawReports"},
+       KeyValue {"OutputDecView", "Allen/Out/OutputDecView"},
+       KeyValue {"OutputSelView", "Allen/Out/OutputSelView"},
+       KeyValue {"OutputRoutingBitsView", "Allen/Out/OutputRoutingBitsView"}}}
   {}
 
   // Algorithm execution
@@ -67,9 +68,10 @@ public:
 
     return viewsFromRawEvent(
       std::move(raw_event),
-      std::array {LHCb::RawBank::BankType::HltDecReports,
-                  LHCb::RawBank::BankType::HltSelReports,
-                  LHCb::RawBank::BankType::HltRoutingBits});
+      std::array {
+        LHCb::RawBank::BankType::HltDecReports,
+        LHCb::RawBank::BankType::HltSelReports,
+        LHCb::RawBank::BankType::HltRoutingBits});
   }
 };
 

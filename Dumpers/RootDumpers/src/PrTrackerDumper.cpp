@@ -776,15 +776,16 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
       if (mother && mother->originVertex()) {
         double rOrigin = mother->originVertex()->position().rho();
         if (fabs(rOrigin) < 5.) { // radial origin position of the mother within 5 mm from beam pipe
-          constexpr auto strange_ids = std::array {LHCb::ParticleIDs::kaon_long,
-                                                   LHCb::ParticleIDs::kaon_short,
-                                                   LHCb::ParticleIDs::lambda,
-                                                   LHCb::ParticleIDs::sigma_plus,
-                                                   LHCb::ParticleIDs::sigma_zero,
-                                                   LHCb::ParticleIDs::sigma_minus,
-                                                   LHCb::ParticleIDs::xi_zero,
-                                                   LHCb::ParticleIDs::xi_minus,
-                                                   LHCb::ParticleIDs::omega_minus};
+          constexpr auto strange_ids = std::array {
+            LHCb::ParticleIDs::kaon_long,
+            LHCb::ParticleIDs::kaon_short,
+            LHCb::ParticleIDs::lambda,
+            LHCb::ParticleIDs::sigma_plus,
+            LHCb::ParticleIDs::sigma_zero,
+            LHCb::ParticleIDs::sigma_minus,
+            LHCb::ParticleIDs::xi_zero,
+            LHCb::ParticleIDs::xi_minus,
+            LHCb::ParticleIDs::omega_minus};
           if (std::ranges::any_of(strange_ids, [pid = std::abs(mother->particleID())](auto i) { return i == pid; })) {
             fromStrangeDecay = true;
           }

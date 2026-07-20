@@ -34,8 +34,7 @@ namespace Allen::Conditions::ConstantsCondition {
 using namespace Gaudi::Functional;
 using namespace LHCb::DetDesc;
 
-struct Dummy {
-};
+struct Dummy {};
 
 template<typename AllenAlgorithm>
 class GaudiAllenAlgorithmWrapper final : public AlgorithmWithCondition<> {
@@ -115,9 +114,10 @@ private:
   // Data handles:
   DataObjectReadHandle<RuntimeOptions> m_runtime_options {this, "runtime_options_t", ""};
 
-  ConditionAccessor<Constants> m_constants {this,
-                                            "ConstantsCondition",
-                                            Allen::Conditions::ConstantsCondition::DefaultLocation};
+  ConditionAccessor<Constants> m_constants {
+    this,
+    "ConstantsCondition",
+    Allen::Conditions::ConstantsCondition::DefaultLocation};
 
   Allen::make_handles<inputs_tuple_t, DataObjectReadHandle>::type m_inputs {
     Allen::make_handles<inputs_tuple_t, DataObjectReadHandle>::create(this)};
@@ -136,8 +136,7 @@ public:
     // Output container
     auto output_container = std::apply(
       [&](const auto&... handles) {
-        [[maybe_unused]] auto create_vector = [&]<typename Handle>(const Handle&)
-        {
+        [[maybe_unused]] auto create_vector = [&]<typename Handle>(const Handle&) {
           using vector_t = typename Allen::handle_type_extractor<Handle>::type;
           using data_t = typename vector_t::value_type;
           return Allen::parameter_vector<data_t> {LHCb::getMemResource(evtCtx)};
@@ -147,8 +146,7 @@ public:
       m_outputs);
 
     // Aggregates TES wrappers
-    auto input_aggregates_wrappers = [&]<std::size_t... I>(std::index_sequence<I...>)
-    {
+    auto input_aggregates_wrappers = [&]<std::size_t... I>(std::index_sequence<I...>) {
       std::tuple<Allen::parameter_vector<
         Allen::TESWrapperInput<typename std::tuple_element_t<I, aggregates_tuple_t>::type::type>>...>
         wrappers_vecs {};
@@ -170,11 +168,9 @@ public:
         }(),
         ...);
       return wrappers_vecs;
-    }
-    (std::make_index_sequence<std::tuple_size_v<aggregates_tuple_t>> {});
+    }(std::make_index_sequence<std::tuple_size_v<aggregates_tuple_t>> {});
 
-    auto input_aggregates_tuple = [&]<std::size_t... I>(std::index_sequence<I...>)
-    {
+    auto input_aggregates_tuple = [&]<std::size_t... I>(std::index_sequence<I...>) {
       // Finally return the tuple of aggregates
       return std::make_tuple([&] {
         using Aggregate = std::tuple_element_t<I, aggregates_tuple_t>::type;
@@ -185,14 +181,11 @@ public:
           refs.emplace_back(w);
         return Aggregate {refs};
       }()...);
-    }
-    (std::make_index_sequence<std::tuple_size_v<aggregates_tuple_t>> {});
+    }(std::make_index_sequence<std::tuple_size_v<aggregates_tuple_t>> {});
 
     // TES wrappers
-    auto tes_wrappers = [&]<std::size_t... I>(std::index_sequence<I...>)
-    {
-      [[maybe_unused]] auto make_wrapper = [&]<std::size_t J>() -> auto
-      {
+    auto tes_wrappers = [&]<std::size_t... I>(std::index_sequence<I...>) {
+      [[maybe_unused]] auto make_wrapper = [&]<std::size_t J>() -> auto {
         using Param = std::tuple_element_t<J, parameters_tuple_t>;
         if constexpr (Allen::Store::is_input<Param>::value) {
           return Allen::TESWrapperInput<typename Param::type> {
@@ -204,8 +197,7 @@ public:
         }
       };
       return std::make_tuple(make_wrapper.template operator()<I>()...);
-    }
-    (std::make_index_sequence<std::tuple_size_v<parameters_tuple_t>> {});
+    }(std::make_index_sequence<std::tuple_size_v<parameters_tuple_t>> {});
 
     auto tes_wrappers_references = std::apply(
       [](auto&... wrappers) {

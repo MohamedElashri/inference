@@ -284,25 +284,27 @@ __global__ void track_matching::track_matching_veloSciFi(
         float ghost_killer_score = 0.f;
         if constexpr (!std::is_same_v<GhostKiller_t, void>) {
           if constexpr (std::is_same_v<GhostKiller_t, MatchingGhostKiller::DeviceType>) {
-            float ghost_killer_inputs[MatchingGhostKiller::DeviceType::nInput] = {matchingInfo.zForX,
-                                                                                  matchingInfo.distX,
-                                                                                  matchingInfo.distY,
-                                                                                  matchingInfo.dSlopeX,
-                                                                                  matchingInfo.dSlopeY,
-                                                                                  logf(matchingInfo.chi2),
-                                                                                  velo_eta};
+            float ghost_killer_inputs[MatchingGhostKiller::DeviceType::nInput] = {
+              matchingInfo.zForX,
+              matchingInfo.distX,
+              matchingInfo.distY,
+              matchingInfo.dSlopeX,
+              matchingInfo.dSlopeY,
+              logf(matchingInfo.chi2),
+              velo_eta};
             ghost_killer_score = dev_matching_ghost_killer->evaluate(ghost_killer_inputs);
           }
           else {
             const auto number_of_scifi_hits = float(scifi_seeds.track(i).number_of_scifi_hits());
-            float ghost_killer_inputs[MatchingNoUTV2GhostKiller::DeviceType::nInput] = {matchingInfo.zForX,
-                                                                                        matchingInfo.distX,
-                                                                                        matchingInfo.distY,
-                                                                                        matchingInfo.dSlopeX,
-                                                                                        matchingInfo.dSlopeY,
-                                                                                        matchingInfo.chi2,
-                                                                                        velo_eta,
-                                                                                        number_of_scifi_hits};
+            float ghost_killer_inputs[MatchingNoUTV2GhostKiller::DeviceType::nInput] = {
+              matchingInfo.zForX,
+              matchingInfo.distX,
+              matchingInfo.distY,
+              matchingInfo.dSlopeX,
+              matchingInfo.dSlopeY,
+              matchingInfo.chi2,
+              velo_eta,
+              number_of_scifi_hits};
             ghost_killer_score = dev_matching_ghost_killer->evaluate(ghost_killer_inputs);
           }
 
