@@ -31,36 +31,8 @@ from PyConf.tonic import configurable
 from AllenConf.lumi_reconstruction import lumi_reconstruction
 from AllenConf.enum_types import TrackingType, includes_matching
 from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1_common import *
 import itertools
-
-
-@configurable
-def velo_micro_bas_lines(velo_tracks,
-                         prefilters,
-                         pre_scalers=[1., 1.],
-                         post_scalers=[1.e-3, 3.e-3]):
-    microbias_lines = []
-
-    with line_maker.bind(prefilter=prefilters[0]):
-        microbias_lines += [
-            line_maker(
-                make_velo_micro_bias_line(
-                    velo_tracks,
-                    name="Hlt1VeloMicroBias",
-                    pre_scaler=pre_scalers[0],
-                    post_scaler=post_scalers[0]))
-        ]
-
-    with line_maker.bind(prefilter=prefilters[1]):
-        microbias_lines += [
-            line_maker(
-                make_velo_micro_bias_line(
-                    velo_tracks,
-                    name="Hlt1VeloMicroBiasVeloClosing",
-                    pre_scaler=pre_scalers[1],
-                    post_scaler=post_scalers[1]))
-        ]
-    return microbias_lines
 
 
 def default_physics_lines(reconstructed_objects, with_calo, with_muon,
@@ -300,108 +272,6 @@ def default_physics_lines(reconstructed_objects, with_calo, with_muon,
     return [line_maker(line) for line in lines]
 
 
-def odin_monitoring_lines(with_lumi, lumiline_name, lumilinefull_name,
-                          odin_err_filter):
-    lines = []
-    if with_lumi:
-        odin_lumi_event = make_event_type(event_type='Lumi')
-        with line_maker.bind(prefilter=odin_err_filter + [odin_lumi_event]):
-            lines += [
-                line_maker(
-                    make_passthrough_line(name=lumiline_name, pre_scaler=1.))
-            ]
-
-        odin_orbit = make_odin_orbit(
-            odin_orbit_modulo=30, odin_orbit_remainder=1)
-        with line_maker.bind(
-                prefilter=odin_err_filter + [odin_lumi_event, odin_orbit]):
-            lines += [
-                line_maker(
-                    make_passthrough_line(
-                        name=lumilinefull_name, pre_scaler=1.))
-            ]
-
-    with line_maker.bind(prefilter=odin_err_filter):
-        lines += [line_maker(make_odin_calib_line(name="Hlt1ODINCalib"))]
-
-    ee_far_from_activity = make_event_type(event_type="ee_far_from_activity")
-    with line_maker.bind(prefilter=odin_err_filter + [ee_far_from_activity]):
-        lines += [
-            line_maker(
-                make_passthrough_line(
-                    name="Hlt1ODINeeFarFromActivity", pre_scaler=1.))
-        ]
-
-    return lines
-
-
-def alignment_monitoring_lines(reconstructed_objects,
-                               prefilters_bx,
-                               prefilters_odin_err,
-                               chi2_cuts,
-                               with_muon=True):
-
-    velo_tracks = reconstructed_objects["velo_tracks"]
-    material_interaction_tracks = reconstructed_objects[
-        "material_interaction_tracks"]
-    long_tracks = reconstructed_objects["long_tracks"]
-    long_track_particles = reconstructed_objects["long_track_particles"]
-    velo_states = reconstructed_objects["velo_states"]
-    dihadrons = reconstructed_objects["dihadron_secondary_vertices"]
-    dileptons = reconstructed_objects["dilepton_secondary_vertices"]
-    dstars = reconstructed_objects["dstars"]
-    muon_stubs = reconstructed_objects["muon_stubs"]
-
-    lines = [
-        make_rich_1_line(
-            long_tracks,
-            long_track_particles,
-            maxTrChi2=chi2_cuts.Hlt1RICH1Alignment_maxTrChi2,
-            name="Hlt1RICH1Alignment"),
-        make_rich_2_line(
-            long_tracks,
-            long_track_particles,
-            maxTrChi2=chi2_cuts.Hlt1RICH2Alignment_maxTrChi2,
-            name="Hlt1RICH2Alignment"),
-        make_d2kpi_align_line(
-            long_tracks, dihadrons, name="Hlt1D2KPiAlignment"),
-        make_dst_line(dstars, name="Hlt1Dst2D0PiAlignment"),
-        make_z_range_materialvertex_seed_line(
-            material_interaction_tracks,
-            min_z_materialvertex_seed=300,
-            max_z_materialvertex_seed=1000,
-            name="Hlt1MaterialVertexSeedsDownstreamz",
-            pre_scaler=0.005),
-        make_z_range_materialvertex_seed_line(
-            material_interaction_tracks,
-            min_z_materialvertex_seed=700,
-            max_z_materialvertex_seed=1000,
-            name="Hlt1MaterialVertexSeeds_DWFS",
-            pre_scaler=0.1)
-    ]
-
-    if with_muon:
-        muonid = reconstructed_objects["muonID"]
-        lines += [
-            make_di_muon_mass_align_line(
-                long_tracks,
-                dileptons,
-                muonid,
-                name="Hlt1DiMuonJpsiMassAlignment"),
-            make_one_muon_track_line(
-                muon_stubs["consolidated_muon_tracks"],
-                muon_stubs["dev_muon_tracks_offsets"],
-                muon_stubs["host_muon_total_number_of_tracks"],
-                name="Hlt1OneMuonTrackLine",
-                post_scaler=0.001),
-        ]
-
-    with line_maker.bind(prefilter=prefilters_bx):
-        lines = [line_maker(line) for line in lines]
-
-    return lines
-
-
 @configurable
 def default_SMOG2_lines(reconstructed_objects,
                         chi2_cuts,
@@ -552,221 +422,195 @@ def default_SMOG2_lines(reconstructed_objects,
     return [line_maker(line) for line in lines]
 
 
-@configurable
-def default_bgi_activity_lines(pvs,
-                               velo_states,
-                               decoded_velo,
-                               decoded_calo,
-                               enableBGI_full=False,
-                               prefilter=[]):
+def config_SMOG2_lines(reconstructed_objects, chi2_cuts, odin_err_filter,
+                       with_calo, EnableGEC, with_muon, with_v0s,
+                       enableTupling, DisableLinesDuringVPClosing,
+                       smog2_lumi_prescale):
+    """Set up SMOG2-specific lines and prefilters."""
+    SMOG2_prefilters = []
+    SMOG2_lines = []
+    SMOG2_technical_lines = []
+
+    SMOG2_prefilters += odin_err_filter
+
+    bx_BE = make_bxtype(bx_type=1)
+
+    velo_closed = [
+        make_event_type(
+            name="ODIN_EvenType_VeloClosed",
+            event_type="VeloOpen",
+            invert=True)
+    ] if DisableLinesDuringVPClosing else []
+    SMOG2_prefilters += velo_closed
+
+    with line_maker.bind(prefilter=odin_err_filter + velo_closed + [bx_BE]):
+        SMOG2_lines += [
+            line_maker(
+                make_passthrough_line(
+                    name="Hlt1SMOG2BENoBias", pre_scaler=0.001))
+        ]
+
+    if with_calo:
+        lowMult_5 = make_lowmult(
+            reconstructed_objects['velo_tracks'],
+            reconstructed_objects["ecal_clusters"],
+            name="LowMult_5",
+            minTracks=1,
+            maxTracks=5)
+        with line_maker.bind(
+                prefilter=odin_err_filter + velo_closed + [lowMult_5]):
+            SMOG2_lines += [
+                line_maker(
+                    make_passthrough_line(
+                        name="Hlt1SMOG2PassThroughLowMult5", pre_scaler=0.1))
+            ]
+
+        lowMultElectrons = make_lowmult(
+            reconstructed_objects['velo_tracks'],
+            reconstructed_objects["ecal_clusters"],
+            name="LowMultElectrons",
+            minTracks=1,
+            maxTracks=3,
+            min_ecal_clusters=1,
+            max_ecal_clusters=10)
+        with line_maker.bind(prefilter=odin_err_filter + [bx_BE] +
+                             velo_closed + [lowMultElectrons]):
+            SMOG2_lines += [
+                line_maker(
+                    make_passthrough_line(
+                        name="Hlt1SMOG2BELowMultElectrons",
+                        pre_scaler=smog2_lumi_prescale))
+            ]
+
+    if EnableGEC:
+        gec = [
+            make_gec(
+                count_ut=False,
+                count_velo=True,
+                max_scifi_clusters=20000,
+                max_velo_clusters=35000)
+        ]
+        SMOG2_prefilters += gec
+
+    with line_maker.bind(prefilter=SMOG2_prefilters):
+        SMOG2_lines += [
+            line_maker(
+                make_SMOG2_minimum_bias_line(
+                    reconstructed_objects["velo_tracks"],
+                    reconstructed_objects["velo_states"],
+                    name="Hlt1SMOG2MinimumBias",
+                    pre_scaler=0.00003))
+        ]
+
+    SMOG2_prefilters += [
+        make_checkPV(reconstructed_objects['pvs'], name='check_SMOG2_PV')
+    ]
+
+    with line_maker.bind(prefilter=SMOG2_prefilters):
+        SMOG2_technical_lines += [
+            line_maker(
+                make_passthrough_line(
+                    name="Hlt1PassthroughPVinSMOG2", pre_scaler=0.00006))
+        ]
+
+        SMOG2_lines += default_SMOG2_lines(
+            reconstructed_objects,
+            chi2_cuts,
+            with_muon,
+            with_v0s,
+            enable_tupling=enableTupling)
+
+    return SMOG2_lines, SMOG2_technical_lines, SMOG2_prefilters
+
+
+# Please carefully check this function to make sure you are using the proper prefilters for the lines
+def create_filter_manager(reconstructed_objects,
+                          withSMOG2=True,
+                          EnableGEC=True,
+                          with_odin_filter=True,
+                          velo_open=False,
+                          DisableLinesDuringVPClosing=False,
+                          tae_activity=False):
     """
-    Primary vertex lines for various bunch crossing types composed from
-    new PV filters and beam crossing lines.
+    Creates and configures a FilterManager for PP/SMOG2-specific setups.
+
+    Args:
+        reconstructed_objects: Objects from reconstruction
+        withSMOG2: Whether SMOG2 is enabled
+        EnableGEC: Whether GEC is enabled
+        with_odin_filter: Whether ODIN filter is enabled
+        velo_open: Whether VELO is open
+        DisableLinesDuringVPClosing: Whether to disable lines during VELO closing
+        tae_activity: Whether TAE activity is enabled
+
+    Returns:
+        Configured FilterManager instance
     """
+    # Initialize FilterManager
+    preset_name = 'pp_smog2_be' if withSMOG2 else 'pp_default'
 
-    mm = 1.0  # from SystemOfUnits.h
-    max_cyl_rad_sq = (3 * mm)**2
-    bx_BB = make_bxtype(bx_type=3)
-    bx_NoBB = make_invert_event_list(bx_BB, name="BX_NoBeamBeam")
-    pvs_z_all = make_checkCylPV(
-        pvs,
-        name="BGIPVsCylAll",
-        min_vtx_z=-2000.,
-        max_vtz_z=2000.,
-        max_vtx_rho_sq=max_cyl_rad_sq,
-        min_vtx_nTracks=10.)
-    lines = []
+    # Configure the presets of alignment lines
+    BGI_ACTIVITY_PRESETS['BGIPseudoPVsAll'].update({
+        'min_state_z': -2000,
+        'max_state_z': 2000,
+    })
+    BGI_ACTIVITY_PRESETS['BGIPseudoPVsDown'].update({
+        'max_state_z': 2000,
+    })
+    BGI_ACTIVITY_PRESETS['BGIPseudoPVsUp'].update({
+        'min_state_z': -2000,
+        'max_state_z': -250,
+    })
+    BGI_ACTIVITY_PRESETS['Hlt1BGIPseudoPVsBeamTwo']['pre_scaler'] = 1.0
+    BGI_ACTIVITY_PRESETS['Hlt1BGIPseudoPVsDownBeamBeam']['pre_scaler'] = 0.1
+    BGI_ACTIVITY_PRESETS['Hlt1BGIPseudoPVsIRBeamBeam'].update({
+        'pre_scaler':
+        1.0,
+        'post_scaler':
+        0.1
+    })
+    BGI_ACTIVITY_PRESETS['Hlt1BGIPseudoPVsIRBeamBeam']['enable'] = False
+    ALIGNMENT_CONFIG_PRESETS['pp']['one_muon_prescaler'] = 0.001
+    ALIGNMENT_CONFIG_PRESETS['pp']['disable_upsilon_alignment'] = True
+    VELO_MICRO_BIAS_PRESETS['pp']['Hlt1VeloMicroBiasVeloClosing'][
+        'post_scaler'] = 0.003
 
-    # Alternate version based on track beamline states
-    velo_states_z_all = make_checkPseudoPV(
-        velo_states,
-        name="BGIPseudoPVsAll",
-        min_state_z=-2000.,
-        max_state_z=2000.,
-        max_state_rho_sq=max_cyl_rad_sq,
-        min_local_nTracks=10.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPseudoPVsNoBeam",
-                beam_crossing_type=0,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [bx_NoBB, velo_states_z_all]),
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPseudoPVsBeamOne",
-                beam_crossing_type=1,
-                pre_scaler=1. if enableBGI_full else 1e-2,
-                post_scaler=1.),
-            prefilter=prefilter + [bx_NoBB, velo_states_z_all]),
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPseudoPVsBeamTwo",
-                beam_crossing_type=2,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [bx_NoBB, velo_states_z_all])
-    ]
+    filter_manager = FilterManager(
+        reconstructed_objects,
+        preset=preset_name,
+        config_overrides={
+            'prefilter_sets': {
+                'base': ['odin'] if with_odin_filter else [],
+                'gec': ['gec'] if EnableGEC else [],
+                'bx': ['bx_BB'],
+                'velo_state': ['velo_closed']
+                if not velo_open and DisableLinesDuringVPClosing else []
+            }
+        })
 
-    velo_states_z_up = make_checkPseudoPV(
-        velo_states,
-        name="BGIPseudoPVsUp",
-        min_state_z=-2000.,
-        max_state_z=-250.,
-        max_state_rho_sq=max_cyl_rad_sq,
-        min_local_nTracks=10.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPseudoPVsUpBeamBeam",
-                beam_crossing_type=3,
-                pre_scaler=1. if enableBGI_full else 1e-3,
-                post_scaler=1.),
-            prefilter=prefilter + [velo_states_z_up])
-    ]
+    # Define prefilter sets
+    filter_manager.create_named_prefilter(
+        'default', ['base', 'bx', 'velo_state', 'gec']
+        if EnableGEC else ['base', 'bx', 'velo_state'])
 
-    velo_states_z_down = make_checkPseudoPV(
-        velo_states,
-        name="BGIPseudoPVsDown",
-        min_state_z=250.,
-        max_state_z=2000.,
-        max_state_rho_sq=max_cyl_rad_sq,
-        min_local_nTracks=10.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPseudoPVsDownBeamBeam",
-                beam_crossing_type=3,
-                pre_scaler=0.1,
-                post_scaler=1.),
-            prefilter=prefilter + [velo_states_z_down])
-    ]
+    filter_manager.create_named_prefilter('odin_only', ['base'])
+    filter_manager.create_named_prefilter('veloMicroBias', ['odin_only'])
+    filter_manager.create_named_prefilter('veloMicroBias_open',
+                                          ['odin_only', 'velo_open'])
+    filter_manager.create_named_prefilter(
+        'bgi',
+        ['base', 'velo_state', 'gec'] if EnableGEC else ['base', 'velo_state'])
+    filter_manager.create_named_prefilter(
+        'beam_gas', ['base', 'bx_BE', 'velo_state', 'gec']
+        if EnableGEC else ['base', 'bx_BE', 'velo_state'])
+    filter_manager.create_named_prefilter('lumi', ['base', 'velo_state'])
+    filter_manager.create_named_prefilter(
+        'tae', ['tae_activity_filter', 'tae_filter']
+        if tae_activity else ['tae_filter'])
+    filter_manager.create_named_prefilter('alignment_default_prefilter',
+                                          ['default'])
 
-    if not enableBGI_full:
-        return lines
-
-    velo_states_z_ir = make_checkPseudoPV(
-        velo_states,
-        name="BGIPseudoPVsIR",
-        min_state_z=-250.,
-        max_state_z=250.,
-        max_state_rho_sq=max_cyl_rad_sq,
-        min_local_nTracks=28.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPseudoPVsIRBeamBeam",
-                beam_crossing_type=3,
-                pre_scaler=1.,
-                post_scaler=0.1),
-            prefilter=prefilter + [velo_states_z_ir])
-    ]
-
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPVsCylNoBeam",
-                beam_crossing_type=0,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [bx_NoBB, pvs_z_all]),
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPVsCylBeamOne",
-                beam_crossing_type=1,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [bx_NoBB, pvs_z_all]),
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPVsCylBeamTwo",
-                beam_crossing_type=2,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [bx_NoBB, pvs_z_all])
-    ]
-
-    pvs_z_up = make_checkCylPV(
-        pvs,
-        name="BGIPVsCylUp",
-        min_vtx_z=-2000.,
-        max_vtz_z=-250.,
-        max_vtx_rho_sq=max_cyl_rad_sq,
-        min_vtx_nTracks=10.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPVsCylUpBeamBeam",
-                beam_crossing_type=3,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [pvs_z_up])
-    ]
-
-    pvs_z_down = make_checkCylPV(
-        pvs,
-        name="BGIPVsCylDown",
-        min_vtx_z=250.,
-        max_vtz_z=2000.,
-        max_vtx_rho_sq=max_cyl_rad_sq,
-        min_vtx_nTracks=10.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPVsCylDownBeamBeam",
-                beam_crossing_type=3,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [pvs_z_down])
-    ]
-
-    pvs_z_ir = make_checkCylPV(
-        pvs,
-        name="BGIPVsCylIR",
-        min_vtx_z=-250.,
-        max_vtz_z=250.,
-        max_vtx_rho_sq=max_cyl_rad_sq,
-        min_vtx_nTracks=28.)
-    lines += [
-        line_maker(
-            make_beam_line(
-                name="Hlt1BGIPVsCylIRBeamBeam",
-                beam_crossing_type=3,
-                pre_scaler=1.,
-                post_scaler=1.),
-            prefilter=prefilter + [pvs_z_ir])
-    ]
-    """
-    Detector activity lines for BGI data collection.
-    """
-    # lines += [
-    #     line_maker(
-    #         make_velo_clusters_micro_bias_line(
-    #             decoded_velo,
-    #             name="Hlt1BGIVeloClustersMicroBias",
-    #             min_velo_clusters=5,
-    #         ),
-    #         prefilter=prefilter + [bx_NoBB]),
-    #     line_maker(
-    #         make_calo_digits_minADC_line(
-    #             decoded_calo,
-    #             name="Hlt1BGICaloDigits",
-    #             minADC=60,
-    #         ),
-    #         prefilter=prefilter + [bx_NoBB]),
-    #     # line_maker(
-    #     #     make_plume_activity_line(
-    #     #         decoded_plume,
-    #     #         name="Hlt1BGIPlumeActivity",
-    #     #         min_number_plume_adcs_over_min=1,
-    #     #         min_plume_adc=276,
-    #     #     ),
-    #     #     prefilter=prefilter + [bx_NoBB]),
-    #     # FIXME Hlt1BGIPlumeActivity can be re-enabled when v2 support
-    #     #       is implemented in the Plume decoding.
-    # ]
-    return lines
+    return filter_manager
 
 
 def setup_hlt1_node(enablePhysics=True,
@@ -796,15 +640,14 @@ def setup_hlt1_node(enablePhysics=True,
                     with_fullKF=False,
                     with_downstream_KF=False,
                     enabled_lines=[r'.*?'],
-                    disabled_lines=[]):
+                    disabled_lines=[],
+                    preset_modifiers=None):
 
     if with_fullKF:
         from AllenConf.secondary_vertex_reconstruction import ParKF_cuts as chi2_cuts
     else:
         from AllenConf.secondary_vertex_reconstruction import Velo_only_cuts as chi2_cuts
 
-    hlt1_config = {}
-    # Reconstruct objects needed as input for selection lines
     reconstructed_objects = hlt1_reconstruction(
         with_calo=with_calo,
         with_ut=with_ut,
@@ -818,285 +661,89 @@ def setup_hlt1_node(enablePhysics=True,
         with_downstream_KF=with_downstream_KF,
         track_max_chi2ndof=chi2_cuts.SV_track_max_chi2ndof)
 
-    hlt1_config['reconstruction'] = reconstructed_objects
+    preset_name = 'pp_smog2_be' if withSMOG2 else 'pp_default'
 
-    gec = [
-        make_gec(
-            count_ut=False,
-            count_velo=True,
-            max_scifi_clusters=20000,
-            max_velo_clusters=35000)
-    ] if EnableGEC else []
-    odin_err_filter = [odin_error_filter("odin_error_filter")
-                       ] if with_odin_filter else []
-    beam_beam_filter = [make_bxtype(bx_type=3)]
-    velo_open_event = make_event_type(event_type="VeloOpen")
-    velo_closed = [
-        make_invert_event_list(velo_open_event, name="VeloClosedEvent")
-    ] if DisableLinesDuringVPClosing else []
-    prefilters = odin_err_filter + beam_beam_filter + gec + velo_closed
+    filter_manager = create_filter_manager(
+        reconstructed_objects=reconstructed_objects,
+        withSMOG2=withSMOG2,
+        EnableGEC=EnableGEC,
+        with_odin_filter=with_odin_filter,
+        velo_open=velo_open,
+        DisableLinesDuringVPClosing=DisableLinesDuringVPClosing,
+        tae_activity=tae_activity)
 
     physics_lines = []
-    smog2_lines = []
     technical_lines = []
+
     if enablePhysics:
-        with line_maker.bind(prefilter=prefilters):
+        with line_maker.bind(
+                prefilter=filter_manager.get_prefilter_set('default')):
             physics_lines += default_physics_lines(
                 reconstructed_objects, with_calo, with_muon, with_v0s,
                 threshold_settings, enableTupling, chi2_cuts)
 
-    lumiline_name = "Hlt1ODINLumi"
-    lumilinefull_name = "Hlt1ODIN1kHzLumi"
-
-    technical_lines += odin_monitoring_lines(
-        with_lumi, lumiline_name, lumilinefull_name, odin_err_filter)
-
-    with line_maker.bind(prefilter=odin_err_filter):
+    with line_maker.bind(
+            prefilter=filter_manager.get_prefilter_set('odin_only')):
         technical_lines += [line_maker(make_passthrough_line())]
 
     if tae_passthrough:
-        if tae_activity:
-
-            tae_activity_filter = make_tae_activity_filter(
-                reconstructed_objects["long_tracks"],
-                reconstructed_objects["velo_tracks"])
-
-            tae_filters = CompositeNode(
-                "taefilter_node",
-                [tae_activity_filter, tae_filter()],
-                NodeLogic.LAZY_AND,
-                force_order=True)
-        else:
-            tae_filters = tae_filter()
-
-        with line_maker.bind(prefilter=odin_err_filter + [tae_filters]):
+        with line_maker.bind(
+                prefilter=filter_manager.get_prefilter_set('odin_only') +
+                filter_manager.get_prefilter_set('tae')):
             technical_lines += [
                 line_maker(
                     make_passthrough_line(
                         name="Hlt1TAEPassthrough", pre_scaler=1))
             ]
 
-    with line_maker.bind(prefilter=[sd_error_filter()]):
-        technical_lines += [
-            line_maker(
-                make_passthrough_line(name="Hlt1ErrorBank", pre_scaler=0.0001))
-        ]
-    # Defines the VeloMicroBias and VeloMicroBiasVeloClosing lines
-    # 1st arguments are for the VeloMicroBias and 2nd arguments for the VeloMicroBiasVeloClosing
-    technical_lines += velo_micro_bas_lines(
-        reconstructed_objects["velo_tracks"],
-        prefilters=[odin_err_filter, odin_err_filter + [velo_open_event]])
-
     if EnableGEC:
-        with line_maker.bind(prefilter=odin_err_filter + gec):
+        with line_maker.bind(
+                prefilter=filter_manager.get_prefilter_set('odin_only') +
+                filter_manager.get_prefilter_set('gec')):
             technical_lines += [
                 line_maker(make_passthrough_line(name="Hlt1GECPassthrough"))
             ]
 
-    if enableBGI:
-        bgi_prefilters = odin_err_filter + gec + velo_closed
-        technical_lines += default_bgi_activity_lines(
-            reconstructed_objects["pvs"],
-            reconstructed_objects["velo_states"],
-            decode_velo(),
-            decode_calo(),
-            prefilter=bgi_prefilters)
-
-    technical_lines += alignment_monitoring_lines(reconstructed_objects,
-                                                  prefilters, odin_err_filter,
-                                                  chi2_cuts, with_muon)
-
-    bx_BE = make_bxtype(bx_type=1)
-    with line_maker.bind(
-            prefilter=odin_err_filter + gec + [bx_BE] + velo_closed):
-        technical_lines += [
-            line_maker(
-                make_beam_gas_line(
-                    reconstructed_objects["velo_tracks"],
-                    reconstructed_objects["velo_states"],
-                    beam_crossing_type=1,
-                    name="Hlt1BeamGas")),
-        ]
-
     if withSMOG2:
-        SMOG2_prefilters = []
-        SMOG2_prefilters += velo_closed
-        with line_maker.bind(
-                prefilter=odin_err_filter + velo_closed + [bx_BE]):
-            smog2_lines += [
-                line_maker(
-                    make_passthrough_line(
-                        name="Hlt1SMOG2BENoBias", pre_scaler=0.001))
-            ]
+        smog2_lines, smog2_technical_lines, _ = config_SMOG2_lines(
+            reconstructed_objects, chi2_cuts,
+            filter_manager.get_prefilter_set('odin_only'), with_calo,
+            EnableGEC, with_muon, with_v0s, enableTupling,
+            DisableLinesDuringVPClosing, smog2_lumi_prescale)
+        technical_lines += smog2_technical_lines
 
-        if with_calo:
-            lowMult_5 = make_lowmult(
-                reconstructed_objects['velo_tracks'],
-                reconstructed_objects["ecal_clusters"],
-                name="LowMult_5",
-                minTracks=1,
-                maxTracks=5)
-            with line_maker.bind(
-                    prefilter=odin_err_filter + velo_closed + [lowMult_5]):
-                smog2_lines += [
-                    line_maker(
-                        make_passthrough_line(
-                            name="Hlt1SMOG2PassThroughLowMult5",
-                            pre_scaler=0.1))
-                ]
+    if preset_modifiers:
+        for modifier in preset_modifiers:
+            modifier()
 
-            lowMultElectrons = make_lowmult(
-                reconstructed_objects['velo_tracks'],
-                reconstructed_objects["ecal_clusters"],
-                name="LowMultElectrons",
-                minTracks=1,
-                maxTracks=3,
-                min_ecal_clusters=1,
-                max_ecal_clusters=10)
-            with line_maker.bind(prefilter=odin_err_filter + velo_closed +
-                                 [bx_BE, lowMultElectrons]):
-                smog2_lines += [
-                    line_maker(
-                        make_passthrough_line(
-                            name="Hlt1SMOG2BELowMultElectrons",
-                            pre_scaler=smog2_lumi_prescale))
-                ]
-
-        if EnableGEC:
-            SMOG2_prefilters += gec
-
-        with line_maker.bind(prefilter=odin_err_filter + SMOG2_prefilters):
-            smog2_lines += [
-                line_maker(
-                    make_SMOG2_minimum_bias_line(
-                        reconstructed_objects["velo_tracks"],
-                        reconstructed_objects["velo_states"],
-                        name="Hlt1SMOG2MinimumBias"))
-            ]
-
-        SMOG2_prefilters += [
-            make_checkPV(reconstructed_objects['pvs'], name='check_SMOG2_PV')
-        ]
-
-        with line_maker.bind(prefilter=odin_err_filter + SMOG2_prefilters):
-            technical_lines += [
-                line_maker(
-                    make_passthrough_line(
-                        name="Hlt1PassthroughPVinSMOG2", pre_scaler=0.00006))
-            ]
-
-            smog2_lines += default_SMOG2_lines(
-                reconstructed_objects,
-                chi2_cuts,
-                with_muon,
-                with_v0s,
-                enable_tupling=enableTupling)
-
-    grouped_lines = dict(
-        Physics=physics_lines,
-        SMOG2=smog2_lines,
-        Technical=technical_lines,
+    return setup_hlt1_base(
+        reconstructed_objects=reconstructed_objects,
+        filter_manager=filter_manager,
+        physics_lines=physics_lines,
+        smog2_lines=smog2_lines,
+        technical_lines=technical_lines,
+        enabled_lines=enabled_lines,
+        disabled_lines=disabled_lines,
+        with_lumi=with_lumi,
+        with_rich=with_rich,
+        enableRateValidator=enableRateValidator,
+        withMCChecking=withMCChecking,
+        tracking_type=tracking_type,
+        with_ut=with_ut,
+        with_muon=with_muon,
+        with_AC_split=with_AC_split,
+        with_fullKF=with_fullKF,
+        enableBGI=enableBGI,
+        enableAlignment=True,
+        preset='pp',
+        # Additional kwargs
+        EnableGEC=EnableGEC,
+        velo_open=velo_open,
+        DisableLinesDuringVPClosing=DisableLinesDuringVPClosing,
+        user_hooks=False,
+        data_quality=data_quality,
+        with_downstream_KF=with_downstream_KF,
+        chi2_cuts=chi2_cuts,
+        with_calo=with_calo,
+        with_v0s=with_v0s,
     )
-    grouped_line_algs = {
-        key: [tup[0] for tup in lines]
-        for key, lines in grouped_lines.items()
-    }
-    grouped_line_algs = {
-        key: regex_filter_lines(line_algs, enabled_lines, disabled_lines)
-        for key, line_algs in grouped_line_algs.items()
-    }
-    line_algorithms = [
-        alg for alg in itertools.chain(*grouped_line_algs.values())
-    ]
-
-    line_nodes = [tup[1] for tup in itertools.chain(*grouped_lines.values())]
-    lines = CompositeNode(
-        "SetupAllLines", line_nodes, NodeLogic.NONLAZY_OR, force_order=False)
-
-    persistency_node, persistency_algorithms = make_persistency(
-        line_algorithms)
-
-    hlt1_node = CompositeNode(
-        "Allen", [lines, persistency_node],
-        NodeLogic.NONLAZY_AND,
-        force_order=True)
-
-    hlt1_config['line_nodes'] = line_nodes
-    hlt1_config['line_algorithms'] = line_algorithms
-    hlt1_config.update(persistency_algorithms)
-
-    if with_lumi:
-        lumi_reco = lumi_reconstruction(
-            gather_selections=hlt1_config['gather_selections'],
-            lumiline_name=lumiline_name,
-            lumilinefull_name=lumilinefull_name,
-            with_muon=with_muon,
-            velo_open=velo_open)
-
-        lumi_node = CompositeNode(
-            "AllenLumiNode",
-            lumi_reco["algorithms"],
-            NodeLogic.NONLAZY_AND,
-            force_order=False)
-
-        lumi_with_prefilter = CompositeNode(
-            "LumiWithPrefilter",
-            odin_err_filter + velo_closed + [lumi_node],
-            NodeLogic.LAZY_AND,
-            force_order=True)
-
-        hlt1_config['lumi_reconstruction'] = lumi_reco
-        hlt1_config['lumi_node'] = lumi_with_prefilter
-
-        hlt1_node = CompositeNode(
-            "AllenWithLumi", [hlt1_node, lumi_with_prefilter],
-            NodeLogic.NONLAZY_AND,
-            force_order=False)
-
-    if with_rich:
-        hlt1_node = CompositeNode(
-            "AllenWithRich", [
-                hlt1_node,
-                reconstructed_objects["decoded_rich"]["dev_smart_ids"].producer
-            ],
-            NodeLogic.NONLAZY_AND,
-            force_order=True)
-
-    if enableRateValidator:
-        hlt1_node = CompositeNode(
-            "AllenRateValidation", [
-                hlt1_node,
-                rate_validation(
-                    lines=line_algorithms, groups=grouped_line_algs),
-            ],
-            NodeLogic.NONLAZY_AND,
-            force_order=True)
-    if data_quality:
-        # Forward reconstructed long tracks are needed for that module
-        # Matching method is already used in reconstructed_objects
-        reconstructed_objects_forward = hlt1_reconstruction(
-            "ODQV_forward",
-            with_calo=with_calo,
-            with_ut=with_ut,
-            with_muon=with_muon,
-            tracking_type=TrackingType.FORWARD)
-        node = make_dq_node(reconstructed_objects,
-                            reconstructed_objects_forward, line_algorithms)
-        return node
-
-    if not withMCChecking:
-        hlt1_config['control_flow_node'] = hlt1_node
-    else:
-        validation_node = validator_node(
-            reconstructed_objects, line_algorithms,
-            includes_matching(tracking_type), with_ut, with_muon, with_rich,
-            with_AC_split, with_fullKF, with_downstream_KF, prefilters)
-        hlt1_config['validator_node'] = validation_node
-
-        node = CompositeNode(
-            "AllenWithValidators", [hlt1_node, validation_node],
-            NodeLogic.NONLAZY_AND,
-            force_order=False)
-        hlt1_config['control_flow_node'] = node
-
-    return hlt1_config

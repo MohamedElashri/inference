@@ -136,6 +136,13 @@ full:
     dataset: "ppArBeam2680GeV-expected-2024-MagDown-nu3.5-nu0.37_MinBiasMD"
     geometry: "geometry_dddb-20240427_sim10-2024.Q1.2-v1.1-md100"
     
+  # run throughput, pp 2026 low energy run sequence, pp 2026 1.2 TeV MC exp conditions
+  - type: "throughput"
+    sequence:
+      - hlt1_pp_lowenergy_forward_then_matching_with_parkf_SMOGMBunprescaled
+    dataset: "Converted_MC_pp1200GeV_NOSMOG_10kevents_00372315_00000001_1"
+    geometry: "geometry_2026-v00.00_sim10-2026.W17-v00.00-md100"
+
   # run throughput, PbPb samples, 2024 default PbPb sequence
   - type: "throughput"
     sequence:

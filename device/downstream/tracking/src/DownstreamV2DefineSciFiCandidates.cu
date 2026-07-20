@@ -181,6 +181,8 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_find_hit_ra
       const int sector_start = ut_offsets.sector_group_offset(layer, sector) - ut_offsets.event_offset();
       const int sector_end = ut_offsets.sector_group_offset(layer, sector + 1) - ut_offsets.event_offset();
 
+      if (sector_end == sector_start) continue;
+
       // Find hit start
       int hit_start =
         binary_search_leftmost(ut_hits.xAtYEq0_p(0) + sector_start, sector_end - sector_start, layer_x0min) +

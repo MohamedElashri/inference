@@ -12,6 +12,7 @@
 
 #include "BackendCommon.h"
 #include "Common.h"
+#include "KinUtils.cuh"
 
 /**
  * Minimal state used in most track reconstruction algorithms
@@ -343,7 +344,7 @@ namespace Allen {
 
         __host__ __device__ inline float e(const float mass) const { return sqrtf(p() * p() + mass * mass); }
 
-        __host__ __device__ inline float eta() const { return atanhf(pz() / p()); }
+        __host__ __device__ inline float eta() const { return qop() == 0.f ? eta_from_rho(rho()) : atanhf(pz() / p()); }
 
         __host__ __device__ inline float rho() const { return sqrtf(tx() * tx() + ty() * ty()); }
 

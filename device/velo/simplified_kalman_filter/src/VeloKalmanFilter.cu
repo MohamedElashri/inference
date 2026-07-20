@@ -84,6 +84,8 @@ void velo_kalman_filter::velo_kalman_filter_t::operator()(
   const Constants&,
   const Allen::Context& context) const
 {
+  Allen::memset_async<dev_velo_kalman_beamline_states_t>(arguments, 0, context);
+  Allen::memset_async<dev_velo_kalman_endvelo_states_t>(arguments, 0, context);
   global_function(velo_kalman_filter)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
     m_histogram_velo_total_track_eta.data(context),

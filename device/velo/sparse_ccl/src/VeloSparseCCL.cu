@@ -274,6 +274,7 @@ __global__ void velo_decode_ccl(
       velo_cluster_container.set_y(out_index, gy);
       velo_cluster_container.set_z(out_index, gz);
       velo_cluster_container.set_phi(out_index, phi);
+      velo_cluster_container.set_cluster_size(out_index, n);
       sort_keys[out_index] = (static_cast<int64_t>(phi) << 48) | id;
     }
   }
@@ -291,6 +292,7 @@ __global__ void velo_apply_sort_permutation(velo_sparse_ccl::Parameters paramete
     const auto hit_index_global = parameters.dev_hit_permutation[i];
     velo_sorted_cluster_container.set_id(i, velo_cluster_container.id(hit_index_global));
     velo_sorted_cluster_container.set_phi(i, velo_cluster_container.phi(hit_index_global));
+    velo_sorted_cluster_container.set_cluster_size(i, velo_cluster_container.cluster_size(hit_index_global));
     velo_sorted_cluster_container.set_x(i, velo_cluster_container.x(hit_index_global));
     velo_sorted_cluster_container.set_y(i, velo_cluster_container.y(hit_index_global));
     velo_sorted_cluster_container.set_z(i, velo_cluster_container.z(hit_index_global));

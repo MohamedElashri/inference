@@ -269,14 +269,14 @@ def make_checkPV(pvs, name='check_PV', min_z=-537.5, max_z=-337.5):
 def make_checkCylPV(pvs,
                     name='check_PV',
                     min_vtx_z=-9999999.,
-                    max_vtz_z=99999999.,
+                    max_vtx_z=99999999.,
                     max_vtx_rho_sq=99999999.,
                     min_vtx_nTracks=1.):
     return checkCylPV(
         pvs,
         name=name,
         min_vtx_z=min_vtx_z,
-        max_vtz_z=max_vtz_z,
+        max_vtx_z=max_vtx_z,
         max_vtx_rho_sq=max_vtx_rho_sq,
         min_vtx_nTracks=min_vtx_nTracks)
 
@@ -342,7 +342,7 @@ def checkPV(pvs, name='checkPV', minZ=-999999, maxZ=99999):
 def checkCylPV(pvs,
                name='checkCylPV',
                min_vtx_z=-999999.,
-               max_vtz_z=99999.,
+               max_vtx_z=99999.,
                max_vtx_rho_sq=99999.,
                min_vtx_nTracks=10.):
 
@@ -355,7 +355,7 @@ def checkCylPV(pvs,
         dev_number_of_multi_final_vertices_t=pvs[
             "dev_number_of_multi_final_vertices"],
         min_vtx_z=min_vtx_z,
-        max_vtz_z=max_vtz_z,
+        max_vtx_z=max_vtx_z,
         max_vtx_rho_sq=max_vtx_rho_sq,
         min_vtx_nTracks=min_vtx_nTracks)
 

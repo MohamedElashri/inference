@@ -26,6 +26,8 @@ namespace Allen {
         struct Hit {
         private:
           constexpr static unsigned offset_coordinates = sizeof(unsigned) / sizeof(half_t);
+          constexpr static unsigned offset_cluster_size =
+            (sizeof(unsigned) + 3 * sizeof(half_t) + sizeof(int16_t)) / sizeof(int16_t);
 
           const half_t* m_base_pointer = nullptr;
           unsigned m_index = 0;
@@ -55,6 +57,12 @@ namespace Allen {
           __host__ __device__ float z() const
           {
             return static_cast<float>(m_base_pointer[offset_coordinates * m_total_number_of_hits + 3 * m_index + 2]);
+          }
+
+          __host__ __device__ unsigned cluster_size() const
+          {
+            return static_cast<unsigned>(
+              reinterpret_cast<const int16_t*>(m_base_pointer)[offset_cluster_size * m_total_number_of_hits + m_index]);
           }
 
           __host__ __device__ operator ::Velo::HitBase() const { return ::Velo::HitBase {x(), y(), z()}; }
