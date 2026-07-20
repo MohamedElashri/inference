@@ -102,26 +102,26 @@ histos:
       nEntries: 14.0
       title: IP_{x}(p0)
       sum: 14
-      meanX: -0.025714
-      stdDevX: 0.186268
+      meanX: -0.004286
+      stdDevX: 0.190702
     p0_ipy:
       nEntries: 15.0
       title: IP_{y}(p0)
       sum: 15
-      meanX: -0.178
-      stdDevX: 0.332169
+      meanX: -0.174
+      stdDevX: 0.344186
     p1_ipx:
       nEntries: 15.0
       title: IP_{x}(p1)
       sum: 15
-      meanX: 0.062
-      stdDevX: 0.377486
+      meanX: 0.042
+      stdDevX: 0.378967
     p1_ipy:
       nEntries: 14.0
       title: IP_{y}(p1)
       sum: 14
-      meanX: -0.072857
-      stdDevX: 0.428743
+      meanX: -0.077143
+      stdDevX: 0.419497
   Hlt1D2PiPi:
     d02pipi_mass:
       nEntries: 4.0
@@ -283,14 +283,14 @@ histos:
       nEntries: 823.0
       title: track0 GhostProb
       sum: 823
-      meanX: 0.078638
-      stdDevX: 0.099793
+      meanX: 0.076699
+      stdDevX: 0.099473
     p1_ghost_prob:
       nEntries: 823.0
       title: track1 GhostProb
       sum: 823
-      meanX: 0.077625
-      stdDevX: 0.100449
+      meanX: 0.079564
+      stdDevX: 0.100748
   Hlt1LambdaLLDetachedTrack:
     LambdaTrack_mass:
       nEntries: 1.0
@@ -377,72 +377,72 @@ histos:
       stdDevX: 0.346577
   Hlt1TwoTrackMVA:
     d0_mass:
-      nEntries: 31.0
+      nEntries: 28.0
       title: m(K#pi)
-      sum: 31
-      meanX: 1883.032258
-      stdDevX: 54.896668
+      sum: 28
+      meanX: 1868.571429
+      stdDevX: 54.764058
     p0_ghost_prob:
       nEntries: 369.0
       title: track0 GhostProb
       sum: 369
-      meanX: 0.039065
-      stdDevX: 0.070268
+      meanX: 0.040626
+      stdDevX: 0.075243
     p0_ip_x:
-      nEntries: 329.0
+      nEntries: 323.0
       title: IP_{x}(p0)
-      sum: 329
-      meanX: 0.011216
-      stdDevX: 0.605905
+      sum: 323
+      meanX: 0.013282
+      stdDevX: 0.588758
     p0_ip_y:
-      nEntries: 328.0
+      nEntries: 323.0
       title: IP_{y}(p0)
-      sum: 328
-      meanX: 0.005122
-      stdDevX: 0.582171
+      sum: 323
+      meanX: 0.013096
+      stdDevX: 0.542064
     p1_ghost_prob:
       nEntries: 369.0
       title: track1 GhostProb
       sum: 369
-      meanX: 0.033309
-      stdDevX: 0.057586
+      meanX: 0.031748
+      stdDevX: 0.050688
     p1_ip_x:
-      nEntries: 324.0
+      nEntries: 330.0
       title: IP_{x}(p1)
-      sum: 324
-      meanX: -0.081481
-      stdDevX: 0.564638
+      sum: 330
+      meanX: -0.081818
+      stdDevX: 0.582685
     p1_ip_y:
-      nEntries: 326.0
+      nEntries: 331.0
       title: IP_{y}(p1)
-      sum: 326
-      meanX: -0.01546
-      stdDevX: 0.55713
+      sum: 331
+      meanX: -0.022931
+      stdDevX: 0.595309
   calo_find_clusters:
     ecal_cluster_e:
       nEntries: 490569.0
       title: EcalClusterE
       sum: 490569
-      meanX: 8008.00127
-      stdDevX: 7518.307693
+      meanX: 8008.005632
+      stdDevX: 7518.306808
     ecal_cluster_et:
       nEntries: 494433.0
       title: EcalClusterEt
       sum: 494433
-      meanX: 806.194277
-      stdDevX: 458.049985
+      meanX: 806.195511
+      stdDevX: 458.052249
     ecal_cluster_x:
       nEntries: 494739.0
       title: EcalClusterX
       sum: 494739
-      meanX: 0.481456
-      stdDevX: 1894.452391
+      meanX: 0.481436
+      stdDevX: 1894.452382
     ecal_cluster_y:
       nEntries: 494739.0
       title: EcalClusterY
       sum: 494739
-      meanX: -1.088463
-      stdDevX: 1037.321008
+      meanX: -1.088443
+      stdDevX: 1037.320945
     ecal_digit_e:
       nEntries: 1073948.0
       title: EcalDigitE
@@ -557,14 +557,14 @@ histos:
       nEntries: 17374.0
       title: line passes
       sum: 17374
-      meanX: 85.704961
-      stdDevX: 22.463701
+      meanX: 86.280361
+      stdDevX: 22.920313
     line_rates:
       nEntries: 655.0
       title: line rates
       sum: 655
-      meanX: 79.287786
-      stdDevX: 32.871982
+      meanX: 79.301527
+      stdDevX: 32.882307
   is_muon:
     n_muons:
       nEntries: 458550.0

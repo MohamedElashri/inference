@@ -557,14 +557,14 @@ histos:
       nEntries: 17373.0
       title: line passes
       sum: 17373
-      meanX: 85.763915
-      stdDevX: 22.397973
+      meanX: 86.339348
+      stdDevX: 22.854439
     line_rates:
       nEntries: 665.0
       title: line rates
       sum: 665
-      meanX: 80.152632
-      stdDevX: 32.214291
+      meanX: 80.166165
+      stdDevX: 32.224305
   is_muon:
     n_muons:
       nEntries: 458860.0
