@@ -93,7 +93,7 @@ def setup_allen_non_event_data_service(allen_event_loop=False, bank_types=None):
         # MagneticFieldSvc is required for non-DD4hep builds
         appMgr.ExtSvc.append("MagneticFieldSvc")
 
-    appMgr.ExtSvc.extend(
+    appMgr.ExtSvc.append(
         AllenUpdater(
             TriggerEventLoop=allen_event_loop,
             BeamlineOffset=beamline_offset,
