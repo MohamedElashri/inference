@@ -34,6 +34,7 @@ from AllenConf.muon_reconstruction import (
 )
 from AllenConf.persistency import make_gather_selections, make_sel_report_writer
 from AllenConf.primary_vertex_reconstruction import make_pvs
+from AllenConf.rich_reco_options import default_rich_reco_options_allen
 from AllenConf.rich_reconstruction import make_rich
 from AllenConf.scifi_reconstruction import (
     decode_scifi,
@@ -53,7 +54,11 @@ from AllenConf.secondary_vertex_reconstruction import (
     make_sv_track_pairs,
 )
 from AllenConf.ttrack_vertex_reconstruction import make_ttrack_vertices
-from AllenConf.ut_reconstruction import decode_ut, make_dummy_ut_hits, make_ut_tracks
+from AllenConf.ut_reconstruction import (
+    decode_ut,
+    make_dummy_ut_hits,
+    make_ut_tracks,
+)
 from AllenConf.validators import (
     data_quality_validation_long,
     data_quality_validation_occupancy,
@@ -90,6 +95,7 @@ def hlt1_reconstruction(
     velo_open=False,
     enableDownstream=False,
     with_rich=False,
+    rich_background_method="FromReco",
     with_AC_split=False,
     with_fullKF=False,
     with_downstream_KF=False,
@@ -621,7 +627,10 @@ def hlt1_reconstruction(
         )
 
     if with_rich and with_fullKF:
-        rich = make_rich("Long", KF_long_track)
+        rich_options = default_rich_reco_options_allen(
+            {"BackgroundEstimationMethod": rich_background_method}
+        )
+        rich = make_rich("Long", KF_long_track, options=rich_options)
 
         output.update(
             {

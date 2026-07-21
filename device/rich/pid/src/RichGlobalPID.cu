@@ -13,7 +13,18 @@
 #include <BinarySearch.cuh>
 #include <array>
 
-INSTANTIATE_ALGORITHM(rich_global_pid::rich_global_pid_t);
+INSTANTIATE_ALGORITHM_WITH_ID(
+  rich_global_pid::rich_global_pid_t<rich_global_pid::BackgroundEstimationMethod::FromReco>,
+  "rich_global_pid_from_reco_t")
+INSTANTIATE_ALGORITHM_WITH_ID(
+  rich_global_pid::rich_global_pid_t<rich_global_pid::BackgroundEstimationMethod::FromCones>,
+  "rich_global_pid_from_cones_t")
+
+// Same fixed-point convention used for the DLL values themselves (as opposed
+// to the pixel signals above): a delta log-likelihood of 1e-3 is the
+// smallest step that's tracked.
+constexpr float dll_fixed_point_scale = 1e3f;
+constexpr float inv_dll_fixed_point_scale = 1.f / dll_fixed_point_scale;
 
 constexpr float pix_signals_scale = 1e5f;
 constexpr float inv_pix_signals_scale = 1.f / pix_signals_scale;
@@ -25,14 +36,9 @@ inline __device__ float signalFromFixedPoint(const int signal)
   return static_cast<float>(signal) * inv_pix_signals_scale;
 }
 
-// Same fixed-point convention used for the DLL values themselves (as opposed
-// to the pixel signals above): a delta log-likelihood of 1e-3 is the
-// smallest step that's tracked.
-constexpr float dll_fixed_point_scale = 1e3f;
-constexpr float inv_dll_fixed_point_scale = 1.f / dll_fixed_point_scale;
-
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
 template<Allen::Rich::Detector::DetectorType richIdx>
-void rich_global_pid::rich_global_pid_t::updateRich(const Allen::Rich::RichDetector<richIdx>* rich) const
+void rich_global_pid::rich_global_pid_t<bkg_method>::updateRich(const Allen::Rich::RichDetector<richIdx>* rich) const
 {
   const unsigned ec_per_panel = Allen::Rich::Detector::PDPanel<richIdx>::ECsPerPanel;
   std::vector<uint16_t> effNumPixs {};
@@ -57,7 +63,8 @@ void rich_global_pid::rich_global_pid_t::updateRich(const Allen::Rich::RichDetec
     m_cached_effNumPixsEC[richIdx], effNumPixs.data(), effNumPixs.size() * sizeof(uint16_t), Allen::memcpyHostToDevice);
 }
 
-void rich_global_pid::rich_global_pid_t::update(const Constants& constants) const
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+void rich_global_pid::rich_global_pid_t<bkg_method>::update(const Constants& constants) const
 {
   updateRich<Allen::Rich::Detector::Rich1>(constants.host_rich_1_geometry);
   updateRich<Allen::Rich::Detector::Rich2>(constants.host_rich_2_geometry);
@@ -93,22 +100,26 @@ __global__ void rich_acc_pixel_signal_k(
   }
 }
 
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
 template<Allen::Rich::Detector::DetectorType richIdx>
-void rich_global_pid::rich_global_pid_t::pixelSignalsForRich(
-  const ArgumentReferences<Parameters>& arguments,
+void rich_global_pid::rich_global_pid_t<bkg_method>::pixelSignalsForRich(
+  const ArgumentReferences<Parameters<bkg_method>>& arguments,
   const Allen::Context& context,
   const Allen::Rich::ParticleIDType* pids_in) const
 {
-  const unsigned number_of_tracks = first<host_number_of_tracks_t>(arguments);
+
+  using P = Parameters<bkg_method>;
+
+  const unsigned number_of_tracks = first<typename P::host_number_of_tracks_t>(arguments);
   const unsigned number_of_photons = richIdx == Allen::Rich::Detector::Rich1 ?
-                                       first<host_number_of_photons_r1_t>(arguments) :
-                                       first<host_number_of_photons_r2_t>(arguments);
+                                       first<typename P::host_number_of_photons_r1_t>(arguments) :
+                                       first<typename P::host_number_of_photons_r2_t>(arguments);
 
   if constexpr (richIdx == Allen::Rich::Detector::Rich1) {
-    Allen::memset_async<dev_pixel_signals_r1_t>(arguments, 0, context);
+    Allen::memset_async<typename P::dev_pixel_signals_r1_t>(arguments, 0, context);
   }
   else {
-    Allen::memset_async<dev_pixel_signals_r2_t>(arguments, 0, context);
+    Allen::memset_async<typename P::dev_pixel_signals_r2_t>(arguments, 0, context);
   }
 
   const auto& acc_kernel = rich_acc_pixel_signal_k<richIdx>;
@@ -116,14 +127,14 @@ void rich_global_pid::rich_global_pid_t::pixelSignalsForRich(
     number_of_tracks,
     number_of_photons,
     pids_in,
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_offsets_rich_photons_r1_t>(arguments) :
-                                              data<dev_offsets_rich_photons_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_rich_photons_r1_t>(arguments) :
-                                              data<dev_rich_photons_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_photon_pix_signals_r1_t>(arguments) :
-                                              data<dev_photon_pix_signals_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_pixel_signals_r1_t>(arguments) :
-                                              data<dev_pixel_signals_r2_t>(arguments));
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_offsets_rich_photons_r1_t>(arguments) :
+                                              data<typename P::dev_offsets_rich_photons_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_photons_r1_t>(arguments) :
+                                              data<typename P::dev_rich_photons_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_photon_pix_signals_r1_t>(arguments) :
+                                              data<typename P::dev_photon_pix_signals_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_pixel_signals_r1_t>(arguments) :
+                                              data<typename P::dev_pixel_signals_r2_t>(arguments));
 }
 
 // Compute the average background in an EC (group of 1-4 PDs), using the pixel signals
@@ -185,24 +196,67 @@ __global__ void rich_avg_bkg_from_reco_k(
   }
 }
 
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
 template<Allen::Rich::Detector::DetectorType richIdx>
-void rich_global_pid::rich_global_pid_t::backgroundsForRichFromReco(
-  const ArgumentReferences<Parameters>& arguments,
+void rich_global_pid::rich_global_pid_t<bkg_method>::launchBackgroundFromReco(
+  const Allen::Context& context,
+  const bool ignoreExpSignal,
+  const unsigned number_of_events,
+  const unsigned* rich_pd_offsets,
+  int* pixel_signals,
+  float* pix_bkg) const
+{
+  const auto& avg_kernel =
+    ignoreExpSignal ? rich_avg_bkg_from_reco_k<richIdx, true> : rich_avg_bkg_from_reco_k<richIdx, false>;
+  global_function(avg_kernel)(dim3(32), dim3(m_block_dim), context)(
+    m_cached_effNumPixsEC[richIdx], number_of_events, rich_pd_offsets, pixel_signals, pix_bkg);
+}
+
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+template<Allen::Rich::Detector::DetectorType richIdx>
+void rich_global_pid::rich_global_pid_t<bkg_method>::backgroundsForRichFromReco(
+  const ArgumentReferences<Parameters<bkg_method>>& arguments,
   const Allen::Context& context,
   const unsigned it) const
 {
-  const unsigned number_of_events = first<host_number_of_events_t>(arguments);
 
-  const auto& avg_kernel =
-    m_ignoreExpSignal.value()[it] ? rich_avg_bkg_from_reco_k<richIdx, true> : rich_avg_bkg_from_reco_k<richIdx, false>;
-  global_function(avg_kernel)(dim3(32), dim3(m_block_dim), context)(
-    m_cached_effNumPixsEC[richIdx],
+  using P = Parameters<bkg_method>;
+  const unsigned number_of_events = first<typename P::host_number_of_events_t>(arguments);
+
+  launchBackgroundFromReco<richIdx>(
+    context,
+    m_ignoreExpSignal.value()[it],
     number_of_events,
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_rich_pd_offsets_r1_t>(arguments) :
-                                              data<dev_rich_pd_offsets_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_pixel_signals_r1_t>(arguments) :
-                                              data<dev_pixel_signals_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<dev_pix_bkg_r1_t>(arguments) : data<dev_pix_bkg_r2_t>(arguments));
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_pd_offsets_r1_t>(arguments) :
+                                              data<typename P::dev_rich_pd_offsets_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_pixel_signals_r1_t>(arguments) :
+                                              data<typename P::dev_pixel_signals_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_pix_bkg_r1_t>(arguments) :
+                                              data<typename P::dev_pix_bkg_r2_t>(arguments));
+}
+
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+template<Allen::Rich::Detector::DetectorType richIdx>
+void rich_global_pid::rich_global_pid_t<bkg_method>::backgroundsForRichFromCones(
+  const ArgumentReferences<Parameters<BackgroundEstimationMethod::FromCones>>& arguments,
+  const Allen::Context& context,
+  const unsigned it) const
+{
+  using P = Parameters<BackgroundEstimationMethod::FromCones>;
+  const unsigned number_of_events = first<P::host_number_of_events_t>(arguments);
+
+  // TODO(#618): fallback onto the FromReco-style estimator until the real
+  // geomeff-based background estimator (Phase 1) is implemented.
+  launchBackgroundFromReco<richIdx>(
+    context,
+    m_ignoreExpSignal.value()[it],
+    number_of_events,
+    richIdx == Allen::Rich::Detector::Rich1 ? data<P::dev_rich_pd_offsets_r1_t>(arguments) :
+                                              data<P::dev_rich_pd_offsets_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<P::dev_pixel_signals_r1_t>(arguments) :
+                                              data<P::dev_pixel_signals_r2_t>(arguments),
+    richIdx == Allen::Rich::Detector::Rich1 ? data<P::dev_pix_bkg_r1_t>(arguments) :
+                                              data<P::dev_pix_bkg_r2_t>(arguments));
 }
 
 inline __device__ float sigFunc(float sig)
@@ -623,44 +677,48 @@ __global__ void rich_global_pid_iterations_k(
   }               // iterations while loop
 }
 
-void rich_global_pid::rich_global_pid_t::initDLLs(
-  const ArgumentReferences<Parameters>& arguments,
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+void rich_global_pid::rich_global_pid_t<bkg_method>::initDLLs(
+  const ArgumentReferences<Parameters<bkg_method>>& arguments,
   const Allen::Context& context,
   const Allen::Rich::ParticleIDType* pids_in,
   Allen::Rich::ParticleIDType* pids_out) const
 {
-  const unsigned number_of_tracks = first<host_number_of_tracks_t>(arguments);
-  const unsigned number_of_photons_r1 = first<host_number_of_photons_r1_t>(arguments);
-  const unsigned number_of_photons_r2 = first<host_number_of_photons_r2_t>(arguments);
 
-  Allen::memset_async<dev_dll_out_t>(arguments, 0, context);
+  using P = Parameters<bkg_method>;
+
+  const unsigned number_of_tracks = first<typename P::host_number_of_tracks_t>(arguments);
+  const unsigned number_of_photons_r1 = first<typename P::host_number_of_photons_r1_t>(arguments);
+  const unsigned number_of_photons_r2 = first<typename P::host_number_of_photons_r2_t>(arguments);
+
+  Allen::memset_async<typename P::dev_dll_out_t>(arguments, 0, context);
 
   global_function(rich_acc_pixel_dll_k)(dim3(32), dim3(m_block_dim), context)(
     number_of_tracks,
     number_of_photons_r1,
     pids_in,
-    data<dev_offsets_rich_photons_r1_t>(arguments),
-    data<dev_rich_photons_r1_t>(arguments),
-    data<dev_photon_pix_signals_r1_t>(arguments),
-    data<dev_pixel_signals_r1_t>(arguments),
-    data<dev_dll_out_t>(arguments));
+    data<typename P::dev_offsets_rich_photons_r1_t>(arguments),
+    data<typename P::dev_rich_photons_r1_t>(arguments),
+    data<typename P::dev_photon_pix_signals_r1_t>(arguments),
+    data<typename P::dev_pixel_signals_r1_t>(arguments),
+    data<typename P::dev_dll_out_t>(arguments));
 
   global_function(rich_acc_pixel_dll_k)(dim3(32), dim3(m_block_dim), context)(
     number_of_tracks,
     number_of_photons_r2,
     pids_in,
-    data<dev_offsets_rich_photons_r2_t>(arguments),
-    data<dev_rich_photons_r2_t>(arguments),
-    data<dev_photon_pix_signals_r2_t>(arguments),
-    data<dev_pixel_signals_r2_t>(arguments),
-    data<dev_dll_out_t>(arguments));
+    data<typename P::dev_offsets_rich_photons_r2_t>(arguments),
+    data<typename P::dev_rich_photons_r2_t>(arguments),
+    data<typename P::dev_photon_pix_signals_r2_t>(arguments),
+    data<typename P::dev_pixel_signals_r2_t>(arguments),
+    data<typename P::dev_dll_out_t>(arguments));
 
   global_function(rich_init_dll_best_hypo_k)(dim3(32), dim3(m_block_dim), context)(
     number_of_tracks,
     pids_in,
-    data<dev_track_total_signals_r1_t>(arguments),
-    data<dev_track_total_signals_r2_t>(arguments),
-    data<dev_dll_out_t>(arguments),
+    data<typename P::dev_track_total_signals_r1_t>(arguments),
+    data<typename P::dev_track_total_signals_r2_t>(arguments),
+    data<typename P::dev_dll_out_t>(arguments),
     pids_out);
 
   // recompute the DLLs based on the best hypo that was selected
@@ -669,24 +727,25 @@ void rich_global_pid::rich_global_pid_t::initDLLs(
     number_of_photons_r1,
     pids_in,
     pids_out,
-    data<dev_offsets_rich_photons_r1_t>(arguments),
-    data<dev_rich_photons_r1_t>(arguments),
-    data<dev_photon_pix_signals_r1_t>(arguments),
-    data<dev_pixel_signals_r1_t>(arguments));
+    data<typename P::dev_offsets_rich_photons_r1_t>(arguments),
+    data<typename P::dev_rich_photons_r1_t>(arguments),
+    data<typename P::dev_photon_pix_signals_r1_t>(arguments),
+    data<typename P::dev_pixel_signals_r1_t>(arguments));
 
   global_function(rich_global_pid_init_update_signals_k)(dim3(32), dim3(m_block_dim), context)(
     number_of_tracks,
     number_of_photons_r2,
     pids_in,
     pids_out,
-    data<dev_offsets_rich_photons_r2_t>(arguments),
-    data<dev_rich_photons_r2_t>(arguments),
-    data<dev_photon_pix_signals_r2_t>(arguments),
-    data<dev_pixel_signals_r2_t>(arguments));
+    data<typename P::dev_offsets_rich_photons_r2_t>(arguments),
+    data<typename P::dev_rich_photons_r2_t>(arguments),
+    data<typename P::dev_photon_pix_signals_r2_t>(arguments),
+    data<typename P::dev_pixel_signals_r2_t>(arguments));
 }
 
-void rich_global_pid::rich_global_pid_t::doIterations(
-  const ArgumentReferences<Parameters>& arguments,
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+void rich_global_pid::rich_global_pid_t<bkg_method>::doIterations(
+  const ArgumentReferences<Parameters<bkg_method>>& arguments,
   const Allen::Context& context,
   Allen::Rich::ParticleIDType* pids,
   Allen::Rich::HypoData<float>* dlls,
@@ -698,24 +757,26 @@ void rich_global_pid::rich_global_pid_t::doIterations(
   const unsigned* pix2photon_r2) const
 {
 
-  const unsigned number_of_events = first<host_number_of_events_t>(arguments);
+  using P = Parameters<bkg_method>;
+
+  const unsigned number_of_events = first<typename P::host_number_of_events_t>(arguments);
 
   constexpr unsigned warps_per_block = 2;
   const unsigned n_blocks = (number_of_events + warps_per_block - 1) / warps_per_block;
 
   global_function(rich_global_pid_iterations_k)(dim3(n_blocks), dim3(warps_per_block * warp_size), context)(
     number_of_events,
-    data<dev_offsets_tracks_t>(arguments),
-    data<dev_offsets_rich_photons_r1_t>(arguments),
-    data<dev_rich_photons_r1_t>(arguments),
-    data<dev_photon_pix_signals_r1_t>(arguments),
-    data<dev_track_total_signals_r1_t>(arguments),
-    data<dev_pixel_signals_r1_t>(arguments),
-    data<dev_offsets_rich_photons_r2_t>(arguments),
-    data<dev_rich_photons_r2_t>(arguments),
-    data<dev_photon_pix_signals_r2_t>(arguments),
-    data<dev_track_total_signals_r2_t>(arguments),
-    data<dev_pixel_signals_r2_t>(arguments),
+    data<typename P::dev_offsets_tracks_t>(arguments),
+    data<typename P::dev_offsets_rich_photons_r1_t>(arguments),
+    data<typename P::dev_rich_photons_r1_t>(arguments),
+    data<typename P::dev_photon_pix_signals_r1_t>(arguments),
+    data<typename P::dev_track_total_signals_r1_t>(arguments),
+    data<typename P::dev_pixel_signals_r1_t>(arguments),
+    data<typename P::dev_offsets_rich_photons_r2_t>(arguments),
+    data<typename P::dev_rich_photons_r2_t>(arguments),
+    data<typename P::dev_photon_pix_signals_r2_t>(arguments),
+    data<typename P::dev_track_total_signals_r2_t>(arguments),
+    data<typename P::dev_pixel_signals_r2_t>(arguments),
     pids,
     dlls,
     pix2track_offsets_r1,
@@ -728,47 +789,56 @@ void rich_global_pid::rich_global_pid_t::doIterations(
     m_maxEventIterations.value());
 }
 
-void rich_global_pid::rich_global_pid_t::set_arguments_size(
-  ArgumentReferences<Parameters> arguments,
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+void rich_global_pid::rich_global_pid_t<bkg_method>::set_arguments_size(
+  ArgumentReferences<Parameters<bkg_method>> arguments,
   const RuntimeOptions&,
   const Constants&) const
 {
-  const unsigned number_of_events = first<host_number_of_events_t>(arguments);
-  const unsigned number_of_tracks = first<host_number_of_tracks_t>(arguments);
-  const unsigned number_of_pixels_r1 = first<host_number_of_pixels_r1_t>(arguments);
-  const unsigned number_of_pixels_r2 = first<host_number_of_pixels_r2_t>(arguments);
 
-  set_size<dev_pixel_signals_r1_t>(arguments, number_of_pixels_r1);
-  set_size<dev_pixel_signals_r2_t>(arguments, number_of_pixels_r2);
+  using P = Parameters<bkg_method>;
 
-  set_size<dev_pix_bkg_r1_t>(
+  const unsigned number_of_events = first<typename P::host_number_of_events_t>(arguments);
+  const unsigned number_of_tracks = first<typename P::host_number_of_tracks_t>(arguments);
+  const unsigned number_of_pixels_r1 = first<typename P::host_number_of_pixels_r1_t>(arguments);
+  const unsigned number_of_pixels_r2 = first<typename P::host_number_of_pixels_r2_t>(arguments);
+
+  set_size<typename P::dev_pixel_signals_r1_t>(arguments, number_of_pixels_r1);
+  set_size<typename P::dev_pixel_signals_r2_t>(arguments, number_of_pixels_r2);
+
+  set_size<typename P::dev_pix_bkg_r1_t>(
     arguments,
     Allen::Rich::NPDPanelsPerRICH * number_of_events *
       Allen::Rich::Detector::PDPanel<Allen::Rich::Detector::Rich1>::ECsPerPanel);
-  set_size<dev_pix_bkg_r2_t>(
+  set_size<typename P::dev_pix_bkg_r2_t>(
     arguments,
     Allen::Rich::NPDPanelsPerRICH * number_of_events *
       Allen::Rich::Detector::PDPanel<Allen::Rich::Detector::Rich2>::ECsPerPanel);
 
-  set_size<dev_pid_out_t>(arguments, number_of_tracks);
-  set_size<dev_dll_out_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_pid_out_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_dll_out_t>(arguments, number_of_tracks);
 }
 
-void rich_global_pid::rich_global_pid_t::operator()(
-  const ArgumentReferences<Parameters>& arguments,
+template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+void rich_global_pid::rich_global_pid_t<bkg_method>::operator()(
+  const ArgumentReferences<Parameters<bkg_method>>& arguments,
   const RuntimeOptions&,
   const Constants& constants,
   const Allen::Context& context) const
 {
+
+  using P = Parameters<bkg_method>;
+
   [[maybe_unused]] const Allen::Rich::RichDetector<Allen::Rich::Detector::Rich1>* rich1 = constants.dev_rich_1_geometry;
   [[maybe_unused]] const Allen::Rich::RichDetector<Allen::Rich::Detector::Rich2>* rich2 = constants.dev_rich_2_geometry;
 
-  const unsigned number_of_tracks = first<host_number_of_tracks_t>(arguments);
+  // const unsigned number_of_events = first<host_number_of_events_t>(arguments);
+  const unsigned number_of_tracks = first<typename P::host_number_of_tracks_t>(arguments);
   auto pids_tmp_buffer =
     arguments.template make_buffer<Allen::Store::Scope::Device, Allen::Rich::ParticleIDType>(number_of_tracks);
 
   Allen::Rich::ParticleIDType* pids_in = pids_tmp_buffer.data();
-  Allen::Rich::ParticleIDType* pids_out = data<dev_pid_out_t>(arguments);
+  Allen::Rich::ParticleIDType* pids_out = data<typename P::dev_pid_out_t>(arguments);
 
   if (m_nLikelihoodIterations.value() % 2 == 0) {
     // Make sure the last iteration writes to dev_pid_out_t
@@ -777,7 +847,7 @@ void rich_global_pid::rich_global_pid_t::operator()(
 
   Allen::memcpy_async(
     pids_in,
-    data<dev_pid_in_t>(arguments),
+    data<typename P::dev_pid_in_t>(arguments),
     number_of_tracks * sizeof(Allen::Rich::ParticleIDType),
     Allen::memcpyDeviceToDevice,
     context);
@@ -788,8 +858,14 @@ void rich_global_pid::rich_global_pid_t::operator()(
 
   for (unsigned it = 0; it < m_nLikelihoodIterations.value(); it++) {
     // Compute backgrounds:
-    backgroundsForRichFromReco<Allen::Rich::Detector::Rich1>(arguments, context, it);
-    backgroundsForRichFromReco<Allen::Rich::Detector::Rich2>(arguments, context, it);
+    if constexpr (bkg_method == BackgroundEstimationMethod::FromCones) {
+      backgroundsForRichFromCones<Allen::Rich::Detector::Rich1>(arguments, context, it);
+      backgroundsForRichFromCones<Allen::Rich::Detector::Rich2>(arguments, context, it);
+    }
+    else {
+      backgroundsForRichFromReco<Allen::Rich::Detector::Rich1>(arguments, context, it);
+      backgroundsForRichFromReco<Allen::Rich::Detector::Rich2>(arguments, context, it);
+    }
 
     // Init DLLs and set to best hypothesis:
     initDLLs(arguments, context, pids_in, pids_out);
@@ -799,13 +875,13 @@ void rich_global_pid::rich_global_pid_t::operator()(
       arguments,
       context,
       pids_out,
-      data<dev_dll_out_t>(arguments),
-      data<dev_pix2track_offsets_r1_t>(arguments),
-      data<dev_pix2track_r1_t>(arguments),
-      data<dev_pix2photon_r1_t>(arguments),
-      data<dev_pix2track_offsets_r2_t>(arguments),
-      data<dev_pix2track_r2_t>(arguments),
-      data<dev_pix2photon_r2_t>(arguments));
+      data<typename P::dev_dll_out_t>(arguments),
+      data<typename P::dev_pix2track_offsets_r1_t>(arguments),
+      data<typename P::dev_pix2track_r1_t>(arguments),
+      data<typename P::dev_pix2photon_r1_t>(arguments),
+      data<typename P::dev_pix2track_offsets_r2_t>(arguments),
+      data<typename P::dev_pix2track_r2_t>(arguments),
+      data<typename P::dev_pix2photon_r2_t>(arguments));
 
     std::swap(pids_in, pids_out);
   }
@@ -815,5 +891,8 @@ void rich_global_pid::rich_global_pid_t::operator()(
   // to the pion convention expected by the converter - now that all outer
   // likelihood iterations are done.
   global_function(rich_dll_finalise_k)(dim3(32), dim3(m_block_dim), context)(
-    number_of_tracks, data<dev_dll_out_t>(arguments));
+    number_of_tracks, data<typename P::dev_dll_out_t>(arguments));
 }
+
+template struct rich_global_pid::rich_global_pid_t<rich_global_pid::BackgroundEstimationMethod::FromReco>;
+template struct rich_global_pid::rich_global_pid_t<rich_global_pid::BackgroundEstimationMethod::FromCones>;
