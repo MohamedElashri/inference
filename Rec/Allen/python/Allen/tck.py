@@ -85,6 +85,26 @@ from subprocess import PIPE, run
 from lxml import etree
 
 
+def clone_metainfo_repository(source, destination, branch="master"):
+    """Clone a metadata repository with a deterministic initial branch.
+
+    Build metadata repositories are shared between tests and can temporarily
+    have a ``key-*`` branch checked out while a new encoding key is committed.
+    Selecting the branch explicitly prevents a concurrent clone from inheriting
+    that transient HEAD.
+    """
+    result = run(
+        ["git", "clone", "-q", "--branch", branch, str(source), str(destination)],
+        stdout=PIPE,
+        stderr=PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        details = result.stderr.strip()
+        message = f"Failed to clone build metainfo repo {source} to {destination}"
+        raise RuntimeError(f"{message}: {details}" if details else message)
+
+
 def format_tck(tck: int):
     return f"0x{tck:08X}"
 

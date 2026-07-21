@@ -12,11 +12,14 @@ import argparse
 import json
 import logging
 import os
-import subprocess
 import sys
 from pathlib import Path
 
-from Allen.tck import sequence_from_python, sequence_to_git
+from Allen.tck import (
+    clone_metainfo_repository,
+    sequence_from_python,
+    sequence_to_git,
+)
 from PyConf.filecontent_metadata import (
     FILE_CONTENT_METADATA,
     ConfigurationError,
@@ -82,22 +85,14 @@ tck_metainfo_repos = [
 # keys in a local repo if they are not in the cvmfs one
 build_metainfo_repo = os.environ.pop("LHCbFileContentMetaDataRepo", None)
 if build_metainfo_repo is not None and not local_metainfo_repo.exists():
-    result = subprocess.run(
-        [
-            "git",
-            "clone",
-            "-q",
+    try:
+        clone_metainfo_repository(
             build_metainfo_repo,
             str(local_metainfo_repo.resolve()).removesuffix("/.git"),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(
-            f"Failed to clone build metainfo repo {build_metainfo_repo} to local repo"
+            branch="master",
         )
+    except RuntimeError as error:
+        print(error)
         sys.exit(1)
 
 
