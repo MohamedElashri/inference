@@ -159,10 +159,10 @@ void scifi_pre_decode::scifi_pre_decode_t::operator()(
   auto kernel_fn = (bank_version == 4 || bank_version == 5) ?
                      (runtime_options.mep_layout ? global_function(scifi_pre_decode_kernel<4, true>) :
                                                    global_function(scifi_pre_decode_kernel<4, false>)) :
-                     (bank_version == 6) ?
+                   (bank_version == 6) ?
                      (runtime_options.mep_layout ? global_function(scifi_pre_decode_kernel<6, true>) :
                                                    global_function(scifi_pre_decode_kernel<6, false>)) :
-                     (bank_version == 7 || (bank_version == 8 && m_decode_v8_as_v7.value())) ?
+                   (bank_version == 7 || (bank_version == 8 && m_decode_v8_as_v7.value())) ?
                      (runtime_options.mep_layout ? global_function(scifi_pre_decode_kernel<7, true>) :
                                                    global_function(scifi_pre_decode_kernel<7, false>)) :
                      (runtime_options.mep_layout ? global_function(scifi_pre_decode_kernel<8, true>) :

@@ -9,8 +9,6 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 
-import re
-
 
 def get_namespace(demangled_type):
     type_str = demangled_type.strip()
@@ -21,22 +19,22 @@ def get_namespace(demangled_type):
 
     for i in range(len(type_str) - 1, -1, -1):
         char = type_str[i]
-        if char == '>':
+        if char == ">":
             bracket_level += 1
-        elif char == '<':
+        elif char == "<":
             bracket_level -= 1
-        elif char == ':' and bracket_level == 0:
-            if i > 0 and type_str[i - 1] == ':':
+        elif char == ":" and bracket_level == 0:
+            if i > 0 and type_str[i - 1] == ":":
                 # Found a :: at top level
                 last_namespace_pos = i - 1
                 break
 
     if last_namespace_pos != -1:
         namespace = type_str[:last_namespace_pos].strip()
-        name = type_str[last_namespace_pos + 2:].strip()
-        name = name.split('<')[0].strip() if '<' in name else name
+        name = type_str[last_namespace_pos + 2 :].strip()
+        name = name.split("<")[0].strip() if "<" in name else name
         return namespace, name
 
     # No namespace found, just return the base name
-    base_name = type_str.split('<')[0].strip()
-    return '', base_name
+    base_name = type_str.split("<")[0].strip()
+    return "", base_name

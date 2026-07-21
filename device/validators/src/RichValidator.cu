@@ -72,16 +72,16 @@ void rich_validator::rich_validator_t::operator()(
     const auto evnum = event_list[i];
     const auto event_offset = event_tracks_offsets[evnum];
     const auto n_tracks = event_tracks_offsets[evnum + 1] - event_offset;
-    std::vector<Checker::Track> event_tracks = {rich_tracks_for_checker.begin() + event_offset,
-                                                rich_tracks_for_checker.begin() + event_offset + n_tracks};
+    std::vector<Checker::Track> event_tracks = {
+      rich_tracks_for_checker.begin() + event_offset, rich_tracks_for_checker.begin() + event_offset + n_tracks};
     tracks[i] = event_tracks;
 
     photons[i].resize(n_tracks);
     for (size_t j = 0; j < n_tracks; j++) {
       unsigned start = rich_photons_offsets[event_offset + j];
       unsigned end = rich_photons_offsets[event_offset + j + 1];
-      std::vector<Allen::Rich::PhotonReco::Photon> track_photons = {rich_photons.begin() + start,
-                                                                    rich_photons.begin() + end};
+      std::vector<Allen::Rich::PhotonReco::Photon> track_photons = {
+        rich_photons.begin() + start, rich_photons.begin() + end};
       photons[i][j] = track_photons;
     }
   }

@@ -87,7 +87,7 @@ namespace quirks_tools {
           const unsigned module_pair_base = layer_idx * max_pairs_per_module;
           // store the normalized candidate index
           parameters.dev_pair_list[module_pair_base + pos] =
-            (uint32_t)((ia << 16) | (uint32_t)(hit_idx_in_layer & 0xFFFFu));
+            (uint32_t) ((ia << 16) | (uint32_t) (hit_idx_in_layer & 0xFFFFu));
         }
         else {
           break;

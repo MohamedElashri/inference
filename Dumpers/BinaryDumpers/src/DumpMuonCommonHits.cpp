@@ -47,8 +47,8 @@ void DumpMuonCommonHits::operator()(const LHCb::ODIN& odin, const MuonHitContain
 {
 
   /*Write muon common hit variables for GPU to binary file */
-  DumpUtils::FileWriter outfile {m_outputDirectory.value() + "/" + to_string(odin.runNumber()) + "_" +
-                                 to_string(odin.eventNumber()) + ".bin"};
+  DumpUtils::FileWriter outfile {
+    m_outputDirectory.value() + "/" + to_string(odin.runNumber()) + "_" + to_string(odin.eventNumber()) + ".bin"};
 
   const int n_stations = 4;
 

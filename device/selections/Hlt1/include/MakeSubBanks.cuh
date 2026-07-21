@@ -76,9 +76,10 @@ namespace make_subbanks {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {64, 1, 1}, "block dimensions"};
     // TODO: This needs to be the same as the properties in
     // MakeSelectedObjectLists. These should be saved as constants somewhere.
-    Allen::Property<unsigned> m_max_children_per_object {this,
-                                                         "max_children_per_object",
-                                                         4,
-                                                         "Maximum number of children per selected object"};
+    Allen::Property<unsigned> m_max_children_per_object {
+      this,
+      "max_children_per_object",
+      4,
+      "Maximum number of children per selected object"};
   };
 } // namespace make_subbanks

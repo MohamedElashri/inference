@@ -57,10 +57,11 @@ namespace velo_large_clusters_line {
     }
 
   private:
-    Allen::Property<unsigned> m_min_cluster_size {this,
-                                                  "min_cluster_size",
-                                                  4,
-                                                  "Minimum cluster size for accepted hits"};
+    Allen::Property<unsigned> m_min_cluster_size {
+      this,
+      "min_cluster_size",
+      4,
+      "Minimum cluster size for accepted hits"};
     Allen::Property<float> m_min_eta {this, "min_eta", 5.f, "Minimum eta for accepted tracks"};
     Allen::Property<unsigned> m_min_n_hits {this, "min_n_hits", 3, "min number of large clusters in velo track"};
   };

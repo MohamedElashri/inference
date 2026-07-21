@@ -76,62 +76,75 @@ namespace FilterTracks {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<float> m_minpt_both {this,
-                                         "track_min_pt_both",
-                                         200.0f,
-                                         "Minimum track pT required for both tracks."};
-    Allen::Property<float> m_minpt_either {this,
-                                           "track_min_pt_either",
-                                           200.0f,
-                                           "Minimum track pT required for at least one track."};
-    Allen::Property<float> m_minipchi2_both {this,
-                                             "track_min_ipchi2_both",
-                                             4.0f,
-                                             "Minimum track IP chi2 required for both tracks."};
-    Allen::Property<float> m_minipchi2_either {this,
-                                               "track_min_ipchi2_either",
-                                               4.0f,
-                                               "Minimum track IP chi2 required for at least one tracks."};
-    Allen::Property<float> m_minip_both {this,
-                                         "track_min_ip_both",
-                                         0.06f * Allen::Units::mm,
-                                         "Minimum track IP required for both tracks."};
-    Allen::Property<float> m_minip_either {this,
-                                           "track_min_ip_either",
-                                           0.06f * Allen::Units::mm,
-                                           "Minimum track IP required for at least one track."};
+    Allen::Property<float> m_minpt_both {
+      this,
+      "track_min_pt_both",
+      200.0f,
+      "Minimum track pT required for both tracks."};
+    Allen::Property<float> m_minpt_either {
+      this,
+      "track_min_pt_either",
+      200.0f,
+      "Minimum track pT required for at least one track."};
+    Allen::Property<float> m_minipchi2_both {
+      this,
+      "track_min_ipchi2_both",
+      4.0f,
+      "Minimum track IP chi2 required for both tracks."};
+    Allen::Property<float> m_minipchi2_either {
+      this,
+      "track_min_ipchi2_either",
+      4.0f,
+      "Minimum track IP chi2 required for at least one tracks."};
+    Allen::Property<float> m_minip_both {
+      this,
+      "track_min_ip_both",
+      0.06f * Allen::Units::mm,
+      "Minimum track IP required for both tracks."};
+    Allen::Property<float> m_minip_either {
+      this,
+      "track_min_ip_either",
+      0.06f * Allen::Units::mm,
+      "Minimum track IP required for at least one track."};
     Allen::Property<float> m_maxchi2ndof {this, "track_max_chi2ndof", 10.0f, "max track chi2/ndof"};
     Allen::Property<float> m_maxdoca {this, "doca_max", 1.f * Allen::Units::mm, "Maximum DOCA between tracks."};
     Allen::Property<float> m_minsumpt {this, "sum_pt_min", 400.0f * Allen::Units::MeV, "Minimum sum of track pT."};
-    Allen::Property<bool> m_require_os_pair {this,
-                                             "require_os_pair",
-                                             false,
-                                             "Require that tracks have opposite-sign charge."};
-    Allen::Property<bool> m_require_same_pv {this,
-                                             "require_same_pv",
-                                             true,
-                                             "Require both tracks to be associated with the same PV."};
-    Allen::Property<bool> m_require_muon {this,
-                                          "require_muon",
-                                          false,
-                                          "Require both tracks to be identified as muons."};
-    Allen::Property<bool> m_require_electron {this,
-                                              "require_electron",
-                                              false,
-                                              "Require both tracks to be identified as electrons."};
-    Allen::Property<bool> m_require_lepton {this,
-                                            "require_lepton",
-                                            false,
-                                            "Require both tracks to be identified as leptons."};
+    Allen::Property<bool> m_require_os_pair {
+      this,
+      "require_os_pair",
+      false,
+      "Require that tracks have opposite-sign charge."};
+    Allen::Property<bool> m_require_same_pv {
+      this,
+      "require_same_pv",
+      true,
+      "Require both tracks to be associated with the same PV."};
+    Allen::Property<bool> m_require_muon {
+      this,
+      "require_muon",
+      false,
+      "Require both tracks to be identified as muons."};
+    Allen::Property<bool> m_require_electron {
+      this,
+      "require_electron",
+      false,
+      "Require both tracks to be identified as electrons."};
+    Allen::Property<bool> m_require_lepton {
+      this,
+      "require_lepton",
+      false,
+      "Require both tracks to be identified as leptons."};
     Allen::Property<float> m_maxassocipchi2 {this, "max_assoc_ipchi2", 16.0f, "maximum IP chi2 to associate to PV"};
-    Allen::Property<dim3> m_block_dim_prefilter {this,
-                                                 "block_dim_prefilter",
-                                                 {256, 1, 1},
-                                                 "block dimensions for prefilter step"};
-    Allen::Property<dim3> m_block_dim_filter {this,
-                                              "block_dim_filter",
-                                              {16, 16, 1},
-                                              "block dimensions for filter step"};
+    Allen::Property<dim3> m_block_dim_prefilter {
+      this,
+      "block_dim_prefilter",
+      {256, 1, 1},
+      "block dimensions for prefilter step"};
+    Allen::Property<dim3> m_block_dim_filter {
+      this,
+      "block_dim_filter",
+      {16, 16, 1},
+      "block dimensions for filter step"};
   };
 
 } // namespace FilterTracks

@@ -20,8 +20,8 @@ MDFProvider::MDFProvider(
   MDFProviderConfig config = MDFProviderConfig {}) :
   InputProvider {n_slices, events_per_slice, bank_types, IInputProvider::Layout::Allen, n_events},
   m_buffer_status(n_slices), m_slice_to_buffer(n_slices, {-1, 0}), m_banks_version {n_slices},
-  m_slice_free(n_slices, true), m_mfp_count {0}, m_event_ids {n_slices},
-  m_connections {std::move(connections)}, m_config {config}
+  m_slice_free(n_slices, true), m_mfp_count {0}, m_event_ids {n_slices}, m_connections {std::move(connections)},
+  m_config {config}
 {
   // Preallocate prefetch buffer memory
   m_buffers.resize(n_slices);
@@ -623,8 +623,9 @@ void MDFProvider::prefetch()
     if (m_is_mc && n_events > 0) {
       auto const is_mc = check_sourceIDs({std::get<2>(read_buffer).data(), std::get<1>(read_buffer)[1]});
       if (*m_is_mc != is_mc) {
-        throw std::out_of_range {"The next batch of events is different from the previous events "s +
-                                 (*m_is_mc ? "some banks now"s : "none of the banks"s) + "have the top 5 bits set"s};
+        throw std::out_of_range {
+          "The next batch of events is different from the previous events "s +
+          (*m_is_mc ? "some banks now"s : "none of the banks"s) + "have the top 5 bits set"s};
       }
     }
 

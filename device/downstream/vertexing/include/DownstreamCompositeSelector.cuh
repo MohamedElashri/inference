@@ -57,9 +57,11 @@ namespace downstream_composite_selector {
 
     PromptSelector lambda_selector {"lambda_selector", "/HLT1Downstream/Hlt1_Downstream_LambdaSelector.json"};
     PromptSelector ks_selector {"ks_selector", "/HLT1Downstream/Hlt1_Downstream_KshortSelector.json"};
-    DetachedSelector lambda_detached_selector {"lambda_detached_selector",
-                                               "/HLT1Downstream/Hlt1_Downstream_DetachedLambdaSelector.json"};
-    DetachedSelector ks_detached_selector {"ks_detached_selector",
-                                           "/HLT1Downstream/Hlt1_Downstream_DetachedKshortSelector.json"};
+    DetachedSelector lambda_detached_selector {
+      "lambda_detached_selector",
+      "/HLT1Downstream/Hlt1_Downstream_DetachedLambdaSelector.json"};
+    DetachedSelector ks_detached_selector {
+      "ks_detached_selector",
+      "/HLT1Downstream/Hlt1_Downstream_DetachedKshortSelector.json"};
   };
 } // namespace downstream_composite_selector

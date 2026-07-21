@@ -60,10 +60,11 @@ namespace lf_triplet_seeding {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<unsigned> m_maximum_number_of_triplets_per_warp {this,
-                                                                     "maximum_number_of_triplets_per_warp",
-                                                                     LookingForward::max_triplets_per_track,
-                                                                     "maximum_number_of_triplets_per_warp"};
+    Allen::Property<unsigned> m_maximum_number_of_triplets_per_warp {
+      this,
+      "maximum_number_of_triplets_per_warp",
+      LookingForward::max_triplets_per_track,
+      "maximum_number_of_triplets_per_warp"};
     Allen::Property<float> m_chi2_max_triplet_single {this, "chi2_max_triplet_single", 8., "chi2_max_triplet_single"};
     Allen::Property<float> m_z_mag_difference {this, "z_mag_difference", 10., "z_mag_difference"};
     Allen::Property<bool> m_with_ut {this, "with_ut", true, "UT or Velo tracks as input"};

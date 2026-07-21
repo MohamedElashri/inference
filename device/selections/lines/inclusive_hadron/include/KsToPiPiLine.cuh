@@ -89,13 +89,15 @@ namespace kstopipi_line {
 
     Allen::Monitoring::Histogram<> m_histogram_ks_mass {this, "ks_mass", "m(ks)", {100u, 400.f, 600.f}};
     Allen::Monitoring::Histogram<> m_histogram_ks_pt {this, "ks_pt", "pT(ks)", {100u, 0.f, 1e4f}};
-    Allen::Monitoring::Histogram<> m_histogram_p0_ghost_prob {this,
-                                                              "p0_ghost_prob",
-                                                              "track0 GhostProb",
-                                                              {100u, 0.f, 0.6f}};
-    Allen::Monitoring::Histogram<> m_histogram_p1_ghost_prob {this,
-                                                              "p1_ghost_prob",
-                                                              "track1 GhostProb",
-                                                              {100u, 0.f, 0.6f}};
+    Allen::Monitoring::Histogram<> m_histogram_p0_ghost_prob {
+      this,
+      "p0_ghost_prob",
+      "track0 GhostProb",
+      {100u, 0.f, 0.6f}};
+    Allen::Monitoring::Histogram<> m_histogram_p1_ghost_prob {
+      this,
+      "p1_ghost_prob",
+      "track1 GhostProb",
+      {100u, 0.f, 0.6f}};
   };
 } // namespace kstopipi_line

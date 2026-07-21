@@ -47,18 +47,19 @@ namespace Allen::Monitoring {
 
     friend void to_json(nlohmann::json& j, CountersHistogram const& h)
     {
-      j = {{"type", "histogram:WeightedHistogram:d"},
-           {"title", h.m_title},
-           {"dimension", 1},
-           {"empty", h.m_totNEntries == 0},
-           {"nEntries", h.m_totNEntries},
-           {"axis",
-            {{{"nBins", h.m_bins.size() - 2},
-              {"minValue", h.m_minValue},
-              {"maxValue", h.m_maxValue},
-              {"title", ""},
-              {"labels", h.m_labels}}}},
-           {"bins", h.m_bins}};
+      j = {
+        {"type", "histogram:WeightedHistogram:d"},
+        {"title", h.m_title},
+        {"dimension", 1},
+        {"empty", h.m_totNEntries == 0},
+        {"nEntries", h.m_totNEntries},
+        {"axis",
+         {{{"nBins", h.m_bins.size() - 2},
+           {"minValue", h.m_minValue},
+           {"maxValue", h.m_maxValue},
+           {"title", ""},
+           {"labels", h.m_labels}}}},
+        {"bins", h.m_bins}};
     }
 
     void registerHistogram()
@@ -286,11 +287,12 @@ namespace Allen::Monitoring {
     }
     friend void to_json(nlohmann::json& j, AveragingCounter const& c)
     {
-      j = {{"type", "counter:AveragingCounter:d"},
-           {"empty", c.m_entries == 0},
-           {"nEntries", c.m_entries},
-           {"sum", c.m_sum},
-           {"mean", c.m_sum / c.m_entries}};
+      j = {
+        {"type", "counter:AveragingCounter:d"},
+        {"empty", c.m_entries == 0},
+        {"nEntries", c.m_entries},
+        {"sum", c.m_sum},
+        {"mean", c.m_sum / c.m_entries}};
     }
     void registerAccumulator() override
     {
@@ -415,11 +417,12 @@ namespace Allen::Monitoring {
         double y = minValue + i * step;
         xbins.emplace_back((-c + std::exp(y * std::log(2) / b)) / a);
       }
-      j = nlohmann::json {{"nBins", axis.nBins},
-                          {"minValue", axis.minValue},
-                          {"maxValue", axis.maxValue},
-                          {"title", axis.title},
-                          {"xbins", xbins}};
+      j = nlohmann::json {
+        {"nBins", axis.nBins},
+        {"minValue", axis.minValue},
+        {"maxValue", axis.maxValue},
+        {"title", axis.title},
+        {"xbins", xbins}};
     }
 
     unsigned int nBins;       // number of bins for this Axis
@@ -547,13 +550,14 @@ namespace Allen::Monitoring {
 
     friend void to_json(nlohmann::json& j, HistogramND const& h)
     {
-      j = {{"type", "histogram:Histogram:d"},
-           {"title", h.m_title},
-           {"dimension", h.m_allen_stride.size()},
-           {"empty", h.m_totNEntries == 0},
-           {"nEntries", h.m_totNEntries},
-           {"axis", h.axisArray()},
-           {"bins", h.m_bins}};
+      j = {
+        {"type", "histogram:Histogram:d"},
+        {"title", h.m_title},
+        {"dimension", h.m_allen_stride.size()},
+        {"empty", h.m_totNEntries == 0},
+        {"nEntries", h.m_totNEntries},
+        {"axis", h.axisArray()},
+        {"bins", h.m_bins}};
     }
 
     void registerAccumulator() override

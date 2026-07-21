@@ -114,16 +114,17 @@ __device__ void triplet_keep_best(
       const auto h2 = l2_start + t.h2_rel;
 
       parameters.dev_scifi_lf_tracks[event_tracks_offset * max_triplets_per_input_track + current_insert_index] =
-        SciFi::TrackHits {static_cast<uint16_t>(h0),
-                          static_cast<uint16_t>(h1),
-                          static_cast<uint16_t>(h2),
-                          static_cast<uint16_t>(layer_0),
-                          static_cast<uint16_t>(layer_1),
-                          static_cast<uint16_t>(layer_2),
-                          0.f,
-                          0.f,
-                          static_cast<uint16_t>(track_index),
-                          static_cast<uint16_t>(t.left_right_side)};
+        SciFi::TrackHits {
+          static_cast<uint16_t>(h0),
+          static_cast<uint16_t>(h1),
+          static_cast<uint16_t>(h2),
+          static_cast<uint16_t>(layer_0),
+          static_cast<uint16_t>(layer_1),
+          static_cast<uint16_t>(layer_2),
+          0.f,
+          0.f,
+          static_cast<uint16_t>(track_index),
+          static_cast<uint16_t>(t.left_right_side)};
     }
   }
 }

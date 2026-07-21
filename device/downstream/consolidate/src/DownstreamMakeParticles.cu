@@ -82,13 +82,13 @@ __global__ void downstream_make_particles::downstream_create_particles_views(
 
     // Create particle
     new (parameters.dev_downstream_track_particle_view + event_downstream_tracks_offset + track_index)
-      Allen::Views::Physics::BasicParticle {&downstream_track,
-                                            parameters.dev_downstream_track_states_view + event_number,
-                                            best_pv_ptr,
-                                            track_index,
-                                            parameters.dev_lepton_id[event_downstream_tracks_offset + track_index],
-                                            parameters.dev_downstream_particles_ip + event_downstream_tracks_offset +
-                                              track_index};
+      Allen::Views::Physics::BasicParticle {
+        &downstream_track,
+        parameters.dev_downstream_track_states_view + event_number,
+        best_pv_ptr,
+        track_index,
+        parameters.dev_lepton_id[event_downstream_tracks_offset + track_index],
+        parameters.dev_downstream_particles_ip + event_downstream_tracks_offset + track_index};
   }
 
   // Create particles

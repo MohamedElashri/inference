@@ -38,14 +38,16 @@ namespace velo_track_activity_filter {
 
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
-    Allen::Property<unsigned> m_min_velo_tracks {this,
-                                                 "min_velo_tracks",
-                                                 1,
-                                                 "minimum number of Velo tracks in the event"};
-    Allen::Property<unsigned> m_max_velo_tracks {this,
-                                                 "max_velo_tracks",
-                                                 UINT_MAX,
-                                                 "maximum number of Velo tracks in the event"};
+    Allen::Property<unsigned> m_min_velo_tracks {
+      this,
+      "min_velo_tracks",
+      1,
+      "minimum number of Velo tracks in the event"};
+    Allen::Property<unsigned> m_max_velo_tracks {
+      this,
+      "max_velo_tracks",
+      UINT_MAX,
+      "maximum number of Velo tracks in the event"};
   }; // velo_track_activity_filter_t
 
 } // namespace velo_track_activity_filter

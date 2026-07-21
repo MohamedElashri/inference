@@ -37,17 +37,14 @@ namespace Allen {
 
   // Trait to check if a handle contains mask_t
   template<typename Handle>
-  struct is_mask_handle : std::false_type {
-  };
+  struct is_mask_handle : std::false_type {};
 
   template<typename T>
-  struct is_mask_handle<DataObjectWriteHandle<T>> : std::is_same<typename T::value_type, mask_t> {
-  };
+  struct is_mask_handle<DataObjectWriteHandle<T>> : std::is_same<typename T::value_type, mask_t> {};
 
   // Helper to extract the type contained in a DataObjectHandle
   template<typename Handle>
-  struct handle_type_extractor {
-  };
+  struct handle_type_extractor {};
 
   template<typename T>
   struct handle_type_extractor<DataObjectReadHandle<T>> {

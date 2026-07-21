@@ -64,28 +64,33 @@ namespace two_track_mva_charm_xsec_line {
 
   private:
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 20.f, "Maximum chi2 of the combination vertex."};
-    Allen::Property<float> m_minTrackPt {this,
-                                         "minTrackPt",
-                                         250.f * Allen::Units::MeV,
-                                         "Minimum transverse momentum of tracks."};
+    Allen::Property<float> m_minTrackPt {
+      this,
+      "minTrackPt",
+      250.f * Allen::Units::MeV,
+      "Minimum transverse momentum of tracks."};
     Allen::Property<float> m_minTrackP {this, "minTrackP", 2000.f * Allen::Units::MeV, "Minimum momentum of tracks."};
     Allen::Property<float> m_minTrackIPChi2 {this, "minTrackIPChi2", 4.f, "Minimum IPCHI2 of tracks."};
-    Allen::Property<float> m_maxDOCA {this,
-                                      "maxDOCA",
-                                      0.2f * Allen::Units::mm,
-                                      "Maximum distance of closest approach of tracks."};
-    Allen::Property<float> m_massWindow {this,
-                                         "massWindow",
-                                         100.f * Allen::Units::MeV,
-                                         "Window around the combination mass."};
-    Allen::Property<float> m_maxCombKpiMass {this,
-                                             "maxCombKpiMass",
-                                             1830.f * Allen::Units::MeV,
-                                             "Maximum invariant mass of combination assuming kaon and pion."};
-    Allen::Property<float> m_lowSVpt {this,
-                                      "lowSVpt",
-                                      1500.f * Allen::Units::MeV,
-                                      "Value of SV pT in MeV below which the low PT MVA cut is applied."};
+    Allen::Property<float> m_maxDOCA {
+      this,
+      "maxDOCA",
+      0.2f * Allen::Units::mm,
+      "Maximum distance of closest approach of tracks."};
+    Allen::Property<float> m_massWindow {
+      this,
+      "massWindow",
+      100.f * Allen::Units::MeV,
+      "Window around the combination mass."};
+    Allen::Property<float> m_maxCombKpiMass {
+      this,
+      "maxCombKpiMass",
+      1830.f * Allen::Units::MeV,
+      "Maximum invariant mass of combination assuming kaon and pion."};
+    Allen::Property<float> m_lowSVpt {
+      this,
+      "lowSVpt",
+      1500.f * Allen::Units::MeV,
+      "Value of SV pT in MeV below which the low PT MVA cut is applied."};
     Allen::Property<float> m_minMVAhighPt {this, "minMVAhighPt", 0.92385f, "Minimum passing MVA response at hight Pt."};
     Allen::Property<float> m_minMVAlowPt {this, "minMVAlowPt", 0.7f, "Minimum passing MVA response at low Pt."};
     Allen::Property<float> m_minZ {this, "minZ", -330.f * Allen::Units::mm, "minimum vertex z coordinate"};

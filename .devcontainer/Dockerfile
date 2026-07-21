@@ -1,6 +1,6 @@
 
 FROM nvidia/cuda:12.2.0-devel-rockylinux9
-RUN dnf install 'dnf-command(config-manager)' -y && dnf config-manager --enable crb -y && dnf install epel-release -y 
+RUN dnf install 'dnf-command(config-manager)' -y && dnf config-manager --enable crb -y && dnf install epel-release -y
 RUN dnf upgrade -y
 RUN dnf install git cmake clang-devel llvm-devel json-devel zeromq-devel zlib-devel root\* python3-pip tbb-devel zip unzip lbzip2 -y
 RUN pip install wrapt cachetools pydot sympy clang==15.0.7

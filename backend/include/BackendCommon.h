@@ -53,14 +53,10 @@ namespace Allen {
   namespace device {
     // Dispatcher targets
     namespace target {
-      struct Default {
-      };
-      struct CPU {
-      };
-      struct HIP {
-      };
-      struct CUDA {
-      };
+      struct Default {};
+      struct CPU {};
+      struct HIP {};
+      struct CUDA {};
     } // namespace target
 
     /**

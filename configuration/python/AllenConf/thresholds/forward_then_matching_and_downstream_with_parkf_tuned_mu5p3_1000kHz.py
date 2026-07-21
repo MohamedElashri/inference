@@ -17,7 +17,7 @@ threshold_settings = Thresholds(
     TrackMuonMVA_alpha=-960,
     D2HH_track_ip=0.09,
     D2HH_track_pt=700,
-    D2HH_ctIPScale=1.,
+    D2HH_ctIPScale=1.0,
     SingleHighPtLepton_pt=12500,
     SingleHighPtLepton_pt_noMuonID=12500,
     TwoTrackMVA_minMVA=0.973,
@@ -46,4 +46,5 @@ threshold_settings = Thresholds(
     DownstreamGammaToEE_minPt=1500,
     DownstreamTwoTrackKs_minTrackPt_piKs=550,
     DiElectronLowMassNoIP_NN=0.94,
-    DiElectronLowMass_NN=0.73)
+    DiElectronLowMass_NN=0.73,
+)

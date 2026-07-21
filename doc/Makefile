@@ -47,6 +47,6 @@ clean: Makefile $(SPHINXBUILD)
 	$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 purge:
-	rm -rf $(SPHINXPREFIX) $(BUILDDIR) 
+	rm -rf $(SPHINXPREFIX) $(BUILDDIR)
 
 .PHONY: help html pdf clean purge

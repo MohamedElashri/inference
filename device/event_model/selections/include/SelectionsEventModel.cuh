@@ -95,8 +95,9 @@ namespace Selections {
       assert(event < m_number_of_events);
       auto span_index = line * m_number_of_events + event;
       auto offset = get_bin_index(span_index);
-      return {m_base_pointer + offset,
-              m_offsets[line * m_number_of_events + event + 1] - m_offsets[line * m_number_of_events + event]};
+      return {
+        m_base_pointer + offset,
+        m_offsets[line * m_number_of_events + event + 1] - m_offsets[line * m_number_of_events + event]};
     }
   };
 

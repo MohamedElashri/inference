@@ -105,10 +105,11 @@ namespace di_electron_soft_line {
     Allen::Property<float> m_DESoftMaxIPDZ {this, "DESoftMaxIPDZ", 0.0045f, "DESoftMaxIPDZ description"};
     Allen::Property<float> m_DESoftMinZ {this, "DESoftMinZ", -375.f, "min z"};
     Allen::Property<float> m_DESoftMaxZ {this, "DESoftMaxZ", 635.f, "max z"};
-    Allen::Property<float> m_DESoftGhost {this,
-                                          "DESoftGhost",
-                                          4.e-06f,
-                                          "min sin2 of angle between electrons (ghost removal)"};
+    Allen::Property<float> m_DESoftGhost {
+      this,
+      "DESoftGhost",
+      4.e-06f,
+      "min sin2 of angle between electrons (ghost removal)"};
     Allen::Property<bool> m_opposite_sign {this, "OppositeSign", true, "Selects opposite sign dielectron combinations"};
   };
 } // namespace di_electron_soft_line

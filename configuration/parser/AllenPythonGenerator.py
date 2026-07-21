@@ -13,25 +13,28 @@ from AllenGeneratorUtils import get_namespace
 
 
 class AllenPythonGenerator:
-    """ Generate python representations of Allen Algorithms """
+    """Generate python representations of Allen Algorithms"""
 
     @staticmethod
     def write_algorithm_code(algorithm):
-        namespace, _ = get_namespace(algorithm['type'])
-        _, name = get_namespace(algorithm['name'])
+        namespace, _ = get_namespace(algorithm["type"])
+        _, name = get_namespace(algorithm["name"])
         s = f"class {name}(AllenAlgorithm):\n"
 
         # Slots
         s += "  __slots__ = OrderedDict(\n"
         for param in algorithm["parameters"]:
-            dependencies = [
-                "\"" + dep.replace(namespace + "::Parameters::", "") + "\""
-                for dep in param["dependencies"]
-            ] if "dependencies" in param else []
-            dependencies = "[" + \
-                ", ".join(dependencies) + "]" if dependencies else "[]"
+            dependencies = (
+                [
+                    '"' + dep.replace(namespace + "::Parameters::", "") + '"'
+                    for dep in param["dependencies"]
+                ]
+                if "dependencies" in param
+                else []
+            )
+            dependencies = "[" + ", ".join(dependencies) + "]" if dependencies else "[]"
             _, typename = get_namespace(param["typename"])
-            io = "R" if "input" in param['kind'].lower() else "W"
+            io = "R" if "input" in param["kind"].lower() else "W"
             s += f"    {typename} = AllenDataHandle('{param['scope']}', {dependencies}, '{typename}', '{io}', '{param['type']}'),\n"
 
         # Properties
@@ -41,9 +44,9 @@ class AllenPythonGenerator:
                 dv = f'"{dv}"'
 
             # Write the code for the property
-            s += f'    {pn} = {dv}, # ({data_type}) {descr}\n'
+            s += f"    {pn} = {dv}, # ({data_type}) {descr}\n"
         s = s[:-1]
-        s += f"\n  )\n"
+        s += "\n  )\n"
 
         # aggregates: parameters marked optional or aggregate
         s += "  aggregates = ("

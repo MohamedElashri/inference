@@ -54,10 +54,11 @@ Allen::IO MDF::open(std::string const& filepath, int flags, int mode)
       return {};
     }
     else {
-      return {true,
-              [fd](char* ptr, size_t size) { return ::read(fd, ptr, size); },
-              [fd](char const* ptr, size_t size) { return ::write(fd, ptr, size); },
-              [fd] { return ::close(fd); }};
+      return {
+        true,
+        [fd](char* ptr, size_t size) { return ::read(fd, ptr, size); },
+        [fd](char const* ptr, size_t size) { return ::write(fd, ptr, size); },
+        [fd] { return ::close(fd); }};
     }
   }
 }

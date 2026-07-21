@@ -53,8 +53,7 @@ namespace GaudiAllen::Converters::v3 {
    * contain/reference.
    */
   template<typename>
-  struct v3_hit_container {
-  };
+  struct v3_hit_container {};
 
   template<>
   struct v3_hit_container<Allen::Views::Velo::Consolidated::Track> {
@@ -93,8 +92,7 @@ namespace GaudiAllen::Converters::v3 {
    * LHCb::Event::Enum::Track::History.
    */
   template<typename>
-  struct v3_history {
-  };
+  struct v3_history {};
 
   template<>
   struct v3_history<Allen::Views::Velo::Consolidated::Track> {
@@ -475,8 +473,7 @@ namespace GaudiAllen::Converters::v3 {
    * OutTrackType.  Will need revision/reconsideration for Velo bifurcation.
    */
   template<typename>
-  struct v3_track_type {
-  };
+  struct v3_track_type {};
 
   template<>
   struct v3_track_type<Allen::Views::Velo::Consolidated::MultiEventTracks> {
@@ -610,8 +607,7 @@ namespace GaudiAllen::Converters::v3 {
      * One or two output containers dependent on wheter input is Velo
      */
     template<bool>
-    struct switched_out_type {
-    };
+    struct switched_out_type {};
 
     template<>
     struct switched_out_type<false> {
@@ -713,8 +709,9 @@ namespace GaudiAllen::Converters::v3 {
         return {LHCb::Pr::Velo::Tracks(false, zn), LHCb::Pr::Velo::Tracks(true, zn)};
       }
       else if constexpr (std::tuple_size_v<OutType> == 2) {
-        return {OutTracks(v3_track_type<AllenTrack>::value_fwd, unique_id_gen, zn),
-                OutTracks(v3_track_type<AllenTrack>::value_bwd, FitHistory::PrKalmanFilter, true, unique_id_gen, zn)};
+        return {
+          OutTracks(v3_track_type<AllenTrack>::value_fwd, unique_id_gen, zn),
+          OutTracks(v3_track_type<AllenTrack>::value_bwd, FitHistory::PrKalmanFilter, true, unique_id_gen, zn)};
       }
       else if constexpr (v3_track_type_v<AllenTrack> == Type::Long) {
         if (n_states > 1) {

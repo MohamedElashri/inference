@@ -20,8 +20,7 @@ class DatasetMetadata(NamedTuple):
 
 
 TEST_DATASETS = {
-    "allen.large_event_passthrough":
-    DatasetMetadata(
+    "allen.large_event_passthrough": DatasetMetadata(
         test_file_db_key="upgrade_Sept2022_minbias_0fb_md_mdf",
         file_name="large_event_passthrough.mdf",
         input_type="MDF",

@@ -336,12 +336,13 @@ __device__ void triplet_seeding(
 #else
                   const auto ichi2 = reinterpret_cast<uint16_t*>(&best_chi2)[0];
 #endif
-                  unsigned triplet = SciFi::lf_triplet {static_cast<unsigned>(h0_rel),
-                                                        static_cast<unsigned>(best_h1_rel),
-                                                        static_cast<unsigned>(h2_rel),
-                                                        triplet_seed,
-                                                        left_right_side,
-                                                        ichi2};
+                  unsigned triplet = SciFi::lf_triplet {
+                    static_cast<unsigned>(h0_rel),
+                    static_cast<unsigned>(best_h1_rel),
+                    static_cast<unsigned>(h2_rel),
+                    triplet_seed,
+                    left_right_side,
+                    ichi2};
                   for (int i = 0; i < LookingForward::max_triplets_per_thread; i++) {
                     if (best_triplets[i] > triplet) {
                       auto t = triplet;

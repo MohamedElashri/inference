@@ -48,13 +48,15 @@ namespace host_routingbits_writer {
   private:
     std::unordered_map<uint32_t, boost::dynamic_bitset<>> m_rb_ids;
 
-    Allen::Property<std::map<std::string, uint32_t>> m_routingbit_map {this,
-                                                                       "routingbit_map",
-                                                                       {},
-                                                                       "mapping of expressions to routing bits"};
-    Allen::Property<std::map<std::string, uint32_t>> m_name_to_id_map {this,
-                                                                       "name_to_id_map",
-                                                                       {},
-                                                                       "mapping of line names to decIDs"};
+    Allen::Property<std::map<std::string, uint32_t>> m_routingbit_map {
+      this,
+      "routingbit_map",
+      {},
+      "mapping of expressions to routing bits"};
+    Allen::Property<std::map<std::string, uint32_t>> m_name_to_id_map {
+      this,
+      "name_to_id_map",
+      {},
+      "mapping of line names to decIDs"};
   };
 } // namespace host_routingbits_writer

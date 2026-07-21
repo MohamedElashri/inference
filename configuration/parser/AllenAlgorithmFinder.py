@@ -9,11 +9,14 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 
-import re, os, sys, codecs
+import codecs
+import os
+import re
+
 from AllenGeneratorUtils import get_namespace
 
 
-class AllenAlgorithmFinder():
+class AllenAlgorithmFinder:
     """Helper class to find the definition files of Allen algorithms."""
 
     # File extensions considered
@@ -40,17 +43,17 @@ class AllenAlgorithmFinder():
         for folder in AllenAlgorithmFinder.__folders:
             path = prefix_project_folder + folder
             out += AllenAlgorithmFinder.__get_filenames(
-                path, AllenAlgorithmFinder.__source_extensions_compiled)
+                path, AllenAlgorithmFinder.__source_extensions_compiled
+            )
         return out
 
     @staticmethod
     def find_all_line_instances(prefix_project_folder):
-        all_filenames = AllenAlgorithmFinder.get_all_sources(
-            prefix_project_folder)
+        all_filenames = AllenAlgorithmFinder.get_all_sources(prefix_project_folder)
         lines = []
-        instance_re = re.compile(r'INSTANTIATE_LINE\(([^,]+),([^\)]+)\)')
+        instance_re = re.compile(r"INSTANTIATE_LINE\(([^,]+),([^\)]+)\)")
         for filename in all_filenames:
-            with codecs.open(filename, 'r', 'utf-8') as f:
+            with codecs.open(filename, "r", "utf-8") as f:
                 s = f.read()
                 for m in instance_re.finditer(s):
                     lines.append(get_namespace(m.group(1).strip()))

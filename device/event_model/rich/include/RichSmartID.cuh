@@ -67,40 +67,40 @@ namespace Allen::Rich::Decoding {
     static constexpr const BitPackType ShiftLargePixel = ShiftRichIsSet + BitsRichIsSet;
 
     // The masks
-    static constexpr const BitPackType MaskPixelCol = (BitPackType)((BitPackType {1} << BitsPixelCol) - BitPackType {1})
-                                                      << ShiftPixelCol;
-    static constexpr const BitPackType MaskPixelRow = (BitPackType)((BitPackType {1} << BitsPixelRow) - BitPackType {1})
-                                                      << ShiftPixelRow;
+    static constexpr const BitPackType MaskPixelCol =
+      (BitPackType) ((BitPackType {1} << BitsPixelCol) - BitPackType {1}) << ShiftPixelCol;
+    static constexpr const BitPackType MaskPixelRow =
+      (BitPackType) ((BitPackType {1} << BitsPixelRow) - BitPackType {1}) << ShiftPixelRow;
     static constexpr const BitPackType MaskPDNumInMod =
-      (BitPackType)((BitPackType {1} << BitsPDNumInMod) - BitPackType {1}) << ShiftPDNumInMod;
-    static constexpr const BitPackType MaskPDMod = (BitPackType)((BitPackType {1} << BitsPDMod) - BitPackType {1})
+      (BitPackType) ((BitPackType {1} << BitsPDNumInMod) - BitPackType {1}) << ShiftPDNumInMod;
+    static constexpr const BitPackType MaskPDMod = (BitPackType) ((BitPackType {1} << BitsPDMod) - BitPackType {1})
                                                    << ShiftPDMod;
-    static constexpr const BitPackType MaskPanel = (BitPackType)((BitPackType {1} << BitsPanel) - BitPackType {1})
+    static constexpr const BitPackType MaskPanel = (BitPackType) ((BitPackType {1} << BitsPanel) - BitPackType {1})
                                                    << ShiftPanel;
-    static constexpr const BitPackType MaskRich = (BitPackType)((BitPackType {1} << BitsRich) - BitPackType {1})
+    static constexpr const BitPackType MaskRich = (BitPackType) ((BitPackType {1} << BitsRich) - BitPackType {1})
                                                   << ShiftRich;
     static constexpr const BitPackType MaskPixelSubRowIsSet =
-      (BitPackType)((BitPackType {1} << BitsPixelSubRowIsSet) - BitPackType {1}) << ShiftPixelSubRowIsSet;
+      (BitPackType) ((BitPackType {1} << BitsPixelSubRowIsSet) - BitPackType {1}) << ShiftPixelSubRowIsSet;
     static constexpr const BitPackType MaskPixelColIsSet =
-      (BitPackType)((BitPackType {1} << BitsPixelColIsSet) - BitPackType {1}) << ShiftPixelColIsSet;
+      (BitPackType) ((BitPackType {1} << BitsPixelColIsSet) - BitPackType {1}) << ShiftPixelColIsSet;
     static constexpr const BitPackType MaskPixelRowIsSet =
-      (BitPackType)((BitPackType {1} << BitsPixelRowIsSet) - BitPackType {1}) << ShiftPixelRowIsSet;
-    static constexpr const BitPackType MaskPDIsSet = (BitPackType)((BitPackType {1} << BitsPDIsSet) - BitPackType {1})
+      (BitPackType) ((BitPackType {1} << BitsPixelRowIsSet) - BitPackType {1}) << ShiftPixelRowIsSet;
+    static constexpr const BitPackType MaskPDIsSet = (BitPackType) ((BitPackType {1} << BitsPDIsSet) - BitPackType {1})
                                                      << ShiftPDIsSet;
     static constexpr const BitPackType MaskPanelIsSet =
-      (BitPackType)((BitPackType {1} << BitsPanelIsSet) - BitPackType {1}) << ShiftPanelIsSet;
+      (BitPackType) ((BitPackType {1} << BitsPanelIsSet) - BitPackType {1}) << ShiftPanelIsSet;
     static constexpr const BitPackType MaskRichIsSet =
-      (BitPackType)((BitPackType {1} << BitsRichIsSet) - BitPackType {1}) << ShiftRichIsSet;
+      (BitPackType) ((BitPackType {1} << BitsRichIsSet) - BitPackType {1}) << ShiftRichIsSet;
     static constexpr const BitPackType MaskLargePixel =
-      (BitPackType)((BitPackType {1} << BitsLargePixel) - BitPackType {1}) << ShiftLargePixel;
+      (BitPackType) ((BitPackType {1} << BitsLargePixel) - BitPackType {1}) << ShiftLargePixel;
 
     // Max values
-    static constexpr const DataType MaxPixelCol = (DataType)(BitPackType {1} << BitsPixelCol) - DataType {1};
-    static constexpr const DataType MaxPixelRow = (DataType)(BitPackType {1} << BitsPixelRow) - DataType {1};
-    static constexpr const DataType MaxPDNumInMod = (DataType)(BitPackType {1} << BitsPDNumInMod) - DataType {1};
-    static constexpr const DataType MaxPDMod = (DataType)(BitPackType {1} << BitsPDMod) - DataType {1};
-    static constexpr const DataType MaxPanel = (DataType)(BitPackType {1} << BitsPanel) - DataType {1};
-    static constexpr const DataType MaxRich = (DataType)(BitPackType {1} << BitsRich) - DataType {1};
+    static constexpr const DataType MaxPixelCol = (DataType) (BitPackType {1} << BitsPixelCol) - DataType {1};
+    static constexpr const DataType MaxPixelRow = (DataType) (BitPackType {1} << BitsPixelRow) - DataType {1};
+    static constexpr const DataType MaxPDNumInMod = (DataType) (BitPackType {1} << BitsPDNumInMod) - DataType {1};
+    static constexpr const DataType MaxPDMod = (DataType) (BitPackType {1} << BitsPDMod) - DataType {1};
+    static constexpr const DataType MaxPanel = (DataType) (BitPackType {1} << BitsPanel) - DataType {1};
+    static constexpr const DataType MaxRich = (DataType) (BitPackType {1} << BitsRich) - DataType {1};
 
     // Number of bits for the channel identification (i.e. excluding any time info)
     // Currently use the lowest 32 bits for this.
@@ -325,10 +325,10 @@ namespace Allen::Rich::Decoding {
       static constexpr const BitPackType BitsADCTimeIsSet = 1;
       static constexpr const BitPackType ShiftADCTime = NChannelBits;
       static constexpr const BitPackType ShiftADCTimeIsSet = ShiftADCTime + BitsADCTime;
-      static constexpr const BitPackType MaskADCTime = (BitPackType)((BitPackType {1} << BitsADCTime) - BitPackType {1})
-                                                       << ShiftADCTime;
+      static constexpr const BitPackType MaskADCTime =
+        (BitPackType) ((BitPackType {1} << BitsADCTime) - BitPackType {1}) << ShiftADCTime;
       static constexpr const BitPackType MaskADCTimeIsSet =
-        (BitPackType)((BitPackType {1} << BitsADCTimeIsSet) - BitPackType {1}) << ShiftADCTimeIsSet;
+        (BitPackType) ((BitPackType {1} << BitsADCTimeIsSet) - BitPackType {1}) << ShiftADCTimeIsSet;
 
       // Max ADC time that can be stored
       static constexpr const ADCTimeType MaxADCTime = static_cast<ADCTimeType>((BitPackType {1} << BitsADCTime) - 1);

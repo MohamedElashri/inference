@@ -75,14 +75,16 @@ namespace make_ttrack_vertices {
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 
-    Allen::Property<float> m_min_yzinter_z {this,
-                                            "min_yzinter_z",
-                                            1500.0,
-                                            "minimum z-coordinate of y-z intersection (in mm)"};
-    Allen::Property<float> m_max_yzinter_z {this,
-                                            "max_yzinter_z",
-                                            9500.0,
-                                            "maximum z-coordinate of y-z intersection (in mm)"};
+    Allen::Property<float> m_min_yzinter_z {
+      this,
+      "min_yzinter_z",
+      1500.0,
+      "minimum z-coordinate of y-z intersection (in mm)"};
+    Allen::Property<float> m_max_yzinter_z {
+      this,
+      "max_yzinter_z",
+      9500.0,
+      "maximum z-coordinate of y-z intersection (in mm)"};
 
     Allen::Property<float> m_min_vrtx_z {this, "min_vrtx_z", 2000.0, "minimum z-coordinate of vertices (in mm)"};
     Allen::Property<float> m_max_vrtx_z {this, "max_vrtx_z", 9000.0, "maximum z-coordinate of vertices (in mm)"};
@@ -97,25 +99,29 @@ namespace make_ttrack_vertices {
       "min_distance_to_beamline_slope",
       0.01f,
       "The cut parameter on the distance to beamline. The value is computed as: max(min_distance, slope * z + offset)"};
-    Allen::Property<float> m_min_p2 {this,
-                                     "min_p2",
-                                     10000.f * 10000.f,
-                                     "The minimum momentum of composite particle (MeV)"};
-    Allen::Property<float> m_min_pt2 {this,
-                                      "min_pt2",
-                                      600.f * 600.f,
-                                      "The minimum transverse momentum of composite particle (MeV)"};
+    Allen::Property<float> m_min_p2 {
+      this,
+      "min_p2",
+      10000.f * 10000.f,
+      "The minimum momentum of composite particle (MeV)"};
+    Allen::Property<float> m_min_pt2 {
+      this,
+      "min_pt2",
+      600.f * 600.f,
+      "The minimum transverse momentum of composite particle (MeV)"};
 
-    Allen::Monitoring::Histogram2D<> m_xz_vrtx_pos {this,
-                                                    "xz_vertex_position",
-                                                    "xz_vertex_position",
-                                                    {100u, 1000.f, 10000.f},
-                                                    {100u, -2000.f, 2000.f}};
-    Allen::Monitoring::Histogram2D<> m_yz_vrtx_pos {this,
-                                                    "yz_vertex_position",
-                                                    "yz_vertex_position",
-                                                    {100u, 1000.f, 10000.f},
-                                                    {100u, -2000.f, 2000.f}};
+    Allen::Monitoring::Histogram2D<> m_xz_vrtx_pos {
+      this,
+      "xz_vertex_position",
+      "xz_vertex_position",
+      {100u, 1000.f, 10000.f},
+      {100u, -2000.f, 2000.f}};
+    Allen::Monitoring::Histogram2D<> m_yz_vrtx_pos {
+      this,
+      "yz_vertex_position",
+      "yz_vertex_position",
+      {100u, 1000.f, 10000.f},
+      {100u, -2000.f, 2000.f}};
   };
 
   __global__ void make_ttrack_vertices(Parameters, make_ttrack_vertices_t::DeviceProperties);

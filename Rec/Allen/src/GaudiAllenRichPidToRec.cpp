@@ -44,13 +44,14 @@ namespace GaudiAllen::Converters {
     // This mapping is only required while the standalone Allen build forces Allen to maintain its own copy of the
     // RICH particle hypothesis enum. Remove it and use the upstream Rich::ParticleIDType directly once the standalone
     // build and the duplicated Allen types have been retired.
-    inline constexpr Allen::Rich::ParticleArray<Rich::ParticleIDType> RecParticleTypes {Rich::Electron,
-                                                                                        Rich::Muon,
-                                                                                        Rich::Pion,
-                                                                                        Rich::Kaon,
-                                                                                        Rich::Proton,
-                                                                                        Rich::Deuteron,
-                                                                                        Rich::BelowThreshold};
+    inline constexpr Allen::Rich::ParticleArray<Rich::ParticleIDType> RecParticleTypes {
+      Rich::Electron,
+      Rich::Muon,
+      Rich::Pion,
+      Rich::Kaon,
+      Rich::Proton,
+      Rich::Deuteron,
+      Rich::BelowThreshold};
 
     constexpr auto recParticleType(const Allen::Rich::ParticleIDType particle) noexcept
     {

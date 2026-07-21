@@ -63,12 +63,14 @@ namespace Allen::Rich {
       const float3 dir {exitPoint.x - entryPoint.x, exitPoint.y - entryPoint.y, exitPoint.z - entryPoint.z};
 
       // get the starting values for the entry and exit points
-      const Point start = {entryPoint.x + ((m_zmin - entryPoint.z) / dir.z) * dir.x,
-                           entryPoint.y + ((m_zmin - entryPoint.z) / dir.z) * dir.y,
-                           m_zmin};
-      const Point end = {entryPoint.x + ((m_zmax - entryPoint.z) / dir.z) * dir.x,
-                         entryPoint.y + ((m_zmax - entryPoint.z) / dir.z) * dir.y,
-                         m_zmax};
+      const Point start = {
+        entryPoint.x + ((m_zmin - entryPoint.z) / dir.z) * dir.x,
+        entryPoint.y + ((m_zmin - entryPoint.z) / dir.z) * dir.y,
+        m_zmin};
+      const Point end = {
+        entryPoint.x + ((m_zmax - entryPoint.z) / dir.z) * dir.x,
+        entryPoint.y + ((m_zmax - entryPoint.z) / dir.z) * dir.y,
+        m_zmax};
 
       // Are these points inside the cone radius at these points ?
       const auto entryR2 = start.x * start.x + start.y * start.y;
@@ -108,14 +110,16 @@ namespace Allen::Rich {
         const auto z_intersect = (z1 >= m_zmin && z1 <= m_zmax) ? z1 : z2;
 
         if (isInStart) {
-          entryPoint = {entryPoint.x + ((z_intersect - entryPoint.z) / dir.z) * dir.x,
-                        entryPoint.y + ((z_intersect - entryPoint.z) / dir.z) * dir.y,
-                        z_intersect};
+          entryPoint = {
+            entryPoint.x + ((z_intersect - entryPoint.z) / dir.z) * dir.x,
+            entryPoint.y + ((z_intersect - entryPoint.z) / dir.z) * dir.y,
+            z_intersect};
         }
         else {
-          exitPoint = {entryPoint.x + ((z_intersect - entryPoint.z) / dir.z) * dir.x,
-                       entryPoint.y + ((z_intersect - entryPoint.z) / dir.z) * dir.y,
-                       z_intersect};
+          exitPoint = {
+            entryPoint.x + ((z_intersect - entryPoint.z) / dir.z) * dir.x,
+            entryPoint.y + ((z_intersect - entryPoint.z) / dir.z) * dir.y,
+            z_intersect};
         }
       }
     }

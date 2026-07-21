@@ -312,14 +312,15 @@ namespace UT {
 
       __host__ __device__ UT::Hit get(const unsigned hit_number) const
       {
-        return UT::Hit {this->yBegin(hit_number),
-                        this->yEnd(hit_number),
-                        this->zAtYEq0(hit_number),
-                        this->xAtYEq0(hit_number),
-                        this->dxDy(hit_number),
-                        this->weight(hit_number),
-                        this->id(hit_number),
-                        plane_code(hit_number)};
+        return UT::Hit {
+          this->yBegin(hit_number),
+          this->yEnd(hit_number),
+          this->zAtYEq0(hit_number),
+          this->xAtYEq0(hit_number),
+          this->dxDy(hit_number),
+          this->weight(hit_number),
+          this->id(hit_number),
+          plane_code(hit_number)};
       }
     };
 

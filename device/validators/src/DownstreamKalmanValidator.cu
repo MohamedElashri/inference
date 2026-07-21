@@ -72,8 +72,9 @@ void downstream_kalman_validator::downstream_kalman_validator_t::operator()(
     const auto evnum = event_list[i];
     const auto event_offset = event_tracks_offsets[evnum];
     const auto n_tracks = event_tracks_offsets[evnum + 1] - event_offset;
-    std::vector<Checker::Track> event_tracks = {downstream_kalman_tracks_for_checker.begin() + event_offset,
-                                                downstream_kalman_tracks_for_checker.begin() + event_offset + n_tracks};
+    std::vector<Checker::Track> event_tracks = {
+      downstream_kalman_tracks_for_checker.begin() + event_offset,
+      downstream_kalman_tracks_for_checker.begin() + event_offset + n_tracks};
     tracks[i] = event_tracks;
   }
 

@@ -98,12 +98,13 @@ __global__ void track_digit_selective_matching::track_digit_selective_matching(
 
     // Define 6 z positions along the track inside the ECAL
     constexpr unsigned N_ecal_positions = 6;
-    const float ecal_positions[N_ecal_positions] = {z_front,
-                                                    z_showermax,
-                                                    z_front + 0.25f * ecal_delta_z,
-                                                    z_front + 0.5f * ecal_delta_z,
-                                                    z_front + 0.75f * ecal_delta_z,
-                                                    z_back};
+    const float ecal_positions[N_ecal_positions] = {
+      z_front,
+      z_showermax,
+      z_front + 0.25f * ecal_delta_z,
+      z_front + 0.5f * ecal_delta_z,
+      z_front + 0.75f * ecal_delta_z,
+      z_back};
 
     std::array<unsigned, N_ecal_positions> digit_indices = {9999, 9999, 9999, 9999, 9999, 9999};
     unsigned N_matched_digits {0};

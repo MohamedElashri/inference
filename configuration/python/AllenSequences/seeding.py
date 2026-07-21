@@ -9,10 +9,11 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.scifi_reconstruction import seeding
-from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 seeding_sequence = CompositeNode(
-    "Seeding", [seeding()], NodeLogic.LAZY_AND, force_order=True)
+    "Seeding", [seeding()], NodeLogic.LAZY_AND, force_order=True
+)
 
 generate(seeding_sequence)

@@ -12,7 +12,7 @@ outloc=../output/perfscans
 cd ../..
 cp cuda/velo/common/include/VeloDefinitions.cuh bkpfile.bkp
 
-for par in 'max_scatter_seeding' 'max_scatter_forwarding' 
+for par in 'max_scatter_seeding' 'max_scatter_forwarding'
 do
   for val in '0.025' '0.05' '0.10' '0.20' '0.40' '0.60' '0.80' '1.0'
   do
@@ -24,9 +24,9 @@ do
     cp ../output/PrCheckerPlots.root $outloc\/PrChk-VELO-$par-$val-scan.root
     cp ../output/KalmanIPCheckerOutput.root $outloc\/KFChk-VELO-$par-$val-scan.root
     cp ../output/GPU_PVChecker.root $outloc\/PVChk-VELO-$par-$val-scan.root
-    ./Allen -f /data/gligorov/minbias -c 0 -n 10000 -t 3 -r 10 -m 4000 >& $outloc\/VELO-$par-$val-tptscan.stdout    
+    ./Allen -f /data/gligorov/minbias -c 0 -n 10000 -t 3 -r 10 -m 4000 >& $outloc\/VELO-$par-$val-tptscan.stdout
     cd ..
-    cp bkpfile.bkp cuda/velo/common/include/VeloDefinitions.cuh    
+    cp bkpfile.bkp cuda/velo/common/include/VeloDefinitions.cuh
   done
 done
 
@@ -44,7 +44,7 @@ do
     cp ../output/GPU_PVChecker.root $outloc\/PVChk-VELO-$par-$val-scan.root
     ./Allen -f /data/gligorov/minbias -c 0 -n 10000 -t 3 -r 10 -m 4000 >& $outloc\/VELO-$par-$val-tptscan.stdout
     cd ..
-    cp bkpfile.bkp cuda/velo/common/include/VeloDefinitions.cuh    
+    cp bkpfile.bkp cuda/velo/common/include/VeloDefinitions.cuh
   done
 done
 
@@ -62,7 +62,7 @@ do
     cp ../output/GPU_PVChecker.root $outloc\/PVChk-VELO-$par-$val-scan.root
     ./Allen -f /data/gligorov/minbias -c 0 -n 10000 -t 3 -r 10 -m 4000 >& $outloc\/VELO-$par-$val-tptscan.stdout
     cd ..
-    cp bkpfile.bkp cuda/velo/common/include/VeloDefinitions.cuh    
+    cp bkpfile.bkp cuda/velo/common/include/VeloDefinitions.cuh
   done
 done
 

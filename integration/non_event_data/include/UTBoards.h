@@ -231,8 +231,9 @@ namespace Allen::Conditions {
         dev_ut_boards = {p, m_data.size()};
       }
       else if (host_ut_boards.size() != m_data.size()) {
-        throw StrException {std::string {"[ut boards] sizes don't match: "} + std::to_string(host_ut_boards.size()) +
-                            " " + std::to_string(m_data.size())};
+        throw StrException {
+          std::string {"[ut boards] sizes don't match: "} + std::to_string(host_ut_boards.size()) + " " +
+          std::to_string(m_data.size())};
       }
       host_ut_boards = m_data;
       Allen::memcpy(dev_ut_boards.data(), host_ut_boards.data(), host_ut_boards.size(), Allen::memcpyHostToDevice);

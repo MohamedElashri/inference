@@ -171,11 +171,12 @@ __global__ void rich_make_pd_pixels_k(
   const auto event_number = parameters.dev_event_list[blockIdx.x];
   const auto number_of_events = parameters.dev_event_list.size();
 
-  const auto raw_event = Allen::RawEvent<mep_layout> {parameters.dev_rich_raw_input,
-                                                      parameters.dev_rich_raw_input_offsets,
-                                                      parameters.dev_rich_raw_input_sizes,
-                                                      parameters.dev_rich_raw_input_types,
-                                                      event_number + event_start};
+  const auto raw_event = Allen::RawEvent<mep_layout> {
+    parameters.dev_rich_raw_input,
+    parameters.dev_rich_raw_input_offsets,
+    parameters.dev_rich_raw_input_sizes,
+    parameters.dev_rich_raw_input_types,
+    event_number + event_start};
 
   __shared__ Allen::Rich::Decoding::PackedFrameSizes::IntType
     connSizes_shared[MaxConnectionsPerTel40 * RICH_DECODING_BLOCK_DIM_Y];
@@ -200,11 +201,12 @@ __global__ void rich_make_pd_pixels_StreamIDs_k(
   const auto event_number = parameters.dev_event_list[blockIdx.x];
   const auto number_of_events = parameters.dev_event_list.size();
 
-  const auto raw_event = Allen::RawEvent<mep_layout> {parameters.dev_rich_raw_input,
-                                                      parameters.dev_rich_raw_input_offsets,
-                                                      parameters.dev_rich_raw_input_sizes,
-                                                      parameters.dev_rich_raw_input_types,
-                                                      event_number + event_start};
+  const auto raw_event = Allen::RawEvent<mep_layout> {
+    parameters.dev_rich_raw_input,
+    parameters.dev_rich_raw_input_offsets,
+    parameters.dev_rich_raw_input_sizes,
+    parameters.dev_rich_raw_input_types,
+    event_number + event_start};
 
   for (unsigned bank_number = threadIdx.y; bank_number < raw_event.number_of_raw_banks; bank_number += blockDim.y) {
     const auto bank = raw_event.raw_bank(bank_number);

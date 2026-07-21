@@ -87,10 +87,11 @@ namespace velo_lumi_counters {
       "tracks_eta_bins",
       {-4.f, -3.f, -2.f, 2.f, 3.f, 4.f, 5.f},
       "tracks eta bins"};
-    Allen::Property<std::array<unsigned, 4>> m_clusters_station_bin_edges {this,
-                                                                           "clusters_station_bin_edges",
-                                                                           {3, 13, 19, 25},
-                                                                           "clusters station bin edges"};
+    Allen::Property<std::array<unsigned, 4>> m_clusters_station_bin_edges {
+      this,
+      "clusters_station_bin_edges",
+      {3, 13, 19, 25},
+      "clusters station bin edges"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {64, 1, 1}, "block dimensions"};
     Allen::Property<std::map<std::string, std::pair<unsigned, unsigned>>> m_lumi_counter_schema {
       this,

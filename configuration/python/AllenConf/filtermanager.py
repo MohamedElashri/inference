@@ -8,52 +8,46 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from PyConf.control_flow import NodeLogic, CompositeNode
-from AllenConf.hlt1_presets import *
-from AllenConf.filters import *
-from AllenConf.odin import make_bxtype, odin_error_filter, tae_filter, make_event_type, make_odin_orbit
-from AllenConf.enum_types import ActivityType
+from PyConf.control_flow import CompositeNode, NodeLogic
+
 from AllenConf.calo_reconstruction import decode_calo
+from AllenConf.enum_types import ActivityType
+from AllenConf.filters import *
 from AllenConf.hlt1_presets import *
-import re
+from AllenConf.odin import make_bxtype, make_event_type, odin_error_filter, tae_filter
 
 
 class FilterManager:
     """Manages event filters and prefilters with improved API."""
 
-    def __init__(self,
-                 reconstructed_objects,
-                 preset=None,
-                 config_overrides=None):
+    def __init__(self, reconstructed_objects, preset=None, config_overrides=None):
         self.reconstructed_objects = reconstructed_objects
         self.presets = PREFILTER_MANAGER_PRESETS.copy()
         # Apply config overrides using update_preset
         if config_overrides:
-            self.update_preset(
-                **config_overrides)  # Changed from self.preset.update()
+            self.update_preset(**config_overrides)  # Changed from self.preset.update()
 
         # Handle preset
         if preset is None:
-            self.preset = self.presets['pp_default'].copy()
+            self.preset = self.presets["pp_default"].copy()
         elif isinstance(preset, str):
             self.preset = PREFILTER_MANAGER_PRESETS[preset].copy()
         else:
             self.preset = preset.copy()
 
-        self.parameters = PREFILTER_MANAGER_PRESETS['parameters'].copy()
+        self.parameters = PREFILTER_MANAGER_PRESETS["parameters"].copy()
         # Update with parameters from the specific preset if they exist
         # if 'parameters' is not empty, update self.parameters
-        if self.preset['parameters'] is not None:
+        if self.preset["parameters"] is not None:
             # Recursively update nested dictionaries
             def update_dict(d, u):
                 for k, v in u.items():
-                    if isinstance(v, dict) and k in d and isinstance(
-                            d[k], dict):
+                    if isinstance(v, dict) and k in d and isinstance(d[k], dict):
                         update_dict(d[k], v)
                     else:
                         d[k] = v
 
-            update_dict(self.parameters, self.preset['parameters'])
+            update_dict(self.parameters, self.preset["parameters"])
         self._filter_cache = {}
         self._prefilter_sets = {}
         self._composite_filters = {}
@@ -63,8 +57,11 @@ class FilterManager:
 
         def recursive_update(target, source):
             for key, value in source.items():
-                if (key in target and isinstance(target[key], dict)
-                        and isinstance(value, dict)):
+                if (
+                    key in target
+                    and isinstance(target[key], dict)
+                    and isinstance(value, dict)
+                ):
                     # Recursively update nested dict
                     recursive_update(target[key], value)
                 else:
@@ -81,9 +78,8 @@ class FilterManager:
             return self._prefilter_sets[name]
 
         # Try to create from preset
-        if name in self.presets.get('prefilter_sets', {}):
-            return self.create_prefilter_set(
-                name, self.presets['prefilter_sets'][name])
+        if name in self.presets.get("prefilter_sets", {}):
+            return self.create_prefilter_set(name, self.presets["prefilter_sets"][name])
 
         raise KeyError(f"Prefilter set '{name}' not found")
 
@@ -98,12 +94,13 @@ class FilterManager:
                     filters.extend(self._prefilter_sets[spec])
 
                 # SECOND: Check if it's a predefined filter set in the preset
-                elif spec in self.presets.get('prefilter_sets', {}):
+                elif spec in self.presets.get("prefilter_sets", {}):
                     # It's a reference to another filter set - recursively get/create it
                     if spec not in self._prefilter_sets:
                         # Create the referenced filter set first
                         self.create_prefilter_set(
-                            spec, self.presets['prefilter_sets'][spec])
+                            spec, self.presets["prefilter_sets"][spec]
+                        )
                     filters.extend(self._prefilter_sets[spec])
 
                 else:
@@ -112,7 +109,7 @@ class FilterManager:
                     filters.extend(self.create_filter(spec, **filter_config))
 
             elif isinstance(spec, dict):
-                filter_type = spec.pop('type')
+                filter_type = spec.pop("type")
                 filters.extend(self.create_filter(filter_type, **spec))
             else:
                 filters.append(spec)
@@ -120,15 +117,13 @@ class FilterManager:
         self._prefilter_sets[name] = filters
         return filters
 
-    def create_composite(self,
-                         name,
-                         filter_names,
-                         logic=NodeLogic.LAZY_AND,
-                         force_order=False):
+    def create_composite(
+        self, name, filter_names, logic=NodeLogic.LAZY_AND, force_order=False
+    ):
         """Create a composite filter from named prefilter sets."""
         filters = []
         for filter_name in filter_names:
-            if filter_name.startswith('+'):
+            if filter_name.startswith("+"):
                 # Add individual filter
                 filters.extend(self.create_filter(filter_name[1:]))
             else:
@@ -136,15 +131,14 @@ class FilterManager:
                 filters.extend(self.get_prefilter_set(filter_name))
 
         composite = CompositeNode(
-            f"{name}_composite", filters, logic, force_order=force_order)
+            f"{name}_composite", filters, logic, force_order=force_order
+        )
         self._composite_filters[name] = composite
         return [composite]
 
-    def create_conditional_prefilter(self,
-                                     name,
-                                     condition,
-                                     true_filters,
-                                     false_filters=None):
+    def create_conditional_prefilter(
+        self, name, condition, true_filters, false_filters=None
+    ):
         """Create conditional prefilter based on a condition."""
         if condition:
             return self.create_named_prefilter(name, true_filters)
@@ -174,81 +168,88 @@ class FilterManager:
         return [sd_error_filter()]
 
     def _create_gec(self, **kwargs):
-        config = self.preset.get('gec_config', {}).copy()
+        config = self.preset.get("gec_config", {}).copy()
         config.update(kwargs)
         return [make_gec(**config)]
 
     def _create_gec_upc(self):
-        params = self.parameters.get('gec_upc', {})
+        params = self.parameters.get("gec_upc", {})
         decoded_calo = decode_calo()
         return [
             make_checkEcalEnergy(
-                decoded_calo['dev_total_ecal_e'],
-                name='CheckEcalEnergyUPC',
-                ecalCut=params.get('gec_upc_ecal_cut', 94000),
-                cutHigh=True)
+                decoded_calo["dev_total_ecal_e"],
+                name="CheckEcalEnergyUPC",
+                ecalCut=params.get("gec_upc_ecal_cut", 94000),
+                cutHigh=True,
+            )
         ]
 
     def _create_gec_hadronic(self, ecal_cut=None):
-        params = self.parameters.get('gec_hadronic', {})
+        params = self.parameters.get("gec_hadronic", {})
         decoded_calo = decode_calo()
         return [
             make_checkEcalEnergy(
-                decoded_calo['dev_total_ecal_e'],
-                name='CheckEcalEnergyHadronic',
-                ecalCut=params.get('min_ecal_hadro', 94000),
-                cutHigh=False)
+                decoded_calo["dev_total_ecal_e"],
+                name="CheckEcalEnergyHadronic",
+                ecalCut=params.get("min_ecal_hadro", 94000),
+                cutHigh=False,
+            )
         ]
 
     def _create_scifi_filter(self):
-        params = self.parameters.get('scifi_filter', {})
+        params = self.parameters.get("scifi_filter", {})
         return [
             scifi_gec(
-                'veloMicroBias_scifi_clusters_filter',
-                min_clusters=params.get('min_clusters', 0),
-                max_clusters=params.get('max_clusters', 7000))
+                "veloMicroBias_scifi_clusters_filter",
+                min_clusters=params.get("min_clusters", 0),
+                max_clusters=params.get("max_clusters", 7000),
+            )
         ]
 
     def _create_velo_filter(self):
-        params = self.parameters.get('velo_filter', {})
+        params = self.parameters.get("velo_filter", {})
         return [
             velo_gec(
-                'veloMicroBias_velo_clusters_filter',
-                min_clusters=params.get('min_clusters', 200),
-                max_clusters=params.get('max_clusters', 7000))
+                "veloMicroBias_velo_clusters_filter",
+                min_clusters=params.get("min_clusters", 200),
+                max_clusters=params.get("max_clusters", 7000),
+            )
         ]
 
     def _create_veloMicroBias_clusters_filter(self):
-        params = self.parameters.get('veloMicroBias_clusters_filter', {})
+        params = self.parameters.get("veloMicroBias_clusters_filter", {})
         veloMicroBias_scifi_clusters_filter = [
             scifi_gec(
-                'veloMicroBias_scifi_clusters_filter',
-                min_clusters=params.get('scifi_min_clusters', 0),
-                max_clusters=params.get('scifi_max_clusters', 7000))
+                "veloMicroBias_scifi_clusters_filter",
+                min_clusters=params.get("scifi_min_clusters", 0),
+                max_clusters=params.get("scifi_max_clusters", 7000),
+            )
         ]
         veloMicroBias_velo_clusters_filter = [
             velo_gec(
-                'veloMicroBias_velo_clusters_filter',
-                min_clusters=params.get('velo_min_clusters', 200),
-                max_clusters=params.get('velo_max_clusters', 7000))
+                "veloMicroBias_velo_clusters_filter",
+                min_clusters=params.get("velo_min_clusters", 200),
+                max_clusters=params.get("velo_max_clusters", 7000),
+            )
         ]
         return CompositeNode(
             "veloMicroBias_clusters_filter_node",
-            veloMicroBias_scifi_clusters_filter +
-            veloMicroBias_velo_clusters_filter,
+            veloMicroBias_scifi_clusters_filter + veloMicroBias_velo_clusters_filter,
             NodeLogic.LAZY_AND,
-            force_order=False)
+            force_order=False,
+        )
 
     def _create_pv_activity_filter(self):
-        params = self.parameters.get('pv_activity_filter', {})
+        params = self.parameters.get("pv_activity_filter", {})
         return make_minimal_activity_filter(
             self.reconstructed_objects,
             minimal_activity_type=ActivityType.PRIMARY_VERTICES,
-            min_activity=params.get('pv_min_activity', 1),
-            max_activity=params.get('pv_max_activity', 100))
+            min_activity=params.get("pv_min_activity", 1),
+            max_activity=params.get("pv_max_activity", 100),
+        )
 
     def _create_velo_closing_filter(self):
-        params = self.parameters.get('velo_closing_filter', {})
+        params = self.parameters.get("velo_closing_filter", {})
 
         return [
             make_gec(
@@ -256,8 +257,9 @@ class FilterManager:
                 count_velo=True,
                 count_scifi=False,
                 count_ut=False,
-                min_velo_clusters=params.get('min_clusters', 200),
-                max_velo_clusters=params.get('max_clusters', 30000))
+                min_velo_clusters=params.get("min_clusters", 200),
+                max_velo_clusters=params.get("max_clusters", 30000),
+            )
         ]
 
     def _create_bx_BB(self):
@@ -267,15 +269,14 @@ class FilterManager:
         return [make_bxtype(bx_type=1)]
 
     def _create_bx(self, bx_type=None):
-        bx_type = bx_type or self.preset.get('bx_type', 3)
+        bx_type = bx_type or self.preset.get("bx_type", 3)
         return [make_bxtype(bx_type=bx_type)]
 
     def _create_velo_closed(self):
         return [
             make_event_type(
-                name="ODIN_EvenType_VeloClosed",
-                event_type="VeloOpen",
-                invert=True)
+                name="ODIN_EvenType_VeloClosed", event_type="VeloOpen", invert=True
+            )
         ]
 
     def _create_velo_open(self):
@@ -283,47 +284,54 @@ class FilterManager:
 
     def _create_tae_activity_filter(self):
         return [
-            make_tae_activity_filter(self.reconstructed_objects["long_tracks"],
-                                     self.reconstructed_objects["velo_tracks"])
+            make_tae_activity_filter(
+                self.reconstructed_objects["long_tracks"],
+                self.reconstructed_objects["velo_tracks"],
+            )
         ]
 
     def _create_tae_filter(self):
         return [tae_filter()]
 
     def _create_activity_filter(self):
-        activity_type = self.parameters.get('activity_type')
+        activity_type = self.parameters.get("activity_type")
         if not isinstance(activity_type, ActivityType):
             raise ValueError(
                 "activity_type must be an instance of ActivityType enum: ",
-                activity_type)
+                activity_type,
+            )
         if activity_type != ActivityType.VELO_CLUSTERS:
             raise ValueError(
                 "_create_activity_filter: Please use pv_activity_filter instead."
             )
-        params = self.parameters.get('activity_filter', {})
-        min_activity = params.get('min_activity', 200)
-        max_activity = params.get('max_activity', 999999999)
+        params = self.parameters.get("activity_filter", {})
+        min_activity = params.get("min_activity", 200)
+        max_activity = params.get("max_activity", 999999999)
 
         return make_minimal_activity_filter(
             self.reconstructed_objects,
             activity_type,
             min_activity=min_activity,
-            max_activity=max_activity)
+            max_activity=max_activity,
+        )
 
     def _create_lowmult(self, **kwargs):
-        return make_lowmult(self.reconstructed_objects["velo_tracks"],
-                            self.reconstructed_objects["ecal_clusters"],
-                            **kwargs)
+        return make_lowmult(
+            self.reconstructed_objects["velo_tracks"],
+            self.reconstructed_objects["ecal_clusters"],
+            **kwargs,
+        )
 
     def _create_gec_photon_nvelo_upc(self):
-        params = self.parameters.get('gec_photon_nvelo_upc', {})
+        params = self.parameters.get("gec_photon_nvelo_upc", {})
         return [
             make_lowmult(
                 self.reconstructed_objects["velo_tracks"],
                 self.reconstructed_objects["ecal_clusters"],
                 name="CheckPhotonUPC",
-                maxTracks=params.get('max_tracks', 10),
-                max_ecal_clusters=params.get('max_ecal_clusters', 10))
+                maxTracks=params.get("max_tracks", 10),
+                max_ecal_clusters=params.get("max_ecal_clusters", 10),
+            )
         ]
 
     def create_prefilter_set(self, name, filter_sequence, **filter_kwargs):
@@ -333,7 +341,8 @@ class FilterManager:
             if isinstance(filter_spec, str):
                 # Simple filter type - ensure result is a list
                 created_filters = self.create_filter(
-                    filter_spec, **filter_kwargs.get(filter_spec, {}))
+                    filter_spec, **filter_kwargs.get(filter_spec, {})
+                )
 
                 # Ensure we have a list (create_filter might return a single object)
                 if not isinstance(created_filters, (list, tuple)):
@@ -343,9 +352,8 @@ class FilterManager:
 
             elif isinstance(filter_spec, dict):
                 # Complex filter specification
-                filter_type = filter_spec.pop('type')
-                created_filters = self.create_filter(filter_type,
-                                                     **filter_spec)
+                filter_type = filter_spec.pop("type")
+                created_filters = self.create_filter(filter_type, **filter_spec)
 
                 # Ensure we have a list
                 if not isinstance(created_filters, (list, tuple)):

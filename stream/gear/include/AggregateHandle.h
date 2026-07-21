@@ -32,13 +32,14 @@ namespace Allen {
   template<typename T>
   struct AggregateReadHandle {
     AggregateReadHandle(Gaudi::Algorithm* algo, std::string name, std::string) :
-      locations {algo,
-                 name,
-                 {},
-                 [this, algo](Gaudi::Details::PropertyBase&) {
-                   handles = details::make_vector_of_handles<decltype(handles)>(algo, locations);
-                 },
-                 Gaudi::Details::Property::ImmediatelyInvokeHandler {true}}
+      locations {
+        algo,
+        name,
+        {},
+        [this, algo](Gaudi::Details::PropertyBase&) {
+          handles = details::make_vector_of_handles<decltype(handles)>(algo, locations);
+        },
+        Gaudi::Details::Property::ImmediatelyInvokeHandler {true}}
     {}
 
     template<typename... Args, std::size_t... Is>

@@ -50,10 +50,11 @@ namespace displaced_di_muon_mass_line {
     // Dimuon mass cut
     Allen::Property<float> m_minMass {this, "minMass", 2700.f / Allen::Units::MeV, "minMass description"};
     // Dimuon track pt.
-    Allen::Property<float> m_minDispTrackPt {this,
-                                             "minDispTrackPt",
-                                             500.f / Allen::Units::MeV,
-                                             "minDispTrackPt description"};
+    Allen::Property<float> m_minDispTrackPt {
+      this,
+      "minDispTrackPt",
+      500.f / Allen::Units::MeV,
+      "minDispTrackPt description"};
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 6.f, "maxVertexChi2 description"};
     // Displaced dimuon selections.
     Allen::Property<float> m_dispMinIPChi2 {this, "dispMinIPChi2", 6.f, "dispMinIPChi2 description"};

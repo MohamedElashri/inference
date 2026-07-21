@@ -47,10 +47,10 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    #"sphinx.ext.graphviz",
+    # "sphinx.ext.graphviz",
     "sphinx.ext.todo",
-    #"graphviz_linked",
-    "sphinxcontrib.mermaid"
+    # "graphviz_linked",
+    "sphinxcontrib.mermaid",
 ]
 
 # Assume unmarked references (in backticks) refer to Python objects

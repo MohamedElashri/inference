@@ -79,26 +79,30 @@ namespace downstream_v2_find_tracks {
     Allen::Property<bool> m_fiducial_cut {this, "fiducial_cut", false, "enable fiducial cuts"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
     Allen::Property<float> m_y_tolerance {this, "y_tolerance", 10.f, "the tolerance window in Y"};
-    Allen::Property<float> m_y_layer_tolerance {this,
-                                                "y_layer_tolerance",
-                                                18.f,
-                                                "the tolerance window in Y in layer level"};
-    Allen::Property<float> m_x_axial_tolerance {this,
-                                                "x_axial_tolerance",
-                                                3.f,
-                                                "the tolerance window in X for axial layers"};
-    Allen::Property<float> m_x_stereo_tolerance {this,
-                                                 "x_stereo_tolerance",
-                                                 4.f,
-                                                 "the tolerance window in X for stereo layers"};
+    Allen::Property<float> m_y_layer_tolerance {
+      this,
+      "y_layer_tolerance",
+      18.f,
+      "the tolerance window in Y in layer level"};
+    Allen::Property<float> m_x_axial_tolerance {
+      this,
+      "x_axial_tolerance",
+      3.f,
+      "the tolerance window in X for axial layers"};
+    Allen::Property<float> m_x_stereo_tolerance {
+      this,
+      "x_stereo_tolerance",
+      4.f,
+      "the tolerance window in X for stereo layers"};
     Allen::Property<std::array<float, 2>> m_dtx_range {this, "dtx_range", {0.01f, 0.43f}, "the dtx range"};
     Allen::Property<float> m_ut_r_min {this, "ut_r_min", 24.f, "the minimum ut r for beamline removal"};
     Allen::Property<float> m_x0_max {this, "x0_max", 400.f, "the maximum x0"};
     Allen::Property<std::array<float, 2>> m_eta_range {this, "eta_range", {1.8f, 5.7f}, "the eta range"};
-    Allen::Property<std::array<float, 3>> m_stereo_bias_threshold {this,
-                                                                   "stereo_bias_threshold",
-                                                                   {1.39454254e+01f, -9.63571400e-01f, 3.18779385e+00f},
-                                                                   "the stereo bias threshold"};
+    Allen::Property<std::array<float, 3>> m_stereo_bias_threshold {
+      this,
+      "stereo_bias_threshold",
+      {1.39454254e+01f, -9.63571400e-01f, 3.18779385e+00f},
+      "the stereo bias threshold"};
   };
 
   __global__ void downstream_v2_find_hits_in_layer_0(

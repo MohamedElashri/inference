@@ -9,40 +9,46 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import (
-    SMOG2_minimum_bias_line_t, SMOG2_dimuon_highmass_line_t,
-    SMOG2_ditrack_line_t, SMOG2_singletrack_line_t, SMOG2_single_muon_line_t,
-    SMOG2_kstopipi_line_t, SMOG2_displaced_di_muon_line_t,
-    SMOG2jpsitomumu_tap_line_t)
-
-from AllenConf.utils import initialize_number_of_events, mep_layout
-from AllenCore.generator import make_algorithm
-from AllenConf.odin import decode_odin
-from PyConf.tonic import configurable
+    SMOG2_dimuon_highmass_line_t,
+    SMOG2_displaced_di_muon_line_t,
+    SMOG2_ditrack_line_t,
+    SMOG2_kstopipi_line_t,
+    SMOG2_minimum_bias_line_t,
+    SMOG2_single_muon_line_t,
+    SMOG2_singletrack_line_t,
+    SMOG2jpsitomumu_tap_line_t,
+)
 from AllenCore.configuration_options import is_allen_standalone
+from AllenCore.generator import make_algorithm
+from PyConf.tonic import configurable
+
+from AllenConf.utils import initialize_number_of_events
 
 
 @configurable
-def make_SMOG2_dimuon_displaced_line(secondary_vertices,
-                                     long_tracks,
-                                     muonid,
-                                     pre_scaler_hash_string=None,
-                                     post_scaler_hash_string=None,
-                                     name="Hlt1SMOG2_DisplacedDiMuon",
-                                     mintrackpt=500,
-                                     maxvtxchi2=25,
-                                     mincombopt=1.,
-                                     min_PVz=-537.5,
-                                     max_PVz=-337.5,
-                                     minFDCHI2=15.,
-                                     min_SVz=-537.5,
-                                     maxIP=1.,
-                                     maxChi2Corr=2.0,
-                                     minMuonNN=0.05,
-                                     useMuonNN=False,
-                                     pre_scaler=1.,
-                                     post_scaler=1.,
-                                     enable_monitoring=True,
-                                     enable_tupling=False):
+def make_SMOG2_dimuon_displaced_line(
+    secondary_vertices,
+    long_tracks,
+    muonid,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1SMOG2_DisplacedDiMuon",
+    mintrackpt=500,
+    maxvtxchi2=25,
+    mincombopt=1.0,
+    min_PVz=-537.5,
+    max_PVz=-337.5,
+    minFDCHI2=15.0,
+    min_SVz=-537.5,
+    maxIP=1.0,
+    maxChi2Corr=2.0,
+    minMuonNN=0.05,
+    useMuonNN=False,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -50,8 +56,7 @@ def make_SMOG2_dimuon_displaced_line(secondary_vertices,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonidnn_t=muonid["dev_muonidnn"],
@@ -71,24 +76,27 @@ def make_SMOG2_dimuon_displaced_line(secondary_vertices,
         minPVZ=min_PVz,
         maxPVZ=max_PVz,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_SMOG2_dimuon_highmass_line(secondary_vertices,
-                                    long_tracks,
-                                    muonid,
-                                    maxTrackChi2Ndf,
-                                    pre_scaler_hash_string=None,
-                                    post_scaler_hash_string=None,
-                                    name="Hlt1SMOG2_DiMuonHighMassLine",
-                                    min_z=-537.5,
-                                    max_z=-337.5,
-                                    pre_scaler=1.,
-                                    post_scaler=1.,
-                                    maxChi2Corr=1.8,
-                                    enable_monitoring=True,
-                                    enable_tupling=False):
+def make_SMOG2_dimuon_highmass_line(
+    secondary_vertices,
+    long_tracks,
+    muonid,
+    maxTrackChi2Ndf,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1SMOG2_DiMuonHighMassLine",
+    min_z=-537.5,
+    max_z=-337.5,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    maxChi2Corr=1.8,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -96,8 +104,7 @@ def make_SMOG2_dimuon_highmass_line(secondary_vertices,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         pre_scaler=pre_scaler,
@@ -109,27 +116,30 @@ def make_SMOG2_dimuon_highmass_line(secondary_vertices,
         maxChi2Corr=maxChi2Corr,
         maxTrackChi2Ndf=maxTrackChi2Ndf,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_SMOG2_jpsitomumu_tap_line(secondary_vertices,
-                                   long_tracks,
-                                   muonid,
-                                   maxTrackChi2Ndf,
-                                   pre_scaler_hash_string=None,
-                                   post_scaler_hash_string=None,
-                                   name="Hlt1SMOG2_JpsiToMuMuTaPLine",
-                                   min_z=-537.5,
-                                   max_z=-337.5,
-                                   pre_scaler=1.,
-                                   post_scaler=1.,
-                                   maxChi2Corr=1.8,
-                                   minMuonNN=0.1,
-                                   useMuonNN=False,
-                                   enable_monitoring=True,
-                                   enable_tupling=False,
-                                   posTag=True):
+def make_SMOG2_jpsitomumu_tap_line(
+    secondary_vertices,
+    long_tracks,
+    muonid,
+    maxTrackChi2Ndf,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1SMOG2_JpsiToMuMuTaPLine",
+    min_z=-537.5,
+    max_z=-337.5,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    maxChi2Corr=1.8,
+    minMuonNN=0.1,
+    useMuonNN=False,
+    enable_monitoring=True,
+    enable_tupling=False,
+    posTag=True,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -137,8 +147,7 @@ def make_SMOG2_jpsitomumu_tap_line(secondary_vertices,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         dev_muonidnn_t=muonid["dev_muonidnn"],
@@ -154,20 +163,23 @@ def make_SMOG2_jpsitomumu_tap_line(secondary_vertices,
         useNN=useMuonNN,
         maxTrackChi2Ndf=maxTrackChi2Ndf,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_SMOG2_minimum_bias_line(velo_tracks,
-                                 velo_states,
-                                 pre_scaler_hash_string=None,
-                                 post_scaler_hash_string=None,
-                                 name="Hlt1SMOG2_MinimumBias",
-                                 min_z=-537.5,
-                                 max_z=-337.5,
-                                 pre_scaler=0.00003,
-                                 post_scaler=1.,
-                                 enable_tupling=False):
+def make_SMOG2_minimum_bias_line(
+    velo_tracks,
+    velo_states,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1SMOG2_MinimumBias",
+    min_z=-537.5,
+    max_z=-337.5,
+    pre_scaler=0.00003,
+    post_scaler=1.0,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -175,46 +187,46 @@ def make_SMOG2_minimum_bias_line(velo_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_reconstructed_velo_tracks_t=velo_tracks[
-            "host_number_of_reconstructed_velo_tracks"],
+            "host_number_of_reconstructed_velo_tracks"
+        ],
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         dev_tracks_container_t=velo_tracks["dev_velo_tracks_view"],
-        dev_velo_states_view_t=velo_states[
-            "dev_velo_kalman_beamline_states_view"],
+        dev_velo_states_view_t=velo_states["dev_velo_kalman_beamline_states_view"],
         minZ=min_z,
         maxZ=max_z,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 def make_SMOG2_ditrack_line(
-        secondary_vertices,
-        maxTrackChi2Ndf,
-        m1=-1.,
-        m2=-1.,
-        minMdipion=0.,
-        mMother=-1.,
-        pre_scaler_hash_string=None,
-        post_scaler_hash_string=None,
-        name="Hlt1_SMOG2_DiTrack",
-        mWindow=150.,
-        minTrackP=3000.,
-        minTrackPt=400.,
-        minEitherTrackPt=400.,
-        minTrackIPCHI2=0.,
-        maxTrackIPCHI2=999999.,
-        minFDCHI2=-10.,
-        maxFDCHI2=999999.,
-        maxGhostProb=0.3,
-        min_z=-537.5,
-        max_z=-337.5,
-        pre_scaler=1.,
-        post_scaler=1.,
-        enable_tupling=False,
-        enable_monitoring=True,
+    secondary_vertices,
+    maxTrackChi2Ndf,
+    m1=-1.0,
+    m2=-1.0,
+    minMdipion=0.0,
+    mMother=-1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1_SMOG2_DiTrack",
+    mWindow=150.0,
+    minTrackP=3000.0,
+    minTrackPt=400.0,
+    minEitherTrackPt=400.0,
+    minTrackIPCHI2=0.0,
+    maxTrackIPCHI2=999999.0,
+    minFDCHI2=-10.0,
+    maxFDCHI2=999999.0,
+    maxGhostProb=0.3,
+    min_z=-537.5,
+    max_z=-337.5,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    enable_tupling=False,
+    enable_monitoring=True,
 ):
-
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -222,8 +234,7 @@ def make_SMOG2_ditrack_line(
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
@@ -245,22 +256,24 @@ def make_SMOG2_ditrack_line(
         maxTrackChi2Ndf=maxTrackChi2Ndf,
         maxGhostProb=maxGhostProb,
         enable_tupling=enable_tupling,
-        enable_monitoring=is_allen_standalone() and enable_monitoring)
+        enable_monitoring=is_allen_standalone() and enable_monitoring,
+    )
 
 
-def make_SMOG2_kstopipi_line(secondary_vertices,
-                             pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None,
-                             name="Hlt1_SMOG2_KsPiPi",
-                             min_z=-537.5,
-                             max_z=-337.5,
-                             minTrackPt=250.,
-                             minMass=400.,
-                             pre_scaler=1.,
-                             post_scaler=1.,
-                             enable_monitoring=True,
-                             enable_tupling=False):
-
+def make_SMOG2_kstopipi_line(
+    secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1_SMOG2_KsPiPi",
+    min_z=-537.5,
+    max_z=-337.5,
+    minTrackPt=250.0,
+    minMass=400.0,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -268,8 +281,7 @@ def make_SMOG2_kstopipi_line(secondary_vertices,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
@@ -279,23 +291,25 @@ def make_SMOG2_kstopipi_line(secondary_vertices,
         minMass=minMass,
         minTrackPt=minTrackPt,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_SMOG2_singletrack_line(long_tracks,
-                                long_track_particles,
-                                maxChi2Ndof,
-                                pre_scaler_hash_string=None,
-                                post_scaler_hash_string=None,
-                                name="Hlt1_SMOG2_SingleTrack",
-                                min_z=-537.5,
-                                max_z=-337.5,
-                                minPt=1.5,
-                                maxGhostProb=0.3,
-                                pre_scaler=1.,
-                                post_scaler=1.,
-                                enable_tupling=False):
-
+def make_SMOG2_singletrack_line(
+    long_tracks,
+    long_track_particles,
+    maxChi2Ndof,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1_SMOG2_SingleTrack",
+    min_z=-537.5,
+    max_z=-337.5,
+    minPt=1.5,
+    maxGhostProb=0.3,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -303,9 +317,11 @@ def make_SMOG2_singletrack_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
@@ -315,26 +331,28 @@ def make_SMOG2_singletrack_line(long_tracks,
         maxGhostProb=maxGhostProb,
         minBPVz=min_z,
         maxBPVz=max_z,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_SMOG2_single_muon_line(long_tracks,
-                                long_track_particles,
-                                muonid,
-                                maxChi2Ndof,
-                                pre_scaler_hash_string=None,
-                                post_scaler_hash_string=None,
-                                name="Hlt1_SMOG2_SingleMuon",
-                                MinPt=700,
-                                maxChi2Corr=1.8,
-                                minMuonNN=0.1,
-                                useMuonNN=False,
-                                min_z=-537.5,
-                                max_z=-337.5,
-                                pre_scaler=1.,
-                                post_scaler=1.,
-                                enable_tupling=False):
-
+def make_SMOG2_single_muon_line(
+    long_tracks,
+    long_track_particles,
+    muonid,
+    maxChi2Ndof,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1_SMOG2_SingleMuon",
+    MinPt=700,
+    maxChi2Corr=1.8,
+    minMuonNN=0.1,
+    useMuonNN=False,
+    min_z=-537.5,
+    max_z=-337.5,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -349,9 +367,11 @@ def make_SMOG2_single_muon_line(long_tracks,
         dev_muonidnn_t=muonid["dev_muonidnn"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         maxChi2Ndof=maxChi2Ndof,
         minBPVz=min_z,
         maxBPVz=max_z,
@@ -359,4 +379,5 @@ def make_SMOG2_single_muon_line(long_tracks,
         maxChi2Corr=maxChi2Corr,
         minMuonNN=minMuonNN,
         useNN=useMuonNN,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )

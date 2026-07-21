@@ -33,9 +33,10 @@ namespace host_routingbits_validator {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<std::map<std::string, uint32_t>> m_routingbit_map {this,
-                                                                       "routingbit_map",
-                                                                       {},
-                                                                       "mapping of expressions to routing bits"};
+    Allen::Property<std::map<std::string, uint32_t>> m_routingbit_map {
+      this,
+      "routingbit_map",
+      {},
+      "mapping of expressions to routing bits"};
   };
 } // namespace host_routingbits_validator

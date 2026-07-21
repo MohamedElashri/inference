@@ -16,19 +16,20 @@
 #include <iostream>
 
 namespace {
-  const std::map<std::string, BankTypes> BankNames = {{"VP", BankTypes::VP},
-                                                      {"UT", BankTypes::UT},
-                                                      {"FTCluster", BankTypes::FT},
-                                                      {"Muon", BankTypes::MUON},
-                                                      {"ODIN", BankTypes::ODIN},
-                                                      {"Rich1", BankTypes::Rich1},
-                                                      {"Rich2", BankTypes::Rich2},
-                                                      {"HCal", BankTypes::HCal},
-                                                      {"ECal", BankTypes::ECal},
-                                                      {"Plume", BankTypes::Plume},
-                                                      {"tracks", BankTypes::MCTracks},
-                                                      {"PVs", BankTypes::MCVertices},
-                                                      {"Gen", BankTypes::Gen}};
+  const std::map<std::string, BankTypes> BankNames = {
+    {"VP", BankTypes::VP},
+    {"UT", BankTypes::UT},
+    {"FTCluster", BankTypes::FT},
+    {"Muon", BankTypes::MUON},
+    {"ODIN", BankTypes::ODIN},
+    {"Rich1", BankTypes::Rich1},
+    {"Rich2", BankTypes::Rich2},
+    {"HCal", BankTypes::HCal},
+    {"ECal", BankTypes::ECal},
+    {"Plume", BankTypes::Plume},
+    {"tracks", BankTypes::MCTracks},
+    {"PVs", BankTypes::MCVertices},
+    {"Gen", BankTypes::Gen}};
 }
 
 std::string bank_name(BankTypes bank_type)

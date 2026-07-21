@@ -60,18 +60,20 @@ namespace rich_photon_reconstruction {
 
     // Pre-filtering:
 
-    Allen::Property<Allen::Rich::DetectorArray<float>> m_radScale {this,
-                                                                   "RadScale",
-                                                                   {0.0117f, -0.021f},
-                                                                   "Rich1Gas, Rich2Gas"};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_radScale {
+      this,
+      "RadScale",
+      {0.0117f, -0.021f},
+      "Rich1Gas, Rich2Gas"};
     Allen::Property<Allen::Rich::DetectorArray<float>> m_minROIPreSel {this, "PreSelMinTrackROI", {0.f, 0.f}, ""};
     Allen::Property<Allen::Rich::DetectorArray<float>> m_maxROIPreSel {this, "PreSelMaxTrackROI", {110.f, 165.f}, ""};
 
     // The CK theta value
-    Allen::Property<Allen::Rich::DetectorArray<float>> m_ckThetaScale {this,
-                                                                       "ScaleFactorCKTheta",
-                                                                       {0.045f, 0.024f},
-                                                                       ""};
+    Allen::Property<Allen::Rich::DetectorArray<float>> m_ckThetaScale {
+      this,
+      "ScaleFactorCKTheta",
+      {0.045f, 0.024f},
+      ""};
 
     // The seperation the scale factors apply to
     Allen::Property<Allen::Rich::DetectorArray<float>> m_sepGScale {this, "ScaleFactorSepG", {83.f, 107.f}, ""};

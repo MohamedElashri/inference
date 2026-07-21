@@ -56,9 +56,8 @@ namespace ScanReduce {
   }
 
   template<unsigned BLOCK_SIZE, BinaryOperator OPERATOR, Numeric T>
-  requires BlockSize<BLOCK_SIZE> __device__ cuda::std::tuple<T, T> multi_warp_block_upsweep(
-    const T warp_inclusive_scan,
-    OPERATOR function)
+    requires BlockSize<BLOCK_SIZE>
+  __device__ cuda::std::tuple<T, T> multi_warp_block_upsweep(const T warp_inclusive_scan, OPERATOR function)
   {
     constexpr int warp_spine_size = (BLOCK_SIZE + warp_size - 1) / warp_size;
     __shared__ T shared_values[warp_spine_size]; // shared storage
@@ -100,9 +99,8 @@ namespace ScanReduce {
   }
 
   template<unsigned BLOCK_SIZE, BinaryOperator OPERATOR, Numeric T>
-  requires BlockSize<BLOCK_SIZE> __device__ cuda::std::tuple<T, T> single_warp_block_upsweep(
-    const T warp_inclusive_scan,
-    OPERATOR function)
+    requires BlockSize<BLOCK_SIZE>
+  __device__ cuda::std::tuple<T, T> single_warp_block_upsweep(const T warp_inclusive_scan, OPERATOR function)
   {
 
     // Calculate per-thread partial
@@ -116,7 +114,8 @@ namespace ScanReduce {
   }
 
   template<unsigned BLOCK_SIZE, typename... ARGS>
-  requires BlockSize<BLOCK_SIZE> __device__ auto block_upsweep(ARGS&&... args)
+    requires BlockSize<BLOCK_SIZE>
+  __device__ auto block_upsweep(ARGS&&... args)
   {
     constexpr int number_of_warps = BLOCK_SIZE / warp_size;
     if (number_of_warps > 1) {
@@ -134,7 +133,8 @@ namespace ScanReduce {
     BinaryOperator FUNCTION,
     Numeric T,
     typename BLOCK_PREFIX_CALLBACK>
-  requires BlockSize<BLOCK_SIZE> __inline__ __device__ T block_scan(
+    requires BlockSize<BLOCK_SIZE>
+  __inline__ __device__ T block_scan(
     const T* input,
     const unsigned array_size,
     T* output,

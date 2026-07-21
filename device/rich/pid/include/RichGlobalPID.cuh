@@ -98,7 +98,7 @@ namespace rich_global_pid {
       const unsigned*,               // pix2track_r1
       const unsigned*,               // pix2track_offsets_r2
       const unsigned*                // pix2track_r2
-      ) const;
+    ) const;
 
     void operator()(
       const ArgumentReferences<Parameters>&,
@@ -113,10 +113,11 @@ namespace rich_global_pid {
 
     /** Ignore the expected signal when computing the background terms.
         Effectively, will assume all observed hits are background */
-    Allen::Property<std::vector<bool>> m_ignoreExpSignal {this,
-                                                          "IgnoreExpectedSignals",
-                                                          {{true, false}},
-                                                          "Ignore track expectations when calculating backgrounds"};
+    Allen::Property<std::vector<bool>> m_ignoreExpSignal {
+      this,
+      "IgnoreExpectedSignals",
+      {{true, false}},
+      "Ignore track expectations when calculating backgrounds"};
 
     Allen::Property<float> m_epsilon {this, "LikelihoodThreshold", -1e-3f, "Threshold for likelihood maximisation"};
 

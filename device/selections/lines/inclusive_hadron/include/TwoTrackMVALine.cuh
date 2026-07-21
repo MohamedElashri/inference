@@ -92,10 +92,11 @@ namespace two_track_mva_line {
     using monitoring_types = std::tuple<mva_t, maxChildGhostProb_t, evtNo_t, runNo_t>;
 
   private:
-    Allen::Property<float> m_minMVA {this,
-                                     "minMVA",
-                                     0.9569f,
-                                     "Minimum passing MVA response."}; // tuned to about 660 kHz (modulo GEC)
+    Allen::Property<float> m_minMVA {
+      this,
+      "minMVA",
+      0.9569f,
+      "Minimum passing MVA response."}; // tuned to about 660 kHz (modulo GEC)
     Allen::Property<float> m_minPt {this, "minPt", 200.f * Allen::Units::MeV, "Minimum track pT in MeV."};
     Allen::Property<float> m_minSVpt {this, "minSVpt", 1000.f * Allen::Units::MeV, "Minimum SV pT in MeV."};
     Allen::Property<float> m_minEta {this, "minEta", 2.f, "Minimum PV-SV eta."};
@@ -111,14 +112,16 @@ namespace two_track_mva_line {
     Allen::Property<float> m_minZ {this, "minZ", -330.f * Allen::Units::mm, "minimum vertex z coordinate"};
     Allen::Property<float> m_maxGhostProb {this, "maxGhostProb", 0.5, "Maximum ghost probability of the tracks"};
 
-    Allen::Monitoring::Histogram<> m_histogram_p0_ghost_prob {this,
-                                                              "p0_ghost_prob",
-                                                              "track0 GhostProb",
-                                                              {100u, 0.f, 0.6f}};
-    Allen::Monitoring::Histogram<> m_histogram_p1_ghost_prob {this,
-                                                              "p1_ghost_prob",
-                                                              "track1 GhostProb",
-                                                              {100u, 0.f, 0.6f}};
+    Allen::Monitoring::Histogram<> m_histogram_p0_ghost_prob {
+      this,
+      "p0_ghost_prob",
+      "track0 GhostProb",
+      {100u, 0.f, 0.6f}};
+    Allen::Monitoring::Histogram<> m_histogram_p1_ghost_prob {
+      this,
+      "p1_ghost_prob",
+      "track1 GhostProb",
+      {100u, 0.f, 0.6f}};
     Allen::Monitoring::Histogram<> m_histogram_p0_ip_x {this, "p0_ip_x", "IP_{x}(p0)", {100u, -3.f, 3.f}};
     Allen::Monitoring::Histogram<> m_histogram_p1_ip_x {this, "p1_ip_x", "IP_{x}(p1)", {100u, -3.f, 3.f}};
     Allen::Monitoring::Histogram<> m_histogram_p0_ip_y {this, "p0_ip_y", "IP_{y}(p0)", {100u, -3.f, 3.f}};

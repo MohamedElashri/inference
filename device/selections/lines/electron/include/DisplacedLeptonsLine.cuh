@@ -54,9 +54,10 @@ namespace displaced_leptons_line {
   private:
     Allen::Property<float> m_min_ipchi2 {this, "min_ipchi2", 7.4f, "Minimum ipchi2"};
     Allen::Property<float> m_min_pt {this, "min_pt", 1000.f, "Minimum pt"};
-    Allen::Property<float> m_minBPVz {this,
-                                      "min_BPVz",
-                                      -330.f * Allen::Units::mm,
-                                      "Minimum z for the associated best primary vertex"};
+    Allen::Property<float> m_minBPVz {
+      this,
+      "min_BPVz",
+      -330.f * Allen::Units::mm,
+      "Minimum z for the associated best primary vertex"};
   };
 } // namespace displaced_leptons_line

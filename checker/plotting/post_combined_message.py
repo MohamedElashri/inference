@@ -12,13 +12,14 @@
 import os
 import sys
 from optparse import OptionParser
+
+from check_throughput import check_throughput_change
 from csv_plotter import (
-    produce_plot,
-    send_to_mattermost,
     get_master_throughput,
     parse_throughput,
+    produce_plot,
+    send_to_mattermost,
 )
-from check_throughput import check_throughput_change
 
 
 def main():
@@ -27,15 +28,13 @@ def main():
     """
     usage = (
         "%prog [options] <-t throughput_data_file> <-b throughput_breakdown_data_file>\n"
-        +
-        'Example: %prog -t throughput_data.csv -b throughput_breakdown.csv -m "http://{your-mattermost-site}/hooks/xxx-generatedkey-xxx"'
+        + 'Example: %prog -t throughput_data.csv -b throughput_breakdown.csv -m "http://{your-mattermost-site}/hooks/xxx-generatedkey-xxx"'
     )
     parser = OptionParser(usage=usage)
     parser.add_option(
         "-m",
         "--mattermost_url",
-        default=os.environ["MATTERMOST_KEY"]
-        if "MATTERMOST_KEY" in os.environ else "",
+        default=os.environ["MATTERMOST_KEY"] if "MATTERMOST_KEY" in os.environ else "",
         dest="mattermost_url",
         help="The url where to post outputs generated for mattermost",
     )
@@ -58,8 +57,7 @@ def main():
         default="",
         help="Title for your graph. (default: empty string)",
     )
-    parser.add_option(
-        "-j", "--job", dest="job", default="", help="Name of CI job")
+    parser.add_option("-j", "--job", dest="job", default="", help="Name of CI job")
     (options, args) = parser.parse_args()
 
     if options.mattermost_url == "":
@@ -73,7 +71,8 @@ def main():
         breakdown = parse_throughput(csvfile, scale=1)
 
     master_throughput = get_master_throughput(
-        options.job, csvfile=options.throughput, scale=1e-3)
+        options.job, csvfile=options.throughput, scale=1e-3
+    )
 
     problems = check_throughput_change(throughput, master_throughput)
 

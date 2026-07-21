@@ -102,9 +102,9 @@ __global__ void kalman_velo_only::kalman_pv_ip(kalman_velo_only::Parameters para
   // Kalman-fitted tracks for this event.
   ParKalmanFilter::FittedTrack* event_tracks = parameters.dev_kf_tracks + event_long_tracks.offset();
   const bool* event_is_muon = parameters.dev_is_muon + event_long_tracks.offset();
-  Allen::device::span<PV::Vertex const> vertices {parameters.dev_multi_final_vertices +
-                                                    event_number * PV::max_number_vertices,
-                                                  *(parameters.dev_number_of_multi_final_vertices + event_number)};
+  Allen::device::span<PV::Vertex const> vertices {
+    parameters.dev_multi_final_vertices + event_number * PV::max_number_vertices,
+    *(parameters.dev_number_of_multi_final_vertices + event_number)};
 
   // The track <-> PV association table for this event.
   Associate::Consolidated::EventTable pv_table =
@@ -135,9 +135,9 @@ __global__ void kalman_filter::kalman_pv_ip(kalman_filter::Parameters parameters
   // Kalman-fitted tracks for this event.
   ParKalmanFilter::FittedTrack* event_tracks = parameters.dev_kf_tracks + event_long_tracks.offset();
   const bool* event_is_muon = parameters.dev_is_muon + event_long_tracks.offset();
-  Allen::device::span<PV::Vertex const> vertices {parameters.dev_multi_final_vertices +
-                                                    event_number * PV::max_number_vertices,
-                                                  *(parameters.dev_number_of_multi_final_vertices + event_number)};
+  Allen::device::span<PV::Vertex const> vertices {
+    parameters.dev_multi_final_vertices + event_number * PV::max_number_vertices,
+    *(parameters.dev_number_of_multi_final_vertices + event_number)};
 
   // The track <-> PV association table for this event.
   Associate::Consolidated::EventTable pv_table =

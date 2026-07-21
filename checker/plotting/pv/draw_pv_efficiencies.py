@@ -15,19 +15,16 @@
 # date:   02/2019
 #
 
-import os, sys
-import argparse
+import os
+import sys
+
 import ROOT
-from ROOT import gStyle
-from ROOT import gROOT
-from ROOT import TStyle
-from ROOT import gPad
 
-sys.path.append('../')
-from common.LHCbStyle import *
-from common.Legend import *
-
+sys.path.append("../")
 from common.ConfigHistos import *
+from common.Legend import *
+from common.LHCbStyle import *
+
 setLHCbStyle()
 
 f = ROOT.TFile.Open("../../../output/GPU_PVChecker.root", "read")

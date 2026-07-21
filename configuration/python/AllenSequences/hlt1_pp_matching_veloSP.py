@@ -8,10 +8,10 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
+from AllenConf.enum_types import TrackingType
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenConf.velo_reconstruction import decode_velo
 from AllenCore.generator import generate
-from AllenConf.enum_types import TrackingType
 
 with decode_velo.bind(retina_decoding=False):
     hlt1_node = setup_hlt1_node(tracking_type=TrackingType.MATCHING)

@@ -126,31 +126,37 @@ namespace downstream_mva_busca_line {
     Allen::Property<float> m_trigger_fd_min {this, "trigger_fd_min", 0.f, "enable trigger for event pass"};
     Allen::Property<float> m_trigger_fd_max {this, "trigger_fd_max", 0.f, "enable trigger for event pass"};
 
-    Allen::Property<float> m_daughter_momentum_cut {this,
-                                                    "daughter_momentum_cut",
-                                                    8000.f,
-                                                    "momentum caut for daughter particle"};
-    Allen::Property<float> m_downstream_quality_cut {this,
-                                                     "downstream_quality_cut",
-                                                     0.3f,
-                                                     "momentum caut for daughter particle"};
+    Allen::Property<float> m_daughter_momentum_cut {
+      this,
+      "daughter_momentum_cut",
+      8000.f,
+      "momentum caut for daughter particle"};
+    Allen::Property<float> m_downstream_quality_cut {
+      this,
+      "downstream_quality_cut",
+      0.3f,
+      "momentum caut for daughter particle"};
     Allen::Property<float> m_mass_ee_cut {this, "mass_ee_cut", 200.f, "lower ee mass threshold"};
-    Allen::Property<float> m_mass_pipi_lower_threshold {this,
-                                                        "mass_pipi_lower_threshold",
-                                                        460.f,
-                                                        "lower pipi mass threshold"};
-    Allen::Property<float> m_mass_pipi_higher_threshold {this,
-                                                         "mass_pipi_higher_threshold",
-                                                         540.f,
-                                                         "higher pipi mass threshold"};
-    Allen::Property<float> m_mass_ppi_lower_threshold {this,
-                                                       "mass_ppi_lower_threshold",
-                                                       1110.f,
-                                                       "lower ppi mass threshold"};
-    Allen::Property<float> m_mass_ppi_higher_threshold {this,
-                                                        "mass_ppi_higher_threshold",
-                                                        1132.f,
-                                                        "higher ppi mass threshold"};
+    Allen::Property<float> m_mass_pipi_lower_threshold {
+      this,
+      "mass_pipi_lower_threshold",
+      460.f,
+      "lower pipi mass threshold"};
+    Allen::Property<float> m_mass_pipi_higher_threshold {
+      this,
+      "mass_pipi_higher_threshold",
+      540.f,
+      "higher pipi mass threshold"};
+    Allen::Property<float> m_mass_ppi_lower_threshold {
+      this,
+      "mass_ppi_lower_threshold",
+      1110.f,
+      "lower ppi mass threshold"};
+    Allen::Property<float> m_mass_ppi_higher_threshold {
+      this,
+      "mass_ppi_higher_threshold",
+      1132.f,
+      "higher ppi mass threshold"};
 
     Allen::Property<bool> m_muon_line {this, "muon_line", true, "Turn on muon BuSca line"};
     Allen::Property<bool> m_electron_line {this, "electron_line", false, "Turn of electron line"};
@@ -161,32 +167,38 @@ namespace downstream_mva_busca_line {
     Allen::Property<bool> m_general_line {this, "general_line", true, "general line with specific trigger system"};
     Allen::Property<bool> m_clean_region {this, "clean_region", false, "clean region"};
 
-    Allen::Property<float> m_histogramMassMin {this,
-                                               "histogram_ks_mass_min",
-                                               200.f,
-                                               "histogram_ks_mass_min description"};
-    Allen::Property<float> m_histogramMassMax {this,
-                                               "histogram_ks_mass_max",
-                                               5000.f,
-                                               "histogram_ks_mass_max description"};
-    Allen::Property<unsigned> m_histogramMassNBins {this,
-                                                    "histogram_ks_mass_nbins",
-                                                    80u,
-                                                    "histogram_ks_mass_nbins description"};
-    Allen::Property<float> m_histogramMassSigmaMulti {this,
-                                                      "histogram_busca_mass_sigma_multiplier",
-                                                      2.f,
-                                                      "histogram_busca_mass_sigma_multiplier description"};
+    Allen::Property<float> m_histogramMassMin {
+      this,
+      "histogram_ks_mass_min",
+      200.f,
+      "histogram_ks_mass_min description"};
+    Allen::Property<float> m_histogramMassMax {
+      this,
+      "histogram_ks_mass_max",
+      5000.f,
+      "histogram_ks_mass_max description"};
+    Allen::Property<unsigned> m_histogramMassNBins {
+      this,
+      "histogram_ks_mass_nbins",
+      80u,
+      "histogram_ks_mass_nbins description"};
+    Allen::Property<float> m_histogramMassSigmaMulti {
+      this,
+      "histogram_busca_mass_sigma_multiplier",
+      2.f,
+      "histogram_busca_mass_sigma_multiplier description"};
     Allen::Property<float> m_histogramFDMin {this, "histogram_ks_fd_min", 0.f, "histogram_ks_fd_min description"};
     Allen::Property<float> m_histogramFDMax {this, "histogram_ks_fd_max", 2500.f, "histogram_ks_fd_max description"};
-    Allen::Property<unsigned> m_histogramFDNBins {this,
-                                                  "histogram_ks_fd_nbins",
-                                                  20u,
-                                                  "histogram_ks_fd_nbins description"};
-    Allen::Property<float> m_histogramFDSigmaMulti {this,
-                                                    "histogram_busca_fd_sigma_multiplier",
-                                                    2.f,
-                                                    "histogram_busca_fd_sigma_multiplier description"};
+    Allen::Property<unsigned> m_histogramFDNBins {
+      this,
+      "histogram_ks_fd_nbins",
+      20u,
+      "histogram_ks_fd_nbins description"};
+    Allen::Property<float> m_histogramFDSigmaMulti {
+      this,
+      "histogram_busca_fd_sigma_multiplier",
+      2.f,
+      "histogram_busca_fd_sigma_multiplier description"};
 
     Allen::Monitoring::HistogramND<unsigned, Allen::Monitoring::LogAxis, Allen::Monitoring::LogAxis> m_busca_scaled {
       this,
@@ -205,22 +217,21 @@ namespace downstream_mva_busca_line {
        1.f / log2f(1 - 0.02f * m_histogramFDSigmaMulti),
        1.f}};
 
-    Allen::Monitoring::Histogram2D<> m_busca_armenteros {this,
-                                                         "armenteros_busca",
-                                                         "armenteros",
-                                                         {100u, -1.f, 1.f},
-                                                         {100u, 0.f, 4000.f}};
+    Allen::Monitoring::Histogram2D<>
+      m_busca_armenteros {this, "armenteros_busca", "armenteros", {100u, -1.f, 1.f}, {100u, 0.f, 4000.f}};
 
-    Allen::Monitoring::Histogram2D<> m_helicity_vs_mass {this,
-                                                         "helicity_vs_mass",
-                                                         "helicity_vs_mass",
-                                                         {m_histogramMassNBins, m_histogramMassMin, m_histogramMassMax},
-                                                         {50u, -1.f, 1.f}};
+    Allen::Monitoring::Histogram2D<> m_helicity_vs_mass {
+      this,
+      "helicity_vs_mass",
+      "helicity_vs_mass",
+      {m_histogramMassNBins, m_histogramMassMin, m_histogramMassMax},
+      {50u, -1.f, 1.f}};
 
-    Allen::Monitoring::Histogram2D<> m_busca_triggered_armenteros {this,
-                                                                   "armenteros_triggered_busca",
-                                                                   "armenteros triggered",
-                                                                   {100u, -1.f, 1.f},
-                                                                   {100u, 0.f, 4000.f}};
+    Allen::Monitoring::Histogram2D<> m_busca_triggered_armenteros {
+      this,
+      "armenteros_triggered_busca",
+      "armenteros triggered",
+      {100u, -1.f, 1.f},
+      {100u, 0.f, 4000.f}};
   };
 } // namespace downstream_mva_busca_line

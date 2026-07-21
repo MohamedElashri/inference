@@ -56,10 +56,11 @@ namespace ut_decoding_hit_clustering {
     Allen::Property<int> m_position_method {this, "position_method", 0, "weighting method for UT cluster position"};
     Allen::Property<unsigned> m_max_cluster_size {this, "max_cluster_size", 128u, "max size of UT clusters"};
     Allen::Property<bool> m_cluster_ut_hits {this, "cluster_ut_hits", true, "whether to cluster UT hits"};
-    Allen::Property<bool> m_save_clusters_above_max {this,
-                                                     "save_clusters_above_max",
-                                                     true,
-                                                     "whether to save UT clusters above max size"};
+    Allen::Property<bool> m_save_clusters_above_max {
+      this,
+      "save_clusters_above_max",
+      true,
+      "whether to save UT clusters above max size"};
   };
 
   template<unsigned N>

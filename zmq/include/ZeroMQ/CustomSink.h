@@ -26,7 +26,7 @@
 
 // free function to give to zmq::message_t "move" constructor
 template<class BYTE>
-auto deleteBuffer(void* data, void * /* hint */) -> void
+auto deleteBuffer(void* data, void* /* hint */) -> void
 {
   delete[] static_cast<BYTE*>(data);
 }

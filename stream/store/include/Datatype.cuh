@@ -29,17 +29,13 @@ namespace Allen::Store {
   // Struct to hold the types of the dependencies
   namespace {
     template<typename... T>
-    struct dependencies {
-    };
+    struct dependencies {};
   } // namespace
 
   // Datatypes can be host, device or aggregates.
-  struct host_datatype {
-  };
-  struct device_datatype {
-  };
-  struct aggregate_datatype {
-  };
+  struct host_datatype {};
+  struct device_datatype {};
+  struct aggregate_datatype {};
 
   // A generic datatype data holder.
   template<typename internal_t>
@@ -51,7 +47,7 @@ namespace Allen::Store {
     constexpr __host__ __device__ datatype() {}
     constexpr __host__ __device__ auto get() const { return m_value; }
     constexpr __host__ __device__ auto data() const { return m_value.data(); }
-    constexpr __host__ __device__ auto operator-> () const { return data(); }
+    constexpr __host__ __device__ auto operator->() const { return data(); }
     constexpr __host__ __device__ operator type*() const { return data(); }
     constexpr __host__ __device__ auto empty() const { return m_value.empty(); }
     constexpr __host__ __device__ auto size() const { return m_value.size(); }
@@ -86,12 +82,10 @@ namespace Allen::Store {
 
   // Type traits to identify inputs and outputs
   template<typename T>
-  struct is_input : std::is_base_of<input_datatype<std::remove_const_t<typename T::type>>, T> {
-  };
+  struct is_input : std::is_base_of<input_datatype<std::remove_const_t<typename T::type>>, T> {};
 
   template<typename T>
-  struct is_output : std::is_base_of<output_datatype<typename T::type>, T> {
-  };
+  struct is_output : std::is_base_of<output_datatype<typename T::type>, T> {};
 
 // Inputs / outputs have an additional parsable method required for libclang parsing.
 #define DEVICE_INPUT(ARGUMENT_NAME, ...)                                                            \

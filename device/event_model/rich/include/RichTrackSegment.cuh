@@ -100,9 +100,10 @@ namespace Allen::Rich::PhotonReco {
 
     __device__ float3 globalToTrack(const float3& direction) const
     {
-      return {m_00 * direction.x + m_01 * direction.y + m_02 * direction.z,
-              m_10 * direction.x + m_11 * direction.y + m_12 * direction.z,
-              m_20 * direction.x + m_21 * direction.y + m_22 * direction.z};
+      return {
+        m_00 * direction.x + m_01 * direction.y + m_02 * direction.z,
+        m_10 * direction.x + m_11 * direction.y + m_12 * direction.z,
+        m_20 * direction.x + m_21 * direction.y + m_22 * direction.z};
     }
 
     /**
@@ -136,9 +137,10 @@ namespace Allen::Rich::PhotonReco {
       __sincosf(phi, &sinPhi, &cosPhi);
 
       float3 direction {sinTheta * cosPhi, sinTheta * sinPhi, cosTheta};
-      return {m_00 * direction.x + m_10 * direction.y + m_20 * direction.z,
-              m_01 * direction.x + m_11 * direction.y + m_21 * direction.z,
-              m_02 * direction.x + m_12 * direction.y + m_22 * direction.z};
+      return {
+        m_00 * direction.x + m_10 * direction.y + m_20 * direction.z,
+        m_01 * direction.x + m_11 * direction.y + m_21 * direction.z,
+        m_02 * direction.x + m_12 * direction.y + m_22 * direction.z};
     }
   };
 } // namespace Allen::Rich::PhotonReco

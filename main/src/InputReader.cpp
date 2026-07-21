@@ -54,15 +54,16 @@ ParKalmanReader::ParKalmanReader(const std::string& path)
   nlohmann::json j;
   i >> j;
 
-  std::map<std::string, std::vector<float>*> key_to_member = {{"VParams", &m_VP_pars},
-                                                              {"VUTParams", &m_VPUT_pars},
-                                                              {"TParams", &m_T_pars},
-                                                              {"TFTParams", &m_TFT_pars},
-                                                              {"UTParams", &m_UT_pars},
-                                                              {"UTTFParams", &m_UTTF_pars},
-                                                              {"UTT_META", &m_UTT_META},
-                                                              {"UTLayer", &m_UT_layer},
-                                                              {"TLayer", &m_T_layer}};
+  std::map<std::string, std::vector<float>*> key_to_member = {
+    {"VParams", &m_VP_pars},
+    {"VUTParams", &m_VPUT_pars},
+    {"TParams", &m_T_pars},
+    {"TFTParams", &m_TFT_pars},
+    {"UTParams", &m_UT_pars},
+    {"UTTFParams", &m_UTTF_pars},
+    {"UTT_META", &m_UTT_META},
+    {"UTLayer", &m_UT_layer},
+    {"TLayer", &m_T_layer}};
 
   for (const auto& [map_key, member] : key_to_member) {
     auto el = j.at(map_key);

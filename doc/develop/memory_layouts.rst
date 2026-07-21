@@ -5,7 +5,7 @@ Memory layout of raw data in Allen
 
 Algorithms that process raw detector data must support input of that
 data in two different layouts: Allen layout and MEP layout. Both layouts store the raw data for many events one after each other, i.e. in Structure of Array (SoA) formats.
-The main difference between Allen and MEP layout is the definition of the SoAs. In MEP layout one array contains the raw data for all events coming from one TELL40. In Allen layout one array contains the raw data for all TELL40s of one sub-detector for all events. MDF input files are converted to Allen layout. 
+The main difference between Allen and MEP layout is the definition of the SoAs. In MEP layout one array contains the raw data for all events coming from one TELL40. In Allen layout one array contains the raw data for all TELL40s of one sub-detector for all events. MDF input files are converted to Allen layout.
 
 Raw data consists of for pieces of information: the data itself -
 usually referred to as the fragment, the size of the fragment in

@@ -65,10 +65,11 @@ namespace lf_search_initial_windows {
     Allen::Property<float> m_input_momentum {this, "input_momentum", 5000., "momentum assumption to open SW"};
     Allen::Property<float> m_input_pt {this, "input_pt", 1000., "pt assumption to open SW"};
     Allen::Property<float> m_overlap_in_mm {this, "overlap_in_mm", 50., "overlap between SWs left-right"};
-    Allen::Property<float> m_initial_windows_max_offset_uv_window {this,
-                                                                   "initial_windows_max_offset_uv_window",
-                                                                   800.,
-                                                                   "initial_windows_max_offset_uv_window"};
+    Allen::Property<float> m_initial_windows_max_offset_uv_window {
+      this,
+      "initial_windows_max_offset_uv_window",
+      800.,
+      "initial_windows_max_offset_uv_window"};
     Allen::Property<float> m_x_windows_factor {this, "x_windows_factor", 1., "x_windows_factor"};
     Allen::Property<bool> m_with_ut {this, "with_ut", true, "UT or Velo tracks as input"};
   };

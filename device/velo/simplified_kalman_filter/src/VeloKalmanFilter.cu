@@ -205,8 +205,8 @@ __global__ void velo_kalman_filter::velo_kalman_filter(
   parameters.dev_velo_kalman_endvelo_states_view[event_number] = Allen::Views::Physics::KalmanStates {
     parameters.dev_velo_kalman_endvelo_states, parameters.dev_offsets_all_velo_tracks, event_number, number_of_events};
 
-  Velo::Consolidated::States kalman_beamline_states {parameters.dev_velo_kalman_beamline_states,
-                                                     total_number_of_tracks};
+  Velo::Consolidated::States kalman_beamline_states {
+    parameters.dev_velo_kalman_beamline_states, total_number_of_tracks};
   Velo::Consolidated::States kalman_endvelo_states {parameters.dev_velo_kalman_endvelo_states, total_number_of_tracks};
 
   for (unsigned i = threadIdx.x; i < velo_tracks_view.size(); i += blockDim.x) {

@@ -29,8 +29,7 @@
 namespace Detail {
 
   template<typename... Ts>
-  struct is_container_helper {
-  };
+  struct is_container_helper {};
 
 #if defined(HAVE_TRIVIALLY_COPYABLE)
   template<class T>
@@ -43,24 +42,20 @@ namespace Detail {
   // is trivial
   template<class T>
   struct is_trivial
-    : std::conditional<simple_object<typename std::decay<T>::type>::value, std::true_type, std::false_type>::type {
-  };
+    : std::conditional<simple_object<typename std::decay<T>::type>::value, std::true_type, std::false_type>::type {};
 
 } // namespace Detail
 
 // is_pair
 template<class>
-struct is_pair : std::false_type {
-};
+struct is_pair : std::false_type {};
 
 template<class F, class S>
-struct is_pair<std::pair<F, S>> : public std::true_type {
-};
+struct is_pair<std::pair<F, S>> : public std::true_type {};
 
 // is_container
 template<typename T, typename _ = void>
-struct is_container : std::false_type {
-};
+struct is_container : std::false_type {};
 
 template<typename T>
 struct is_container<
@@ -78,5 +73,4 @@ struct is_container<
       decltype(std::declval<T>().end()),
       decltype(std::declval<T>().cbegin()),
       decltype(std::declval<T>().cend())>,
-    void>::type> : public std::true_type {
-};
+    void>::type> : public std::true_type {};

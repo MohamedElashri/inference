@@ -93,15 +93,17 @@ namespace SMOG2_dimuon_highmass_line {
 
   private:
     Allen::Property<float> m_maxTrackChi2Ndf {this, "maxTrackChi2Ndf", 5.f, "max track fit Chi2ndf"};
-    Allen::Property<float> m_minTrackPt {this,
-                                         "minTrackPt",
-                                         500.f * Allen::Units::MeV,
-                                         "min track transverse momentum"};
+    Allen::Property<float> m_minTrackPt {
+      this,
+      "minTrackPt",
+      500.f * Allen::Units::MeV,
+      "min track transverse momentum"};
     Allen::Property<float> m_minTrackP {this, "minTrackP", 3000.f * Allen::Units::MeV, "min track momentum"};
-    Allen::Property<float> m_minMass {this,
-                                      "minMass",
-                                      2700.f * Allen::Units::MeV,
-                                      "min invariant mass for track combination"};
+    Allen::Property<float> m_minMass {
+      this,
+      "minMass",
+      2700.f * Allen::Units::MeV,
+      "min invariant mass for track combination"};
     Allen::Property<int> m_CombCharge {this, "HighMassCombCharge", 0, "Charge of the combination"};
     Allen::Property<float> m_maxDoca {this, "maxDoca", 0.5f * Allen::Units::mm, "max distance of closest approach"};
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 25.0f, "Max vertex chi2"};
@@ -109,18 +111,21 @@ namespace SMOG2_dimuon_highmass_line {
     Allen::Property<float> m_maxZ {this, "maxZ", -337.5f * Allen::Units::mm, "maximum vertex z"};
     Allen::Property<float> m_maxChi2Corr {this, "maxChi2Corr", 1.8, "maximum Chi2Muon evaluation"};
 
-    Allen::Monitoring::Histogram<> m_histogram_smogdimuon_mass {this,
-                                                                "SMOG2_dimuon_mass",
-                                                                "m(#mu#mu)",
-                                                                {100u, 2700.f, 4000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogdimuon_mass {
+      this,
+      "SMOG2_dimuon_mass",
+      "m(#mu#mu)",
+      {100u, 2700.f, 4000.f}};
     Allen::Monitoring::Histogram<> m_histogram_smogdimuon_pt {this, "SMOG2_dimuon_pt", "pT", {100u, 100.f, 8000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_smogdimuon_svz {this,
-                                                               "smogdimuon_svz",
-                                                               "SV_z(smogdimuon)",
-                                                               {100u, -550.f, -300.f}};
-    Allen::Monitoring::Histogram<> m_histogram_smogdimuon_pvz {this,
-                                                               "smogdimuon_Pvz",
-                                                               "PV_z (smogdimuon)",
-                                                               {100u, -550.f, -300.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogdimuon_svz {
+      this,
+      "smogdimuon_svz",
+      "SV_z(smogdimuon)",
+      {100u, -550.f, -300.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogdimuon_pvz {
+      this,
+      "smogdimuon_Pvz",
+      "PV_z (smogdimuon)",
+      {100u, -550.f, -300.f}};
   };
 } // namespace SMOG2_dimuon_highmass_line

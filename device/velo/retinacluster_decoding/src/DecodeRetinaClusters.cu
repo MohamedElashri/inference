@@ -188,12 +188,12 @@ __global__ void velo_calculate_sorting_key(
   const VeloGeometry& g = *dev_velo_geometry;
 
   // Read raw event
-  const auto velo_raw_event =
-    Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_retina_raw_input,
-                                                  parameters.dev_velo_retina_raw_input_offsets,
-                                                  parameters.dev_velo_retina_raw_input_sizes,
-                                                  parameters.dev_velo_retina_raw_input_types,
-                                                  event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_retina_raw_input,
+    parameters.dev_velo_retina_raw_input_offsets,
+    parameters.dev_velo_retina_raw_input_sizes,
+    parameters.dev_velo_retina_raw_input_types,
+    event_number + event_start};
 
   // Populate retina clusters
   const auto event_clusters_offset = sensor_pair_offsets[0];
@@ -360,12 +360,12 @@ __global__ void decode_retinaclusters_sorted(
   const VeloGeometry& g = *dev_velo_geometry;
 
   // Read raw event
-  const auto velo_raw_event =
-    Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_retina_raw_input,
-                                                  parameters.dev_velo_retina_raw_input_offsets,
-                                                  parameters.dev_velo_retina_raw_input_sizes,
-                                                  parameters.dev_velo_retina_raw_input_types,
-                                                  event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_retina_raw_input,
+    parameters.dev_velo_retina_raw_input_offsets,
+    parameters.dev_velo_retina_raw_input_sizes,
+    parameters.dev_velo_retina_raw_input_types,
+    event_number + event_start};
 
   // Populate retina clusters
   const auto event_clusters_offset = sensor_pair_offsets[0];
@@ -459,22 +459,20 @@ void decode_retinaclusters::decode_retinaclusters_t::operator()(
                            Velo::Tracking::block_dim_x_populate_module_pair_offsets_and_sizes - 1) /
                           Velo::Tracking::block_dim_x_populate_module_pair_offsets_and_sizes;
 
-  auto kernel_fn0 = (bank_version == 2) ?
-                      (global_function(populate_module_pair_offsets_and_sizes<2>)) :
-                      (bank_version == 3) ? (global_function(populate_module_pair_offsets_and_sizes<3>)) :
-                                            (global_function(populate_module_pair_offsets_and_sizes<4>));
+  auto kernel_fn0 = (bank_version == 2) ? (global_function(populate_module_pair_offsets_and_sizes<2>)) :
+                    (bank_version == 3) ? (global_function(populate_module_pair_offsets_and_sizes<3>)) :
+                                          (global_function(populate_module_pair_offsets_and_sizes<4>));
 
   kernel_fn0(grid_dim_x, Velo::Tracking::block_dim_x_populate_module_pair_offsets_and_sizes, context)(
     arguments, size<dev_module_cluster_num_t>(arguments));
 
-  auto kernel_fn1 = (bank_version == 2) ?
-                      (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<2, true>) :
-                                                    global_function(velo_calculate_sorting_key<2, false>)) :
-                      (bank_version == 3) ?
-                      (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<3, true>) :
-                                                    global_function(velo_calculate_sorting_key<3, false>)) :
-                      (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<4, true>) :
-                                                    global_function(velo_calculate_sorting_key<4, false>));
+  auto kernel_fn1 =
+    (bank_version == 2) ? (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<2, true>) :
+                                                        global_function(velo_calculate_sorting_key<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<3, true>) :
+                                                        global_function(velo_calculate_sorting_key<3, false>)) :
+                          (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<4, true>) :
+                                                        global_function(velo_calculate_sorting_key<4, false>));
 
   kernel_fn1(dim3(size<dev_event_list_t>(arguments)), dim3(m_block_dim_x_calculate_key), context)(
     arguments,
@@ -491,14 +489,13 @@ void decode_retinaclusters::decode_retinaclusters_t::operator()(
     size<dev_offsets_module_pair_cluster_t>(arguments) - 1,
     data<dev_hit_permutations_t>(arguments));
 
-  auto kernel_fn3 = (bank_version == 2) ?
-                      (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<2, true>) :
-                                                    global_function(decode_retinaclusters_sorted<2, false>)) :
-                      (bank_version == 3) ?
-                      (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<3, true>) :
-                                                    global_function(decode_retinaclusters_sorted<3, false>)) :
-                      (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<4, true>) :
-                                                    global_function(decode_retinaclusters_sorted<4, false>));
+  auto kernel_fn3 =
+    (bank_version == 2) ? (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<2, true>) :
+                                                        global_function(decode_retinaclusters_sorted<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<3, true>) :
+                                                        global_function(decode_retinaclusters_sorted<3, false>)) :
+                          (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<4, true>) :
+                                                        global_function(decode_retinaclusters_sorted<4, false>));
 
   kernel_fn3(dim3(size<dev_event_list_t>(arguments)), dim3(m_block_dim_x_decode_retina), context)(
     arguments, std::get<0>(runtime_options.event_interval), constants.dev_velo_geometry);

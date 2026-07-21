@@ -75,19 +75,22 @@ namespace FilterTwoSvs {
     Allen::Property<float> m_minCosDiraV1 {this, "minCosDiraV1", 0.0f, "Minimum DIRA of first vertex"};
     Allen::Property<float> m_minEtaV1 {this, "minEtaV1", 2.f, "Minimum eta of first vertex"};
     Allen::Property<float> m_maxEtaV1 {this, "maxEtaV1", 5.f, "Maximum eta of first vertex"};
-    Allen::Property<float> m_minTrackPtV1 {this,
-                                           "minTrackPtV1",
-                                           200.f * Allen::Units::MeV,
-                                           "Minimum track pT of first vertex"};
-    Allen::Property<float> m_minTrackPV1 {this,
-                                          "minTrackPV1",
-                                          1000.f * Allen::Units::MeV,
-                                          "Minimum track p of first vertex"};
+    Allen::Property<float> m_minTrackPtV1 {
+      this,
+      "minTrackPtV1",
+      200.f * Allen::Units::MeV,
+      "Minimum track pT of first vertex"};
+    Allen::Property<float> m_minTrackPV1 {
+      this,
+      "minTrackPV1",
+      1000.f * Allen::Units::MeV,
+      "Minimum track p of first vertex"};
     Allen::Property<float> m_minTrackIPChi2V1 {this, "minTrackIPChi2V1", 4.f, "Minimum track IP chi2 of first vertex"};
-    Allen::Property<float> m_minTrackIPV1 {this,
-                                           "minTrackIPV1",
-                                           0.2f * Allen::Units::mm,
-                                           "Minimum track IP of first vertex"};
+    Allen::Property<float> m_minTrackIPV1 {
+      this,
+      "minTrackIPV1",
+      0.2f * Allen::Units::mm,
+      "Minimum track IP of first vertex"};
     // Selection cuts for second vertex
     Allen::Property<float> m_minMassV2 {this, "minMassV2", 0.f, "Minimum mass of second vertex"};
     Allen::Property<float> m_maxMassV2 {this, "maxMassV2", 20000.f, "Maximum mass of second vertex"};
@@ -95,22 +98,26 @@ namespace FilterTwoSvs {
     Allen::Property<float> m_minCosDiraV2 {this, "minCosDiraV2", 0.0f, "Minimum DIRA of second vertex"};
     Allen::Property<float> m_minEtaV2 {this, "minEtaV2", 2.f, "Minimum eta of second vertex"};
     Allen::Property<float> m_maxEtaV2 {this, "maxEtaV2", 5.f, "Maximum eta of second vertex"};
-    Allen::Property<float> m_minTrackPtV2 {this,
-                                           "minTrackPtV2",
-                                           200.f * Allen::Units::MeV,
-                                           "Minimum track pT of second vertex"};
-    Allen::Property<float> m_minTrackPV2 {this,
-                                          "minTrackPV2",
-                                          2000.f * Allen::Units::MeV,
-                                          "Minimum track p of second vertex"};
+    Allen::Property<float> m_minTrackPtV2 {
+      this,
+      "minTrackPtV2",
+      200.f * Allen::Units::MeV,
+      "Minimum track pT of second vertex"};
+    Allen::Property<float> m_minTrackPV2 {
+      this,
+      "minTrackPV2",
+      2000.f * Allen::Units::MeV,
+      "Minimum track p of second vertex"};
     Allen::Property<float> m_minTrackIPChi2V2 {this, "minTrackIPChi2V2", 4.f, "Minimum track IP chi2 of second vertex"};
-    Allen::Property<float> m_minTrackIPV2 {this,
-                                           "minTrackIPV2",
-                                           0.06f * Allen::Units::mm,
-                                           "Minimum track IP of second vertex"};
-    Allen::Property<dim3> m_block_dim_filter {this,
-                                              "block_dim_filter",
-                                              {128, 1, 1},
-                                              "block dimensions for filter step"};
+    Allen::Property<float> m_minTrackIPV2 {
+      this,
+      "minTrackIPV2",
+      0.06f * Allen::Units::mm,
+      "Minimum track IP of second vertex"};
+    Allen::Property<dim3> m_block_dim_filter {
+      this,
+      "block_dim_filter",
+      {128, 1, 1},
+      "block dimensions for filter step"};
   };
 } // namespace FilterTwoSvs

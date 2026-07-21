@@ -74,22 +74,25 @@ namespace quirks_tools {
   private:
     // New tunables: explicit blockDim.x and blockDim.y (defaults multiply to 256 = 16*16).
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 16u, "block dimension X (owners / lanes)"};
-    Allen::Property<unsigned> m_block_dim_y {this,
-                                             "block_dim_y",
-                                             8u,
-                                             "block dimension Y (helpers) - product X*Y should be 256"};
+    Allen::Property<unsigned> m_block_dim_y {
+      this,
+      "block_dim_y",
+      8u,
+      "block dimension Y (helpers) - product X*Y should be 256"};
 
     // pair-list cap (per-module)
-    Allen::Property<unsigned> m_max_pairs_per_module {this,
-                                                      "max_pairs_per_module",
-                                                      20u,
-                                                      "max seed pairs stored per module (cap)"};
+    Allen::Property<unsigned> m_max_pairs_per_module {
+      this,
+      "max_pairs_per_module",
+      20u,
+      "max seed pairs stored per module (cap)"};
 
     // other tunables
-    Allen::Property<unsigned> m_max_opposite_considered {this,
-                                                         "max_opposite_considered",
-                                                         6,
-                                                         "max hits to search after binary search"};
+    Allen::Property<unsigned> m_max_opposite_considered {
+      this,
+      "max_opposite_considered",
+      6,
+      "max hits to search after binary search"};
     Allen::Property<unsigned> m_hit_threshold {this, "hit_threshold", 170, "max hits per module to process"};
     Allen::Property<unsigned> m_minStations {this, "minStations", 6u, "minimum consecutive stations required"};
     Allen::Property<float> m_maxR {this, "maxR", 4.5, "maxR (r-difference)"};

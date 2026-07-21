@@ -169,47 +169,56 @@ namespace two_calo_clusters_line {
     Allen::Property<float> m_minEt_clusters {this, "minEt_clusters", 200.f, "min Et of each cluster"};          // MeV
     Allen::Property<float> m_minSumEt_clusters {this, "minSumEt_clusters", 400.f, "min SumEt of clusters"};     // MeV
     Allen::Property<float> m_minE19_clusters {this, "minE19_clusters", 0.5f, "min E19 of each cluster"};
-    Allen::Property<float> m_maxE19_clusters {this,
-                                              "maxE19_clusters",
-                                              1.0f,
-                                              "max E19 of each cluster"}; // Safety for hot ECAL cells
+    Allen::Property<float> m_maxE19_clusters {
+      this,
+      "maxE19_clusters",
+      1.0f,
+      "max E19 of each cluster"}; // Safety for hot ECAL cells
     Allen::Property<float> m_minAbsY_clusters {this, "minAbsY_clusters", -1.0f, "min |Y| of each cluster"}; // mm
     Allen::Property<float> m_eta_max {this, "eta_max", 10.f, "Maximum dicluster pseudorapidity"};
     Allen::Property<unsigned> m_max_velo_tracks {this, "max_velo_tracks", UINT_MAX, "Maximum number of VELO tracks"};
-    Allen::Property<unsigned> m_max_ecal_clusters {this,
-                                                   "max_ecal_clusters",
-                                                   UINT_MAX,
-                                                   "Maximum number of ECAL clusters"};
+    Allen::Property<unsigned> m_max_ecal_clusters {
+      this,
+      "max_ecal_clusters",
+      UINT_MAX,
+      "Maximum number of ECAL clusters"};
     Allen::Property<unsigned> m_max_n_pvs {this, "max_n_pvs", UINT_MAX, "Maximum number of PVs"};
     Allen::Property<unsigned> m_min_n_pvs {this, "min_n_pvs", 0u, "Minimun number of PVs"};
-    Allen::Property<bool> m_veto_bm_clusters {this,
-                                              "veto_bm_clusters",
-                                              true,
-                                              "Discard candidates with bremsstrahlung-matched clusters"};
-    Allen::Property<float> m_histogramdiphotonMassMin {this,
-                                                       "histogram_diphoton_mass_min",
-                                                       00.f,
-                                                       "histogram_diphoton_mass_min description"};
-    Allen::Property<float> m_histogramdiphotonMassMax {this,
-                                                       "histogram_diphoton_mass_max",
-                                                       500.f,
-                                                       "histogram_diphoton_mass_max description"};
-    Allen::Property<unsigned int> m_histogramdiphotonMassNBins {this,
-                                                                "histogram_diphoton_mass_nbins",
-                                                                100u,
-                                                                "histogram_diphoton_mass_nbins description"};
-    Allen::Property<float> m_histogramdiphotonPtMin {this,
-                                                     "histogram_diphoton_pt_min",
-                                                     0.f,
-                                                     "histogram_diphoton_pt_min description"};
-    Allen::Property<float> m_histogramdiphotonPtMax {this,
-                                                     "histogram_diphoton_pt_max",
-                                                     2e3,
-                                                     "histogram_diphoton_pt_max description"};
-    Allen::Property<unsigned int> m_histogramdiphotonPtNBins {this,
-                                                              "histogram_diphoton_pt_nbins",
-                                                              100u,
-                                                              "histogram_diphoton_pt_nbins description"};
+    Allen::Property<bool> m_veto_bm_clusters {
+      this,
+      "veto_bm_clusters",
+      true,
+      "Discard candidates with bremsstrahlung-matched clusters"};
+    Allen::Property<float> m_histogramdiphotonMassMin {
+      this,
+      "histogram_diphoton_mass_min",
+      00.f,
+      "histogram_diphoton_mass_min description"};
+    Allen::Property<float> m_histogramdiphotonMassMax {
+      this,
+      "histogram_diphoton_mass_max",
+      500.f,
+      "histogram_diphoton_mass_max description"};
+    Allen::Property<unsigned int> m_histogramdiphotonMassNBins {
+      this,
+      "histogram_diphoton_mass_nbins",
+      100u,
+      "histogram_diphoton_mass_nbins description"};
+    Allen::Property<float> m_histogramdiphotonPtMin {
+      this,
+      "histogram_diphoton_pt_min",
+      0.f,
+      "histogram_diphoton_pt_min description"};
+    Allen::Property<float> m_histogramdiphotonPtMax {
+      this,
+      "histogram_diphoton_pt_max",
+      2e3,
+      "histogram_diphoton_pt_max description"};
+    Allen::Property<unsigned int> m_histogramdiphotonPtNBins {
+      this,
+      "histogram_diphoton_pt_nbins",
+      100u,
+      "histogram_diphoton_pt_nbins description"};
 
     Allen::Monitoring::Histogram<> m_histogram_diphoton_mass {this, "diphoton_mass", "m(diphoton)", {100u, 50.f, 3e2f}};
     Allen::Monitoring::Histogram<> m_histogram_diphoton_pt {this, "diphoton_pt", "pT(diphoton)", {100u, 0.f, 2e3f}};

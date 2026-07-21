@@ -1,0 +1,36 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+        exclude: "\\.clang-format$"
+    -   id: check-added-large-files
+        exclude: "^.*/refs/.*$"
+-   repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v16.0.6
+    hooks:
+    -   id: clang-format
+        # Allen's .clang-format has no Json style section (unlike the other
+        # LHCb repos), and devcontainer.json is JSONC (has comments), so
+        # excluding it here rather than formatting it as strict JSON.
+        exclude: "\\.devcontainer/devcontainer\\.json$"
+    -   id: clang-format
+        name: clang-format (non-standard extensions)
+        types_or: [file]
+        files: \.(icc|icpp|cu|cuh)$
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.9.1
+    hooks:
+    # Run the linter.
+    -   id: ruff
+        args: [ --fix ]
+    # Run the formatter.
+    -   id: ruff-format
+-   repo: "https://gitlab.cern.ch/lhcb-core/LbDevTools.git"
+    rev: 2.1.4
+    hooks:
+      - id: lb-add-copyright
+        exclude: "^lhcbproject.yml$"

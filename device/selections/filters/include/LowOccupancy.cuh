@@ -50,10 +50,11 @@ namespace low_occupancy {
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
     Allen::Property<unsigned> m_minTracks {this, "minTracks", 0, "minimum number of Velo tracks in the event"};
     Allen::Property<unsigned> m_maxTracks {this, "maxTracks", UINT_MAX, "maximum number of Velo tracks in the event"};
-    Allen::Property<unsigned> m_max_ecal_clusters {this,
-                                                   "max_ecal_clusters",
-                                                   UINT_MAX,
-                                                   "Maximum number of ECAL clusters"};
+    Allen::Property<unsigned> m_max_ecal_clusters {
+      this,
+      "max_ecal_clusters",
+      UINT_MAX,
+      "Maximum number of ECAL clusters"};
     Allen::Property<unsigned> m_min_ecal_clusters {this, "min_ecal_clusters", 0, "Maximum number of ECAL clusters"};
   }; // low_occupancy_t
 

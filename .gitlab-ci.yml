@@ -24,7 +24,7 @@ variables:
   OVERRIDE_CUDA_ARCH_FLAG: "-gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_86,code=sm_86"
 
 stages:
-  - check            # Ensures the CI environment is valid
+  - check            # Ensures the CI environment is valid and runs pre-commit checks
   - build
   - check-warnings
   - run              # Build and run (throughput, efficiency, etc...)
@@ -58,38 +58,6 @@ check-env:
       - schedules
       - merge_requests
 
-
-check-copyright:
-  <<: *active_branches
-
-  stage: check
-  image: gitlab-registry.cern.ch/lhcb-docker/os-base/alma9-devel:latest
-  script:
-    - curl -o lb-check-copyright "https://gitlab.cern.ch/lhcb-core/LbDevTools/-/raw/master/LbDevTools/SourceTools.py?inline=False"
-    - python3 lb-check-copyright --license=Apache-2.0 origin/${TARGET_BRANCH}
-  needs: []
-
-check-formatting:
-  <<: *active_branches
-  stage: check
-  tags:
-    - cvmfs
-  image: gitlab-registry.cern.ch/lhcb-docker/os-base/alma9-devel:latest
-  script:
-    - . /cvmfs/lhcb.cern.ch/lib/LbEnv.sh
-    - if [ ! -e .clang-format ] ; then
-    -   curl -o .clang-format "https://gitlab.cern.ch/lhcb-core/LbDevTools/raw/master/LbDevTools/data/default.clang-format?inline=false"
-    -   echo '.clang-format' >> .gitignore
-    -   git add .gitignore
-    - fi
-    - curl -o lb-format "https://gitlab.cern.ch/lhcb-core/LbDevTools/raw/master/LbDevTools/SourceTools.py?inline=false"
-    - python lb-format --format-patch apply-formatting.patch origin/${TARGET_BRANCH}
-  artifacts:
-    paths:
-      - apply-formatting.patch
-    when: on_failure
-    expire_in: 1 week
-  needs: []
 
 # On the master branch: compile docs, copy to public directory and deploy from there with gitlab pages
 pages:
@@ -142,3 +110,9 @@ include:
   - local: 'scripts/ci/config/main.yaml'
   - project: 'lhcb-rta/reference-update-bot'
     file: 'templates/ref-bot-ci-trigger-template.yml'
+  - project: 'lhcb-core/dev-tools/ci-utils'
+    file: 'gitlab-ci-fragments/pre-commit-checks.yaml'
+
+pre-commit-checks:
+  <<: *active_branches
+  stage: check

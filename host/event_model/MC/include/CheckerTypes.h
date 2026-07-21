@@ -36,20 +36,13 @@ namespace Checker {
   };
 
   namespace Subdetector {
-    struct Velo {
-    };
-    struct UT {
-    };
-    struct SciFi {
-    };
-    struct SciFiSeeding {
-    };
-    struct Muon {
-    };
-    struct Downstream {
-    };
-    struct Rich {
-    };
+    struct Velo {};
+    struct UT {};
+    struct SciFi {};
+    struct SciFiSeeding {};
+    struct Muon {};
+    struct Downstream {};
+    struct Rich {};
 
     template<typename T>
     using muon_as_scifi_t =

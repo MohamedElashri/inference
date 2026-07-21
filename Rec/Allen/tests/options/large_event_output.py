@@ -8,8 +8,8 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from PyConf.application import ApplicationOptions
 from AllenTesting.datasets import TEST_DATASETS
+from PyConf.application import ApplicationOptions
 
 large_event_dataset = TEST_DATASETS["allen.large_event_passthrough"]
 
@@ -17,8 +17,7 @@ options = ApplicationOptions(_enabled=False)
 
 # Start from the same dataset used to produce the passthrough file. This keeps
 # its simulation, geometry, and conditions metadata consistent with the input.
-options.set_input_and_conds_from_testfiledb(
-    large_event_dataset.test_file_db_key)
+options.set_input_and_conds_from_testfiledb(large_event_dataset.test_file_db_key)
 
 # Read the MDF produced by the test fixture instead of the original dataset
 # files.

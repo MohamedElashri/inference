@@ -8,20 +8,20 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
+from AllenConf.enum_types import TrackingType
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenConf.hlt1_presets import VELO_MICRO_BIAS_PRESETS
-from AllenCore.generator import generate
-from AllenConf.enum_types import TrackingType
-from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
+from AllenCore.generator import generate
 
 
 def modify_presets():
-    VELO_MICRO_BIAS_PRESETS['pp']['Hlt1VeloMicroBias']['post_scaler'] = 1.0
+    VELO_MICRO_BIAS_PRESETS["pp"]["Hlt1VeloMicroBias"]["post_scaler"] = 1.0
 
 
-with (make_velo_scifi_matches.bind(
-        ghost_killer_threshold=0.8)):  # Fully enable VELO micro bias
+with make_velo_scifi_matches.bind(
+    ghost_killer_threshold=0.8
+):  # Fully enable VELO micro bias
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         with_ut=True,
@@ -30,6 +30,7 @@ with (make_velo_scifi_matches.bind(
         enableDownstream=False,  # Downstream not used in technical lines
         enablePhysics=False,  # Only enable technical lines
         withSMOG2=False,
-        preset_modifiers=[modify_presets])  # Only enable technical lines
+        preset_modifiers=[modify_presets],
+    )  # Only enable technical lines
 
 generate(hlt1_node)

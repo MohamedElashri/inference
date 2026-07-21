@@ -32,13 +32,15 @@ namespace host_pv_validator {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<std::string> m_root_output_filename {this,
-                                                         "root_output_filename",
-                                                         "PrCheckerPlots.root",
-                                                         "root output filename"};
-    Allen::Property<float> m_pp_minNumTracksPerVertex {this,
-                                                       "pp_minNumTracksPerVertex",
-                                                       BeamlinePVConstants::MultiFitter::pp_minNumTracksPerVertex,
-                                                       "Min number of tracks to accpet a pp vertex"};
+    Allen::Property<std::string> m_root_output_filename {
+      this,
+      "root_output_filename",
+      "PrCheckerPlots.root",
+      "root output filename"};
+    Allen::Property<float> m_pp_minNumTracksPerVertex {
+      this,
+      "pp_minNumTracksPerVertex",
+      BeamlinePVConstants::MultiFitter::pp_minNumTracksPerVertex,
+      "Min number of tracks to accpet a pp vertex"};
   };
 } // namespace host_pv_validator

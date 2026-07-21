@@ -109,11 +109,12 @@ void HostBuffersManager::writeSingleEventPassthrough(const size_t b)
   decrep.set_task_id(m_task_id);
   decrep.set_dec_report(
     0u,
-    HltDecReport {true,
-                  std::byte {0},                    // error
-                  std::byte {1},                    // number of candidates
-                  std::byte {1},                    // execution stage
-                  static_cast<unsigned short>(1)}); // decision ID
+    HltDecReport {
+      true,
+      std::byte {0},                    // error
+      std::byte {1},                    // number of candidates
+      std::byte {1},                    // execution stage
+      static_cast<unsigned short>(1)}); // decision ID
   store->inject("dec_reporter__host_dec_reports_t", dr_data);
   store->inject("host_routingbits_writer__host_routingbits_t", std::vector<unsigned> {m_passthrough_rbs, 0, 0});
 
