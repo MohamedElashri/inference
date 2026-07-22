@@ -359,8 +359,8 @@ PREFILTER_MANAGER_PRESETS = {
         },
         "pv_activity_filter": {
             # PV activity defaults
-            "pv_min_activity": 1.0,
-            "pv_max_activity": 100.0,
+            "pv_min_activity": 1,
+            "pv_max_activity": 100,
         },
         "gec_upc": {
             # UPC defaults

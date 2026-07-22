@@ -30,7 +30,7 @@ from AllenCore.generator import generate, make_algorithm
 from PyConf.control_flow import CompositeNode, NodeLogic
 
 
-def decode_dummy_odin(lumi_fraction=[0.5, 0.5, 0.5, 0.5]):
+def decode_dummy_odin(lumi_fraction=(0.5, 0.5, 0.5, 0.5)):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
 
