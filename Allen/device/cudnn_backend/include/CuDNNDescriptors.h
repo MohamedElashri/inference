@@ -3,6 +3,8 @@
 #include "CuDNNHandle.h"
 #include <cstddef>
 #include <array>
+#include <unordered_map>
+#include <utility>
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include <cuda_fp16.h>
 #endif
@@ -22,11 +24,39 @@ namespace Allen::CuDNN {
    * @brief RAII wrapper for a cuDNN convolution's four descriptors.
    *
    * Design constraints (Allen compatibility):
-   *  - Algorithm is selected at create() time via cudnnGetConvolutionForwardAlgorithm_v7
-   *    with a 64 MB workspace budget. Falls back to IMPLICIT_GEMM if no result fits.
-   *  - Workspace is cudaMalloc'd once at create() and freed in the destructor.
-   *    It is shared across all concurrent calls on the same descriptor because it is
-   *    read-only during forward() — cuDNN uses it as scratch, not for inter-call state.
+   *  - Algorithm is pinned to IMPLICIT_GEMM at create() time (not selected via
+   *    cudnnFindConvolutionForwardAlgorithmEx / cudnnGetConvolutionForwardAlgorithm_v7).
+   *    Two algorithm-selection strategies were built and measured as alternatives (both
+   *    ranked a candidate, then required it to survive one live, checked
+   *    cudnnConvolutionForward call under its true queried workspace size before adopting
+   *    it -- to close the gap where Find or the v7 heuristic reports success on an
+   *    algorithm that then fails at actual runtime): "guarded Find" (real hardware timing)
+   *    and "guarded heur_v7" (cuDNN's static, non-benchmarked cost model). Both were
+   *    confirmed STABLE across 30/30 clean full-scale -t16 stress-test launches each, with
+   *    deterministic, identical promotion of a Tensor-Core-capable algorithm every time.
+   *    But a direct throughput comparison showed that promoted algorithm was *slower* in
+   *    real production use than plain IMPLICIT_GEMM -- FP16 eager -8.76%, FP16+graph
+   *    -7.26% -- because it requires a multi-MB per-thread workspace (im2col-style scratch
+   *    written to and read from GPU global memory on every call), and the resulting memory-
+   *    bandwidth contention across 16 concurrent threads costs more than the Tensor-Core
+   *    math saves. Find's/heur_v7's own ranking never sees this: both are one-shot,
+   *    isolated single-call measurements at create() time with no concurrent memory
+   *    pressure, so neither could have caught it. IMPLICIT_GEMM is simply the right
+   *    algorithm for this shape (thin, 16-channel network) under real concurrent load,
+   *    independent of the earlier crash investigation -- pinning it is not a compromise.
+   *  - Workspace is thread_local, not a single shared buffer: cuDNN writes real
+   *    per-call intermediate scratch state into it during forward() (im2col buffers,
+   *    partial reductions, etc.) -- it is NOT read-only/inert. A single workspace
+   *    buffer shared across concurrent threads on the same descriptor would be a data
+   *    race whenever the selected algorithm has nonzero workspace_bytes() (IMPLICIT_GEMM
+   *    itself is typically zero-workspace for these shapes, but the size is still queried
+   *    via cudnnGetConvolutionForwardWorkspaceSize() rather than assumed, in case that
+   *    changes for a future shape). Each descriptor instance still selects ONE
+   *    algorithm/size at create() time (single-threaded init); only the workspace
+   *    *buffer* backing that fixed size is now lazily allocated per (thread, instance)
+   *    via get_thread_local_workspace(), mirroring the thread_local idiom used elsewhere
+   *    in Allen::CuDNN (see CuDNNHandle.h's get_thread_local_handle). Never freed (relies
+   *    on process teardown, same as that handle) -- sizes here are a few KB at most.
    *  - Tensor descriptors are set once at create() time with the fixed input shape.
    *    Our UNet shapes are compile-time constants so this is safe.
    *  - forward() accepts a raw cudnnHandle_t so callers can use thread_local handles.
@@ -39,9 +69,32 @@ namespace Allen::CuDNN {
     cudnnConvolutionDescriptor_t m_conv_desc    = nullptr;
     cudnnTensorDescriptor_t      m_output_desc  = nullptr;
     cudnnConvolutionFwdAlgo_t    m_algo         = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
-    void*                        m_workspace    = nullptr;
     size_t                       m_ws_bytes     = 0;
     bool m_created = false;
+
+    // Thread-local workspace, keyed by this instance within each thread's own map
+    // (the map itself is thread_local, so no cross-thread contention/locking is
+    // needed -- each thread only ever touches its own map). Lazily grows to
+    // needed_bytes on first use per (thread, instance); never shrinks or frees.
+    // cudaMalloc's result MUST be checked here: on failure it leaves the pointer
+    // null, and if entry.second were still marked as "sized" despite that, every
+    // later call would silently hand cudnnConvolutionForward a null workspace
+    // with a nonzero requested size -- CUDNN_STATUS_BAD_PARAM, permanently, for
+    // the rest of the process's life on that (thread, instance). Only record the
+    // new size once the allocation actually succeeds, so a transient failure is
+    // retried on the next call instead of being latched in as a fatal state.
+    static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes) {
+      if (needed_bytes == 0) return nullptr;
+      thread_local std::unordered_map<const void*, std::pair<void*, size_t>> tl_workspaces;
+      auto& entry = tl_workspaces[instance_key];
+      if (entry.second < needed_bytes) {
+        if (entry.first) cudaFree(entry.first);
+        entry.first = nullptr;
+        cudaCheck(cudaMalloc(&entry.first, needed_bytes));
+        entry.second = needed_bytes;
+      }
+      return entry.first;
+    }
 
   public:
     ConvDescriptors() = default;
@@ -52,16 +105,25 @@ namespace Allen::CuDNN {
       cudnnDestroyFilterDescriptor(m_filter_desc);
       cudnnDestroyConvolutionDescriptor(m_conv_desc);
       cudnnDestroyTensorDescriptor(m_output_desc);
-      if (m_workspace) cudaFree(m_workspace);
+      // Thread-local workspaces (see get_thread_local_workspace) are intentionally
+      // not freed here -- they may be owned by threads other than the one running
+      // this destructor, and are negligible in size (a few KB per thread).
     }
+
+    // Forces this instance's thread-local workspace to be allocated on the calling
+    // thread right now, rather than lazily on the first forward()/forward_half()
+    // call. Needed before capturing a CUDA graph that calls forward() on this
+    // descriptor: growing the workspace (cudaMalloc/cudaFree) DURING an active
+    // stream capture is unsupported, so callers that capture must pre-warm every
+    // descriptor they will use first.
+    void ensure_thread_local_workspace() const { get_thread_local_workspace(this, m_ws_bytes); }
 
     ConvDescriptors(const ConvDescriptors&) = delete;
     ConvDescriptors& operator=(const ConvDescriptors&) = delete;
 
-    // Create descriptors with fixed input shape. Selects the fastest algorithm
-    // within a 64 MB workspace budget via cudnnFindConvolutionForwardAlgorithmEx.
-    // Falls back to IMPLICIT_GEMM (zero workspace) if the query fails or returns
-    // no suitable algorithm.
+    // Create descriptors with fixed input shape. Algorithm is pinned to
+    // IMPLICIT_GEMM (see rationale below) rather than selected via
+    // cudnnFindConvolutionForwardAlgorithmEx.
     // dtype: CUDNN_DATA_FLOAT (default) or CUDNN_DATA_HALF for FP16 Tensor Core path.
     // Compute type is always CUDNN_DATA_FLOAT (FP32 accumulation) for both dtypes.
     void create(
@@ -103,53 +165,16 @@ namespace Allen::CuDNN {
 
       m_created = true;
 
-      // Select fastest algorithm by benchmarking all candidates on the actual
-      // hardware (Find variant). One-time startup cost; returns measured timings
-      // rather than heuristic lookup. Allocate kBudget as search workspace, run
-      // Find, record the winner, then free the search buffer and reallocate only
-      // the winning workspace size.
-      static constexpr size_t kBudget  = 64ul * 1024 * 1024;
-      static constexpr int    kMaxAlgos = 8;
-
-      const size_t dtype_bytes = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
-      size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
-      size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
-      size_t out_elems  = (size_t)on * oc * oh * ow;
-
-      void *tmp_in = nullptr, *tmp_filt = nullptr, *tmp_out = nullptr;
-      void *search_ws = nullptr;
-      cudaMalloc(&tmp_in,    in_elems   * dtype_bytes);
-      cudaMalloc(&tmp_filt,  filt_elems * dtype_bytes);
-      cudaMalloc(&tmp_out,   out_elems  * dtype_bytes);
-      cudaMalloc(&search_ws, kBudget);
-
-      int returned = 0;
-      cudnnConvolutionFwdAlgoPerf_t perf[kMaxAlgos];
-      if (cudnnFindConvolutionForwardAlgorithmEx(
-              handle,
-              m_input_desc,  tmp_in,
-              m_filter_desc, tmp_filt,
-              m_conv_desc,
-              m_output_desc, tmp_out,
-              kMaxAlgos, &returned, perf,
-              search_ws, kBudget) == CUDNN_STATUS_SUCCESS) {
-        for (int i = 0; i < returned; ++i) {
-          if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBudget) {
-            m_algo     = perf[i].algo;
-            m_ws_bytes = perf[i].memory;
-            break;
-          }
-        }
-      }
-
-      cudaFree(tmp_in);
-      cudaFree(tmp_filt);
-      cudaFree(tmp_out);
-      cudaFree(search_ws);
-      if (m_ws_bytes > 0) cudaMalloc(&m_workspace, m_ws_bytes);
+      m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+      ALLEN_CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(
+        handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc, m_algo, &m_ws_bytes));
+      // Workspace buffer itself is not allocated here -- see
+      // get_thread_local_workspace(): it's lazily allocated per (thread,
+      // instance) on first forward()/forward_half() call instead.
     }
 
     size_t workspace_bytes() const { return m_ws_bytes; }
+    int algo_id() const { return static_cast<int>(m_algo); }
 
     // Forward convolution using a thread_local cudnnHandle_t.
     void forward(
@@ -166,7 +191,7 @@ namespace Allen::CuDNN {
         m_filter_desc, dev_filter,
         m_conv_desc,
         m_algo,
-        m_workspace, m_ws_bytes,
+        get_thread_local_workspace(this, m_ws_bytes), m_ws_bytes,
         &beta,
         m_output_desc, dev_output));
     }
@@ -198,7 +223,7 @@ namespace Allen::CuDNN {
         m_filter_desc, dev_filter,
         m_conv_desc,
         m_algo,
-        m_workspace, m_ws_bytes,
+        get_thread_local_workspace(this, m_ws_bytes), m_ws_bytes,
         &beta,
         m_output_desc, dev_output));
     }
@@ -208,6 +233,8 @@ namespace Allen::CuDNN {
                 std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
                 std::array<int,2> = {1,1}, cudnnDataType_t = CUDNN_DATA_FLOAT) {}
     size_t workspace_bytes() const { return 0; }
+    int algo_id() const { return 0; }
+    void ensure_thread_local_workspace() const {}
     void forward(cudnnHandle_t, float, float,
                  const float*, const float*, float*) const {}
     void forward(const Handle&, float, float,

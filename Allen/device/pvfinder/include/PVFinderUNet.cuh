@@ -83,6 +83,17 @@ private:
         this, "dump_validation", "",
         "if non-empty, dump NCW input + KDE output of the first slice to this directory"};
 
+    // Which operator() call (0-indexed) to dump on. Default 0 preserves prior
+    // behaviour (dump the first call). A later index is needed to validate the
+    // CUDA-graph path specifically: Allen's memory manager reshuffles argument
+    // addresses every repetition, so the graph path's real correctness risk
+    // (replaying against a stale/patched pointer after that reshuffle) only
+    // manifests on calls after the first -- dumping only the first call cannot
+    // exercise it.
+    Allen::Property<unsigned> m_dump_repetition {
+        this, "dump_repetition", 0u,
+        "0-indexed operator() call to dump on, when dump_validation is set"};
+
     Allen::Property<bool> m_use_fp16 {
         this, "use_fp16", false,
         "Phase M benchmark: use FP16 Tensor Core path for CBR layers (physics approximate)"};
@@ -100,9 +111,23 @@ private:
         "Skip-connection ablation for throughput testing: concat | add | none "
         "(add/none are not physics-valid, benchmark only)"};
 
+    // CUDA graph capture: captures the per-chunk pipeline once (thread_local) and
+    // replays it via cudaGraphLaunch instead of ~15-20 separate host API calls per
+    // chunk. Covers both use_fp16=false and use_fp16=true (separate captured graphs,
+    // separate thread_local scratch pools -- see get_or_capture_cuda_graph and
+    // get_or_capture_cuda_graph_fp16). Only active when skip_mode=="concat" (checked
+    // fresh every call); add/none keep using the eager path (skip-mode ablation is
+    // FP16-incompatible by design regardless of graphs, so this restriction isn't
+    // graph-specific).
+    Allen::Property<bool> m_use_cuda_graph {
+        this, "use_cuda_graph", false,
+        "capture+replay the concat-mode UNet pipeline (FP32 or FP16) as a CUDA graph "
+        "(only active when skip_mode=concat)"};
+
     // m_init_done: set to true after init() completes. Guards call_once.
     mutable bool m_init_done = false;
     mutable bool m_dump_done = false;
+    mutable unsigned m_call_count = 0;
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     // Per-layer helpers — use global descriptor set + thread_local handle
@@ -143,6 +168,39 @@ private:
         cudnnHandle_t handle,
         cudnnConvolutionBwdDataAlgo_t algo,
         void* workspace, size_t ws_bytes) const;
+
+    // CUDA graph capture (thread_local, lazy): captures the FP32/concat pipeline
+    // once per OS thread against the fixed graph-scratch pool, and returns the
+    // graph exec + the two shuttle-kernel node handles so the caller can patch
+    // their pointer arguments before each cudaGraphLaunch. seed_ncw/seed_kde only
+    // need to be valid device pointers at capture time (the very first chunk of
+    // the very first call on this thread) -- they are unconditionally patched
+    // before every replay, including the first.
+    void get_or_capture_cuda_graph(
+        cudnnHandle_t handle,
+        const dim3& block,
+        const Allen::Context& ctx,
+        const float* seed_ncw,
+        float* seed_kde,
+        cudaGraphExec_t& out_exec,
+        cudaGraphNode_t& out_copy_in_node,
+        cudaGraphNode_t& out_copy_out_node) const;
+
+    // FP16 counterpart of get_or_capture_cuda_graph: captures the FP16 Tensor-Core
+    // op sequence (f32_to_f16 -> rcbn*_h -> ... -> outc -> softplus -> copy) against
+    // its own thread_local FP16 scratch pool. The leading f32_to_f16 conversion
+    // kernel doubles as the input shuttle (its src argument is what gets patched
+    // per replay); the output shuttle reuses the same squeeze_copy_kernel pattern
+    // as the FP32 graph.
+    void get_or_capture_cuda_graph_fp16(
+        cudnnHandle_t handle,
+        const dim3& block,
+        const Allen::Context& ctx,
+        const float* seed_ncw,
+        float* seed_kde,
+        cudaGraphExec_t& out_exec,
+        cudaGraphNode_t& out_copy_in_node,
+        cudaGraphNode_t& out_copy_out_node) const;
 #endif
 };
 

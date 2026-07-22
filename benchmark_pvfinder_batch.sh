@@ -25,6 +25,8 @@ Options:
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
   --skip-mode MODE           Set pvfinder_unet.skip_mode: concat|add|none (default: concat)
                              add/none are throughput-only ablations, not physics-valid
+  --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
+                             only active when use_fp16=false and skip_mode=concat
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -51,6 +53,7 @@ REPEATS=3
 CNN_WEIGHTS_OVERRIDE=""
 USE_FP16=false
 SKIP_MODE=concat
+USE_CUDA_GRAPH=false
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"
 
@@ -67,6 +70,7 @@ while [[ $# -gt 0 ]]; do
         --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --use-fp16) USE_FP16="$2"; shift 2 ;;
         --skip-mode) SKIP_MODE="$2"; shift 2 ;;
+        --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
@@ -88,6 +92,11 @@ esac
 case "${SKIP_MODE}" in
     concat|add|none) ;;
     *) echo "ERROR: --skip-mode must be concat, add, or none" >&2; exit 1 ;;
+esac
+
+case "${USE_CUDA_GRAPH}" in
+    true|false) ;;
+    *) echo "ERROR: --use-cuda-graph must be true or false" >&2; exit 1 ;;
 esac
 
 BUILD_DIR="${SCRIPT_DIR}/Allen/${BUILD_NAME}"
@@ -156,12 +165,13 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" "$USE_CUDA_GRAPH" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, skip_mode = sys.argv[1:]
+path, weights, use_fp16_raw, skip_mode, use_cuda_graph_raw = sys.argv[1:]
 use_fp16 = use_fp16_raw == "true"
+use_cuda_graph = use_cuda_graph_raw == "true"
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -170,6 +180,7 @@ pvfinder_unet = data.setdefault("pvfinder_unet", {})
 pvfinder_unet["weight_file"] = weights
 pvfinder_unet["use_fp16"] = use_fp16
 pvfinder_unet["skip_mode"] = skip_mode
+pvfinder_unet["use_cuda_graph"] = use_cuda_graph
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -273,6 +284,7 @@ run_sequence() {
     echo "cnn_weights=${CNN_WEIGHTS_ABS}"
     echo "use_fp16=${USE_FP16}"
     echo "skip_mode=${SKIP_MODE}"
+    echo "use_cuda_graph=${USE_CUDA_GRAPH}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
 } > "${BATCH_DIR}/metadata.env"
