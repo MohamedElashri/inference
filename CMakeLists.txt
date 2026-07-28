@@ -618,8 +618,11 @@ if(STANDALONE)
     elseif(TARGET_CPU_ARCHITECTURE STREQUAL "aarch64")
     #ARM64 family
     #Options from : http: // www.prace-ri.eu/IMG/pdf/Best-Practice-Guide-ARM64.pdf
-      string(APPEND CMAKE_CXX_FLAGS " -march=${CPU_ARCH} -floop-optimize \
-      -falign-loops -falign-labels -falign-functions -falign-jumps -fomit-frame-pointer")
+      string(APPEND CMAKE_CXX_FLAGS " -march=${CPU_ARCH} -falign-functions -fomit-frame-pointer")
+      if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        #Only supported on GCC, not clang
+        string(APPEND CMAKE_CXX_FLAGS " -floop-optimize -falign-loops -falign-labels -falign-jumps")
+      endif()
     elseif(TARGET_CPU_ARCHITECTURE STREQUAL "apple_silicon")
     # Apple silicon
       string(APPEND CMAKE_CXX_FLAGS " -mcpu=${CPU_ARCH}")
