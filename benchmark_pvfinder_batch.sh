@@ -27,6 +27,9 @@ Options:
                              add/none are throughput-only ablations, not physics-valid
   --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
                              only active when use_fp16=false and skip_mode=concat
+  --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
+                             (default: 800, physics-valid; any other value is
+                             throughput-only tile-alignment testing, not physics-valid)
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -54,6 +57,7 @@ CNN_WEIGHTS_OVERRIDE=""
 USE_FP16=false
 SKIP_MODE=concat
 USE_CUDA_GRAPH=false
+L6A_M=800
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"
 
@@ -71,6 +75,7 @@ while [[ $# -gt 0 ]]; do
         --use-fp16) USE_FP16="$2"; shift 2 ;;
         --skip-mode) SKIP_MODE="$2"; shift 2 ;;
         --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
+        --l6a-m) L6A_M="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
@@ -98,6 +103,11 @@ case "${USE_CUDA_GRAPH}" in
     true|false) ;;
     *) echo "ERROR: --use-cuda-graph must be true or false" >&2; exit 1 ;;
 esac
+
+if ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]] || [[ "${L6A_M}" -gt 800 ]]; then
+    echo "ERROR: --l6a-m must be an integer in [1, 800] (800 = physics-valid default)" >&2
+    exit 1
+fi
 
 BUILD_DIR="${SCRIPT_DIR}/Allen/${BUILD_NAME}"
 ALLEN_WRAPPER="${BUILD_DIR}/toolchain/wrapper"
@@ -188,6 +198,26 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 }
 
+patch_fc_config() {
+    local config="$1"
+    python3 - "$config" "$L6A_M" <<'PY'
+import json
+import sys
+
+path, l6a_m_raw = sys.argv[1:]
+
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
+fc_agg["l6a_m"] = int(l6a_m_raw)
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+}
+
 generate_config() {
     local seq="$1"
     local out_config="$2"
@@ -222,6 +252,9 @@ generate_config() {
 
     if [[ "${seq}" == "hlt1_pp_pvfinder_unet_benchmark" ]]; then
         patch_unet_config "${out_config}"
+    fi
+    if [[ "${seq}" == "hlt1_pp_pvfinder_benchmark" || "${seq}" == "hlt1_pp_pvfinder_unet_benchmark" ]]; then
+        patch_fc_config "${out_config}"
     fi
 }
 
@@ -285,6 +318,7 @@ run_sequence() {
     echo "use_fp16=${USE_FP16}"
     echo "skip_mode=${SKIP_MODE}"
     echo "use_cuda_graph=${USE_CUDA_GRAPH}"
+    echo "l6a_m=${L6A_M}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
 } > "${BATCH_DIR}/metadata.env"

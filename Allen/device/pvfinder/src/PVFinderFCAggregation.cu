@@ -389,16 +389,27 @@ __global__ void pvfinder_l1_to_l5_kernel(
 //
 // Grid: ceil(T_chunk * 800 / 512)  blockDim: 512
 // ---------------------------------------------------------------------------
+// l6a_m: how many of the 800 neurons to actually process (see m_l6a_m doc
+// comment in the header -- throughput testing only; 800 is the physics-valid
+// default). Neurons >= l6a_m are left untouched (stale data from a prior
+// chunk's GEMM, never read downstream since pvfinder_reduce_l6a_kernel is
+// bounded the same way). idx is linear over [0, T_chunk*l6a_m) and must be
+// decomposed into (n, t) and re-mapped to the buffer's true stride-800
+// layout -- the physical buffer is always [800 x T_chunk] regardless of
+// l6a_m, so idx itself is NOT a valid flat offset once l6a_m != 800.
 __global__ void pvfinder_l6a_bias_relu_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
     const float* __restrict__ b6A,  // bias[800]
-    unsigned T_chunk)
+    unsigned T_chunk,
+    unsigned l6a_m)
 {
     const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= T_chunk * 800u) return;
-    const unsigned n = idx % 800;  // neuron index
-    float val = parameters.dev_pvfinder_l6a_output[idx] + b6A[n];
-    parameters.dev_pvfinder_l6a_output[idx] = pvfinder_leaky_relu(val);
+    if (idx >= T_chunk * l6a_m) return;
+    const unsigned n = idx % l6a_m;  // neuron index
+    const unsigned t = idx / l6a_m;  // track/column index
+    const unsigned long long off = (unsigned long long)n + (unsigned long long)t * 800u;
+    float val = parameters.dev_pvfinder_l6a_output[off] + b6A[n];
+    parameters.dev_pvfinder_l6a_output[off] = pvfinder_leaky_relu(val);
 }
 
 // ---------------------------------------------------------------------------
@@ -413,12 +424,21 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // dev_l6a_output is column-major [800 × T_chunk]. For track at column t:
 //   neuron n → dev_l6a_output[n + t*800]
 // ---------------------------------------------------------------------------
+// l6a_m: how many of the 800 neurons to actually accumulate (see m_l6a_m doc
+// comment in the header -- throughput testing only). Bounding the per-track
+// accumulation loop below is what actually removes work here, unlike the
+// GEMM-only l6a_m test: this reduction (atomics-heavy, one iteration per
+// track per neuron) is the dominant cost in the L6A block, not the GEMM.
+// s_feat/s_hist and the output writes below stay sized at the full 800/100
+// (downstream buffers are always that shape); neurons >= l6a_m simply never
+// get a nonzero contribution.
 __global__ void pvfinder_reduce_l6a_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
     unsigned chunk_start,
     unsigned chunk_end,
     unsigned csr_offset,        // offset into the global CSR that corresponds to chunk_start
-    unsigned T_chunk)
+    unsigned T_chunk,
+    unsigned l6a_m)
 {
     // blockIdx.x indexes over (relative_event, interval) in this chunk.
     const unsigned n_chunk_events = chunk_end - chunk_start;
@@ -453,8 +473,8 @@ __global__ void pvfinder_reduce_l6a_kernel(
     // Column index in dev_l6a_output = csr_offset + ev_col_offset + t
     for (int t = iv_begin; t < iv_end; ++t) {
         const unsigned col = csr_offset + ev_col_offset + (unsigned)t;
-        // Each thread sums a strided subset of the 800 neurons.
-        for (int n = thread_id; n < 800; n += blockDim.x) {
+        // Each thread sums a strided subset of the l6a_m active neurons.
+        for (int n = thread_id; n < (int)l6a_m; n += blockDim.x) {
             const float val = parameters.dev_pvfinder_l6a_output[(unsigned long long)n + (unsigned long long)col * 800u];
             atomicAdd(&s_feat[n], val);
             // Accumulate softplus-reduced histogram bin (n / 8 maps 800 → 100)
@@ -660,10 +680,15 @@ void pvfinder_fc_aggregation_t::operator()(
         // --- cuBLAS SGEMM: L6A ---
         // W6A [20×800] row-major = [800×20] col-major → CUBLAS_OP_T gives [800×20].
         // X [T_chunk×20] row-major = [20×T_chunk] col-major, op=N.
-        // Y = W6A^T × X → [800×T_chunk] col-major → dev_l6a_output.
+        // Y = W6A^T × X → [l6a_m×T_chunk] col-major → dev_l6a_output.
+        // Only the M argument (rows computed) is overridable via m_l6a_m -- lda/ldb/ldc
+        // stay fixed at the real buffer strides (20, 20, 800) regardless, since a
+        // smaller M is a valid cuBLAS sub-block write into the same 800-row-stride
+        // output buffer (see m_l6a_m doc comment for why this is throughput-only).
+        const int l6a_m = (int)m_l6a_m.value();
         cublasSgemm(cublas,
             CUBLAS_OP_T, CUBLAS_OP_N,
-            800, (int)T_chunk, 20,
+            l6a_m, (int)T_chunk, 20,
             &alpha,
             w6A, 20,
             data<dev_pvfinder_l5_output_t>(arguments), 20,
@@ -671,16 +696,17 @@ void pvfinder_fc_aggregation_t::operator()(
             data<dev_pvfinder_l6a_output_t>(arguments), 800);
 
         // --- Kernel 2: bias + LeakyReLU in-place on L6A output ---
-        const unsigned k2_blocks = (T_chunk * 800u + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
+        const unsigned l6a_m_u = (unsigned)l6a_m;
+        const unsigned k2_blocks = (T_chunk * l6a_m_u + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
         global_function(pvfinder_l6a_bias_relu_kernel)(
             dim3(k2_blocks), dim3(KERNEL2_BLOCK), context)(
-            arguments, b6A, T_chunk);
+            arguments, b6A, T_chunk, l6a_m_u);
 
         // --- Kernel 3: reduce L6A → interval features + histogram ---
         const unsigned n_chunk_events = chunk_end - chunk_start;
         global_function(pvfinder_reduce_l6a_kernel)(
             dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(
-            arguments, chunk_start, chunk_end, csr_col_offset, T_chunk);
+            arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u);
 
         csr_col_offset += T_chunk;
     }

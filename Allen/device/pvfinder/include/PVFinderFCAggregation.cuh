@@ -46,6 +46,25 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
 
 private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
+
+    // Throughput-only override of how many of L6A's 800 neurons actually get
+    // computed and reduced. Default 800 = physics-valid (8 channels x 100 bins,
+    // matches w6A/b6A and every downstream buffer, which all stay sized for 800
+    // regardless of this value). A smaller value shrinks the cuBLAS GEMM's M,
+    // the bias/ReLU kernel's work, AND the per-track accumulation loop in the
+    // reduction kernel (the actual dominant cost in this block, ~6x the GEMM's
+    // own share -- an earlier GEMM-only version of this property, isolating just
+    // the GEMM to test cuBLAS tile-alignment effects, undersold any real width
+    // reduction because it left the reduction kernel doing full-800 work
+    // regardless). Neurons >= this value simply never get a nonzero
+    // contribution; downstream buffers stay the same 800/100 shape (just
+    // partially zero), so nothing else needs to change to test this. Any value
+    // other than 800 is NOT physics-valid.
+    Allen::Property<unsigned> m_l6a_m {
+        this, "l6a_m", 800u,
+        "Override how many of L6A's 800 neurons are computed (GEMM + bias/ReLU "
+        "+ reduction, all three) for width/throughput testing "
+        "(800 = physics-valid default; any other value is throughput-only)"};
 };
 
 } // namespace pvfinder_fc_aggregation
