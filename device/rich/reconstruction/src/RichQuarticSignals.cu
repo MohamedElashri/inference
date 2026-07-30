@@ -120,7 +120,7 @@ __device__ inline bool pdPassesPrefilter(
   UNROLL(Allen::Rich::NRealParticleTypes)
   for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
     const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
-    if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) break; // break on first below threshold
+    if (std::isnan(hypos.ckTheta[hypo])) break; // break on first below threshold
     if (fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < (hypos.ckRes[hypo] * nSigmaPreSel + diag)) return true;
   }
   return false;
@@ -393,7 +393,7 @@ __global__ void rich_interp_pixel_signals_k(
         for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
           const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
           const float expTheta = hypos.ckTheta[hypo];
-          if (expTheta != expTheta) break; // break on first below threshold
+          if (std::isnan(expTheta)) break; // break on first below threshold
           if (!validTheta) break;
 
           // aij = yield * 1/((2pi)^(3/2)*sigma(theta)) * exp(-1/2 * sep^2) * 4A/(R^2 theta)
@@ -469,7 +469,7 @@ __global__ void rich_photon_copy_postfilter_k(
 
   for (unsigned i = threadIdx.x; i < in_size; i += blockDim.x) {
     auto photon = photons_prefilter[in_start + i];
-    bool keep = photon.ckTheta == photon.ckTheta;
+    bool keep = !std::isnan(photon.ckTheta);
     if (keep) {
       unsigned j = atomicAdd(out_idx, 1); // TODO, warp level compaction
       photons[out_start + j] = photon;

@@ -8,6 +8,7 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+#include "Core/FloatComparison.h"
 #include "TrackMatching.cuh"
 #include "TrackMatchingHelpers.cuh"
 #include "TrackMatchingAddUTHitsTools.cuh"
@@ -67,7 +68,7 @@ namespace {
     const float tolY = TrackMatchingConsts::dyTol * TrackMatchingConsts::dyTol +
                        teta2 * TrackMatchingConsts::dyTolSlope * TrackMatchingConsts::dyTolSlope;
     float chi2 =
-      (tolX != 0.f and tolY != 0.f ?
+      (!LHCb::essentiallyZero(tolX) and !LHCb::essentiallyZero(tolY) ?
          multiplication_factor_dX * distX * distX / tolX + multiplication_factor_dY * distY * distY / tolY :
          9999.f);
     // float chi2 = ( tolX != 0 and tolY != 0 ? distX * distX / tolX : 9999. );

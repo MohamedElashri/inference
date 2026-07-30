@@ -12,6 +12,7 @@
 
 #include "BinarySearch.cuh"
 #include "BackendCommon.h"
+#include "Core/FloatComparison.h"
 #include "DownstreamConstants.cuh"
 
 /**
@@ -130,7 +131,7 @@ namespace Downstream {
 
       __device__ inline auto score() { return m_score; }
 
-      __device__ inline bool exist() { return Allen::numeric_limits<float>::infinity() != m_score; }
+      __device__ inline bool exist() { return !std::isinf(m_score); }
 
       __device__ inline auto add(const T& candidate, const float& score)
       {

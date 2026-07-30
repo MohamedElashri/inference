@@ -9,6 +9,7 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include <CaloOverlapClusters.cuh>
+#include <Core/FloatComparison.h>
 #include <vector>
 using std::vector;
 INSTANTIATE_ALGORITHM(calo_overlap_clusters::calo_overlap_clusters_t)
@@ -43,7 +44,7 @@ __device__ void overlap_clusters(
         seed2_e += seed_clusters[digit_is_seed[second_nb[m]]].e;
       }
 
-      if (seed2_e == 0) continue;
+      if (LHCb::essentiallyZero(seed2_e)) continue;
       float correction = seed2_e / (seed1_e + seed2_e) * ov_energy;
       ecal_correction += correction;
     }

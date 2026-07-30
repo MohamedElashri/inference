@@ -43,7 +43,7 @@ namespace kstopipi_line {
       float maxMass;
       float minZ;
       bool oppositeSign;
-      float double_muon_misid;
+      bool double_muon_misid;
       Allen::Monitoring::Histogram<>::DeviceType histogram_ks_mass;
       Allen::Monitoring::Histogram<>::DeviceType histogram_ks_pt;
       Allen::Monitoring::Histogram<>::DeviceType histogram_p0_ghost_prob;

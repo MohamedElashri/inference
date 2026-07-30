@@ -12,6 +12,7 @@
 
 #include "BackendCommon.h"
 #include "Common.h"
+#include "Core/FloatComparison.h"
 #include "KinUtils.cuh"
 
 /**
@@ -358,11 +359,17 @@ namespace Allen {
 
         __host__ __device__ inline float e(const float mass) const { return sqrtf(p() * p() + mass * mass); }
 
-        __host__ __device__ inline float eta() const { return qop() == 0.f ? eta_from_rho(rho()) : atanhf(pz() / p()); }
+        __host__ __device__ inline float eta() const
+        {
+          return LHCb::essentiallyZero(qop()) ? eta_from_rho(rho()) : atanhf(pz() / p());
+        }
 
         __host__ __device__ inline float rho() const { return sqrtf(tx() * tx() + ty() * ty()); }
 
-        __host__ __device__ inline float phi() const { return tx() == 0.f && ty() == 0.f ? 0.f : atan2f(tx(), ty()); }
+        __host__ __device__ inline float phi() const
+        {
+          return LHCb::essentiallyZero(tx()) && LHCb::essentiallyZero(ty()) ? 0.f : atan2f(tx(), ty());
+        }
 
         __host__ __device__ inline operator MiniState() const { return MiniState {x(), y(), z(), tx(), ty()}; }
 
@@ -620,7 +627,7 @@ namespace Allen {
         {
           const auto tx = px() / pz();
           const auto ty = py() / pz();
-          if (fabsf(x()) + fabsf(y()) + fabsf(z()) == 0.f) return -1.f;
+          if (LHCb::essentiallyZero(fabsf(x()) + fabsf(y()) + fabsf(z()))) return -1.f;
           return (x() * tx + y() * ty + z()) /
                  (sqrtf(x() * x() + y() * y() + z() * z()) * sqrtf(tx * tx + ty * ty + 1.f));
         }

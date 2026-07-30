@@ -11,6 +11,7 @@
 #pragma once
 
 #include "BackendCommon.h"
+#include "Core/FloatComparison.h"
 #include "States.cuh"
 #include "SystemOfUnits.h"
 // #include "ITrackTrajectory.cuh"
@@ -229,9 +230,10 @@ namespace Trajectories {
       const float d = Constants::z_reference_states[m_stateL + 1] - Constants::z_reference_states[m_stateL];
       const auto deriv = get_omegax(target_z);
       const auto c3 = (-2.f * m_x[1] + d * (m_x[2] + m_x[3])) / (d * d * d);
-      const auto error2 = c3 != 0 ? cbrtf(fabsf(tolerance / c3)) : 10 * Allen::Units::km;
+      const auto error2 = !LHCb::essentiallyZero(c3) ? cbrtf(fabsf(tolerance / c3)) : 10 * Allen::Units::km;
       return std::array<float, 2> {
-        min(deriv != 0 ? sqrtf(fabsf(2 * tolerance / deriv)) : 10 * Allen::Units::km, error2), error2};
+        min(!LHCb::essentiallyZero(deriv) ? sqrtf(fabsf(2 * tolerance / deriv)) : 10 * Allen::Units::km, error2),
+        error2};
     }
 
     __device__ inline float polyeval(const float* pars, float target_z)

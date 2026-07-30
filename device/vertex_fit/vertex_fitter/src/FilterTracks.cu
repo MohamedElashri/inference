@@ -8,6 +8,7 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+#include "Core/FloatComparison.h"
 #include "FilterTracks.cuh"
 #include "VertexFitDeviceFunctions.cuh"
 #include "VertexDefinitions.cuh"
@@ -165,7 +166,7 @@ __global__ void FilterTracks::filter_tracks(
       float x;
       float y;
       float z;
-      if (!Allen::Views::Physics::state_poca(trackA_ministate, trackB_ministate, x, y, z)) {
+      if (LHCb::essentiallyZero(Allen::Views::Physics::state_poca(trackA_ministate, trackB_ministate, x, y, z))) {
         continue;
       }
 

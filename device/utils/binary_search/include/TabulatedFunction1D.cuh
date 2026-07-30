@@ -22,7 +22,7 @@ namespace Allen {
       if (m_nbins == 0) return std::numeric_limits<float>::quiet_NaN();
       if (m_nbins == 1 || x <= m_x[0]) return m_y[0];
       if (x >= m_x[m_nbins - 1]) return m_y[m_nbins - 1];
-      if (x != x) return x;
+      if (std::isnan(x)) return x;
 
       const unsigned upper_bin = binary_search_leftmost(m_x, m_nbins, x);
       const unsigned lower_bin = upper_bin - 1;

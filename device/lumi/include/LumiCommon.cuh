@@ -10,6 +10,7 @@
 \*****************************************************************************/
 #pragma once
 
+#include <Core/FloatComparison.h>
 #include <LumiDefinitions.cuh>
 
 // fills a lumi counter of [size] bits
@@ -34,7 +35,7 @@ inline __device__ void fillLumiInfo(
   const float shift,
   const float scale = 1.f)
 {
-  if (shift == 0.f && scale == 1.f) {
+  if (LHCb::essentiallyZero(shift) && LHCb::essentiallyEqual(scale, 1.f)) {
     fillLumiInfo(info, offset, size, value);
   }
   else if (shift + value * scale > 0.f) {
@@ -57,7 +58,7 @@ inline __device__ void fillLumiInfo(
   const float shift,
   const float scale = 1.f)
 {
-  if (shift == 0.f && scale == 1.f) {
+  if (LHCb::essentiallyZero(shift) && LHCb::essentiallyEqual(scale, 1.f)) {
     fillLumiInfo(info, offset, size, static_cast<unsigned>(value));
   }
   else {

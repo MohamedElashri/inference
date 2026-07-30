@@ -10,6 +10,7 @@
 \*****************************************************************************/
 #pragma once
 
+#include "Core/FloatComparison.h"
 #include "KalmanParametrizations.cuh"
 #include "ParKalmanDefinitions.cuh"
 #include "ParKalmanFittedTrack.cuh"
@@ -81,7 +82,7 @@ ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 {
   // step size in z
   const KalmanFloat dz = zTo - tI.m_Lastz;
-  if (dz == 0) return;
+  if (LHCb::essentiallyZero(dz)) return;
   // which set of parameters should be used
   unsigned index_offset = (dz > 0 ? 0 : 6);
 

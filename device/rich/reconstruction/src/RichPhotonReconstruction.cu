@@ -8,7 +8,6 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-
 #include "RichPhotonReconstruction.cuh"
 #include <ParabolicExtrapolator.cuh>
 #include <RungeKuttaExtrapolator.cuh>
@@ -72,7 +71,7 @@ __global__ void rich_prefilter_photon_count_k(
         UNROLL(Allen::Rich::NRealParticleTypes)
         for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
           const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
-          if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
+          if (std::isnan(hypos.ckTheta[hypo])) continue;
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < hypos.ckRes[hypo];
         }
 
@@ -140,7 +139,7 @@ __global__ void rich_prefilter_photon_fill_k(
         UNROLL(Allen::Rich::NRealParticleTypes)
         for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
           const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
-          if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
+          if (std::isnan(hypos.ckTheta[hypo])) continue;
           keep |= fabsf(hypos.ckTheta[hypo] - ckThetaEsti) < hypos.ckRes[hypo];
         }
 
@@ -208,7 +207,7 @@ __global__ void rich_photon_reco_k(
     UNROLL(Allen::Rich::NRealParticleTypes)
     for (unsigned hypo_index = 0; hypo_index < Allen::Rich::NRealParticleTypes; ++hypo_index) {
       const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
-      if (hypos.ckTheta[hypo] != hypos.ckTheta[hypo]) continue;
+      if (std::isnan(hypos.ckTheta[hypo])) continue;
       keep |= fabsf(hypos.ckTheta[hypo] - thetaCherenkov) < (hypos.ckRes[hypo] * nSigma);
     }
     keep &= thetaCherenkov < maxCKtheta && thetaCherenkov > minCKtheta;
@@ -242,7 +241,7 @@ __global__ void rich_photon_copy_postfilter_k(
 
   for (unsigned i = threadIdx.x; i < in_size; i += blockDim.x) {
     auto photon = photons_prefilter[in_start + i];
-    bool keep = photon.ckTheta == photon.ckTheta;
+    bool keep = !std::isnan(photon.ckTheta);
     if (keep) {
       unsigned j = atomicAdd(out_idx, 1); // TODO, warp level compaction
       photons[out_start + j] = photon;

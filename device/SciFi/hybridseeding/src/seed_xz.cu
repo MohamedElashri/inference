@@ -10,6 +10,7 @@
 \*****************************************************************************/
 #include "seed_xz.cuh"
 #include "BinarySearch.cuh"
+#include "Core/FloatComparison.h"
 #include "hybrid_seeding_helpers.cuh"
 #include "hybrid_seeding_case.cuh"
 #include "memory_optim.cuh"
@@ -141,7 +142,7 @@ namespace {
     }
     // Make track
     // FIXME: Hack to make clone selection systematically prefer tracks with more hits
-    if (lhs[0] == 5) score *= 10.f;
+    if (LHCb::essentiallyEqual(lhs[0], 5.f)) score *= 10.f;
     score += currentCase.case_data
                ->scoreOffset; // if 2 tracks using the same hits have the same chi2, privilagiate the first case
     return score;

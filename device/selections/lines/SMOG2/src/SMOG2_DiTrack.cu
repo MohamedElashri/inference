@@ -8,6 +8,7 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+#include "Core/FloatComparison.h"
 #include "SMOG2_DiTrack.cuh"
 
 INSTANTIATE_LINE(SMOG2_ditrack_line::SMOG2_ditrack_line_t, SMOG2_ditrack_line::Parameters)
@@ -102,7 +103,7 @@ __device__ void SMOG2_ditrack_line::SMOG2_ditrack_line_t::monitor(
   const auto ditrack = std::get<0>(input);
   if (sel) {
     properties.histogram_smogditrack_mass.increment(ditrack.m12(properties.m1, properties.m2));
-    if (properties.m1 != properties.m2)
+    if (!LHCb::essentiallyEqual(properties.m1, properties.m2))
       properties.histogram_smogditrack_mass.increment(ditrack.m12(properties.m2, properties.m1));
 
     properties.histogram_smogditrack_svz.increment(ditrack.vertex().z());
