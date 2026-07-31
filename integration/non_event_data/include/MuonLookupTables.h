@@ -11,6 +11,7 @@
 #pragma once
 
 #include <array>
+#include <cstring>
 #include <tuple>
 #include <vector>
 #include "Constants.cuh"
@@ -204,8 +205,13 @@ namespace Allen::Conditions {
     {
       const char* raw_input = m_data.data();
 
+      // raw_input is walked forward by variable, not-necessarily-aligned byte
+      // increments below, so reads must use memcpy rather than a pointer-cast
+      // dereference (std::copy_n((T*) raw_input, ...)): the latter requires
+      // raw_input to already be aligned as T*, which isn't guaranteed here and
+      // is undefined behaviour when it isn't (caught by UBSan, see Allen#624).
       int version;
-      std::copy_n((uint*) raw_input, 1, &version);
+      std::memcpy(&version, raw_input, sizeof(uint));
       raw_input += sizeof(uint);
 
       if (version != 2 && version != 3) {
@@ -221,44 +227,45 @@ namespace Allen::Conditions {
 
       for (size_t tableNumber = 0; tableNumber < Muon::MuonTables::n_tables; tableNumber++) {
         size_t gridXSize;
-        std::copy_n((size_t*) raw_input, 1, &gridXSize);
+        std::memcpy(&gridXSize, raw_input, sizeof(size_t));
         assert(gridXSize == Muon::Constants::n_stations * Muon::Constants::n_regions);
         raw_input += sizeof(size_t);
         allOffsets[currentAllOffsetsIndex++] = raw_input - m_data.data();
         raw_input += sizeof(int) * gridXSize;
 
         size_t gridYSize;
-        std::copy_n((size_t*) raw_input, 1, &gridYSize);
+        std::memcpy(&gridYSize, raw_input, sizeof(size_t));
         raw_input += sizeof(size_t);
-        std::copy_n((int*) raw_input, gridYSize, gridY + Muon::MuonTables::tableStationRegionOffset[tableNumber]);
+        std::memcpy(
+          gridY + Muon::MuonTables::tableStationRegionOffset[tableNumber], raw_input, gridYSize * sizeof(int));
         allOffsets[currentAllOffsetsIndex++] = raw_input - m_data.data();
         raw_input += sizeof(int) * gridYSize;
 
         size_t sizeXSize;
-        std::copy_n((size_t*) raw_input, 1, &sizeXSize);
+        std::memcpy(&sizeXSize, raw_input, sizeof(size_t));
         raw_input += sizeof(size_t);
         allOffsets[currentAllOffsetsIndex++] = raw_input - m_data.data();
         raw_input += sizeof(float) * sizeXSize;
 
         size_t sizeYSize;
-        std::copy_n((size_t*) raw_input, 1, &sizeYSize);
+        std::memcpy(&sizeYSize, raw_input, sizeof(size_t));
         raw_input += sizeof(size_t);
         allOffsets[currentAllOffsetsIndex++] = raw_input - m_data.data();
         raw_input += sizeof(float) * sizeYSize;
 
         size_t offsetSize;
-        std::copy_n((size_t*) raw_input, 1, &offsetSize);
+        std::memcpy(&offsetSize, raw_input, sizeof(size_t));
         raw_input += sizeof(size_t);
         allOffsets[currentAllOffsetsIndex++] = raw_input - m_data.data();
         raw_input += sizeof(unsigned int) * offsetSize;
 
         size_t tableSize;
-        std::copy_n((size_t*) raw_input, 1, &tableSize);
+        std::memcpy(&tableSize, raw_input, sizeof(size_t));
         raw_input += sizeof(size_t);
         assert(tableSize == Muon::Constants::n_stations);
         for (size_t i = 0; i < tableSize; i++) {
           size_t stationTableSize;
-          std::copy_n((size_t*) raw_input, 1, &stationTableSize);
+          std::memcpy(&stationTableSize, raw_input, sizeof(size_t));
           raw_input += sizeof(size_t);
           allOffsets[currentAllOffsetsIndex++] = raw_input - m_data.data();
           raw_input += sizeof(float) * Muon::MuonTables::n_dimensions * stationTableSize;
