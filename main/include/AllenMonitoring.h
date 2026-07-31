@@ -168,6 +168,19 @@ namespace Allen::Monitoring {
       return AccumulatorManager::get()->bufferForStream(stream_id) + m_buffer_infos->offset;
     }
 
+  protected:
+    // Set by a derived class' registerAccumulator() override once it has actually
+    // registered *this with Gaudi::svcLocator()->monitoringHub(); the destructor
+    // only calls removeEntity() if this is true. Needed because AccumulatorManager
+    // only calls registerAccumulator() on the first owner of a given unique name
+    // (see AccumulatorManager::initAccumulators), and because tools that
+    // introspect algorithms without a real Gaudi ApplicationMgr (e.g.
+    // configuration/src/default_properties.cpp) construct and destroy
+    // AccumulatorBase-derived objects without ever calling initAccumulators() at
+    // all -- Gaudi::svcLocator() lazily creates (and leaks) a whole ApplicationMgr
+    // if this destructor calls it unconditionally in that context.
+    bool m_registered {false};
+
   private:
     const Allen::Algorithm* m_owner;
     std::string m_name;
@@ -223,6 +236,7 @@ namespace Allen::Monitoring {
     {
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "counter:Counter:d", *this);
+      m_registered = true;
 #endif
     }
     void fillAccumulator(void* ptr) override { m_entries += reinterpret_cast<T*>(ptr)[0]; }
@@ -298,6 +312,7 @@ namespace Allen::Monitoring {
     {
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "counter:AveragingCounter:d", *this);
+      m_registered = true;
 #endif
     }
     void fillAccumulator(void* ptr) override
@@ -586,6 +601,7 @@ namespace Allen::Monitoring {
       m_totNEntries = 0.0;
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "histogram:Histogram:d", *this);
+      m_registered = true;
 #endif
     }
 

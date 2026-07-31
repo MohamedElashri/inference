@@ -17,7 +17,13 @@ namespace Allen::Monitoring {
   AccumulatorBase::~AccumulatorBase()
   {
 #ifndef ALLEN_STANDALONE
-    Gaudi::svcLocator()->monitoringHub().removeEntity(*this);
+    // Only remove the entity if this instance actually registered one -- calling
+    // Gaudi::svcLocator() unconditionally here lazily creates (and, if none was
+    // running to begin with, leaks) a whole ApplicationMgr. See m_registered's
+    // declaration for the two ways an AccumulatorBase can reach here unregistered.
+    if (m_registered) {
+      Gaudi::svcLocator()->monitoringHub().removeEntity(*this);
+    }
 #endif
   }
 
