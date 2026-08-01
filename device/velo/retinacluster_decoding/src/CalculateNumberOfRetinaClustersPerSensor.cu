@@ -60,11 +60,11 @@ __global__ void calculate_number_of_retinaclusters_each_sensor_pair_kernel(
     if (raw_bank.type == (uint8_t) LHCb::Event::Enum::RawBank::BankType::VPRetinaCluster) {
       if constexpr (decoding_version == 2 || decoding_version == 3) {
         each_sensor_pair_size[raw_bank.sourceID] =
-          (masked_modules & (1 << (raw_bank.sourceID / 4))) ? 0 : raw_bank.count;
+          (masked_modules & (1ULL << (raw_bank.sourceID / 4))) ? 0 : raw_bank.count;
       }
       else {
         each_sensor_pair_size[raw_bank.sensor_pair()] =
-          (masked_modules & (1 << (raw_bank.sensor_pair() / 2))) ? 0 : raw_bank.size / 4;
+          (masked_modules & (1ULL << (raw_bank.sensor_pair() / 2))) ? 0 : raw_bank.size / 4;
       }
     }
     // /!\ this need to be overwritten by every event in case some events have missing rawbanks:
