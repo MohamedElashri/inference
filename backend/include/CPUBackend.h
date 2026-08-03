@@ -415,6 +415,10 @@ namespace Allen {
 
   void inline memcpy(void* dst, const void* src, size_t count, enum Allen::memcpy_kind)
   {
+    // std::memcpy's pointer arguments are declared non-null; a zero-length copy
+    // with a null src/dst (a valid, common case for empty buffers) would
+    // otherwise be undefined behaviour.
+    if (count == 0) return;
     std::memcpy(dst, src, count);
   }
 
@@ -429,7 +433,12 @@ namespace Allen {
     memcpy(dst, src, count, kind);
   }
 
-  void inline memset(void* devPtr, int value, size_t count) { std::memset(devPtr, value, count); }
+  void inline memset(void* devPtr, int value, size_t count)
+  {
+    // Same non-null-argument rationale as memcpy() above.
+    if (count == 0) return;
+    std::memset(devPtr, value, count);
+  }
 
   void inline memset_async(void* ptr, int value, size_t count, const Context&) { memset(ptr, value, count); }
 
