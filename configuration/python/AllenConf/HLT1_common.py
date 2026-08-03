@@ -1021,6 +1021,7 @@ def setup_hlt1_base(
         filter_manager,
         with_lumi=with_lumi,
         with_rich=with_rich,
+        with_fullKF=with_fullKF,
         with_ut=with_ut,
         with_muon=with_muon,
         data_quality=data_quality,
