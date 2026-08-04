@@ -122,8 +122,11 @@ namespace Allen::CuDNN {
     ConvDescriptors& operator=(const ConvDescriptors&) = delete;
 
     // Create descriptors with fixed input shape. Algorithm is pinned to
-    // IMPLICIT_GEMM (see rationale below) rather than selected via
-    // cudnnFindConvolutionForwardAlgorithmEx.
+    // IMPLICIT_GEMM by default (see rationale below) rather than selected via
+    // cudnnFindConvolutionForwardAlgorithmEx -- unless workspace_budget_bytes
+    // is nonzero, in which case a bounded heuristic search is used instead
+    // (see the workspace_budget_bytes parameter doc below; Phase 2 of
+    // optimization_plan.md).
     // dtype: CUDNN_DATA_FLOAT (default) or CUDNN_DATA_HALF for FP16 Tensor Core path.
     // Compute type is always CUDNN_DATA_FLOAT (FP32 accumulation) for both dtypes.
     void create(
@@ -133,7 +136,19 @@ namespace Allen::CuDNN {
       std::array<int,2> pad      = {0, 0},
       std::array<int,2> stride   = {1, 1},
       std::array<int,2> dilation = {1, 1},
-      cudnnDataType_t   dtype    = CUDNN_DATA_FLOAT)
+      cudnnDataType_t   dtype    = CUDNN_DATA_FLOAT,
+      // 0 (default): keep the pinned-IMPLICIT_GEMM behavior unchanged, bit
+      // for bit, from before this parameter existed. Nonzero: run
+      // cudnnGetConvolutionForwardAlgorithm_v7 (a static heuristic cost
+      // model, not a timed benchmark -- same query style already proven for
+      // ConvTranspose's kBwdBudget in PVFinderUNet.cu), then LIVE-VERIFY each
+      // within-budget candidate with one real cudnnConvolutionForward() call
+      // against scratch buffers before adopting it -- the heuristic can and
+      // does report success for algorithms that then fail at real call time
+      // for some shape/dtype combinations here (see the loop below). Falls
+      // back to pinned IMPLICIT_GEMM if nothing fits the budget and survives
+      // verification, or the initial query fails.
+      size_t            workspace_budget_bytes = 0)
     {
       ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&m_input_desc));
       ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&m_filter_desc));
@@ -165,9 +180,62 @@ namespace Allen::CuDNN {
 
       m_created = true;
 
-      m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
-      ALLEN_CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(
-        handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc, m_algo, &m_ws_bytes));
+      bool picked_by_search = false;
+      if (workspace_budget_bytes > 0) {
+        static constexpr int kFwdMaxAlgo = 8;
+        cudnnConvolutionFwdAlgoPerf_t perf[kFwdMaxAlgo];
+        int returned = 0;
+        if (cudnnGetConvolutionForwardAlgorithm_v7(
+              handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc,
+              kFwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
+          // v7's ranking is a static cost model, not a real execution -- it can
+          // (and, empirically, does for some FP16/shape combinations here)
+          // report CUDNN_STATUS_SUCCESS for an algorithm that then fails at
+          // real cudnnConvolutionForward() call time with CUDNN_STATUS_BAD_PARAM.
+          // Guard against that by actually executing each within-budget
+          // candidate once, here at init time, against scratch buffers sized
+          // to this descriptor's real tensors, and only adopting the first one
+          // that genuinely succeeds -- mirroring the "guarded Find"/"guarded
+          // heur_v7" approach already described (but not currently used) in
+          // this class's header comment.
+          const size_t elem_size  = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
+          const size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
+          const size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
+          const size_t out_elems  = (size_t)on * oc * oh * ow;
+          void* dummy_in   = nullptr;
+          void* dummy_filt = nullptr;
+          void* dummy_out  = nullptr;
+          if (cudaMalloc(&dummy_in,   in_elems   * elem_size) == cudaSuccess &&
+              cudaMalloc(&dummy_filt, filt_elems * elem_size) == cudaSuccess &&
+              cudaMalloc(&dummy_out,  out_elems  * elem_size) == cudaSuccess) {
+            cudaMemset(dummy_in,   0, in_elems   * elem_size);
+            cudaMemset(dummy_filt, 0, filt_elems * elem_size);
+            const float alpha = 1.f, beta = 0.f;
+            for (int i = 0; i < returned && !picked_by_search; ++i) {
+              if (perf[i].status != CUDNN_STATUS_SUCCESS || perf[i].memory > workspace_budget_bytes) continue;
+              void* dummy_ws = nullptr;
+              if (perf[i].memory > 0 && cudaMalloc(&dummy_ws, perf[i].memory) != cudaSuccess) continue;
+              const cudnnStatus_t trial = cudnnConvolutionForward(
+                handle, &alpha, m_input_desc, dummy_in, m_filter_desc, dummy_filt,
+                m_conv_desc, perf[i].algo, dummy_ws, perf[i].memory, &beta, m_output_desc, dummy_out);
+              if (dummy_ws) cudaFree(dummy_ws);
+              if (trial == CUDNN_STATUS_SUCCESS) {
+                m_algo        = perf[i].algo;
+                m_ws_bytes    = perf[i].memory;
+                picked_by_search = true;
+              }
+            }
+          }
+          if (dummy_in)   cudaFree(dummy_in);
+          if (dummy_filt) cudaFree(dummy_filt);
+          if (dummy_out)  cudaFree(dummy_out);
+        }
+      }
+      if (!picked_by_search) {
+        m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+        ALLEN_CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(
+          handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc, m_algo, &m_ws_bytes));
+      }
       // Workspace buffer itself is not allocated here -- see
       // get_thread_local_workspace(): it's lazily allocated per (thread,
       // instance) on first forward()/forward_half() call instead.
@@ -231,7 +299,8 @@ namespace Allen::CuDNN {
 #else
     void create(cudnnHandle_t, std::array<int,4>, std::array<int,4>,
                 std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
-                std::array<int,2> = {1,1}, cudnnDataType_t = CUDNN_DATA_FLOAT) {}
+                std::array<int,2> = {1,1}, cudnnDataType_t = CUDNN_DATA_FLOAT,
+                size_t = 0) {}
     size_t workspace_bytes() const { return 0; }
     int algo_id() const { return 0; }
     void ensure_thread_local_workspace() const {}
@@ -244,9 +313,6 @@ namespace Allen::CuDNN {
 #endif
   };
 
-  // ConvBiasReluGraph: placeholder — implementation removed (cuDNN backend graph
-  // API requires NHWC layout and is not supported on all target GPUs).
-  // Use ConvDescriptors::forward_fused_bias_relu() instead.
   /**
    * @brief Fused Conv + BiasAdd + ReLU via cuDNN backend graph API.
    *
@@ -254,7 +320,21 @@ namespace Allen::CuDNN {
    * time, so no separate batch-norm kernel is needed at runtime. The graph
    * encodes Conv → Pointwise-ADD(bias) → Pointwise-RELU as a single fused op
    * that cuDNN executes without writing the intermediate conv output to global
-   * memory. Eliminates bias_bn_relu_kernel and its global-memory round-trip.
+   * memory. Eliminates the conv-output DRAM round trip that a separate
+   * bias+ReLU kernel pass otherwise requires.
+   *
+   * Tensor strides are set to standard NCHW-contiguous (H=1) layout — the
+   * cuDNN backend graph API does not require NHWC; it accepts arbitrary
+   * strides via CUDNN_ATTR_TENSOR_STRIDES. What IS GPU/shape-dependent is
+   * whether any engine advertises support for this op-graph at all: create()
+   * throws std::invalid_argument if the engine-heuristic search returns no
+   * usable engine config, so callers on unsupported hardware must catch that
+   * and fall back to the separate ConvDescriptors + bias/ReLU kernel path.
+   *
+   * Workspace is thread_local (see get_thread_local_workspace below), mirroring
+   * ConvDescriptors: the execution plan is a read-only compiled artifact safe
+   * to share across concurrent threads once created, but the workspace buffer
+   * cuDNN scribbles into during execute() is not, so each thread gets its own.
    *
    * UIDs for the variant pack (stable per graph instance):
    *   1 = x (input), 2 = w (fused weights), 3 = b (fused bias), 4 = y (output)
@@ -263,12 +343,27 @@ namespace Allen::CuDNN {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   private:
     cudnnBackendDescriptor_t m_exec_plan = nullptr;
-    void*  m_workspace = nullptr;
     size_t m_ws_bytes  = 0;
     bool   m_created   = false;
 
     static constexpr int64_t UID_X = 1, UID_W = 2, UID_B = 3, UID_Y = 4;
     static constexpr int64_t UID_ZCONV = 5, UID_ZADD = 6;
+
+    // Thread-local workspace, keyed by this instance within each thread's own
+    // map — same idiom as ConvDescriptors::get_thread_local_workspace (see
+    // that function's comment for the cudaMalloc-failure handling rationale).
+    static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes) {
+      if (needed_bytes == 0) return nullptr;
+      thread_local std::unordered_map<const void*, std::pair<void*, size_t>> tl_workspaces;
+      auto& entry = tl_workspaces[instance_key];
+      if (entry.second < needed_bytes) {
+        if (entry.first) cudaFree(entry.first);
+        entry.first = nullptr;
+        cudaCheck(cudaMalloc(&entry.first, needed_bytes));
+        entry.second = needed_bytes;
+      }
+      return entry.first;
+    }
 
   public:
     ConvBiasReluGraph() = default;
@@ -276,8 +371,12 @@ namespace Allen::CuDNN {
     ~ConvBiasReluGraph() {
       if (!m_created) return;
       cudnnBackendDestroyDescriptor(m_exec_plan);
-      if (m_workspace) cudaFree(m_workspace);
+      // Thread-local workspaces (see get_thread_local_workspace) are intentionally
+      // not freed here — same rationale as ConvDescriptors's destructor.
     }
+
+    // Pre-allocate this instance's thread-local workspace on the calling thread.
+    void ensure_thread_local_workspace() const { get_thread_local_workspace(this, m_ws_bytes); }
 
     ConvBiasReluGraph(const ConvBiasReluGraph&) = delete;
     ConvBiasReluGraph& operator=(const ConvBiasReluGraph&) = delete;
@@ -442,7 +541,9 @@ namespace Allen::CuDNN {
         cudnnBackendGetAttribute(plan, CUDNN_ATTR_EXECUTION_PLAN_WORKSPACE_SIZE, CUDNN_TYPE_INT64, 1, nullptr, &ws);
         m_ws_bytes  = (size_t)ws;
         m_exec_plan = plan;
-        if (m_ws_bytes > 0) cudaMalloc(&m_workspace, m_ws_bytes);
+        // Workspace buffer itself is not allocated here — see
+        // get_thread_local_workspace(): it's lazily allocated per (thread,
+        // instance) on first execute() call instead, mirroring ConvDescriptors.
       }
 
       // Free all intermediate descriptors.
@@ -469,6 +570,7 @@ namespace Allen::CuDNN {
     }
 
     bool is_created() const { return m_created; }
+    size_t workspace_bytes() const { return m_ws_bytes; }
 
     // Execute the fused graph. x/w/b are device pointers; w and b must be the
     // BN-folded fused weights and biases computed at init time.
@@ -479,6 +581,8 @@ namespace Allen::CuDNN {
       const float*  b,
       float*        y) const
     {
+      void* workspace = get_thread_local_workspace(this, m_ws_bytes);
+
       cudnnBackendDescriptor_t vpack = nullptr;
       ALLEN_CUDNN_CHECK(cudnnBackendCreateDescriptor(CUDNN_BACKEND_VARIANT_PACK_DESCRIPTOR, &vpack));
 
@@ -487,7 +591,7 @@ namespace Allen::CuDNN {
                          const_cast<float*>(b), y};
       ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_UNIQUE_IDS,    CUDNN_TYPE_INT64,     4, uids));
       ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_DATA_POINTERS, CUDNN_TYPE_VOID_PTR,  4, ptrs));
-      ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_WORKSPACE,     CUDNN_TYPE_VOID_PTR,  1, &m_workspace));
+      ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_WORKSPACE,     CUDNN_TYPE_VOID_PTR,  1, &workspace));
       ALLEN_CUDNN_CHECK(cudnnBackendFinalize(vpack));
       ALLEN_CUDNN_CHECK(cudnnBackendExecute(handle, m_exec_plan, vpack));
       cudnnBackendDestroyDescriptor(vpack);
@@ -498,6 +602,8 @@ namespace Allen::CuDNN {
                 std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
                 std::array<int,2> = {1,1}) {}
     bool is_created() const { return false; }
+    size_t workspace_bytes() const { return 0; }
+    void ensure_thread_local_workspace() const {}
     void execute(cudnnHandle_t, const float*, const float*, const float*, float*) const {}
 #endif
   };

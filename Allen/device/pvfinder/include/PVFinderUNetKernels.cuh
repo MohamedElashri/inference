@@ -26,36 +26,6 @@ __global__ void bias_add_kernel(
 }
 
 // ---------------------------------------------------------------------------
-// BatchNorm1d inference: y = gamma*(x - mean)/sqrt(var+eps) + beta
-// Per-channel parameters; operates over flat NCW tensor.
-// ---------------------------------------------------------------------------
-__global__ void batchnorm_inference_kernel(
-    float* __restrict__ tensor,
-    const float* __restrict__ gamma,
-    const float* __restrict__ beta,
-    const float* __restrict__ mean,
-    const float* __restrict__ var,
-    float eps,
-    int C, int W, int total)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    int c = (i / W) % C;
-    float inv_std = rsqrtf(var[c] + eps);
-    tensor[i] = gamma[c] * (tensor[i] - mean[c]) * inv_std + beta[c];
-}
-
-// ---------------------------------------------------------------------------
-// ReLU in-place
-// ---------------------------------------------------------------------------
-__global__ void relu_inplace_kernel(float* __restrict__ x, int total)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    x[i] = x[i] > 0.f ? x[i] : 0.f;
-}
-
-// ---------------------------------------------------------------------------
 // MaxPool1d(kernel=2, stride=2): [N, C, W] -> [N, C, W/2]
 // ---------------------------------------------------------------------------
 __global__ void maxpool1d_2_kernel(
@@ -142,8 +112,7 @@ __global__ void accumulate_add_kernel(
 // ---------------------------------------------------------------------------
 // Bias add + ReLU: y = relu(tensor + bias[c])
 // Used after BN-folded convolutions — BN absorbed into weights at init,
-// so only bias + ReLU remain at runtime. Avoids the 4 extra per-channel
-// reads (gamma/beta/mean/var) of bias_bn_relu_kernel.
+// so only bias + ReLU remain at runtime.
 // ---------------------------------------------------------------------------
 __global__ void bias_relu_kernel(
     float* __restrict__ tensor,
@@ -188,28 +157,6 @@ __global__ void fold_bn_into_conv_kernel(
 }
 
 // ---------------------------------------------------------------------------
-// Fused bias + BN + ReLU: one global-memory pass instead of three.
-// y[i] = max(0, gamma[c] * ((x[i] + bias[c]) - mean[c]) * rsqrt(var[c]+eps) + beta[c])
-// ---------------------------------------------------------------------------
-__global__ void bias_bn_relu_kernel(
-    float* __restrict__ tensor,
-    const float* __restrict__ bias,
-    const float* __restrict__ gamma,
-    const float* __restrict__ beta,
-    const float* __restrict__ mean,
-    const float* __restrict__ var,
-    float eps,
-    int C, int W, int total)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    int c = (i / W) % C;
-    float v = tensor[i] + bias[c];
-    v = gamma[c] * (v - mean[c]) * rsqrtf(var[c] + eps) + beta[c];
-    tensor[i] = v > 0.f ? v : 0.f;
-}
-
-// ---------------------------------------------------------------------------
 // Convenience: launch helpers called from host code
 // ---------------------------------------------------------------------------
 inline void launch_bias_relu(
@@ -223,19 +170,6 @@ inline void launch_bias_relu(
         tensor, bias, C, W, total);
 }
 
-inline void launch_bias_bn_relu(
-    float* tensor, const float* bias,
-    const float* gamma, const float* beta,
-    const float* mean, const float* var, float eps,
-    int C, int W, int N,
-    const dim3& block, const Allen::Context& ctx)
-{
-    int total = N * C * W;
-    dim3 grid((total + block.x - 1) / block.x);
-    bias_bn_relu_kernel<<<grid, block, 0, ctx.stream()>>>(
-        tensor, bias, gamma, beta, mean, var, eps, C, W, total);
-}
-
 inline void launch_bias_add(
     float* tensor, const float* bias,
     int C, int W, int N,
@@ -245,26 +179,6 @@ inline void launch_bias_add(
     dim3 grid((total + block.x - 1) / block.x);
     bias_add_kernel<<<grid, block, 0, ctx.stream()>>>(
         tensor, bias, C, W, total);
-}
-
-inline void launch_batchnorm(
-    float* tensor,
-    const float* gamma, const float* beta,
-    const float* mean,  const float* var, float eps,
-    int C, int W, int N,
-    const dim3& block, const Allen::Context& ctx)
-{
-    int total = N * C * W;
-    dim3 grid((total + block.x - 1) / block.x);
-    batchnorm_inference_kernel<<<grid, block, 0, ctx.stream()>>>(
-        tensor, gamma, beta, mean, var, eps, C, W, total);
-}
-
-inline void launch_relu(float* x, int total,
-    const dim3& block, const Allen::Context& ctx)
-{
-    dim3 grid((total + block.x - 1) / block.x);
-    relu_inplace_kernel<<<grid, block, 0, ctx.stream()>>>(x, total);
 }
 
 inline void launch_maxpool(
@@ -306,6 +220,75 @@ inline void launch_softplus_scale(
 {
     dim3 grid((total + block.x - 1) / block.x);
     softplus_scale_kernel<<<grid, block, 0, ctx.stream()>>>(x, scale, total);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 (optimization_plan.md): fused Conv1d(k=5,pad=2,same-width) + bias
+// + ReLU for one CBR layer, replacing cuDNN + a separate bias_relu_kernel
+// pass for that layer. Keeps the [C,W] activation slice resident in shared
+// memory across the conv and its epilogue -- the conv's raw output never
+// makes a DRAM round trip. Weights/bias are read from global memory via the
+// read-only cache (__ldg): the byte/FLOP census found weight traffic
+// negligible already (tiny, reused, effectively cached across the whole
+// grid), so only the activation tile needs to be shared-memory-resident to
+// capture the targeted traffic reduction -- this also sidesteps any
+// static-shared-memory-size concern for larger N_FEAT builds (e.g. 64ch),
+// since only the input tile (a few KB) lives in __shared__.
+//
+// One block per (chunk-relative) slice n. C/W/PAD/K are compile-time
+// constants (this UNet's shapes are all fixed at compile time already).
+// Cross-correlation semantics (no kernel flip), matching cuDNN's
+// CUDNN_CROSS_CORRELATION mode used elsewhere in this UNet.
+// ---------------------------------------------------------------------------
+template <int C, int W, int PAD, int K>
+__global__ void fused_conv_bias_relu_same_width_kernel(
+    const float* __restrict__ src,     // [N, C, W]
+    float* __restrict__ dst,           // [N, C, W]
+    const float* __restrict__ weight,  // [C_out=C, C_in=C, K]
+    const float* __restrict__ bias)    // [C]
+{
+    constexpr int W_PAD = W + 2 * PAD;
+    __shared__ float s_in[C * W_PAD];
+
+    const int n = blockIdx.x;
+    const float* src_n = src + (size_t) n * C * W;
+    float* dst_n = dst + (size_t) n * C * W;
+
+    // Cooperative load of this slice's input into shared memory, zero-padded
+    // at the halo (out-of-range) positions.
+    for (int i = threadIdx.x; i < C * W_PAD; i += blockDim.x) {
+        const int c = i / W_PAD;
+        const int w = i % W_PAD - PAD;
+        s_in[i] = (w >= 0 && w < W) ? src_n[c * W + w] : 0.f;
+    }
+    __syncthreads();
+
+    // Each thread computes one or more (k_out, w_out) output elements.
+    for (int idx = threadIdx.x; idx < C * W; idx += blockDim.x) {
+        const int k_out = idx / W;
+        const int w_out = idx % W;
+        float acc = 0.f;
+        for (int c = 0; c < C; ++c) {
+            const float* s_row = s_in + c * W_PAD + w_out;   // padded-index base for this (c, w_out)
+            const float* w_row = weight + (size_t) (k_out * C + c) * K;
+            #pragma unroll
+            for (int j = 0; j < K; ++j) acc += s_row[j] * __ldg(&w_row[j]);
+        }
+        acc += __ldg(&bias[k_out]);
+        dst_n[k_out * W + w_out] = acc > 0.f ? acc : 0.f;
+    }
+}
+
+// rcbn3-shaped instantiation: Conv(N_FEAT->N_FEAT, k=5, pad=2) at W_HALF,
+// same width in and out. N is the number of slices in this chunk
+// (N_CHUNK_INTERVALS); one block per slice.
+inline void launch_fused_rcbn3(
+    const float* src, float* dst,
+    const float* weight, const float* bias,
+    int N, const dim3& block, const Allen::Context& ctx)
+{
+    fused_conv_bias_relu_same_width_kernel<N_FEAT, W_HALF, 2, 5>
+        <<<N, block, 0, ctx.stream()>>>(src, dst, weight, bias);
 }
 
 // ---------------------------------------------------------------------------

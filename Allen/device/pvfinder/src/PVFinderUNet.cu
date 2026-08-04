@@ -23,8 +23,10 @@ static constexpr int N_CHUNK_INTERVALS = B_EVENTS_MAX * N_INTERVALS;
 // Shapes are compile-time constants so no synchronisation is needed after init.
 // ---------------------------------------------------------------------------
 struct GlobalDescriptors {
-    // CBR layers: fused Conv+BiasAdd+ReLU via cudnnConvolutionBiasActivationForward.
-    // BN folded into weights/bias at init time (fold_bn lambda).
+    // CBR layers: cuDNN conv followed by a fused bias+ReLU elementwise pass
+    // (BN folded into weights/bias at init time, see fold_bn lambda). The
+    // conv output still makes one DRAM round trip between the two — see
+    // rcbn1_fused below for the true single-pass alternative (rcbn1 only).
     Allen::CuDNN::ConvDescriptors rcbn1;    // Conv(8→16,  k=25, pad=12)
     Allen::CuDNN::ConvDescriptors rcbn2;    // Conv(16→16, k=7,  pad=3)
     Allen::CuDNN::ConvDescriptors rcbn3;    // Conv(16→16, k=5,  pad=2)
@@ -33,6 +35,13 @@ struct GlobalDescriptors {
     // Non-CBR paths: plain conv (no BN/ReLU fusion).
     Allen::CuDNN::ConvDescriptors oint_half;// Conv(16→16, k=5,  pad=2) — two halves
     Allen::CuDNN::ConvDescriptors outc;     // Conv(16→1,  k=5,  pad=2)
+
+    // Optional true single-pass Conv+Bias+ReLU for rcbn1 (opt-in via
+    // use_fused_cbr, FP32 only). Not all GPUs/cuDNN versions expose an engine
+    // for this op-graph shape, so creation is attempted and may fail —
+    // rcbn1_fused_available records whether it's safe to use.
+    Allen::CuDNN::ConvBiasReluGraph rcbn1_fused;
+    bool rcbn1_fused_available = false;
 
     // BN-folded weights and biases for each CBR layer (device pointers, owned here).
     float* rcbn1_w_f = nullptr; float* rcbn1_b_f = nullptr;
@@ -297,7 +306,7 @@ struct WeightBlob {
 static WeightBlob s_wb {};
 static bool s_wb_loaded = false;
 
-static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
+static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, size_t fwd_ws_budget_bytes)
 {
     constexpr int N = N_CHUNK_INTERVALS;
 
@@ -337,12 +346,27 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_BATCH_CHANNELS * 25,
             s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12});
+    s_desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
+                        {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
     to_half(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
             s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, 0);
     cudaDeviceSynchronize();
     s_desc.rcbn1_h.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
-                          {1,1}, {1,1}, CUDNN_DATA_HALF);
+                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
+
+    // Optional true single-pass Conv+Bias+ReLU for rcbn1 (Phase 1 of
+    // optimization_plan.md). Uses the same BN-folded weights/bias as rcbn1
+    // above. Creation can fail if no engine supports this op-graph shape on
+    // the current GPU/cuDNN version -- caught here so the process still
+    // starts and use_fused_cbr silently falls back to the two-pass path.
+    try {
+        s_desc.rcbn1_fused.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0, 12});
+        s_desc.rcbn1_fused_available = true;
+    } catch (const std::exception& e) {
+        s_desc.rcbn1_fused_available = false;
+        fprintf(stderr, "[pvfinder_unet] ConvBiasReluGraph unavailable for rcbn1 (%s); "
+                "use_fused_cbr will fall back to the two-pass conv+bias/ReLU path.\n", e.what());
+    }
 
     fold_bn(wb.w_rcbn2_w, wb.w_rcbn2_b,
             wb.w_rcbn2_gamma, wb.w_rcbn2_beta,
@@ -350,12 +374,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 7,
             s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3});
+    s_desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3},
+                        {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
     to_half(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
             s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, 0);
     cudaDeviceSynchronize();
     s_desc.rcbn2_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
-                          {1,1}, {1,1}, CUDNN_DATA_HALF);
+                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_rcbn3_w, wb.w_rcbn3_b,
             wb.w_rcbn3_gamma, wb.w_rcbn3_beta,
@@ -363,12 +388,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 5,
             s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+                        {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
     to_half(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
             s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, 0);
     cudaDeviceSynchronize();
     s_desc.rcbn3_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
-                          {1,1}, {1,1}, CUDNN_DATA_HALF);
+                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_up1c_w, wb.w_up1c_b,
             wb.w_up1c_gamma, wb.w_up1c_beta,
@@ -376,12 +402,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 5,
             s_desc.up1c_w_f, s_desc.up1c_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+                        {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
     to_half(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
             s_desc.up1c_w_h, s_desc.up1c_b_h, 0);
     cudaDeviceSynchronize();
     s_desc.up1c_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
-                         {1,1}, {1,1}, CUDNN_DATA_HALF);
+                         {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_up2c_w, wb.w_up2c_b,
             wb.w_up2c_gamma, wb.w_up2c_beta,
@@ -389,12 +416,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
             N_FEAT, N_FEAT * 5,
             s_desc.up2c_w_f, s_desc.up2c_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
+    s_desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+                        {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
     to_half(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
             s_desc.up2c_w_h, s_desc.up2c_b_h, 0);
     cudaDeviceSynchronize();
     s_desc.up2c_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
-                         {1,1}, {1,1}, CUDNN_DATA_HALF);
+                         {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
 
     // Allocate dedicated FP16 activation pool for Phase M benchmark.
     // Layout: ncw | x1 | x2 | x3 | up1 | cat2 | up2
@@ -419,23 +447,31 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
         s_desc.fp16_up2  = p;
     }
 
-    // Non-CBR paths keep the existing Find-based ConvDescriptors.
-    s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2});
-    s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2});
+    // Non-CBR paths: plain conv, same pinned-IMPLICIT_GEMM-by-default ConvDescriptors.
+    s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+                            {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
+    s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2},
+                            {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
 
-    // One-time diagnostic: the header's design intent is "IMPLICIT_GEMM pinned
-    // everywhere -> zero workspace", but create() actually runs a timed
-    // cudnnFindConvolutionForwardAlgorithmEx search and keeps whichever algorithm
-    // wins, which may have nonzero workspace. Each ConvDescriptors' workspace is a
-    // single buffer shared (read-only during forward()) across all threads via the
-    // global s_desc — if any of these are nonzero, concurrent -t>1 callers would be
-    // racing on that shared workspace, a pre-existing correctness question orthogonal
-    // to this change. Logged once so it's visible rather than silently assumed.
-    // Routed to stderr (unbuffered) and flushed explicitly: stdout is fully
-    // buffered once redirected to a file, so on an abrupt abort() (e.g. the
-    // std::terminate path from ALLEN_CUDNN_CHECK) any unflushed printf content
-    // -- including this diagnostic -- is silently lost, leaving no evidence of
-    // which algorithm/workspace size was actually selected for a crashing run.
+    // One-time diagnostic: confirms the header's design intent -- "IMPLICIT_GEMM
+    // pinned everywhere -> zero workspace" -- actually holds when
+    // fwd_algo_ws_budget_bytes==0 (the default). ConvDescriptors::create() pins
+    // CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM unconditionally in that case (no
+    // algorithm search); an earlier cudnnFindConvolutionForwardAlgorithmEx-based
+    // selection experiment was tried and reverted (see CuDNNDescriptors.h's class
+    // comment) because it regressed under real -t16 memory-bandwidth contention
+    // despite looking faster in isolation. Phase 2 (optimization_plan.md) reopens
+    // this with a workspace-budgeted heuristic search instead of an unrestricted
+    // one -- active only when fwd_algo_ws_budget_bytes is set nonzero below. Each
+    // ConvDescriptors' workspace is thread_local (not a single shared buffer), so
+    // even a nonzero size here would not be a cross-thread race. Logged once so
+    // the actual algorithm/workspace state is visible rather than assumed. Routed
+    // to stderr (unbuffered) and flushed explicitly: stdout is fully buffered once
+    // redirected to a file, so on an abrupt abort() (e.g. the std::terminate path
+    // from ALLEN_CUDNN_CHECK) any unflushed printf content -- including this
+    // diagnostic -- is silently lost, leaving no evidence of which
+    // algorithm/workspace size was actually selected for a crashing run.
+    fprintf(stderr, "[pvfinder_unet] fwd_algo_ws_budget_bytes=%zu\n", fwd_ws_budget_bytes);
     fprintf(stderr, "[pvfinder_unet] ConvDescriptors workspace bytes: rcbn1=%zu rcbn2=%zu rcbn3=%zu "
            "up1_c=%zu up2_c=%zu oint_half=%zu outc=%zu | algo ids: rcbn1=%d rcbn2=%d rcbn3=%d "
            "up1_c=%d up2_c=%d oint_half=%d outc=%d\n",
@@ -452,10 +488,9 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
     // (if rare) CUDNN_STATUS_BAD_PARAM crash under sustained -t16 load. Fixed by
     // pre-warming every descriptor's thread-local workspace once per thread
     // before the chunk loop (see operator()), for both eager and graph paths.
-    // Algo ids logged here too: cudnnFindConvolutionForwardAlgorithmEx times
-    // candidates against real hardware once per process launch, so if GPU timing
-    // noise ever shifts which algorithm wins, the id (not just the workspace size,
-    // which several distinct algorithms can share) is what would reveal it.
+    // Algo ids logged here too, even though algorithm selection is pinned
+    // (IMPLICIT_GEMM, no search) -- if that ever changes, this is what would
+    // reveal which algorithm/workspace size is actually in effect.
     fprintf(stderr, "[pvfinder_unet] FP16 ConvDescriptors workspace bytes: rcbn1_h=%zu rcbn2_h=%zu "
            "rcbn3_h=%zu up1c_h=%zu up2c_h=%zu | algo ids: rcbn1_h=%d rcbn2_h=%d rcbn3_h=%d "
            "up1c_h=%d up2c_h=%d\n",
@@ -463,6 +498,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb)
            s_desc.up1c_h.workspace_bytes(), s_desc.up2c_h.workspace_bytes(),
            s_desc.rcbn1_h.algo_id(), s_desc.rcbn2_h.algo_id(), s_desc.rcbn3_h.algo_id(),
            s_desc.up1c_h.algo_id(), s_desc.up2c_h.algo_id());
+    // Phase 1 (optimization_plan.md): whether the fused-graph rcbn1 path is
+    // usable on this GPU/cuDNN version at all (see the try/catch around its
+    // create() call above).
+    fprintf(stderr, "[pvfinder_unet] rcbn1 ConvBiasReluGraph available: %s (workspace bytes: %zu)\n",
+           s_desc.rcbn1_fused_available ? "yes" : "no", s_desc.rcbn1_fused.workspace_bytes());
     fflush(stderr);
 
     // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
@@ -1178,8 +1218,14 @@ void pvfinder_unet_t::operator()(
     cudnnHandle_t handle = Allen::CuDNN::get_thread_local_handle(context.stream());
 
     // Descriptor creation needs a live handle (for algorithm selection), so it runs
-    // here on first operator() call rather than in init().
-    std::call_once(s_desc_init_flag, [handle]() { init_global_descriptors(handle, s_wb); });
+    // here on first operator() call rather than in init(). fwd_ws_budget_bytes is
+    // read from whichever call happens to win the call_once race -- fine here since
+    // it's a benchmark-only property set once at process/config level, not expected
+    // to vary between concurrent operator() calls.
+    const size_t fwd_ws_budget_bytes = m_fwd_algo_ws_budget_bytes.value();
+    std::call_once(s_desc_init_flag, [handle, fwd_ws_budget_bytes]() {
+        init_global_descriptors(handle, s_wb, fwd_ws_budget_bytes);
+    });
 
     const dim3 block = m_block_dim;
     constexpr int N = N_CHUNK_INTERVALS;  // batch size = 20 * 40 = 800
@@ -1224,6 +1270,12 @@ void pvfinder_unet_t::operator()(
     // takes the eager branch below instead, by construction, with no risk of
     // replaying a stale/mismatched graph.
     const bool graph_eligible = skip_mode == "concat" && m_use_cuda_graph.value();
+    // Phase 1 (optimization_plan.md): true single-pass Conv+Bias+ReLU for rcbn1,
+    // eager FP32 path only. FP16 has no fused-graph variant (see m_use_fused_cbr's
+    // doc comment), so this is simply ignored whenever use_fp16=true.
+    const bool use_fused_cbr = m_use_fused_cbr.value() && s_desc.rcbn1_fused_available;
+    // Phase 3 (optimization_plan.md): hand-written fused rcbn3, eager FP32 path only.
+    const bool use_fused_rcbn3 = m_use_fused_rcbn3.value();
     const bool use_graph_fp32 = graph_eligible && !use_fp16;
     const bool use_graph_fp16 = graph_eligible && use_fp16;
 
@@ -1251,6 +1303,7 @@ void pvfinder_unet_t::operator()(
             s_desc.rcbn3_h.ensure_thread_local_workspace();
             s_desc.up1c_h.ensure_thread_local_workspace();
             s_desc.up2c_h.ensure_thread_local_workspace();
+            if (s_desc.rcbn1_fused_available) s_desc.rcbn1_fused.ensure_thread_local_workspace();
             tl_warmed = true;
         }
     }
@@ -1369,11 +1422,23 @@ void pvfinder_unet_t::operator()(
             continue;
         } else if (!use_fp16) {
             // ---- FP32 path (Phase L baseline) ----
-            run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
+            if (use_fused_cbr) {
+                // Single-pass Conv+Bias+ReLU: no separate bias_relu_kernel launch,
+                // no extra DRAM round trip on the conv output.
+                s_desc.rcbn1_fused.execute(handle, ncw, s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, x1);
+            } else {
+                run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
+            }
             run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
             launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
 
-            run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
+            if (use_fused_rcbn3) {
+                // Single kernel: conv + bias + ReLU with the activation slice
+                // kept in shared memory, no DRAM round trip on the raw conv output.
+                launch_fused_rcbn3(x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N, block, context);
+            } else {
+                run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
+            }
             launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
             run_conv_transpose(x3, up2,

@@ -27,9 +27,21 @@ Options:
                              add/none are throughput-only ablations, not physics-valid
   --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
                              only active when use_fp16=false and skip_mode=concat
+  --use-fused-cbr BOOL       Set pvfinder_unet.use_fused_cbr true/false (default: false)
+                             rcbn1 only, FP32 only; falls back automatically if
+                             unsupported on the GPU (see optimization_plan.md Phase 1)
+  --fwd-algo-ws-budget-mb N  Set pvfinder_unet.fwd_algo_ws_budget_bytes = N*1024*1024
+                             (default: 0 = pinned IMPLICIT_GEMM, no search; see
+                             optimization_plan.md Phase 2)
+  --use-fused-rcbn3 BOOL     Set pvfinder_unet.use_fused_rcbn3 true/false (default: false)
+                             rcbn3 only, eager FP32 path only; see
+                             optimization_plan.md Phase 3
   --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
                              (default: 800, physics-valid; any other value is
                              throughput-only tile-alignment testing, not physics-valid)
+  --use-nonatomic-l6a-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_nonatomic_l6a_reduce
+                             true/false (default: false); see optimization_plan.md
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -57,7 +69,11 @@ CNN_WEIGHTS_OVERRIDE=""
 USE_FP16=false
 SKIP_MODE=concat
 USE_CUDA_GRAPH=false
+USE_FUSED_CBR=false
+FWD_ALGO_WS_BUDGET_MB=0
+USE_FUSED_RCBN3=false
 L6A_M=800
+USE_NONATOMIC_L6A_REDUCE=false
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"
 
@@ -75,7 +91,11 @@ while [[ $# -gt 0 ]]; do
         --use-fp16) USE_FP16="$2"; shift 2 ;;
         --skip-mode) SKIP_MODE="$2"; shift 2 ;;
         --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
+        --use-fused-cbr) USE_FUSED_CBR="$2"; shift 2 ;;
+        --fwd-algo-ws-budget-mb) FWD_ALGO_WS_BUDGET_MB="$2"; shift 2 ;;
+        --use-fused-rcbn3) USE_FUSED_RCBN3="$2"; shift 2 ;;
         --l6a-m) L6A_M="$2"; shift 2 ;;
+        --use-nonatomic-l6a-reduce) USE_NONATOMIC_L6A_REDUCE="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
@@ -102,6 +122,26 @@ esac
 case "${USE_CUDA_GRAPH}" in
     true|false) ;;
     *) echo "ERROR: --use-cuda-graph must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_FUSED_CBR}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fused-cbr must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${FWD_ALGO_WS_BUDGET_MB}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --fwd-algo-ws-budget-mb must be a non-negative integer" >&2
+    exit 1
+fi
+
+case "${USE_FUSED_RCBN3}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fused-rcbn3 must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_NONATOMIC_L6A_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-nonatomic-l6a-reduce must be true or false" >&2; exit 1 ;;
 esac
 
 if ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]] || [[ "${L6A_M}" -gt 800 ]]; then
@@ -175,13 +215,16 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" "$USE_CUDA_GRAPH" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, skip_mode, use_cuda_graph_raw = sys.argv[1:]
+path, weights, use_fp16_raw, skip_mode, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw = sys.argv[1:]
 use_fp16 = use_fp16_raw == "true"
 use_cuda_graph = use_cuda_graph_raw == "true"
+use_fused_cbr = use_fused_cbr_raw == "true"
+fwd_ws_budget_bytes = int(fwd_ws_budget_mb_raw) * 1024 * 1024
+use_fused_rcbn3 = use_fused_rcbn3_raw == "true"
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -191,6 +234,9 @@ pvfinder_unet["weight_file"] = weights
 pvfinder_unet["use_fp16"] = use_fp16
 pvfinder_unet["skip_mode"] = skip_mode
 pvfinder_unet["use_cuda_graph"] = use_cuda_graph
+pvfinder_unet["use_fused_cbr"] = use_fused_cbr
+pvfinder_unet["fwd_algo_ws_budget_bytes"] = fwd_ws_budget_bytes
+pvfinder_unet["use_fused_rcbn3"] = use_fused_rcbn3
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -200,17 +246,18 @@ PY
 
 patch_fc_config() {
     local config="$1"
-    python3 - "$config" "$L6A_M" <<'PY'
+    python3 - "$config" "$L6A_M" "$USE_NONATOMIC_L6A_REDUCE" <<'PY'
 import json
 import sys
 
-path, l6a_m_raw = sys.argv[1:]
+path, l6a_m_raw, use_nonatomic_raw = sys.argv[1:]
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 
 fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
 fc_agg["l6a_m"] = int(l6a_m_raw)
+fc_agg["use_nonatomic_l6a_reduce"] = use_nonatomic_raw == "true"
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -318,7 +365,11 @@ run_sequence() {
     echo "use_fp16=${USE_FP16}"
     echo "skip_mode=${SKIP_MODE}"
     echo "use_cuda_graph=${USE_CUDA_GRAPH}"
+    echo "use_fused_cbr=${USE_FUSED_CBR}"
+    echo "fwd_algo_ws_budget_mb=${FWD_ALGO_WS_BUDGET_MB}"
+    echo "use_fused_rcbn3=${USE_FUSED_RCBN3}"
     echo "l6a_m=${L6A_M}"
+    echo "use_nonatomic_l6a_reduce=${USE_NONATOMIC_L6A_REDUCE}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
 } > "${BATCH_DIR}/metadata.env"

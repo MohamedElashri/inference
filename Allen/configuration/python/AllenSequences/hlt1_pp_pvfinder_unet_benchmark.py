@@ -9,8 +9,8 @@
 #   HLT1 default reco
 #     └─> pvfinder_velo_feature_extraction
 #     └─> pvfinder_fc_aggregation
-#     └─> pvfinder_ncw_layout
-#     └─> pvfinder_unet
+#     └─> pvfinder_unet (consumes dev_pvfinder_interval_features directly —
+#                         the former pvfinder_ncw_layout copy step was removed)
 ###############################################################################
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate

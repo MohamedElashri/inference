@@ -22,11 +22,6 @@ struct Parameters {
     //   track_idx[total_tracks * 2]:   track indices sorted by interval (boundary tracks appear twice)
     DEVICE_OUTPUT(dev_pvfinder_interval_start_t, int) dev_pvfinder_interval_start;
     DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
-    // Compact non-empty slot list (used so the aggregation kernel skips empty intervals):
-    //   nonempty_slots[i] = (event_number << 6) | interval — packed uint32
-    //   nonempty_count[0] = number of valid entries in nonempty_slots
-    DEVICE_OUTPUT(dev_pvfinder_nonempty_slots_t, unsigned) dev_pvfinder_nonempty_slots;
-    DEVICE_OUTPUT(dev_pvfinder_nonempty_count_t, int)      dev_pvfinder_nonempty_count;
     // cuBLAS L6A GEMM intermediate buffers — sized per chunk, reused across chunks.
     //   dev_pvfinder_l5_output: L1-L5 hidden states, shape [T_chunk_max × 20] row-major.
     //   dev_pvfinder_l6a_output: raw L6A GEMM output, shape [800 × T_chunk_max] col-major (cuBLAS layout).
@@ -65,6 +60,22 @@ private:
         "Override how many of L6A's 800 neurons are computed (GEMM + bias/ReLU "
         "+ reduction, all three) for width/throughput testing "
         "(800 = physics-valid default; any other value is throughput-only)"};
+
+    // Profiling (2026-07-30, optimization_plan.md) found pvfinder_reduce_l6a_kernel
+    // costs ~9x the L6A GEMM it reduces -- by far the single most expensive kernel
+    // in the FC stage. The per-track accumulation loop writes each shared-memory
+    // slot s_feat[n] via atomicAdd, but the thread<->n mapping (n = thread_id,
+    // thread_id+blockDim.x, ...) is identical on every iteration of the enclosing
+    // track loop, so each slot is written by exactly one thread for the block's
+    // entire lifetime -- no two threads ever touch the same slot. The atomic
+    // appears to be unnecessary; this flag swaps it for a plain += to test that.
+    // Physics-identical if the no-race analysis is correct (same arithmetic, same
+    // result) -- default false (keep atomicAdd) until benchmarked and verified.
+    Allen::Property<bool> m_use_nonatomic_l6a_reduce {
+        this, "use_nonatomic_l6a_reduce", false,
+        "Replace atomicAdd with a plain += in pvfinder_reduce_l6a_kernel's "
+        "per-track accumulation loop (see comment above) -- candidate fix for "
+        "the reduction being ~9x the cost of the GEMM it reduces"};
 };
 
 } // namespace pvfinder_fc_aggregation

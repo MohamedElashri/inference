@@ -137,40 +137,6 @@ __global__ void pvfinder_build_csr_kernel(
 }
 
 // ---------------------------------------------------------------------------
-// Compact work-list builder.
-//
-// Grid: (n_events)  blockDim: 64
-//
-// Each block scans all 40 intervals for its event and appends a packed entry
-//   (event_number << 6) | interval
-// to dev_pvfinder_nonempty_slots[] for every interval that has >=1 track.
-// A global atomic counter in dev_pvfinder_nonempty_count[0] gives the final
-// list length, which the host then uses as the grid dimension for the
-// aggregation kernel.
-// ---------------------------------------------------------------------------
-__global__ void pvfinder_compact_nonempty_kernel(
-    pvfinder_fc_aggregation_t::Parameters parameters,
-    unsigned n_events)
-{
-    const unsigned event_number = blockIdx.x;
-    if (event_number >= n_events) return;
-
-    const int* g_start = parameters.dev_pvfinder_interval_start + event_number * 42;
-
-    // Each thread claims one or more intervals.
-    for (int iv = (int)threadIdx.x; iv < 40; iv += (int)blockDim.x) {
-        const int count = g_start[iv + 1] - g_start[iv];
-        if (count > 0) {
-            // Atomically reserve a slot in the output list.
-            int pos = atomicAdd(parameters.dev_pvfinder_nonempty_count, 1);
-            // Pack: upper bits = event, lower 6 bits = interval (0-39).
-            parameters.dev_pvfinder_nonempty_slots[pos] =
-                (event_number << 6u) | (unsigned)iv;
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Interval-parallel FC+Aggregation kernel — CSR edition.
 //
 // Grid: (n_events, N_INTERVALS=40)  blockDim: 256
@@ -432,6 +398,16 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // s_feat/s_hist and the output writes below stay sized at the full 800/100
 // (downstream buffers are always that shape); neurons >= l6a_m simply never
 // get a nonzero contribution.
+//
+// UseAtomic (see m_use_nonatomic_l6a_reduce doc comment in the header):
+// the thread<->n mapping below (n = thread_id, thread_id+blockDim.x, ...) is
+// identical on every iteration of the track loop, so a given s_feat[n] slot
+// is written by exactly one thread for the block's entire lifetime -- no
+// cross-thread race. UseAtomic=false trades atomicAdd for a plain +=, which
+// should be equivalent given that invariant; kept as a compile-time template
+// parameter (not a runtime branch) so the untested variant carries zero
+// overhead relative to a hand-written non-atomic kernel.
+template <bool UseAtomic>
 __global__ void pvfinder_reduce_l6a_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
     unsigned chunk_start,
@@ -476,7 +452,11 @@ __global__ void pvfinder_reduce_l6a_kernel(
         // Each thread sums a strided subset of the l6a_m active neurons.
         for (int n = thread_id; n < (int)l6a_m; n += blockDim.x) {
             const float val = parameters.dev_pvfinder_l6a_output[(unsigned long long)n + (unsigned long long)col * 800u];
-            atomicAdd(&s_feat[n], val);
+            if constexpr (UseAtomic) {
+                atomicAdd(&s_feat[n], val);
+            } else {
+                s_feat[n] += val;
+            }
             // Accumulate softplus-reduced histogram bin (n / 8 maps 800 → 100)
             // s_hist[n % 100] is updated after the full s_feat loop below.
         }
@@ -519,9 +499,6 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     // CSR index buffers
     set_size<dev_pvfinder_interval_start_t>(arguments, total_events * 42);
     set_size<dev_pvfinder_track_idx_t>     (arguments, total_tracks  * 2);
-    // buffers (compact work-list — allocated, currently unused)
-    set_size<dev_pvfinder_nonempty_slots_t>(arguments, total_events * 40);
-    set_size<dev_pvfinder_nonempty_count_t>(arguments, 1);
 #ifdef ALLEN_WITH_CUBLAS
     // intermediate buffers: sized for one B_CHUNK=20-event chunk, reused per chunk.
     //
@@ -704,9 +681,15 @@ void pvfinder_fc_aggregation_t::operator()(
 
         // --- Kernel 3: reduce L6A → interval features + histogram ---
         const unsigned n_chunk_events = chunk_end - chunk_start;
-        global_function(pvfinder_reduce_l6a_kernel)(
-            dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(
-            arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u);
+        if (m_use_nonatomic_l6a_reduce.value()) {
+            global_function(pvfinder_reduce_l6a_kernel<false>)(
+                dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(
+                arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u);
+        } else {
+            global_function(pvfinder_reduce_l6a_kernel<true>)(
+                dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(
+                arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u);
+        }
 
         csr_col_offset += T_chunk;
     }

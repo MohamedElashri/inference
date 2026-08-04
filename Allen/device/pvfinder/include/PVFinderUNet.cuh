@@ -98,6 +98,47 @@ private:
         this, "use_fp16", false,
         "Phase M benchmark: use FP16 Tensor Core path for CBR layers (physics approximate)"};
 
+    // True single-pass Conv+Bias+ReLU for rcbn1, via the cuDNN backend graph API
+    // (Allen::CuDNN::ConvBiasReluGraph), instead of a cuDNN conv followed by a
+    // separate bias_relu_kernel pass. Physics-identical (BN is already folded
+    // into the weights either way); this only changes how many times the
+    // conv output round-trips through DRAM. FP32 only — ConvBiasReluGraph has
+    // no FP16 variant, so this flag has no effect when use_fp16=true. Falls
+    // back to the existing two-pass path at runtime if the backend graph API
+    // finds no usable engine for this shape on the current GPU (see
+    // ConvBiasReluGraph::create()'s doc comment).
+    Allen::Property<bool> m_use_fused_cbr {
+        this, "use_fused_cbr", false,
+        "rcbn1 only, FP32 only: use single-pass cuDNN backend-graph Conv+Bias+ReLU "
+        "instead of conv + separate bias/ReLU kernel (falls back automatically if "
+        "unsupported on this GPU)"};
+
+    // Phase 2 (optimization_plan.md): retest of forward-conv algorithm selection,
+    // bounded to a workspace budget instead of the unrestricted Find/heur_v7
+    // search that was tried and reverted (see CuDNNDescriptors.h's ConvDescriptors
+    // class comment). 0 (default) keeps every forward conv pinned to IMPLICIT_GEMM,
+    // bit-for-bit identical to current production behaviour. A nonzero value
+    // applies to ALL forward ConvDescriptors (rcbn1/2/3, up1_c, up2_c, oint_half,
+    // outc, and their FP16 counterparts) uniformly.
+    Allen::Property<unsigned> m_fwd_algo_ws_budget_bytes {
+        this, "fwd_algo_ws_budget_bytes", 0u,
+        "0 (default): pin IMPLICIT_GEMM everywhere (no search). Nonzero: bounded "
+        "cudnnGetConvolutionForwardAlgorithm_v7 search, adopting the top candidate "
+        "whose workspace fits this many bytes (falls back to IMPLICIT_GEMM if none "
+        "fits or the query fails)"};
+
+    // Phase 3 (optimization_plan.md): hand-written fused Conv+Bias+ReLU for
+    // rcbn3 only (the eager FP32 path only -- not FP16, not the CUDA-graph
+    // path), replacing cuDNN + a separate bias_relu_kernel pass with one
+    // kernel that keeps the activation slice in shared memory instead of
+    // round-tripping the raw conv output through DRAM. Physics-identical
+    // (same weights/bias, same cross-correlation math) when correct; default
+    // off pending the accompanying correctness sanity check.
+    Allen::Property<bool> m_use_fused_rcbn3 {
+        this, "use_fused_rcbn3", false,
+        "rcbn3 only, eager FP32 path only: use a hand-written shared-memory "
+        "fused Conv+Bias+ReLU kernel instead of cuDNN + separate bias/ReLU kernel"};
+
     // Skip-connection ablation (FP32 path only; ignored when use_fp16=true).
     // "concat" — current physics-validated behaviour (default).
     // "add"    — replace both channel-concat skips with element-wise add
