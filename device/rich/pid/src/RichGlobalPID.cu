@@ -8,7 +8,7 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include "Core/FloatComparison.h"
+
 #include "RichGlobalPID.cuh"
 #include <BinarySearch.cuh>
 #include <array>

@@ -29,7 +29,6 @@
 
 #include <cstdio>
 
-#include "Core/FloatComparison.h"
 #include "TrackChecker.h"
 #include "TrackCheckerCategories.h"
 

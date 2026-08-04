@@ -8,7 +8,6 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include "Core/FloatComparison.h"
 #include "TrackMatching.cuh"
 #include "TrackMatchingHelpers.cuh"
 #include "TrackMatchingAddUTHitsTools.cuh"

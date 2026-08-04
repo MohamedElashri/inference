@@ -10,7 +10,6 @@
 \*****************************************************************************/
 #pragma once
 
-#include "Core/FloatComparison.h"
 #include "KalmanParametrizations.cuh"
 #include "ParKalmanDefinitions.cuh"
 #include "ParKalmanFittedTrack.cuh"

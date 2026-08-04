@@ -13,7 +13,6 @@
 #include <cassert>
 #include "BackendCommon.h"
 #include "Common.h"
-#include "Core/FloatComparison.h"
 #include "States.cuh"
 #include "VeloEventModel.cuh"
 #include "SciFiEventModel.cuh"

@@ -10,7 +10,6 @@
 \*****************************************************************************/
 #include "seed_xz.cuh"
 #include "BinarySearch.cuh"
-#include "Core/FloatComparison.h"
 #include "hybrid_seeding_helpers.cuh"
 #include "hybrid_seeding_case.cuh"
 #include "memory_optim.cuh"

@@ -8,7 +8,6 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include "Core/FloatComparison.h"
 #include "FillMaterialInteractionCandidates.cuh"
 
 INSTANTIATE_ALGORITHM(FillMaterialInteractionCandidates::fill_materialinteraction_candidates_t)

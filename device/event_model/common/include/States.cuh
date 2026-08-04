@@ -12,7 +12,6 @@
 
 #include "BackendCommon.h"
 #include "Common.h"
-#include "Core/FloatComparison.h"
 #include "KinUtils.cuh"
 
 /**

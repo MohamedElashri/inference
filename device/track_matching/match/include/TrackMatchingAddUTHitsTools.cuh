@@ -10,7 +10,6 @@
 \*****************************************************************************/
 #pragma once
 
-#include "Core/FloatComparison.h"
 #include "memory_optim.cuh"
 #include "BinarySearch.cuh"
 // Basic

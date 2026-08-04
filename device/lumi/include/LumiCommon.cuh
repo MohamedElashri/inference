@@ -10,7 +10,6 @@
 \*****************************************************************************/
 #pragma once
 
-#include <Core/FloatComparison.h>
 #include <LumiDefinitions.cuh>
 
 // fills a lumi counter of [size] bits

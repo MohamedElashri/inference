@@ -13,10 +13,7 @@
 
 #include <atomic>
 #include <iostream>
-
 #include <Algorithm.cuh>
-
-#include <Core/FloatComparison.h>
 
 #ifndef ALLEN_STANDALONE
 #include "ServiceLocator.h"

@@ -11,7 +11,6 @@
 #pragma once
 
 #include "BackendCommon.h"
-#include "Core/FloatComparison.h"
 #include "States.cuh"
 #include "SystemOfUnits.h"
 // #include "ITrackTrajectory.cuh"

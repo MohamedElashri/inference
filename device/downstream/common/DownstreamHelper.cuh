@@ -12,7 +12,6 @@
 
 #include "BinarySearch.cuh"
 #include "BackendCommon.h"
-#include "Core/FloatComparison.h"
 #include "DownstreamConstants.cuh"
 
 /**

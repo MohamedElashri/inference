@@ -11,7 +11,6 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
-#include "Core/FloatComparison.h"
 #include "MuonDefinitions.cuh"
 #include "ParticleTypes.cuh"
 template<typename T>

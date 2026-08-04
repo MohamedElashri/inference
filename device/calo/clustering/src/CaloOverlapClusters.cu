@@ -9,7 +9,6 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include <CaloOverlapClusters.cuh>
-#include <Core/FloatComparison.h>
 #include <vector>
 using std::vector;
 INSTANTIATE_ALGORITHM(calo_overlap_clusters::calo_overlap_clusters_t)

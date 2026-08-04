@@ -11,7 +11,6 @@
 
 #pragma once
 #include <cmath>
-#include <Core/FloatComparison.h>
 #include <RichDefinitions.cuh>
 
 #if !defined(__CUDA_ARCH__) && !defined(rsqrtf)
