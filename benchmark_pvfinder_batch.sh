@@ -42,6 +42,20 @@ Options:
   --use-nonatomic-l6a-reduce BOOL
                              Set pvfinder_fc_aggregation.use_nonatomic_l6a_reduce
                              true/false (default: false); see optimization_plan.md
+  --use-warp-parallel-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_warp_parallel_reduce
+                             true/false (default: false); Phase 6 idea 2, see
+                             optimization_plan.md
+  --fc-chunk-size N          Set pvfinder_fc_aggregation.fc_chunk_size
+                             (default: 20); Phase 6 idea 3, see optimization_plan.md
+  --use-fused-bias-relu-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_fused_bias_relu_reduce
+                             true/false (default: false); Phase 7 idea 1, see
+                             optimization_plan.md
+  --skip-redundant-memset BOOL
+                             Set pvfinder_fc_aggregation.skip_redundant_memset
+                             true/false (default: false); Phase 8 idea 1, see
+                             optimization_plan.md
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -74,6 +88,10 @@ FWD_ALGO_WS_BUDGET_MB=0
 USE_FUSED_RCBN3=false
 L6A_M=800
 USE_NONATOMIC_L6A_REDUCE=false
+USE_WARP_PARALLEL_REDUCE=false
+FC_CHUNK_SIZE=20
+USE_FUSED_BIAS_RELU_REDUCE=false
+SKIP_REDUNDANT_MEMSET=false
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"
 
@@ -96,6 +114,10 @@ while [[ $# -gt 0 ]]; do
         --use-fused-rcbn3) USE_FUSED_RCBN3="$2"; shift 2 ;;
         --l6a-m) L6A_M="$2"; shift 2 ;;
         --use-nonatomic-l6a-reduce) USE_NONATOMIC_L6A_REDUCE="$2"; shift 2 ;;
+        --use-warp-parallel-reduce) USE_WARP_PARALLEL_REDUCE="$2"; shift 2 ;;
+        --fc-chunk-size) FC_CHUNK_SIZE="$2"; shift 2 ;;
+        --use-fused-bias-relu-reduce) USE_FUSED_BIAS_RELU_REDUCE="$2"; shift 2 ;;
+        --skip-redundant-memset) SKIP_REDUNDANT_MEMSET="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
@@ -142,6 +164,26 @@ esac
 case "${USE_NONATOMIC_L6A_REDUCE}" in
     true|false) ;;
     *) echo "ERROR: --use-nonatomic-l6a-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_WARP_PARALLEL_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-warp-parallel-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${FC_CHUNK_SIZE}" =~ ^[0-9]+$ ]] || [[ "${FC_CHUNK_SIZE}" -lt 1 ]]; then
+    echo "ERROR: --fc-chunk-size must be a positive integer" >&2
+    exit 1
+fi
+
+case "${USE_FUSED_BIAS_RELU_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fused-bias-relu-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+case "${SKIP_REDUNDANT_MEMSET}" in
+    true|false) ;;
+    *) echo "ERROR: --skip-redundant-memset must be true or false" >&2; exit 1 ;;
 esac
 
 if ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]] || [[ "${L6A_M}" -gt 800 ]]; then
@@ -246,11 +288,14 @@ PY
 
 patch_fc_config() {
     local config="$1"
-    python3 - "$config" "$L6A_M" "$USE_NONATOMIC_L6A_REDUCE" <<'PY'
+    python3 - "$config" "$L6A_M" "$USE_NONATOMIC_L6A_REDUCE" \
+        "$USE_WARP_PARALLEL_REDUCE" "$FC_CHUNK_SIZE" \
+        "$USE_FUSED_BIAS_RELU_REDUCE" "$SKIP_REDUNDANT_MEMSET" <<'PY'
 import json
 import sys
 
-path, l6a_m_raw, use_nonatomic_raw = sys.argv[1:]
+(path, l6a_m_raw, use_nonatomic_raw, use_warp_parallel_raw, fc_chunk_size_raw,
+ use_fused_bias_relu_raw, skip_memset_raw) = sys.argv[1:]
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -258,6 +303,10 @@ with open(path, "r", encoding="utf-8") as handle:
 fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
 fc_agg["l6a_m"] = int(l6a_m_raw)
 fc_agg["use_nonatomic_l6a_reduce"] = use_nonatomic_raw == "true"
+fc_agg["use_warp_parallel_reduce"] = use_warp_parallel_raw == "true"
+fc_agg["fc_chunk_size"] = int(fc_chunk_size_raw)
+fc_agg["use_fused_bias_relu_reduce"] = use_fused_bias_relu_raw == "true"
+fc_agg["skip_redundant_memset"] = skip_memset_raw == "true"
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -370,6 +419,10 @@ run_sequence() {
     echo "use_fused_rcbn3=${USE_FUSED_RCBN3}"
     echo "l6a_m=${L6A_M}"
     echo "use_nonatomic_l6a_reduce=${USE_NONATOMIC_L6A_REDUCE}"
+    echo "use_warp_parallel_reduce=${USE_WARP_PARALLEL_REDUCE}"
+    echo "fc_chunk_size=${FC_CHUNK_SIZE}"
+    echo "use_fused_bias_relu_reduce=${USE_FUSED_BIAS_RELU_REDUCE}"
+    echo "skip_redundant_memset=${SKIP_REDUNDANT_MEMSET}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
 } > "${BATCH_DIR}/metadata.env"

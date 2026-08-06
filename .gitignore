@@ -15,3 +15,4 @@ Sequence.json
 *.sqlite
 slides
 benchmark_results
+*plan*

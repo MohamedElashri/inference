@@ -4,6 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <algorithm>
 #ifdef ALLEN_WITH_CUBLAS
 #include <cublas_v2.h>
 // Thread-local cuBLAS handle — one per Allen pipeline thread, never shared.
@@ -283,6 +284,20 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
 // T_chunk is the total number of CSR track entries (boundary tracks counted
 // twice) for the current chunk. Entry t corresponds to the t-th slot in the
 // CSR track_idx array when scanned consecutively across the chunk's events.
+//
+// Strategy: binary-search the CSR interval_start array across the chunk
+// to find (event, absolute track_idx_entry) for linear slot t.
+//
+// Simpler fast path: walk the CSR sentinel (index 41) for each event to
+// find which event owns slot t, then look up the local track index.
+//
+// (Phase 7 tried a real binary search here -- a block-collaborative
+// shared-memory prefix sum plus per-thread binary search, avoiding the
+// redundant global-memory re-reads across the block's 256 threads.
+// Implemented, benchmarked, found to be a net wash-to-slight-regression:
+// the shared-memory setup/sync overhead roughly cancels the reduced
+// iteration count at the chunk sizes actually in use. Removed. See
+// optimization_plan.md Phase 7 for the numbers.)
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_l1_to_l5_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
@@ -298,11 +313,6 @@ __global__ void pvfinder_l1_to_l5_kernel(
     // Determine which event and which local interval entry this thread owns.
     // The CSR track_idx array is indexed via per-event offsets.
     // We recover the global track index from the pre-built CSR structure.
-    // Strategy: binary-search the CSR interval_start array across the chunk
-    // to find (event, absolute track_idx_entry) for linear slot t.
-    //
-    // Simpler fast path: walk the CSR sentinel (index 41) for each event to
-    // find which event owns slot t, then look up the local track index.
     unsigned ev = chunk_start;
     unsigned local_t = t;
     while (ev < chunk_end) {
@@ -406,15 +416,38 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // cross-thread race. UseAtomic=false trades atomicAdd for a plain +=, which
 // should be equivalent given that invariant; kept as a compile-time template
 // parameter (not a runtime branch) so the untested variant carries zero
-// overhead relative to a hand-written non-atomic kernel.
-template <bool UseAtomic>
+// overhead relative to a hand-written non-atomic kernel. Ignored when
+// WarpParallelTracks=true (that path always uses its own small, bounded
+// combine step -- see below).
+//
+// WarpParallelTracks (see m_use_warp_parallel_reduce doc comment): when true,
+// tracks are split round-robin across the block's warps instead of every
+// thread processing one track at a time serially. Each warp accumulates its
+// assigned tracks' contributions into private per-lane registers (no shared
+// memory traffic during the track loop itself), then all warps combine their
+// partial sums into s_feat via a bounded atomicAdd -- exactly N_WARPS=4
+// atomics per neuron per block, independent of n_local, unlike the O(n_local)
+// atomics UseAtomic controls in the serial path.
+//
+// (Phase 6 also tried compacting non-empty (event, interval) blocks out of
+// the grid via a host-built map -- implemented, benchmarked, regressed real
+// throughput at every thread count, and was removed. See
+// optimization_plan.md Phase 6 for the numbers and root-cause analysis.)
+//
+// FuseBiasRelu (Phase 7, m_use_fused_bias_relu_reduce doc comment): when
+// true, this kernel reads the RAW GEMM output (pvfinder_l6a_bias_relu_kernel
+// is not launched at all in this mode) and applies bias+LeakyReLU inline,
+// identical math to what that separate kernel used to write back in-place --
+// b6A must be non-null in this mode.
+template <bool UseAtomic, bool WarpParallelTracks, bool FuseBiasRelu>
 __global__ void pvfinder_reduce_l6a_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
     unsigned chunk_start,
     unsigned chunk_end,
     unsigned csr_offset,        // offset into the global CSR that corresponds to chunk_start
     unsigned T_chunk,
-    unsigned l6a_m)
+    unsigned l6a_m,
+    const float* __restrict__ b6A)  // bias[800], only read when FuseBiasRelu
 {
     // blockIdx.x indexes over (relative_event, interval) in this chunk.
     const unsigned n_chunk_events = chunk_end - chunk_start;
@@ -435,7 +468,22 @@ __global__ void pvfinder_reduce_l6a_kernel(
     const int  iv_begin = g_start[interval];
     const int  iv_end   = g_start[interval + 1];
     const int  n_local  = iv_end - iv_begin;
-    if (n_local == 0) return;  // no tracks — output already zeroed by cudaMemsetAsync
+    if (n_local == 0) {
+        // Phase 8 (optimization_plan.md, 2026-08-05): this block still gets
+        // launched (block compaction was tried and rejected in Phase 6), so
+        // rather than rely on a separate whole-buffer cudaMemsetAsync to
+        // leave correct zeros here, write them directly -- t16 profiling
+        // under real contention found cudaMemsetAsync at 14.4% of total CUDA
+        // API time, a real cost the earlier -t1 clean profiling understated.
+        const unsigned thread_id = threadIdx.x;
+        float* g_feat = parameters.dev_pvfinder_interval_features
+                        + (unsigned long long)event_number * 32000u + interval * 800u;
+        for (int i = thread_id; i < 800; i += blockDim.x) g_feat[i] = 0.0f;
+        float* g_hist = parameters.dev_pvfinder_output_histogram
+                        + event_number * 4000u + interval * 100u;
+        for (int i = thread_id; i < 100; i += blockDim.x) g_hist[i] = 0.0f;
+        return;
+    }
 
     // Shared memory accumulators: s_feat[800] + s_hist[100]
     __shared__ float s_feat[800];
@@ -445,20 +493,65 @@ __global__ void pvfinder_reduce_l6a_kernel(
     for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
     __syncthreads();
 
-    // Accumulate: for each track t in [iv_begin, iv_end)
-    // Column index in dev_l6a_output = csr_offset + ev_col_offset + t
-    for (int t = iv_begin; t < iv_end; ++t) {
-        const unsigned col = csr_offset + ev_col_offset + (unsigned)t;
-        // Each thread sums a strided subset of the l6a_m active neurons.
-        for (int n = thread_id; n < (int)l6a_m; n += blockDim.x) {
-            const float val = parameters.dev_pvfinder_l6a_output[(unsigned long long)n + (unsigned long long)col * 800u];
-            if constexpr (UseAtomic) {
-                atomicAdd(&s_feat[n], val);
-            } else {
-                s_feat[n] += val;
+    if constexpr (WarpParallelTracks) {
+        // N_WARPS matches KERNEL3_BLOCK=128 (the only block size this kernel
+        // is ever launched with) / warpSize=32.
+        constexpr unsigned N_WARPS = 4;
+        constexpr unsigned MAX_PER_LANE = (800u + 31u) / 32u;  // 25
+
+        const unsigned warp_id = thread_id / warpSize;
+        const unsigned lane_id = thread_id % warpSize;
+
+        float acc[MAX_PER_LANE];
+#pragma unroll
+        for (unsigned i = 0; i < MAX_PER_LANE; ++i) acc[i] = 0.0f;
+
+        // Round-robin tracks across warps: warp w handles tracks
+        // iv_begin+w, iv_begin+w+N_WARPS, ... -- concurrently with the other
+        // warps in this block, unlike the serial-over-tracks path below.
+        for (int t = iv_begin + (int)warp_id; t < iv_end; t += (int)N_WARPS) {
+            const unsigned col = csr_offset + ev_col_offset + (unsigned)t;
+#pragma unroll
+            for (unsigned i = 0; i < MAX_PER_LANE; ++i) {
+                const unsigned n = lane_id + i * warpSize;
+                if (n < l6a_m) {
+                    float val = parameters.dev_pvfinder_l6a_output[
+                        (unsigned long long)n + (unsigned long long)col * 800u];
+                    if constexpr (FuseBiasRelu) {
+                        val = pvfinder_leaky_relu(val + b6A[n]);
+                    }
+                    acc[i] += val;
+                }
             }
-            // Accumulate softplus-reduced histogram bin (n / 8 maps 800 → 100)
-            // s_hist[n % 100] is updated after the full s_feat loop below.
+        }
+
+        // Combine: each lane's MAX_PER_LANE partial sums go into s_feat via a
+        // bounded atomicAdd -- exactly N_WARPS contributions per neuron,
+        // regardless of n_local (unlike the serial path's O(n_local) atomics).
+#pragma unroll
+        for (unsigned i = 0; i < MAX_PER_LANE; ++i) {
+            const unsigned n = lane_id + i * warpSize;
+            if (n < l6a_m) atomicAdd(&s_feat[n], acc[i]);
+        }
+    } else {
+        // Accumulate: for each track t in [iv_begin, iv_end)
+        // Column index in dev_l6a_output = csr_offset + ev_col_offset + t
+        for (int t = iv_begin; t < iv_end; ++t) {
+            const unsigned col = csr_offset + ev_col_offset + (unsigned)t;
+            // Each thread sums a strided subset of the l6a_m active neurons.
+            for (int n = thread_id; n < (int)l6a_m; n += blockDim.x) {
+                float val = parameters.dev_pvfinder_l6a_output[(unsigned long long)n + (unsigned long long)col * 800u];
+                if constexpr (FuseBiasRelu) {
+                    val = pvfinder_leaky_relu(val + b6A[n]);
+                }
+                if constexpr (UseAtomic) {
+                    atomicAdd(&s_feat[n], val);
+                } else {
+                    s_feat[n] += val;
+                }
+                // Accumulate softplus-reduced histogram bin (n / 8 maps 800 → 100)
+                // s_hist[n % 100] is updated after the full s_feat loop below.
+            }
         }
     }
     __syncthreads();
@@ -505,16 +598,47 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     // IMPORTANT: Allen calls set_arguments_size() during Scheduler::Scheduler() init
     // BEFORE any events are loaded, so total_events may be 0.  We must never divide by
     // total_events directly.  Use a safe upper-bound of MAX_TRACKS_PER_EVENT instead.
-    constexpr unsigned B_CHUNK              = 20u;
-    constexpr unsigned MAX_TRACKS_PER_EVENT = 600u;  // generous upper bound for MinBias nu=7.6
-    const unsigned avg_tracks_per_event =
-        (total_events > 0u)
-            ? ((total_tracks + total_events - 1u) / total_events)
-            : MAX_TRACKS_PER_EVENT;
-    // T_chunk_max: tracks per chunk × 2 (boundary-track double-counting in CSR).
-    // Clamp to MAX_TRACKS_PER_EVENT * B_CHUNK * 2 so the L6A buffer stays ≤ 25.6 MB.
-    const unsigned T_chunk_max =
-        std::min(avg_tracks_per_event, MAX_TRACKS_PER_EVENT) * B_CHUNK * 2u;
+    // Phase 6 (optimization_plan.md): fc_chunk_size replaces the old hardcoded
+    // B_CHUNK=20 constant, so buffer sizing must track whatever value the
+    // property is set to (same value operator() chunks by, below).
+    const unsigned B_CHUNK = m_fc_chunk_size.value();
+    // Correctness fix, round 1 (optimization_plan.md, methodology-correction
+    // section, 2026-08-05): the original code sized this buffer from
+    // *average* tracks/event across the whole batch with zero safety margin
+    // (std::min(avg_tracks_per_event, 600) * B_CHUNK), which is not a safe
+    // basis for any *individual* chunk's actual entry count -- confirmed in
+    // practice: at fc_chunk_size=200 with a large event batch, this produced
+    // a genuine "illegal memory access" (CUDA error 700) that corrupted the
+    // whole CUDA context.
+    //
+    // Correctness fix, round 2 (same date): the first fix
+    // (MAX_TRACKS_PER_EVENT=600 * B_CHUNK * 2) went to the opposite extreme
+    // -- it assumes every single event in the chunk simultaneously hits the
+    // absolute per-event worst case (600 tracks, all boundary-duplicated),
+    // which is a ~4.4x over-allocation in practice and cost real throughput
+    // (chunk=100 retention dropped from 73.2% to 59.7% under this fix alone).
+    // Empirically measured instead (10,000 real events from the production
+    // MDF, fc_chunk_size=100, ~100 real chunks -- see optimization_plan.md
+    // for the full methodology): real per-chunk entry totals (T_chunk) have
+    // mean ~196/event and observed max ~272/event-equivalent (27,239 over a
+    // 100-event chunk) -- i.e. actual chunk-level entries concentrate tightly
+    // around their mean rather than approaching anywhere near the per-event
+    // worst case simultaneously for every event, as expected for a sum of
+    // ~independent per-event contributions. SAFE_AVG_ENTRIES_PER_EVENT=600
+    // below already includes real-data boundary-duplication behavior (it's
+    // derived from observed *entries*, not from a separate track-count
+    // estimate needing its own ×2 factor) and gives ~2.2x margin over the
+    // observed worst chunk and ~3x over the observed mean. This remains an
+    // empirical, not a mathematically-proven, bound -- residual risk is a
+    // production dataset producing a chunk more extreme than anything in the
+    // 10,000-event sample this was calibrated against. set_arguments_size()
+    // runs before any events are loaded (see the IMPORTANT note above), so
+    // it cannot use real per-event data at runtime; this constant must stay
+    // hardcoded and should be re-validated if the input sample changes
+    // significantly (different pileup/physics sample, not just more
+    // statistics of the same one).
+    constexpr unsigned SAFE_AVG_ENTRIES_PER_EVENT = 600u;
+    const unsigned T_chunk_max = SAFE_AVG_ENTRIES_PER_EVENT * B_CHUNK;
     // dev_l5_output: [T_chunk_max × 20]  row-major — L1-L5 hidden states (~2.4 MB)
     set_size<dev_pvfinder_l5_output_t> (arguments, T_chunk_max * 20u);
     // dev_l6a_output: [800 × T_chunk_max]  column-major — raw L6A GEMM output (~24 MB)
@@ -577,16 +701,40 @@ void pvfinder_fc_aggregation_t::operator()(
     // empty intervals, free on-stream cost.)
     // -----------------------------------------------------------------------
     const unsigned padded_events = ((n_events + 19) / 20) * 20;
-    cudaMemsetAsync(
-        data<dev_pvfinder_interval_features_t>(arguments),
-        0,
-        padded_events * 32000u * sizeof(float),
-        context.stream());
-    cudaMemsetAsync(
-        data<dev_pvfinder_output_histogram_t>(arguments),
-        0,
-        n_events * 4000u * sizeof(float),
-        context.stream());
+#ifdef ALLEN_WITH_CUBLAS
+    const bool skip_redundant_memset = m_skip_redundant_memset.value();
+#else
+    // The non-cuBLAS fallback kernel (pvfinder_fused_fc_aggregation_kernel)
+    // still early-returns and relies on the full memset -- never skip it here.
+    const bool skip_redundant_memset = false;
+#endif
+    if (skip_redundant_memset) {
+        // pvfinder_reduce_l6a_kernel writes explicit zeros for every empty
+        // (event, interval) slot itself now (see its doc comment) -- only
+        // the padding tail of dev_pvfinder_interval_features, which no FC
+        // kernel ever writes to (real events only go up to n_events), still
+        // needs zeroing. dev_pvfinder_output_histogram needs no memset at
+        // all in this mode.
+        if (padded_events > n_events) {
+            cudaMemsetAsync(
+                data<dev_pvfinder_interval_features_t>(arguments)
+                    + (unsigned long long)n_events * 32000u,
+                0,
+                (unsigned long long)(padded_events - n_events) * 32000u * sizeof(float),
+                context.stream());
+        }
+    } else {
+        cudaMemsetAsync(
+            data<dev_pvfinder_interval_features_t>(arguments),
+            0,
+            padded_events * 32000u * sizeof(float),
+            context.stream());
+        cudaMemsetAsync(
+            data<dev_pvfinder_output_histogram_t>(arguments),
+            0,
+            n_events * 4000u * sizeof(float),
+            context.stream());
+    }
 
 #ifdef ALLEN_WITH_CUBLAS
     // -----------------------------------------------------------------------
@@ -614,6 +762,7 @@ void pvfinder_fc_aggregation_t::operator()(
                csr_words * sizeof(int),
                cudaMemcpyDeviceToHost);
 
+
     const float* w1  = dev_weights;
     const float* b1  = w1  + 180;
     const float* w2  = b1  + 20;
@@ -627,7 +776,9 @@ void pvfinder_fc_aggregation_t::operator()(
     const float* w6A = b5  + 20;
     const float* b6A = w6A + 16000;
 
-    constexpr unsigned B_CHUNK = 20u;
+    // Phase 6 (optimization_plan.md): fc_chunk_size replaces the old hardcoded
+    // B_CHUNK=20 constant -- must match set_arguments_size's buffer sizing.
+    const unsigned B_CHUNK = m_fc_chunk_size.value();
     constexpr unsigned KERNEL1_BLOCK = 256u;
     constexpr unsigned KERNEL2_BLOCK = 512u;
     constexpr unsigned KERNEL3_BLOCK = 128u;
@@ -636,6 +787,10 @@ void pvfinder_fc_aggregation_t::operator()(
 
     cublasHandle_t cublas = get_cublas_handle();
     cublasSetStream(cublas, context.stream());
+
+    const bool use_warp_parallel   = m_use_warp_parallel_reduce.value();
+    const bool use_nonatomic       = m_use_nonatomic_l6a_reduce.value();
+    const bool use_fused_bias_relu = m_use_fused_bias_relu_reduce.value();
 
     unsigned csr_col_offset = 0;  // running total of CSR entries before chunk_start
     for (unsigned chunk_start = 0; chunk_start < n_events; chunk_start += B_CHUNK) {
@@ -673,22 +828,55 @@ void pvfinder_fc_aggregation_t::operator()(
             data<dev_pvfinder_l6a_output_t>(arguments), 800);
 
         // --- Kernel 2: bias + LeakyReLU in-place on L6A output ---
+        // Skipped entirely when use_fused_bias_relu -- pvfinder_reduce_l6a_kernel
+        // applies the same bias+LeakyReLU inline on its own read of the raw
+        // GEMM output instead (Phase 7, see m_use_fused_bias_relu_reduce doc
+        // comment).
         const unsigned l6a_m_u = (unsigned)l6a_m;
-        const unsigned k2_blocks = (T_chunk * l6a_m_u + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
-        global_function(pvfinder_l6a_bias_relu_kernel)(
-            dim3(k2_blocks), dim3(KERNEL2_BLOCK), context)(
-            arguments, b6A, T_chunk, l6a_m_u);
+        if (!use_fused_bias_relu) {
+            const unsigned k2_blocks = (T_chunk * l6a_m_u + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
+            global_function(pvfinder_l6a_bias_relu_kernel)(
+                dim3(k2_blocks), dim3(KERNEL2_BLOCK), context)(
+                arguments, b6A, T_chunk, l6a_m_u);
+        }
 
         // --- Kernel 3: reduce L6A → interval features + histogram ---
         const unsigned n_chunk_events = chunk_end - chunk_start;
-        if (m_use_nonatomic_l6a_reduce.value()) {
-            global_function(pvfinder_reduce_l6a_kernel<false>)(
-                dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(
-                arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u);
+        const unsigned grid_blocks = n_chunk_events * 40u;
+
+        if (use_warp_parallel) {
+            // UseAtomic is irrelevant on this path (its own bounded combine
+            // step is always used regardless) -- fixed to true as a no-op
+            // placeholder to avoid instantiating a redundant variant.
+            if (use_fused_bias_relu) {
+                global_function(pvfinder_reduce_l6a_kernel<true, true, true>)(
+                    dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
+                    arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u, b6A);
+            } else {
+                global_function(pvfinder_reduce_l6a_kernel<true, true, false>)(
+                    dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
+                    arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u, b6A);
+            }
+        } else if (use_nonatomic) {
+            if (use_fused_bias_relu) {
+                global_function(pvfinder_reduce_l6a_kernel<false, false, true>)(
+                    dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
+                    arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u, b6A);
+            } else {
+                global_function(pvfinder_reduce_l6a_kernel<false, false, false>)(
+                    dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
+                    arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u, b6A);
+            }
         } else {
-            global_function(pvfinder_reduce_l6a_kernel<true>)(
-                dim3(n_chunk_events * 40u), dim3(KERNEL3_BLOCK), context)(
-                arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u);
+            if (use_fused_bias_relu) {
+                global_function(pvfinder_reduce_l6a_kernel<true, false, true>)(
+                    dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
+                    arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u, b6A);
+            } else {
+                global_function(pvfinder_reduce_l6a_kernel<true, false, false>)(
+                    dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
+                    arguments, chunk_start, chunk_end, csr_col_offset, T_chunk, l6a_m_u, b6A);
+            }
         }
 
         csr_col_offset += T_chunk;
