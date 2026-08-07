@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <iostream>
 
 #include <Algorithm.cuh>
@@ -123,22 +124,33 @@ namespace Allen::Monitoring {
     void registerAveragingCounter(AveragingCounter<unsigned>* c) { m_av_counters.push_back(c); }
     void initAccumulators(unsigned number_of_streams);
     void mergeAndReset(bool singlethreaded = false);
-    char* bufferForStream(unsigned stream_id) const { return m_dev_buffer_ptr[m_stream_current_buffer[stream_id]]; }
+    char* bufferForStream(unsigned stream_id) const
+    {
+      return m_dev_buffer_ptr[m_stream_current_buffer[stream_id].load(std::memory_order_acquire)];
+    }
     void synchronizeStream(unsigned stream_id)
     {
-      m_stream_done[stream_id] = false;
-      m_stream_current_buffer[stream_id] = m_current_buffer;
+      m_stream_done[stream_id].store(false, std::memory_order_release);
+      m_stream_current_buffer[stream_id].store(
+        m_current_buffer.load(std::memory_order_acquire), std::memory_order_release);
     }
-    void streamDone(unsigned stream_id) { m_stream_done[stream_id] = true; }
+    void streamDone(unsigned stream_id) { m_stream_done[stream_id].store(true, std::memory_order_release); }
 
   private:
     char* m_dev_buffer_ptr[2] {nullptr, nullptr}; // double buffering
     char* m_host_buffer_ptr {nullptr};
     std::size_t m_buffer_size {0};
 
-    unsigned m_current_buffer {0};
-    std::vector<unsigned> m_stream_current_buffer;
-    std::vector<bool> m_stream_done;
+    // Written by the aggregation thread (mergeAndReset()) and/or each stream's own
+    // worker thread (synchronizeStream()/streamDone()), read cross-thread by the
+    // other side -- must be genuinely atomic, not just re-typed, to avoid a data
+    // race under the C++ memory model (see lhcb/Allen#630). initAccumulators() runs
+    // once, single-threaded, strictly before any worker/aggregation thread starts,
+    // so it move-assigns freshly-sized vectors instead of resizing (std::atomic<T>
+    // is neither copy- nor move-constructible, so resize() would not compile).
+    std::atomic<unsigned> m_current_buffer {0};
+    std::vector<std::atomic<unsigned>> m_stream_current_buffer;
+    std::vector<std::atomic<bool>> m_stream_done;
 
     CountersHistogram m_counters_histogram;
 
