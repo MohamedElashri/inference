@@ -33,6 +33,13 @@ struct Parameters {
     // 0 before each chunk's launch, claimed via atomicAdd by one thread per
     // block. See m_use_grid_stride_reduce's doc comment.
     DEVICE_OUTPUT(dev_pvfinder_reduce_work_counter_t, unsigned) dev_pvfinder_reduce_work_counter;
+    // Phase 19 (optimization_plan.md): per-chunk cumulative CSR column offsets,
+    // one per event in the chunk plus a leading 0 (size B_CHUNK_max+1),
+    // precomputed on the host from the same host_csr readback that already
+    // computes T_chunk and uploaded once per chunk. Only used when
+    // m_use_precomputed_csr_offset is true -- see that property's doc
+    // comment. Zero-sized otherwise.
+    DEVICE_OUTPUT(dev_pvfinder_event_col_offset_t, unsigned) dev_pvfinder_event_col_offset;
 };
 
 struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
@@ -167,6 +174,156 @@ private:
     // is too shallow a reduction depth for the coarser mantissa to compound
     // into anything larger) but the performance case didn't hold up.
     // Removed. See optimization_plan.md Phase 7 for the numbers.
+
+    // Phase 18 (optimization_plan.md, 2026-08-09): requested by way of asking
+    // what pvfinder_l1_to_l5_kernel's *ceiling* looks like -- if L1-L5 were
+    // architecturally 1 hidden layer instead of 5, how much of FC's runtime
+    // would that actually buy back? This is a structural throughput probe,
+    // not a real architecture change: it reuses layer1's real trained
+    // weights (w1/b1, 9->20) and skips layers 2-5 entirely, writing layer1's
+    // raw output straight to dev_pvfinder_l5_output in place of layer5's.
+    // Every downstream buffer (dev_pvfinder_l5_output, L6A's GEMM, the
+    // reduce kernel) is unchanged -- layer1's output is already the same
+    // 20-wide shape layer5's would have been, so nothing else needs to
+    // change to test this. The output is garbage (layer6A's weights were
+    // trained expecting layer5's transformation, not layer1's) -- this flag
+    // answers a timing question only, never a correctness one. Always
+    // false in any physics-valid run.
+    Allen::Property<bool> m_fc_single_hidden_layer {
+        this, "fc_single_hidden_layer", false,
+        "Throughput-ceiling probe: skip pvfinder_l1_to_l5_kernel's layers "
+        "2-5, feeding layer1's raw 20-wide output straight to L6A (default "
+        "false = physics-valid all-5-layers; true is NOT physics-valid, "
+        "timing only). See optimization_plan.md Phase 18"};
+
+    // Phase 19 (optimization_plan.md, 2026-08-09): pvfinder_reduce_l6a_kernel's
+    // per-slot ev_col_offset computation -- a serial walk over this chunk's
+    // per-event CSR sentinels, from chunk_start up to event_number -- used to
+    // be computed unconditionally by EVERY thread in the block (not gated by
+    // thread_id at all), for EVERY (event, interval) slot, including slots
+    // that immediately early-return on n_local==0 without ever using the
+    // value. Never targeted by any prior phase (Phases 6/13/14 all targeted
+    // different CSR-walk costs: L1-L5's own per-track lookup, or the reduce
+    // grid's shape -- not this scalar offset specifically). The reorder
+    // (compute only once n_local>0 is known) is always-on now, no flag
+    // needed -- zero-risk, same result, just less wasted work on empty
+    // slots.
+    //
+    // Two candidate fixes for the walk itself were tried: (1) have only
+    // thread 0 compute it and broadcast via shared memory instead of every
+    // thread redundantly re-walking it -- benchmarked null (nsys: exactly
+    // flat kernel time across 200 profiled launches; -t16: +0.13pp, well
+    // within the ~0.02-0.17% baseline spread measured that session) and
+    // removed; (2) replace the O(events-in-chunk) walk with an O(1) lookup
+    // into a per-chunk offset array precomputed on the host, below. Fix 1's
+    // null result plausibly means the walk's data (a small, ~16KB-per-100-
+    // events buffer reread by every slot) stays L2-resident and its latency
+    // is hidden by the grid-stride kernel's own warp-level concurrency at
+    // clean -t1 -- but Fix 2 (which removes the chain outright rather than
+    // just deduplicating who runs it) still won for real at -t16, +0.68pp to
+    // +0.76pp confirmed across two independent sweeps, despite showing the
+    // same flat nsys -t1 kernel-time signal as Fix 1. Consistent with this
+    // plan's standing pattern (Phase 8) of costs that are real under -t16
+    // contention but invisible in clean -t1 profiling. See
+    // optimization_plan.md Phase 19 for the full numbers.
+    Allen::Property<bool> m_use_precomputed_csr_offset {
+        this, "use_precomputed_csr_offset", false,
+        "Replace pvfinder_reduce_l6a_kernel's O(events-in-chunk) ev_col_offset "
+        "walk with an O(1) lookup into a per-chunk offset array, precomputed "
+        "on the host (piggybacking on the existing T_chunk host walk) and "
+        "uploaded once per chunk -- confirmed real +0.68-0.76pp FC-alone "
+        "retention gain, see optimization_plan.md Phase 19"};
+
+    // Phase 20 (optimization_plan.md, 2026-08-09): SAFE_AVG_ENTRIES_PER_EVENT
+    // used to be a hardcoded compile-time constexpr (600u, established in
+    // Phase 9 from a 10,000-event calibration: ~2.2x margin over the
+    // observed worst chunk). Requested follow-up: Phase 9 already found
+    // fc_chunk_size=150 gives zero improvement over 100 even with a
+    // proportionally larger buffer (margin held fixed at 600u) -- this
+    // property exists to test the narrower, previously-unexamined question
+    // of whether a *bigger* chunk at *roughly the same* memory footprint as
+    // today's baseline helps, by tightening this margin just enough to fund
+    // the larger chunk within the same T_chunk_max. A fresh, larger
+    // (20,000-event) re-calibration for this phase found the true observed
+    // worst-case per-event-equivalent entry count sits at ~260-265 across
+    // chunk sizes 100-150 (consistent with Phase 9's original ~272, despite
+    // the per-event *mean* differing notably between samples -- 234.83 here
+    // vs. Phase 9's 196, a reminder that this bound is empirical, not
+    // provable, and genuinely varies sample to sample). Exposed as a
+    // runtime property (rather than requiring a rebuild per candidate
+    // value) specifically so a value can be tested cautiously and dialed
+    // back without recompiling if a large-scale stress test or
+    // compute-sanitizer run flags trouble -- see Phase 9's "CUDA error 700,
+    // corrupted the whole CUDA context" history for why this constant
+    // deserves particular caution. Default 600 preserves today's
+    // physics-valid, already-validated behavior exactly.
+    Allen::Property<unsigned> m_safe_avg_entries_per_event {
+        this, "safe_avg_entries_per_event", 600u,
+        "Per-event CSR-entry safety margin used to size T_chunk_max = "
+        "this * fc_chunk_size (default 600, Phase 9's validated value; "
+        "smaller values reclaim memory for a larger fc_chunk_size at real "
+        "crash risk if set too low -- see optimization_plan.md Phase 20 "
+        "before changing)"};
+
+    // Phase 21 (optimization_plan.md, 2026-08-09) tried letting each of a
+    // grid-stride block's 4 warps independently claim and fully process its
+    // own (event, interval) slot -- targeting Phase 15's leftover
+    // within-block imbalance (a block still waits at __syncthreads() for
+    // its slowest warp before claiming a new shared slot). Implemented,
+    // correctness-verified (dump diff, compute-sanitizer memcheck and
+    // racecheck all clean), but benchmarked at a large, decisive
+    // regression: pvfinder_reduce_l6a_kernel's own time rose 5.1x (nsys)
+    // and real -t16 FC-alone retention dropped ~10.6-11pp. Trading away
+    // Phase 6's own dominant win (splitting one busy slot's tracks across
+    // all 4 warps, -74.6% kernel time on its own) to let sparse slots skip
+    // waiting on busy blockmates cost far more than it saved, for this
+    // kernel's actual (skewed) track-count distribution. Removed. See
+    // optimization_plan.md Phase 21 for the full numbers.
+
+    // Phase 22 (optimization_plan.md, 2026-08-09) tried widening
+    // pvfinder_reduce_l6a_kernel's block (128 -> 256, N_WARPS 4 -> 8) so
+    // more warps cooperate on each slot's track loop -- pushing further in
+    // the direction Phase 6 already proved works (the opposite of Phase
+    // 21's rejected idea). Implemented (WarpParallelTracks's round-robin
+    // split and bounded atomicAdd combine both generalize to any warp count
+    // with no other change), correctness-verified, but benchmarked at a
+    // real regression: nsys showed this kernel's own time rise ~8.5% (not
+    // fall), and real -t16 FC-alone retention dropped -0.58pp. Plausible
+    // reading: doubling block size roughly halves blocks resident per SM,
+    // so total concurrent warp count doesn't actually increase -- only the
+    // per-slot synchronization/zero-init overhead across a wider block
+    // does. Removed. See optimization_plan.md Phase 22 for the full
+    // numbers.
+
+    // Phase 23 (optimization_plan.md, 2026-08-10): Idea 2 originally proposed
+    // fusing L6A's bias+LeakyReLU into the cuBLAS GEMM's own epilogue. Not
+    // directly achievable: cuBLASLt's built-in matmul epilogues only support
+    // standard ReLU, not LeakyReLU -- substituting standard ReLU would
+    // silently zero negative pre-activations instead of scaling them by
+    // 0.01, a real physics change, not acceptable. A bias-only epilogue
+    // (CUBLASLT_EPILOGUE_BIAS) is achievable and physics-safe, but before
+    // building the real cuBLASLt integration (T_chunk-varying layout
+    // descriptors, l6a_m sub-block indexing, workspace/algo lifecycle --
+    // real correctness risk), its ceiling was measured cheaply first: drop
+    // the b6A[n] term entirely from the reduce kernel's LeakyReLU (NOT
+    // physics-valid, timing only -- strictly more savings than a real
+    // bias-only fusion could ever achieve, since that would still read the
+    // bias-added value). Result: +0.01pp at -t16, indistinguishable from
+    // this session's noise floor (baseline spreads 0.04-0.05%) -- a
+    // conclusive null, ruling out the real cuBLASLt implementation without
+    // ever needing to build it. Removed. See optimization_plan.md Phase 23
+    // for the full numbers.
+
+    // Phase 24 (optimization_plan.md, 2026-08-10) tested whether Phase 15's
+    // occupancy-API-derived grid-stride reduce grid size is actually the
+    // empirically best launch size, by sweeping a percentage scale factor
+    // (50%, 150%, 200%) against it. Result: below 100% is a real regression
+    // (nsys: +24% kernel time at 50%; -t16: -0.37pp, muted but real); at or
+    // above 100% is flat to within noise (150%: -0.18pp, ~noise; 200%:
+    // -0.04pp, noise) -- no further gain from oversubscribing beyond the
+    // occupancy ceiling. Confirms Phase 15's original choice was already at
+    // (or past) the empirically optimal point; no net win to land. Removed.
+    // See optimization_plan.md Phase 24 for the full numbers.
 
     // Phase 8 (optimization_plan.md, 2026-08-05): profiling at real -t16
     // contention (not the -t1 clean-attribution methodology used through

@@ -60,6 +60,21 @@ Options:
                              Set pvfinder_fc_aggregation.use_grid_stride_reduce
                              true/false (default: false); Phase 15, see
                              optimization_plan.md
+  --fc-single-hidden-layer BOOL
+                             Set pvfinder_fc_aggregation.fc_single_hidden_layer
+                             true/false (default: false); Phase 18 throughput-ceiling
+                             probe -- skips L1-L5's layers 2-5 (NOT physics-valid when
+                             true), see optimization_plan.md
+  --use-precomputed-csr-offset BOOL
+                             Set pvfinder_fc_aggregation.use_precomputed_csr_offset
+                             true/false (default: false); Phase 19, see
+                             optimization_plan.md
+  --safe-avg-entries-per-event N
+                             Set pvfinder_fc_aggregation.safe_avg_entries_per_event
+                             (default: 600, Phase 9's validated margin); CAUTION --
+                             lowering this reclaims T_chunk_max headroom for a larger
+                             fc_chunk_size at real crash risk if set too low, see
+                             optimization_plan.md Phase 20 before changing
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -97,6 +112,9 @@ FC_CHUNK_SIZE=20
 USE_FUSED_BIAS_RELU_REDUCE=false
 SKIP_REDUNDANT_MEMSET=false
 USE_GRID_STRIDE_REDUCE=false
+FC_SINGLE_HIDDEN_LAYER=false
+USE_PRECOMPUTED_CSR_OFFSET=false
+SAFE_AVG_ENTRIES_PER_EVENT=600
 PROFILE=0
 RESULT_ROOT="${SCRIPT_DIR}/benchmark_results"
 
@@ -124,6 +142,9 @@ while [[ $# -gt 0 ]]; do
         --use-fused-bias-relu-reduce) USE_FUSED_BIAS_RELU_REDUCE="$2"; shift 2 ;;
         --skip-redundant-memset) SKIP_REDUNDANT_MEMSET="$2"; shift 2 ;;
         --use-grid-stride-reduce) USE_GRID_STRIDE_REDUCE="$2"; shift 2 ;;
+        --fc-single-hidden-layer) FC_SINGLE_HIDDEN_LAYER="$2"; shift 2 ;;
+        --use-precomputed-csr-offset) USE_PRECOMPUTED_CSR_OFFSET="$2"; shift 2 ;;
+        --safe-avg-entries-per-event) SAFE_AVG_ENTRIES_PER_EVENT="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
@@ -196,6 +217,21 @@ case "${USE_GRID_STRIDE_REDUCE}" in
     true|false) ;;
     *) echo "ERROR: --use-grid-stride-reduce must be true or false" >&2; exit 1 ;;
 esac
+
+case "${FC_SINGLE_HIDDEN_LAYER}" in
+    true|false) ;;
+    *) echo "ERROR: --fc-single-hidden-layer must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_PRECOMPUTED_CSR_OFFSET}" in
+    true|false) ;;
+    *) echo "ERROR: --use-precomputed-csr-offset must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" =~ ^[0-9]+$ ]] || [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" -lt 1 ]]; then
+    echo "ERROR: --safe-avg-entries-per-event must be a positive integer" >&2
+    exit 1
+fi
 
 if ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]] || [[ "${L6A_M}" -gt 800 ]]; then
     echo "ERROR: --l6a-m must be an integer in [1, 800] (800 = physics-valid default)" >&2
@@ -302,12 +338,15 @@ patch_fc_config() {
     python3 - "$config" "$L6A_M" "$USE_NONATOMIC_L6A_REDUCE" \
         "$USE_WARP_PARALLEL_REDUCE" "$FC_CHUNK_SIZE" \
         "$USE_FUSED_BIAS_RELU_REDUCE" "$SKIP_REDUNDANT_MEMSET" \
-        "$USE_GRID_STRIDE_REDUCE" <<'PY'
+        "$USE_GRID_STRIDE_REDUCE" "$FC_SINGLE_HIDDEN_LAYER" \
+        "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" <<'PY'
 import json
 import sys
 
 (path, l6a_m_raw, use_nonatomic_raw, use_warp_parallel_raw, fc_chunk_size_raw,
- use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw) = sys.argv[1:]
+ use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw,
+ fc_single_hidden_layer_raw, use_precomputed_csr_offset_raw,
+ safe_avg_entries_per_event_raw) = sys.argv[1:]
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -320,6 +359,9 @@ fc_agg["fc_chunk_size"] = int(fc_chunk_size_raw)
 fc_agg["use_fused_bias_relu_reduce"] = use_fused_bias_relu_raw == "true"
 fc_agg["skip_redundant_memset"] = skip_memset_raw == "true"
 fc_agg["use_grid_stride_reduce"] = use_grid_stride_reduce_raw == "true"
+fc_agg["fc_single_hidden_layer"] = fc_single_hidden_layer_raw == "true"
+fc_agg["use_precomputed_csr_offset"] = use_precomputed_csr_offset_raw == "true"
+fc_agg["safe_avg_entries_per_event"] = int(safe_avg_entries_per_event_raw)
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -437,6 +479,9 @@ run_sequence() {
     echo "use_fused_bias_relu_reduce=${USE_FUSED_BIAS_RELU_REDUCE}"
     echo "skip_redundant_memset=${SKIP_REDUNDANT_MEMSET}"
     echo "use_grid_stride_reduce=${USE_GRID_STRIDE_REDUCE}"
+    echo "fc_single_hidden_layer=${FC_SINGLE_HIDDEN_LAYER}"
+    echo "use_precomputed_csr_offset=${USE_PRECOMPUTED_CSR_OFFSET}"
+    echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
 } > "${BATCH_DIR}/metadata.env"
