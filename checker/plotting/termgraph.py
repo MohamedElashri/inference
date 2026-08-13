@@ -83,7 +83,7 @@ class TermGraph:
         goodNormalizedStep = list(
             filter(lambda x: x > normalizedStep, goodNormalizedSteps)
         )[0]
-        self.step = int(goodNormalizedStep / stepPower)
+        self.step = max(1, int(goodNormalizedStep / stepPower))
         self.scaleMax = int(math.ceil(self.max_dat / self.step) * self.step)
         self.scaleMin = int(math.floor(self.min_dat / self.step) * self.step)
         self.strlen = max(len(str(int(self.scaleMin))), len(str(int(self.scaleMax))))
