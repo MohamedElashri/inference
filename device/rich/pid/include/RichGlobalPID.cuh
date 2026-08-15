@@ -52,8 +52,10 @@ namespace rich_global_pid {
     // pix2track map
     DEVICE_INPUT(dev_pix2track_offsets_r1_t, unsigned) dev_pix2track_offsets_r1;
     DEVICE_INPUT(dev_pix2track_r1_t, unsigned) dev_pix2track_r1;
+    DEVICE_INPUT(dev_pix2photon_r1_t, unsigned) dev_pix2photon_r1;
     DEVICE_INPUT(dev_pix2track_offsets_r2_t, unsigned) dev_pix2track_offsets_r2;
     DEVICE_INPUT(dev_pix2track_r2_t, unsigned) dev_pix2track_r2;
+    DEVICE_INPUT(dev_pix2photon_r2_t, unsigned) dev_pix2photon_r2;
 
     DEVICE_OUTPUT(dev_pixel_signals_r1_t, int) dev_pixel_signals_r1;
     DEVICE_OUTPUT(dev_pixel_signals_r2_t, int) dev_pixel_signals_r2;
@@ -92,12 +94,12 @@ namespace rich_global_pid {
       const Allen::Context&,
       Allen::Rich::ParticleIDType*,  // pids
       Allen::Rich::HypoData<float>*, // dlls
-      float*,                        // s_old_r1
-      float*,                        // s_old_r2
       const unsigned*,               // pix2track_offsets_r1
       const unsigned*,               // pix2track_r1
+      const unsigned*,               // pix2photon_r1
       const unsigned*,               // pix2track_offsets_r2
-      const unsigned*                // pix2track_r2
+      const unsigned*,               // pix2track_r2
+      const unsigned*                // pix2photon_r2
     ) const;
 
     void operator()(

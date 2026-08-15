@@ -34,7 +34,8 @@ __global__ void rich_pix2track_fill_k(
   const unsigned* photons_offsets,
   const Allen::Rich::PhotonReco::Photon* photons,
   unsigned* pix2track_cursors,
-  unsigned* pix2track)
+  unsigned* pix2track,
+  unsigned* pix2photon)
 {
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
@@ -45,6 +46,7 @@ __global__ void rich_pix2track_fill_k(
     // cursors array to avoid ruining offsets order
     const unsigned slot = atomicAdd(&pix2track_cursors[pix], 1u);
     pix2track[slot] = track_id;
+    pix2photon[slot] = ph;
   }
 }
 
@@ -96,6 +98,7 @@ void rich_pix2track::rich_pix2track_t::set_arguments_size(
 
   set_size<dev_pix2track_offsets_t>(arguments, n_pixels + 1);
   set_size<dev_pix2track_t>(arguments, n_photons);
+  set_size<dev_pix2photon_t>(arguments, n_photons);
 }
 
 void rich_pix2track::rich_pix2track_t::operator()(
@@ -132,5 +135,6 @@ void rich_pix2track::rich_pix2track_t::operator()(
     data<dev_offsets_rich_photons_t>(arguments),
     data<dev_rich_photons_t>(arguments),
     cursors.data(),
-    data<dev_pix2track_t>(arguments));
+    data<dev_pix2track_t>(arguments),
+    data<dev_pix2photon_t>(arguments));
 }
