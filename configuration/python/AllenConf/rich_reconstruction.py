@@ -301,6 +301,7 @@ def make_pix2track(pixels, tracks, photons, rich=RICH_1):
     return {
         "dev_pix2track_offsets": pix2track.dev_pix2track_offsets_t,
         "dev_pix2track": pix2track.dev_pix2track_t,
+        "dev_pix2photon": pix2track.dev_pix2photon_t,
     }
 
 
@@ -364,11 +365,13 @@ def make_global_pid(
         dev_rich_photons_r2_t=photons[RICH_2]["dev_rich_photons"],
         dev_photon_pix_signals_r2_t=photons[RICH_2]["dev_photon_pix_signals"],
         dev_track_total_signals_r2_t=photons[RICH_2]["dev_track_total_signals"],
-        # pix2track
+        # pix2track + pix2photon
         dev_pix2track_offsets_r1_t=pix2track[RICH_1]["dev_pix2track_offsets"],
         dev_pix2track_r1_t=pix2track[RICH_1]["dev_pix2track"],
+        dev_pix2photon_r1_t=pix2track[RICH_1]["dev_pix2photon"],
         dev_pix2track_offsets_r2_t=pix2track[RICH_2]["dev_pix2track_offsets"],
         dev_pix2track_r2_t=pix2track[RICH_2]["dev_pix2track"],
+        dev_pix2photon_r2_t=pix2track[RICH_2]["dev_pix2photon"],
         # alg settings
         nLikelihoodIterations=options["nLikelihoodIterations"],
         IgnoreExpectedSignals=options["PDBackIgnoreExpSignals"],

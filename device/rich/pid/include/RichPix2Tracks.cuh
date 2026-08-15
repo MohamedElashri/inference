@@ -26,6 +26,7 @@ namespace rich_pix2track {
     //  map pixels to  tracks
     DEVICE_OUTPUT(dev_pix2track_offsets_t, unsigned) dev_pix2track_offsets;
     DEVICE_OUTPUT(dev_pix2track_t, unsigned) dev_pix2track;
+    DEVICE_OUTPUT(dev_pix2photon_t, unsigned) dev_pix2photon;
   };
 
   struct rich_pix2track_t : public DeviceAlgorithm, Parameters {
