@@ -12,7 +12,8 @@
 from AllenCore.algorithms import (
     data_provider_t,
     rich_decode_pd_t,
-    rich_global_pid_t,
+    rich_global_pid_from_cones_t,
+    rich_global_pid_from_reco_t,
     rich_init_pid_t,
     rich_make_hypos_t,
     rich_make_pixels_from_pd_t,
@@ -334,7 +335,39 @@ def make_global_pid(
 ):
     number_of_events = initialize_number_of_events()
 
-    useCones = options["BackgroundEstimationMethod"] == "FromCones"  # noqa: F841
+    background_method = options["BackgroundEstimationMethod"]
+    if background_method not in ("FromReco", "FromCones"):
+        raise ValueError(
+            f"BackgroundEstimationMethod must be one of ('FromReco', 'FromCones'), got {background_method!r}"
+        )
+    if background_method == "FromCones":
+        # Phase 1 of #618 (the real geomeff-based estimator) isn't implemented yet --
+        # backgroundsForRichFromCones falls back to the FromReco estimator, so results
+        # aren't numerically meaningful yet, but the sequence builds and runs end to
+        # end, exercising rich_raytrace_cherenkov_cones_t's geomeff outputs so CI and
+        # Moore can already have a test sequence for this path.
+        rich_global_pid_t = rich_global_pid_from_cones_t
+        geomeff_kwargs = dict(
+            dev_rich_geomeff_offsets_r1_t=photons[RICH_1]["dev_rich_geomeff_offsets"],
+            dev_rich_geomeff_pd_ids_r1_t=photons[RICH_1]["dev_rich_geomeff_pd_ids"],
+            dev_rich_geomeff_fractions_r1_t=photons[RICH_1][
+                "dev_rich_geomeff_fractions"
+            ],
+            dev_rich_geomeff_fractions_per_hypo_r1_t=photons[RICH_1][
+                "dev_rich_geomeff_fractions_per_hypo"
+            ],
+            dev_rich_geomeff_offsets_r2_t=photons[RICH_2]["dev_rich_geomeff_offsets"],
+            dev_rich_geomeff_pd_ids_r2_t=photons[RICH_2]["dev_rich_geomeff_pd_ids"],
+            dev_rich_geomeff_fractions_r2_t=photons[RICH_2][
+                "dev_rich_geomeff_fractions"
+            ],
+            dev_rich_geomeff_fractions_per_hypo_r2_t=photons[RICH_2][
+                "dev_rich_geomeff_fractions_per_hypo"
+            ],
+        )
+    else:
+        rich_global_pid_t = rich_global_pid_from_reco_t
+        geomeff_kwargs = {}
 
     rich_global_pid = make_algorithm(
         rich_global_pid_t,
@@ -343,14 +376,6 @@ def make_global_pid(
         host_number_of_tracks_t=tracks["host_number_of_reconstructed_scifi_tracks"],
         dev_offsets_tracks_t=tracks["dev_offsets_long_tracks"],
         dev_pid_in_t=pid["dev_pid"],
-        # Since optionals and aggregate are broken, we need to create a dependency:
-        # TODO: either fix optionals or give dummy objects
-        # dev_rich_geomeff_offsets_r1_t=photons[RICH_1]["dev_rich_geomeff_offsets"],
-        # dev_rich_geomeff_pd_ids_r1_t=photons[RICH_1]["dev_rich_geomeff_pd_ids"],
-        # dev_rich_geomeff_fractions_r1_t=photons[RICH_1]["dev_rich_geomeff_fractions"],
-        # dev_rich_geomeff_offsets_r2_t=photons[RICH_2]["dev_rich_geomeff_offsets"],
-        # dev_rich_geomeff_pd_ids_r2_t=photons[RICH_2]["dev_rich_geomeff_pd_ids"],
-        # dev_rich_geomeff_fractions_r2_t=photons[RICH_2]["dev_rich_geomeff_fractions"],
         host_number_of_pixels_r1_t=pixels[RICH_1]["host_number_of_pixels"],
         host_number_of_photons_r1_t=photons[RICH_1]["host_number_of_photons"],
         dev_rich_pd_offsets_r1_t=pixels[RICH_1]["dev_rich_pd_offsets"],
@@ -375,6 +400,7 @@ def make_global_pid(
         # alg settings
         nLikelihoodIterations=options["nLikelihoodIterations"],
         IgnoreExpectedSignals=options["PDBackIgnoreExpSignals"],
+        **geomeff_kwargs,
     )
 
     return {
@@ -388,10 +414,15 @@ def make_global_pid(
 
 
 def make_rich(track_name, tracks, options=default_rich_reco_options_allen()):
+    background_method = options["BackgroundEstimationMethod"]
+    if background_method not in ("FromReco", "FromCones"):
+        raise ValueError(
+            f"BackgroundEstimationMethod must be one of ('FromReco', 'FromCones'), got {background_method!r}"
+        )
+
     pixels = {}
     hypos = {}
     photons = {}
-    signals = {}
     pix2tracks = {}
     for rich in VALID_RICHS:
         pixels[rich] = make_pixels(rich=rich, options=options)
@@ -400,39 +431,31 @@ def make_rich(track_name, tracks, options=default_rich_reco_options_allen()):
             tracks, rich=rich, track_name=track_name, options=options
         )
 
-        photons[rich] = make_photons(
-            pixels[rich],
-            tracks,
-            hypos[rich],
-            rich=rich,
-            track_name=track_name,
-            options=options,
-        )
+        if background_method == "FromCones":
+            # HLT2-like photon and signal reco
+            photons[rich] = make_photons(
+                pixels[rich],
+                tracks,
+                hypos[rich],
+                rich=rich,
+                track_name=track_name,
+                options=options,
+            )
+        else:
+            # FromReco: quartic-signals alternative reco
+            photons[rich] = make_signals(
+                tracks,
+                hypos[rich],
+                pixels[rich],
+                rich=rich,
+                track_name=track_name,
+                options=options,
+            )
 
-        signals[rich] = make_signals(
-            tracks,
-            hypos[rich],
-            pixels[rich],
-            rich=rich,
-            track_name=track_name,
-            options=options,
-        )
+            photons[rich]["dev_track_total_signals"] = photons[rich][
+                "dev_rich_geomeff_fractions"
+            ]
 
-        # For testing:
-        photons[rich]["host_number_of_photons"] = signals[rich][
-            "host_number_of_photons"
-        ]
-        photons[rich]["dev_rich_photons"] = signals[rich]["dev_rich_photons"]
-        photons[rich]["dev_photon_pix_signals"] = signals[rich][
-            "dev_photon_pix_signals"
-        ]
-        photons[rich]["dev_offsets_rich_photons"] = signals[rich][
-            "dev_offsets_rich_photons"
-        ]
-
-        photons[rich]["dev_track_total_signals"] = signals[rich][
-            "dev_rich_geomeff_fractions"
-        ]
         photons[rich]["dev_rich_hypos"] = hypos[rich]["dev_rich_hypos"]
 
         pix2tracks[rich] = make_pix2track(
@@ -452,7 +475,6 @@ def make_rich(track_name, tracks, options=default_rich_reco_options_allen()):
         "pixels": pixels,
         "hypos": hypos,
         "photons": photons,
-        "signals": signals,
         "bkg": global_pid["dev_bkgs"],
         "pid": global_pid["dev_pid"],
         "dll": global_pid["dev_dll"],

@@ -8,6 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
+
 from PyConf.tonic import configurable
 
 from AllenConf.enum_types import TrackingType
@@ -1368,6 +1369,7 @@ def setup_hlt1_node(
     with_muon=True,
     with_v0s=True,
     with_rich=False,
+    rich_background_method="FromReco",
     with_AC_split=False,
     enableBGI=True,
     enableAlignment=True,
@@ -1406,6 +1408,7 @@ def setup_hlt1_node(
         velo_open=velo_open,
         with_AC_split=with_AC_split,
         with_rich=with_rich,
+        rich_background_method=rich_background_method,
         with_fullKF=with_fullKF,
         with_ttracks=with_ttracks,
         with_downstream_KF=with_downstream_KF,
