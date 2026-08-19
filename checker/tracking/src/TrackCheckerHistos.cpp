@@ -471,7 +471,7 @@ void TrackCheckerHistos::fillRichHistos(
   if (true_pid == Allen::Rich::ParticleIDType::BelowThreshold) return;
   float ckThetaExp = track.ckThetaExp[true_pid];
   for (const auto& photon : photons) {
-    if (ckThetaExp != ckThetaExp) continue;
+    if (std::isnan(ckThetaExp)) continue;
     float delta = photon.ckTheta - ckThetaExp;
     h_rich_ckResAll->Fill(static_cast<double>(delta));
     h_rich_ckThetaRec->Fill(static_cast<double>(photon.ckTheta));

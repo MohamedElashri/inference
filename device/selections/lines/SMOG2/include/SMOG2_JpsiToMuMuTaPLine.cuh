@@ -132,7 +132,7 @@ namespace SMOG2jpsitomumu_tap_line {
       "Max DOCA for the J/psi candidate combination"};
     Allen::Property<float> m_maxTrackChi2Ndf {this, "maxTrackChi2Ndf", 5.f, "max track fit Chi2ndf"};
     Allen::Property<float> m_minMuonNN {this, "minMuonNN", 0.1, "min NN evaluation"};
-    Allen::Property<float> m_useNN {this, "useNN", true, "useNN"};
+    Allen::Property<bool> m_useNN {this, "useNN", true, "useNN"};
 
     Allen::Monitoring::Histogram<> m_histogram_SMOG2jpsitomumu_tap_mass {
       this,

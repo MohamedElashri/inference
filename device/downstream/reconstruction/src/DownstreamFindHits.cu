@@ -554,7 +554,7 @@ __global__ void downstream_find_hits::downstream_find_rest_hits(
     for (unsigned candidate_idx = threadIdx.x; candidate_idx < num_output; candidate_idx += blockDim.x) {
       auto& findhits_output = findhits_outputs[candidate_idx];
       if constexpr (require_four_hits) {
-        if (findhits_output.score == std::numeric_limits<float>::infinity()) continue;
+        if (std::isinf(findhits_output.score)) continue;
       }
 
       // Load extrapolation
@@ -692,7 +692,7 @@ __global__ void downstream_find_hits::downstream_find_rest_hits(
     auto& findhits_output = findhits_outputs[candidate_idx];
 
     if constexpr (require_four_hits) {
-      if (findhits_output.score == std::numeric_limits<float>::infinity()) continue;
+      if (std::isinf(findhits_output.score)) continue;
 
       const auto& findhits_cache = findhits_caches[candidate_idx];
 

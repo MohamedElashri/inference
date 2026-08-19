@@ -225,7 +225,7 @@ namespace Allen::Rich {
       float disc = sqrtf(r2 - q3);
       float A = -cbrtf(fabsf(r) + disc);
       if (r < 0) A = -A;
-      float B = (0 == A ? 0 : q / A);
+      float B = (LHCb::essentiallyZero(A) ? 0 : q / A);
       a /= 3;
 
       // Check for double root case (r² ≈ q³ and q > 0)
@@ -349,7 +349,7 @@ namespace Allen::Rich {
       }
       float A = -cbrtf(fabsf(r) + sqrtf(r2 - q3));
       if (r < 0) A = -A;
-      float B = (0 == A ? 0 : q / A);
+      float B = (LHCb::essentiallyZero(A) ? 0 : q / A);
       a /= 3;
       x[0] = (A + B) - a;
       x[1] = -0.5f * (A + B) - a;

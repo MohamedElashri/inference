@@ -13,7 +13,6 @@
 
 #include <atomic>
 #include <iostream>
-
 #include <Algorithm.cuh>
 
 #ifndef ALLEN_STANDALONE
@@ -242,7 +241,7 @@ namespace Allen::Monitoring {
     friend void reset(Counter& c) { c.m_entries = 0.0; }
     friend void to_json(nlohmann::json& j, Counter const& c)
     {
-      j = {{"type", "counter:Counter:d"}, {"empty", c.m_entries == 0}, {"nEntries", c.m_entries}};
+      j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(c.m_entries)}, {"nEntries", c.m_entries}};
     }
     void registerAccumulator() override
     {
@@ -315,7 +314,7 @@ namespace Allen::Monitoring {
     {
       j = {
         {"type", "counter:AveragingCounter:d"},
-        {"empty", c.m_entries == 0},
+        {"empty", LHCb::essentiallyZero(c.m_entries)},
         {"nEntries", c.m_entries},
         {"sum", c.m_sum},
         {"mean", c.m_sum / c.m_entries}};
@@ -581,7 +580,7 @@ namespace Allen::Monitoring {
         {"type", "histogram:Histogram:d"},
         {"title", h.m_title},
         {"dimension", h.m_allen_stride.size()},
-        {"empty", h.m_totNEntries == 0},
+        {"empty", LHCb::essentiallyZero(h.m_totNEntries)},
         {"nEntries", h.m_totNEntries},
         {"axis", h.axisArray()},
         {"bins", h.m_bins}};
@@ -704,7 +703,7 @@ namespace Allen::Monitoring {
     {
       const auto entries =
         (c.m_histo != nullptr && c.m_bin + 1 < c.m_histo->m_bins.size()) ? c.m_histo->m_bins[c.m_bin + 1] : 0.0;
-      j = {{"type", "counter:Counter:d"}, {"empty", entries == 0}, {"nEntries", entries}};
+      j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(entries)}, {"nEntries", entries}};
     }
     const HistogramType* m_histo {nullptr};
     unsigned m_bin {0};

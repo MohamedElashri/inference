@@ -165,7 +165,7 @@ __global__ void FilterTracks::filter_tracks(
       float x;
       float y;
       float z;
-      if (!Allen::Views::Physics::state_poca(trackA_ministate, trackB_ministate, x, y, z)) {
+      if (LHCb::essentiallyZero(Allen::Views::Physics::state_poca(trackA_ministate, trackB_ministate, x, y, z))) {
         continue;
       }
 

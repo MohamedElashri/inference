@@ -71,7 +71,7 @@ __global__ void rich_photon_predicted_pixel_signal_k(
       const auto hypo = static_cast<Allen::Rich::ParticleIDType>(hypo_index);
       const float expTheta = hypos[track_id].ckTheta[hypo];
       float sig = 0.f;
-      if (validTheta && expTheta == expTheta && expTheta > minExpCKT) {
+      if (validTheta && !std::isnan(expTheta) && expTheta > minExpCKT) {
         const float res = hypos[track_id].ckRes[hypo];
         const float yield = hypos[track_id].yield[hypo];
         const float resInv = 1.f / res;

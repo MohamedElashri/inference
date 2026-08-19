@@ -598,7 +598,7 @@ namespace Allen {
           const float z = Calo::Constants::z;
           const float tx = c.x / z;
           const float ty = c.y / z;
-          return tx == 0.f && ty == 0.f ? 0.f : atan2f(tx, ty);
+          return LHCb::essentiallyZero(tx) && LHCb::essentiallyZero(ty) ? 0.f : atan2f(tx, ty);
         }
 
         __host__ __device__ float eta() const

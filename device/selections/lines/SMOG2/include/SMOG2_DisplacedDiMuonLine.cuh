@@ -100,7 +100,7 @@ namespace SMOG2_displaced_di_muon_line {
     Allen::Property<float> m_minFDCHI2 {this, "minFDCHI2", 15.f, "chi2 of pv and endvertex"};
     Allen::Property<float> m_maxIP {this, "maxIP", 1.f * Allen::Units::mm, "mother IP"};
     Allen::Property<float> m_minMuonNN {this, "minMuonNN", 0.1, "min NN evaluation"};
-    Allen::Property<float> m_useNN {this, "useNN", true, "useNN"};
+    Allen::Property<bool> m_useNN {this, "useNN", true, "useNN"};
 
     Allen::Monitoring::Histogram<> m_histogram_displaced_dimuon_mass {
       this,

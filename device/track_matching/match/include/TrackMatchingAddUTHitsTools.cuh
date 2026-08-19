@@ -181,7 +181,7 @@ namespace track_matching::tools {
 
     __device__ inline auto score() { return m_score; }
 
-    __device__ inline bool exist() { return Allen::numeric_limits<float>::infinity() != m_score; }
+    __device__ inline bool exist() { return !std::isinf(m_score); }
 
     __device__ inline auto add(const T& candidate, const float& score)
     {
