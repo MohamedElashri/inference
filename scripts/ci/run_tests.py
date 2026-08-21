@@ -12,13 +12,15 @@
 
 import argparse
 import logging
+import os
 import re
+import signal
 import time
 from itertools import groupby, product
 from os import environ
 from pathlib import Path
 from shutil import copyfile
-from subprocess import CalledProcessError, TimeoutExpired, check_output
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen, TimeoutExpired
 from sys import exit, stdout
 
 import colorlog
@@ -280,6 +282,42 @@ test_postproc = {
 }
 
 
+def _kill_process_group(proc: Popen) -> bytes:
+    """Terminate the whole process group of `proc`, then force-kill if needed."""
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        out, _ = proc.communicate(timeout=10)
+    except TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        out, _ = proc.communicate()
+    return out
+
+
+def run_command_with_timeout(cmd: str, timeout: float) -> bytes:
+    """Run a shell command, killing its entire process group on timeout.
+
+    subprocess.check_output(..., shell=True, timeout=...) only kills the
+    intermediate /bin/sh process, leaving grandchildren (e.g. Allen) orphaned
+    and still running. start_new_session puts the shell in its own process
+    group, so we can signal every process spawned by it.
+    """
+    proc = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, start_new_session=True)
+    try:
+        out, _ = proc.communicate(timeout=timeout)
+    except TimeoutExpired:
+        out = _kill_process_group(proc)
+        raise TimeoutExpired(cmd, timeout, output=out)
+    if proc.returncode:
+        raise CalledProcessError(proc.returncode, cmd, output=out)
+    return out
+
+
 def run_allen_test(wrapper: str, test: dict, config: dict):
     test_name = test["type"]
     profile_device = config["profile_device"]
@@ -298,9 +336,7 @@ def run_allen_test(wrapper: str, test: dict, config: dict):
     allen_log = "None"
     try:
         start = time.time()
-        allen_log = check_output(allen, shell=True, timeout=timeout).decode(
-            stdout.encoding
-        )
+        allen_log = run_command_with_timeout(allen, timeout).decode(stdout.encoding)
         elapsed = time.time() - start
         log.debug("Log output:\n" + allen_log)
         log.info(f"Allen process completed in {elapsed:.2f} sec")
@@ -328,8 +364,8 @@ def run_allen_test(wrapper: str, test: dict, config: dict):
 
             log.info(f"Running profiler with: {allen_profiler}")
             start = time.time()
-            allen_profiler_log = check_output(
-                allen_profiler, shell=True, timeout=timeout
+            allen_profiler_log = run_command_with_timeout(
+                allen_profiler, timeout
             ).decode(stdout.encoding)
             elapsed = time.time() - start
             log.debug("Log output:\n" + allen_profiler_log)
