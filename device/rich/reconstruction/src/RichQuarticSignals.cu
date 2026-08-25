@@ -297,7 +297,6 @@ __global__ void rich_quartic_corners_k(
       const float zInv = 1.f / dir.z;
       dir_corners[i][corner] = make_float2(dir.x * zInv, dir.y * zInv);
     }
-
     // TODO: filter and count pixels ?
   }
 }
@@ -395,6 +394,7 @@ __global__ void rich_interp_pixel_signals_k(
           const float expTheta = hypos.ckTheta[hypo];
           if (std::isnan(expTheta)) break; // break on first below threshold
           if (!validTheta) break;
+          if (!(expTheta > 0.f)) continue;
 
           // aij = yield * 1/((2pi)^(3/2)*sigma(theta)) * exp(-1/2 * sep^2) * 4A/(R^2 theta)
           const float sep = (theta - expTheta) * invRes[hypo];
@@ -497,9 +497,41 @@ __global__ void rich_sum_track_geomeffs_k(
       sum += pd_signals[j][hypo];
     }
     track_total_signals[track_id][hypo] = sum;
+
     /*if (track_id == 0) {
       std::cout << "[Allen] hypo " << hypo_id << " signal: " << sum<<std::endl;
     }*/
+  }
+}
+
+// Final pass: transform dev_rich_geomeff_pd_ids_t from compacted (per-panel, non-null-only)
+// indices in-place into the same fully-packed global dense index convention
+// rich_raytrace_ck_cones_k already uses for FromCones (panel_offset = (side*number_of_events +
+// event_number) * PDsPerPanel, plus the raw per-panel index from pd_infos).
+template<Allen::Rich::Detector::DetectorType richIdx>
+__global__ void rich_geomeff_pd_ids_to_global_k(
+  const rich_quartic_signals::PDShortInfo* pd_infos,
+  const unsigned number_of_events,
+  const unsigned* track_offsets,
+  const unsigned number_of_tracks,
+  const float3* segs_best_point,
+  const unsigned* track_signal_offsets,
+  int* pd_indices)
+{
+  const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned stride = gridDim.x * blockDim.x;
+  const unsigned total_number_of_pds = track_signal_offsets[number_of_tracks];
+
+  for (unsigned i = threadId; i < total_number_of_pds; i += stride) {
+    const unsigned track_id = binary_search_rightmost(track_signal_offsets, number_of_tracks + 1, i);
+
+    const auto side = Allen::Rich::side<richIdx>(segs_best_point[track_id]);
+    const unsigned event_number = binary_search_rightmost(track_offsets, number_of_events + 1, track_id);
+    const unsigned panel_offset =
+      (side * number_of_events + event_number) * Allen::Rich::Detector::PDPanel<richIdx>::PDsPerPanel;
+
+    const int compacted_id = pd_indices[i];
+    pd_indices[i] = static_cast<int>(panel_offset + pd_infos[compacted_id].index());
   }
 }
 
@@ -653,6 +685,17 @@ void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
     data<dev_rich_geomeff_offsets_t>(arguments),
     data<dev_rich_geomeff_pd_fractions_t>(arguments),
     data<dev_rich_geomeff_fractions_t>(arguments)); // TODO: this is actually signal not geomeff, rename
+
+  // Transform geomeff_pd_ids from compacted to the global packed index convention matching HLT2 and FromCones
+  const auto& to_global_kernel = rich_geomeff_pd_ids_to_global_k<richIdx>;
+  global_function(to_global_kernel)(dim3(32), m_block_dim, context)(
+    m_pd_infos,
+    number_of_events,
+    data<dev_offsets_rich_states_t>(arguments),
+    number_of_tracks,
+    data<dev_segs_best_point_t>(arguments),
+    data<dev_rich_geomeff_offsets_t>(arguments),
+    data<dev_rich_geomeff_pd_ids_t>(arguments));
 }
 
 void rich_quartic_signals::rich_quartic_signals_t::operator()(

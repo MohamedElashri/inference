@@ -82,6 +82,17 @@ namespace rich_global_pid {
   template<>
   struct Parameters<BackgroundEstimationMethod::FromReco> {
     RICH_GLOBAL_PID_COMMON_PARAMETERS
+
+    DEVICE_INPUT(dev_rich_geomeff_offsets_r1_t, unsigned) dev_rich_geomeff_offsets_r1;
+    DEVICE_INPUT(dev_rich_geomeff_pd_ids_r1_t, int) dev_rich_geomeff_pd_ids_r1;
+    DEVICE_INPUT(dev_rich_geomeff_pd_fractions_r1_t, Allen::Rich::HypoData<float>) dev_rich_geomeff_pd_fractions_r1;
+
+    DEVICE_INPUT(dev_rich_geomeff_offsets_r2_t, unsigned) dev_rich_geomeff_offsets_r2;
+    DEVICE_INPUT(dev_rich_geomeff_pd_ids_r2_t, int) dev_rich_geomeff_pd_ids_r2;
+    DEVICE_INPUT(dev_rich_geomeff_pd_fractions_r2_t, Allen::Rich::HypoData<float>) dev_rich_geomeff_pd_fractions_r2;
+
+    DEVICE_OUTPUT(dev_exp_signal_ec_r1_t, int) dev_exp_signal_ec_r1;
+    DEVICE_OUTPUT(dev_exp_signal_ec_r2_t, int) dev_exp_signal_ec_r2;
   };
 
   // using bkg from CK Cones method (HLT2 like)
@@ -100,6 +111,12 @@ namespace rich_global_pid {
     DEVICE_INPUT(dev_rich_geomeff_fractions_r2_t, float) dev_rich_geomeff_fractions_r2;
     DEVICE_INPUT(dev_rich_geomeff_fractions_per_hypo_r2_t, Allen::Rich::HypoData<float>)
     dev_rich_geomeff_fractions_per_hypo_r2;
+
+    DEVICE_INPUT(dev_rich_hypos_r1_t, Allen::Rich::ParticleHypos) dev_rich_hypos_r1;
+    DEVICE_INPUT(dev_rich_hypos_r2_t, Allen::Rich::ParticleHypos) dev_rich_hypos_r2;
+
+    DEVICE_OUTPUT(dev_exp_signal_ec_r1_t, int) dev_exp_signal_ec_r1;
+    DEVICE_OUTPUT(dev_exp_signal_ec_r2_t, int) dev_exp_signal_ec_r2;
   };
 
 #undef RICH_GLOBAL_PID_COMMON_PARAMETERS
@@ -120,24 +137,10 @@ namespace rich_global_pid {
       const Allen::Rich::ParticleIDType*) const;
 
     template<Allen::Rich::Detector::DetectorType richIdx>
-    void launchBackgroundFromReco(
-      const Allen::Context&,
-      const bool ignoreExpSignal,
-      const unsigned number_of_events,
-      const unsigned* rich_pd_offsets,
-      int* pixel_signals,
-      float* pix_bkg) const;
-
-    template<Allen::Rich::Detector::DetectorType richIdx>
-    void backgroundsForRichFromReco(
+    void backgroundsForRich(
       const ArgumentReferences<Parameters<bkg_method>>&,
       const Allen::Context&,
-      const unsigned) const;
-
-    template<Allen::Rich::Detector::DetectorType richIdx>
-    void backgroundsForRichFromCones(
-      const ArgumentReferences<Parameters<BackgroundEstimationMethod::FromCones>>&,
-      const Allen::Context&,
+      const Allen::Rich::ParticleIDType*,
       const unsigned) const;
 
     void initDLLs(
@@ -181,6 +184,16 @@ namespace rich_global_pid {
     Allen::Property<float> m_epsilon {this, "LikelihoodThreshold", -1e-3f, "Threshold for likelihood maximisation"};
 
     Allen::Property<unsigned> m_maxEventIterations {this, "MaxEventIterations", 2000u, "Maximum globalPID iterations"};
+
+    // Background properties indexed as [iter0_rich1, iter0_rich2, iter1_rich1, iter1_rich2, ...])
+    Allen::Property<std::vector<float>> m_bkgWeight {this, "PDBckWeights", {1., 1., 1., 1., 1., 1., 1., 1.}, ""};
+    Allen::Property<std::vector<float>> m_bkgThreshold {this, "PDBackThresholds", {0., 0., 0., 0., 0., 0., 0., 0.}, ""};
+    Allen::Property<std::vector<float>> m_bkgMin {this, "PDBackMinPixBackground", {0., 0., 0., 0., 0., 0., 0., 0.}, ""};
+    Allen::Property<std::vector<float>> m_bkgMax {
+      this,
+      "PDBackMaxPixBackground",
+      {999., 999., 999., 999., 999., 999., 999., 999.},
+      ""};
 
     mutable Allen::Rich::DetectorArray<uint16_t*> m_cached_effNumPixsEC {nullptr, nullptr};
   };

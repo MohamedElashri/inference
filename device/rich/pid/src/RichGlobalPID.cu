@@ -137,126 +137,206 @@ void rich_global_pid::rich_global_pid_t<bkg_method>::pixelSignalsForRich(
                                               data<typename P::dev_pixel_signals_r2_t>(arguments));
 }
 
-// Compute the average background in an EC (group of 1-4 PDs), using the pixel signals
-template<Allen::Rich::Detector::DetectorType richIdx, bool ignoreExpSignal>
-__global__ void rich_avg_bkg_from_reco_k(
-  const uint16_t* effNumPixsEC,
-  const unsigned number_of_events,
-  const unsigned* pixels_offsets,
-  int* pixel_signals,
-  float* ec_bkg)
+template<Allen::Rich::Detector::DetectorType richIdx>
+__global__ void rich_exp_signal_from_reco_k(
+  const unsigned number_of_tracks,
+  const Allen::Rich::ParticleIDType* pids,
+  const unsigned* geomeff_offsets,
+  const int* geomeff_pd_ids,
+  const Allen::Rich::HypoData<float>* geomeff_pd_fractions,
+  int* exp_signal_ec)
 {
-  const unsigned ec_per_panel = Allen::Rich::Detector::PDPanel<richIdx>::ECsPerPanel;
-
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
-  for (unsigned i = threadId; i < Allen::Rich::NPDPanelsPerRICH * number_of_events * ec_per_panel; i += stride) {
-    const auto side = static_cast<Allen::Rich::Detector::Side>(i / (number_of_events * ec_per_panel));
-    const unsigned ec_index = i % ec_per_panel;
 
-    const unsigned effNumPixs = effNumPixsEC[ec_index + side * ec_per_panel];
-    const unsigned pixStart = pixels_offsets[i * Allen::Rich::Decoding::SmartID::MaxPDsPerEC];
-    const unsigned pixEnd = pixels_offsets[(i + 1) * Allen::Rich::Decoding::SmartID::MaxPDsPerEC];
-    const unsigned obsSignal = pixEnd - pixStart;
+  for (unsigned track_id = threadId; track_id < number_of_tracks; track_id += stride) {
+    const auto cur_pid = pids[track_id];
+    if (cur_pid == Allen::Rich::ParticleIDType::Unknown) continue;
 
-    float expBackgrd = 0.f;
-    if (effNumPixs > 0) {
+    const unsigned start = geomeff_offsets[track_id];
+    const unsigned end = geomeff_offsets[track_id + 1];
 
-      float expSignal = 0.f;
-      if constexpr (!ignoreExpSignal) {
-        for (unsigned j = pixStart; j < pixEnd; j++) {
-          expSignal += signalFromFixedPoint(pixel_signals[j]);
-        }
+    for (unsigned j = start; j < end; j++) {
+      const int pd_id = geomeff_pd_ids[j];
+      if (pd_id < 0) continue;
 
-        if (obsSignal > 0) expSignal *= effNumPixs / obsSignal;
-      }
+      const float sig = geomeff_pd_fractions[j][cur_pid];
+      if (sig <= 0.f) continue;
 
-      expBackgrd = max((obsSignal - expSignal) / effNumPixs, 0.f);
-
-      /*printf(
-        "[Allen] Rich %d id %d side %d obsSignal: %d expSignal: %f bkg: %f effNumPixs: %d (from reco)\n",
-        richIdx + 1,
-        ec_index,
-        side,
-        obsSignal,
-        expSignal,
-        expBackgrd,
-        effNumPixs);*/
-
-      // Broadcast back the expected background to the pixel_signals
-      // because they are used together in the log(exp(signal + bkg) + 1) formula, and that way
-      // we save some memory.
-      // this will have to be subtracted at the end of the iteration (if its not the last one)
-      for (unsigned j = pixStart; j < pixEnd; j++) {
-        pixel_signals[j] += signalToFixedPoint(expBackgrd);
-      }
+      const unsigned ec = static_cast<unsigned>(pd_id) / Allen::Rich::Decoding::SmartID::MaxPDsPerEC;
+      atomicAdd(&exp_signal_ec[ec], signalToFixedPoint(sig));
     }
-
-    ec_bkg[i] = expBackgrd; // save to subtract later
   }
 }
 
-template<rich_global_pid::BackgroundEstimationMethod bkg_method>
+// Background kernels in the FromCones path. Adapted from
+// Rec/Rich/RichFutureRecPixelAlgorithms/src/RichSIMDPixelBackgroundsEstiAvHPD.cpp. Scatter yield[hypo] * per-EC
+// geometrical efficiency from every track's current best-fit hypothesis into the EC it geometrically overlaps. Mirrors
+// Rec's "fill expected signal" loop (SIMDPixelBackgroundsEstiAvHPD::operator(), step 3): for each track, for each PD
+// its ring overlaps at the current hypothesis, accumulate detYield[hypo] * PD.eff.
 template<Allen::Rich::Detector::DetectorType richIdx>
-void rich_global_pid::rich_global_pid_t<bkg_method>::launchBackgroundFromReco(
-  const Allen::Context& context,
-  const bool ignoreExpSignal,
-  const unsigned number_of_events,
-  const unsigned* rich_pd_offsets,
-  int* pixel_signals,
-  float* pix_bkg) const
+__global__ void rich_exp_signal_from_cones_k(
+  const unsigned number_of_tracks,
+  const Allen::Rich::ParticleIDType* pids,
+  const Allen::Rich::ParticleHypos* hypos,
+  const unsigned* geomeff_offsets,
+  const int* geomeff_pd_ids,
+  const float* geomeff_fractions,
+  int* exp_signal_ec)
 {
-  const auto& avg_kernel =
-    ignoreExpSignal ? rich_avg_bkg_from_reco_k<richIdx, true> : rich_avg_bkg_from_reco_k<richIdx, false>;
-  global_function(avg_kernel)(dim3(32), dim3(m_block_dim), context)(
-    m_cached_effNumPixsEC[richIdx], number_of_events, rich_pd_offsets, pixel_signals, pix_bkg);
+  const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned stride = gridDim.x * blockDim.x;
+
+  // loop over track data
+  for (unsigned track_id = threadId; track_id < number_of_tracks; track_id += stride) {
+    const auto cur_pid = pids[track_id];
+    if (cur_pid == Allen::Rich::ParticleIDType::Unknown) continue;
+    const unsigned hypo = static_cast<unsigned>(cur_pid);
+
+    const float yield = hypos[track_id].yield[cur_pid];
+    if (yield <= 0.f) continue;
+
+    const unsigned idx = track_id * Allen::Rich::NRealParticleTypes + hypo;
+    const unsigned start = geomeff_offsets[idx];
+    const unsigned end = geomeff_offsets[idx + 1];
+
+    // Loop over the per PD geom. effs. for this track hypo
+    for (unsigned j = start; j < end; j++) {
+      const int pd_id = geomeff_pd_ids[j];
+      if (pd_id < 0) continue; // ray missed the panel for this ring sample point
+
+      const unsigned ec = static_cast<unsigned>(pd_id) / Allen::Rich::Decoding::SmartID::MaxPDsPerEC;
+      // fill expected signal for this PD
+      atomicAdd(&exp_signal_ec[ec], signalToFixedPoint(yield * geomeff_fractions[j]));
+    }
+  }
 }
 
+// Per-EC background estimate, matching Rec's
+// SIMDPixelBackgroundsEstiAvHPD steps 4-5 (normalize + broadcast to pixels), without the iterative nBelow/nAbove/rnorm
+// redistribution bi = (observed - expected) / nActivePixels, no cross-EC refinement.
+template<Allen::Rich::Detector::DetectorType richIdx>
+__global__ void rich_bkg_from_expected_signal_k(
+  const uint16_t* effNumPixsEC,
+  const unsigned number_of_events,
+  const unsigned* pixels_offsets,
+  const int* exp_signal_ec,
+  float* ec_bkg,
+  int* pixel_signals,
+  const float bkg_weight,
+  const float bkg_threshold,
+  const float bkg_min,
+  const float bkg_max)
+{
+  const unsigned ec_per_panel = Allen::Rich::Detector::PDPanel<richIdx>::ECsPerPanel;
+  const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned stride = gridDim.x * blockDim.x;
+
+  for (unsigned i = threadId; i < 2 * number_of_events * ec_per_panel; i += stride) {
+    const unsigned side = i / (number_of_events * ec_per_panel);
+    const unsigned ec_index = i % ec_per_panel;
+
+    const unsigned effNumPixs = effNumPixsEC[ec_index + side * ec_per_panel];
+    if (effNumPixs == 0) continue;
+
+    const unsigned pixStart = pixels_offsets[i * Allen::Rich::Decoding::SmartID::MaxPDsPerEC];
+    const unsigned pixEnd = pixels_offsets[(i + 1) * Allen::Rich::Decoding::SmartID::MaxPDsPerEC];
+    if (pixEnd == pixStart) continue; // no observed hits in this EC
+
+    const unsigned obsSignal = pixEnd - pixStart;
+
+    // TODO: Add here iterative background refinement loop
+    // code here...
+
+    float expBackgrd = static_cast<float>(obsSignal) - signalFromFixedPoint(exp_signal_ec[i]);
+
+    // normalize
+    // divide by effective pixel count, only if positive
+    expBackgrd = expBackgrd > 0.f ? expBackgrd / static_cast<float>(effNumPixs) : 0.f;
+    // scale by the per-RICH weight
+    expBackgrd *= bkg_weight;
+    // threshold cut
+    if (expBackgrd < bkg_threshold) expBackgrd = 0.f;
+    // clamp to [min, max]
+    expBackgrd = fminf(fmaxf(expBackgrd, bkg_min), bkg_max);
+
+    ec_bkg[i] = expBackgrd;
+
+    // broadcast to every pixel in this EC, added into the combined signal+bkg buffer
+    for (unsigned j = pixStart; j < pixEnd; j++) {
+      pixel_signals[j] += signalToFixedPoint(expBackgrd);
+    }
+  }
+}
+
+// Backgrounds FromReco and FromCones shared launcher
 template<rich_global_pid::BackgroundEstimationMethod bkg_method>
 template<Allen::Rich::Detector::DetectorType richIdx>
-void rich_global_pid::rich_global_pid_t<bkg_method>::backgroundsForRichFromReco(
+void rich_global_pid::rich_global_pid_t<bkg_method>::backgroundsForRich(
   const ArgumentReferences<Parameters<bkg_method>>& arguments,
   const Allen::Context& context,
+  const Allen::Rich::ParticleIDType* pids,
   const unsigned it) const
 {
-
   using P = Parameters<bkg_method>;
   const unsigned number_of_events = first<typename P::host_number_of_events_t>(arguments);
+  const unsigned number_of_tracks = first<typename P::host_number_of_tracks_t>(arguments);
 
-  launchBackgroundFromReco<richIdx>(
-    context,
-    m_ignoreExpSignal.value()[it],
+  if constexpr (richIdx == Allen::Rich::Detector::Rich1) {
+    Allen::memset_async<typename P::dev_exp_signal_ec_r1_t>(arguments, 0, context);
+  }
+  else {
+    Allen::memset_async<typename P::dev_exp_signal_ec_r2_t>(arguments, 0, context);
+  }
+
+  auto* exp_signal_ec = richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_exp_signal_ec_r1_t>(arguments) :
+                                                                  data<typename P::dev_exp_signal_ec_r2_t>(arguments);
+
+  if (!m_ignoreExpSignal.value()[it]) {
+    if constexpr (bkg_method == BackgroundEstimationMethod::FromReco) {
+      global_function(rich_exp_signal_from_reco_k<richIdx>)(dim3(32), dim3(m_block_dim), context)(
+        number_of_tracks,
+        pids,
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_geomeff_offsets_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_geomeff_offsets_r2_t>(arguments),
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_geomeff_pd_ids_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_geomeff_pd_ids_r2_t>(arguments),
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_geomeff_pd_fractions_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_geomeff_pd_fractions_r2_t>(arguments),
+        exp_signal_ec);
+    }
+    else { // BackgroundEstimationMethod::FromCones
+      global_function(rich_exp_signal_from_cones_k<richIdx>)(dim3(32), dim3(m_block_dim), context)(
+        number_of_tracks,
+        pids,
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_hypos_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_hypos_r2_t>(arguments),
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_geomeff_offsets_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_geomeff_offsets_r2_t>(arguments),
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_geomeff_pd_ids_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_geomeff_pd_ids_r2_t>(arguments),
+        richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_geomeff_fractions_r1_t>(arguments) :
+                                                  data<typename P::dev_rich_geomeff_fractions_r2_t>(arguments),
+        exp_signal_ec);
+    }
+  }
+
+  // bkg property index
+  const unsigned bkgIdx = it * 2 + static_cast<unsigned>(richIdx);
+  global_function(rich_bkg_from_expected_signal_k<richIdx>)(dim3(32), dim3(m_block_dim), context)(
+    m_cached_effNumPixsEC[richIdx],
     number_of_events,
     richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_rich_pd_offsets_r1_t>(arguments) :
                                               data<typename P::dev_rich_pd_offsets_r2_t>(arguments),
+    exp_signal_ec,
+    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_pix_bkg_r1_t>(arguments) :
+                                              data<typename P::dev_pix_bkg_r2_t>(arguments),
     richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_pixel_signals_r1_t>(arguments) :
                                               data<typename P::dev_pixel_signals_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<typename P::dev_pix_bkg_r1_t>(arguments) :
-                                              data<typename P::dev_pix_bkg_r2_t>(arguments));
-}
-
-template<rich_global_pid::BackgroundEstimationMethod bkg_method>
-template<Allen::Rich::Detector::DetectorType richIdx>
-void rich_global_pid::rich_global_pid_t<bkg_method>::backgroundsForRichFromCones(
-  const ArgumentReferences<Parameters<BackgroundEstimationMethod::FromCones>>& arguments,
-  const Allen::Context& context,
-  const unsigned it) const
-{
-  using P = Parameters<BackgroundEstimationMethod::FromCones>;
-  const unsigned number_of_events = first<P::host_number_of_events_t>(arguments);
-
-  // TODO(#618): fallback onto the FromReco-style estimator until the real
-  // geomeff-based background estimator (Phase 1) is implemented.
-  launchBackgroundFromReco<richIdx>(
-    context,
-    m_ignoreExpSignal.value()[it],
-    number_of_events,
-    richIdx == Allen::Rich::Detector::Rich1 ? data<P::dev_rich_pd_offsets_r1_t>(arguments) :
-                                              data<P::dev_rich_pd_offsets_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<P::dev_pixel_signals_r1_t>(arguments) :
-                                              data<P::dev_pixel_signals_r2_t>(arguments),
-    richIdx == Allen::Rich::Detector::Rich1 ? data<P::dev_pix_bkg_r1_t>(arguments) :
-                                              data<P::dev_pix_bkg_r2_t>(arguments));
+    m_bkgWeight.value()[bkgIdx],
+    m_bkgThreshold.value()[bkgIdx],
+    m_bkgMin.value()[bkgIdx],
+    m_bkgMax.value()[bkgIdx]);
 }
 
 inline __device__ float sigFunc(float sig)
@@ -795,7 +875,6 @@ void rich_global_pid::rich_global_pid_t<bkg_method>::set_arguments_size(
   const RuntimeOptions&,
   const Constants&) const
 {
-
   using P = Parameters<bkg_method>;
 
   const unsigned number_of_events = first<typename P::host_number_of_events_t>(arguments);
@@ -805,6 +884,15 @@ void rich_global_pid::rich_global_pid_t<bkg_method>::set_arguments_size(
 
   set_size<typename P::dev_pixel_signals_r1_t>(arguments, number_of_pixels_r1);
   set_size<typename P::dev_pixel_signals_r2_t>(arguments, number_of_pixels_r2);
+
+  set_size<typename P::dev_exp_signal_ec_r1_t>(
+    arguments,
+    Allen::Rich::NPDPanelsPerRICH * number_of_events *
+      Allen::Rich::Detector::PDPanel<Allen::Rich::Detector::Rich1>::ECsPerPanel);
+  set_size<typename P::dev_exp_signal_ec_r2_t>(
+    arguments,
+    Allen::Rich::NPDPanelsPerRICH * number_of_events *
+      Allen::Rich::Detector::PDPanel<Allen::Rich::Detector::Rich2>::ECsPerPanel);
 
   set_size<typename P::dev_pix_bkg_r1_t>(
     arguments,
@@ -852,20 +940,15 @@ void rich_global_pid::rich_global_pid_t<bkg_method>::operator()(
     Allen::memcpyDeviceToDevice,
     context);
 
-  // Init pixel signals:
-  pixelSignalsForRich<Allen::Rich::Detector::Rich1>(arguments, context, pids_in);
-  pixelSignalsForRich<Allen::Rich::Detector::Rich2>(arguments, context, pids_in);
-
   for (unsigned it = 0; it < m_nLikelihoodIterations.value(); it++) {
+
+    // Init pixel signals:
+    pixelSignalsForRich<Allen::Rich::Detector::Rich1>(arguments, context, pids_in);
+    pixelSignalsForRich<Allen::Rich::Detector::Rich2>(arguments, context, pids_in);
+
     // Compute backgrounds:
-    if constexpr (bkg_method == BackgroundEstimationMethod::FromCones) {
-      backgroundsForRichFromCones<Allen::Rich::Detector::Rich1>(arguments, context, it);
-      backgroundsForRichFromCones<Allen::Rich::Detector::Rich2>(arguments, context, it);
-    }
-    else {
-      backgroundsForRichFromReco<Allen::Rich::Detector::Rich1>(arguments, context, it);
-      backgroundsForRichFromReco<Allen::Rich::Detector::Rich2>(arguments, context, it);
-    }
+    backgroundsForRich<Allen::Rich::Detector::Rich1>(arguments, context, pids_in, it);
+    backgroundsForRich<Allen::Rich::Detector::Rich2>(arguments, context, pids_in, it);
 
     // Init DLLs and set to best hypothesis:
     initDLLs(arguments, context, pids_in, pids_out);
