@@ -65,6 +65,17 @@ Options:
                              true/false (default: false); Phase 18 throughput-ceiling
                              probe -- skips L1-L5's layers 2-5 (NOT physics-valid when
                              true), see optimization_plan.md
+  --l1-l5-hidden-width N     Set pvfinder_fc_aggregation.l1_l5_hidden_width
+                             (default: 20, physics-valid); throughput-ceiling probe --
+                             uses only the first N of L1-L5's 20 real neurons per layer
+                             and shrinks L6A's GEMM K accordingly (NOT physics-valid
+                             when < 20), see optimization_plan.md Phase 26
+  --l6a-active-channels N    Set pvfinder_fc_aggregation.l6a_active_channels
+                             (default: 8, physics-valid); throughput-ceiling probe --
+                             bounds L6A's zero-init/channel-reduction/write-back to N
+                             of the real 8 channels (NOT physics-valid when < 8); set
+                             to l6a-m/100 for a consistent narrower-L6A simulation,
+                             see optimization_plan.md Phase 27
   --use-precomputed-csr-offset BOOL
                              Set pvfinder_fc_aggregation.use_precomputed_csr_offset
                              true/false (default: false); Phase 19, see
@@ -113,6 +124,8 @@ USE_FUSED_BIAS_RELU_REDUCE=false
 SKIP_REDUNDANT_MEMSET=false
 USE_GRID_STRIDE_REDUCE=false
 FC_SINGLE_HIDDEN_LAYER=false
+L1_L5_HIDDEN_WIDTH=20
+L6A_ACTIVE_CHANNELS=8
 USE_PRECOMPUTED_CSR_OFFSET=false
 SAFE_AVG_ENTRIES_PER_EVENT=600
 PROFILE=0
@@ -143,6 +156,8 @@ while [[ $# -gt 0 ]]; do
         --skip-redundant-memset) SKIP_REDUNDANT_MEMSET="$2"; shift 2 ;;
         --use-grid-stride-reduce) USE_GRID_STRIDE_REDUCE="$2"; shift 2 ;;
         --fc-single-hidden-layer) FC_SINGLE_HIDDEN_LAYER="$2"; shift 2 ;;
+        --l1-l5-hidden-width) L1_L5_HIDDEN_WIDTH="$2"; shift 2 ;;
+        --l6a-active-channels) L6A_ACTIVE_CHANNELS="$2"; shift 2 ;;
         --use-precomputed-csr-offset) USE_PRECOMPUTED_CSR_OFFSET="$2"; shift 2 ;;
         --safe-avg-entries-per-event) SAFE_AVG_ENTRIES_PER_EVENT="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
@@ -222,6 +237,16 @@ case "${FC_SINGLE_HIDDEN_LAYER}" in
     true|false) ;;
     *) echo "ERROR: --fc-single-hidden-layer must be true or false" >&2; exit 1 ;;
 esac
+
+if ! [[ "${L1_L5_HIDDEN_WIDTH}" =~ ^[0-9]+$ ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -lt 1 ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -gt 20 ]]; then
+    echo "ERROR: --l1-l5-hidden-width must be an integer in [1, 20] (20 = physics-valid default)" >&2
+    exit 1
+fi
+
+if ! [[ "${L6A_ACTIVE_CHANNELS}" =~ ^[0-9]+$ ]] || [[ "${L6A_ACTIVE_CHANNELS}" -lt 1 ]] || [[ "${L6A_ACTIVE_CHANNELS}" -gt 8 ]]; then
+    echo "ERROR: --l6a-active-channels must be an integer in [1, 8] (8 = physics-valid default)" >&2
+    exit 1
+fi
 
 case "${USE_PRECOMPUTED_CSR_OFFSET}" in
     true|false) ;;
@@ -339,14 +364,16 @@ patch_fc_config() {
         "$USE_WARP_PARALLEL_REDUCE" "$FC_CHUNK_SIZE" \
         "$USE_FUSED_BIAS_RELU_REDUCE" "$SKIP_REDUNDANT_MEMSET" \
         "$USE_GRID_STRIDE_REDUCE" "$FC_SINGLE_HIDDEN_LAYER" \
-        "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" <<'PY'
+        "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" \
+        "$L1_L5_HIDDEN_WIDTH" "$L6A_ACTIVE_CHANNELS" <<'PY'
 import json
 import sys
 
 (path, l6a_m_raw, use_nonatomic_raw, use_warp_parallel_raw, fc_chunk_size_raw,
  use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw,
  fc_single_hidden_layer_raw, use_precomputed_csr_offset_raw,
- safe_avg_entries_per_event_raw) = sys.argv[1:]
+ safe_avg_entries_per_event_raw, l1_l5_hidden_width_raw,
+ l6a_active_channels_raw) = sys.argv[1:]
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -362,6 +389,8 @@ fc_agg["use_grid_stride_reduce"] = use_grid_stride_reduce_raw == "true"
 fc_agg["fc_single_hidden_layer"] = fc_single_hidden_layer_raw == "true"
 fc_agg["use_precomputed_csr_offset"] = use_precomputed_csr_offset_raw == "true"
 fc_agg["safe_avg_entries_per_event"] = int(safe_avg_entries_per_event_raw)
+fc_agg["l1_l5_hidden_width"] = int(l1_l5_hidden_width_raw)
+fc_agg["l6a_active_channels"] = int(l6a_active_channels_raw)
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -480,6 +509,8 @@ run_sequence() {
     echo "skip_redundant_memset=${SKIP_REDUNDANT_MEMSET}"
     echo "use_grid_stride_reduce=${USE_GRID_STRIDE_REDUCE}"
     echo "fc_single_hidden_layer=${FC_SINGLE_HIDDEN_LAYER}"
+    echo "l1_l5_hidden_width=${L1_L5_HIDDEN_WIDTH}"
+    echo "l6a_active_channels=${L6A_ACTIVE_CHANNELS}"
     echo "use_precomputed_csr_offset=${USE_PRECOMPUTED_CSR_OFFSET}"
     echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
     echo "mdf=${MDF}"

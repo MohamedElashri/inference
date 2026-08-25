@@ -42,14 +42,23 @@ __device__ __forceinline__ float pvfinder_leaky_relu(float x) {
     return x > 0.0f ? x : 0.01f * x;
 }
 
+// Phase 26 (optimization_plan.md, 2026-08-10): w_stride defaults to 0,
+// meaning "use in_f as the row stride" (every pre-existing call site's
+// exact original behavior, unchanged). Passing a nonzero w_stride lets a
+// caller read only the first in_f columns/out_f rows of a matrix whose
+// REAL stored stride is wider than in_f -- the same "valid cuBLAS/kernel
+// sub-block read into a wider real buffer" trick m_l6a_m already uses for
+// L6A's GEMM, applied here to L1-L5's weight matrices for the
+// m_l1_l5_hidden_width throughput probe.
 __device__ __forceinline__ void pvfinder_linear_layer_reg(
     const float* __restrict__ x, float* __restrict__ y,
     const float* __restrict__ w, const float* __restrict__ b,
-    int in_f, int out_f)
+    int in_f, int out_f, int w_stride = 0)
 {
+    const int stride = (w_stride > 0) ? w_stride : in_f;
     for (int i = 0; i < out_f; ++i) {
         float sum = b[i];
-        for (int j = 0; j < in_f; ++j) sum += w[i * in_f + j] * x[j];
+        for (int j = 0; j < in_f; ++j) sum += w[i * stride + j] * x[j];
         y[i] = pvfinder_leaky_relu(sum);
     }
 }
@@ -319,9 +328,13 @@ __global__ void pvfinder_l1_to_l5_kernel(
     unsigned chunk_end,         // exclusive: last event index + 1
     unsigned csr_offset,        // starting position in track_idx[] for chunk_start event
     unsigned T_chunk,           // total CSR entries in this chunk
-    bool single_hidden_layer)   // Phase 18 throughput-ceiling probe: skip layers 2-5
+    bool single_hidden_layer,   // Phase 18 throughput-ceiling probe: skip layers 2-5
                                  // (see m_fc_single_hidden_layer doc comment) -- NOT
                                  // physics-valid when true, timing only
+    unsigned hidden_width)      // Phase 26 throughput-ceiling probe: use only the first
+                                 // hidden_width of each layer's 20 real neurons (see
+                                 // m_l1_l5_hidden_width doc comment) -- NOT physics-valid
+                                 // when < 20, timing only
 {
     const unsigned t = blockIdx.x * blockDim.x + threadIdx.x;
     if (t >= T_chunk) return;
@@ -361,13 +374,22 @@ __global__ void pvfinder_l1_to_l5_kernel(
     const float* w5 = b4 + 20;
     const float* b5 = w5 + 400;
 
-    float x1[20], x2[20];
-    pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  20);
+    // Phase 26: hw <= 20 bounds how many of each layer's real neurons get
+    // computed. Layer 1's stride is already in_f=9 (unaffected by hw, no
+    // w_stride override needed); layers 2-5's real stored stride is 20
+    // regardless of hw, so w_stride=20 is passed explicitly to avoid
+    // misreading the weight matrices as if they were hw-wide (see
+    // pvfinder_linear_layer_reg's doc comment). x1/x2 are zero-initialized
+    // so neurons >= hw read back as 0 in the final output write below,
+    // matching l6a_m's "untouched neurons are zero downstream" convention.
+    const int hw = (int)hidden_width;
+    float x1[20] = {0.0f}, x2[20] = {0.0f};
+    pvfinder_linear_layer_reg(feat, x1, w1, b1, 9,  hw);
     if (!single_hidden_layer) {
-        pvfinder_linear_layer_reg(x1,  x2, w2, b2, 20, 20);
-        pvfinder_linear_layer_reg(x2,  x1, w3, b3, 20, 20);
-        pvfinder_linear_layer_reg(x1,  x2, w4, b4, 20, 20);
-        pvfinder_linear_layer_reg(x2,  x1, w5, b5, 20, 20);
+        pvfinder_linear_layer_reg(x1,  x2, w2, b2, hw, hw, 20);
+        pvfinder_linear_layer_reg(x2,  x1, w3, b3, hw, hw, 20);
+        pvfinder_linear_layer_reg(x1,  x2, w4, b4, hw, hw, 20);
+        pvfinder_linear_layer_reg(x2,  x1, w5, b5, hw, hw, 20);
     }
 
     // Write x1[20] as row t of dev_pvfinder_l5_output [T_chunk × 20] row-major
@@ -531,6 +553,19 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // one that won for real; see m_use_precomputed_csr_offset's doc comment in
 // PVFinderFCAggregation.cuh and optimization_plan.md Phase 19 for both
 // results.
+// Phase 27 (optimization_plan.md, 2026-08-10): active_channels bounds a
+// DIFFERENT dimension than l6a_m. l6a_m bounds how many of the 800 flat
+// neurons the GEMM/accumulation step touches; it never bounded the
+// shared-memory zero-init, the softplus reduction's channel loop, or the
+// output write-back below -- all three are hardcoded to the full 800/8/800
+// regardless of l6a_m, because they operate on the buffer's real shape
+// (8 channels x 100 bins), not on "how many neurons are nonzero". A real
+// narrower latentChannels would shrink the buffer itself, cutting these
+// three costs too -- l6a_m alone can't simulate that. active_channels
+// (default 8 = physics-valid) bounds exactly these three, in channel units
+// (not raw neuron units): set active_channels = l6a_m/100 to represent the
+// SAME hypothetical architecture consistently across both throughput
+// probes -- NOT physics-valid when active_channels < 8, timing only.
 template <bool UseAtomic, bool WarpParallelTracks, bool FuseBiasRelu,
           bool PrecomputedOffset>
 __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
@@ -539,10 +574,12 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     unsigned event_number,
     unsigned interval,
     unsigned l6a_m,
+    unsigned active_channels,
     const float* __restrict__ b6A,   // bias[800], only read when FuseBiasRelu
     const unsigned* __restrict__ event_col_offset)  // only read when PrecomputedOffset
 {
     const unsigned thread_id = threadIdx.x;
+    const unsigned active_neurons = active_channels * 100u;
     const int* g_start  = parameters.dev_pvfinder_interval_start + event_number * 42;
     const int  iv_begin = g_start[interval];
     const int  iv_end   = g_start[interval + 1];
@@ -556,7 +593,7 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
         // API time, a real cost the earlier -t1 clean profiling understated.
         float* g_feat = parameters.dev_pvfinder_interval_features
                         + (unsigned long long)event_number * 32000u + interval * 800u;
-        for (int i = thread_id; i < 800; i += blockDim.x) g_feat[i] = 0.0f;
+        for (unsigned i = thread_id; i < active_neurons; i += blockDim.x) g_feat[i] = 0.0f;
         float* g_hist = parameters.dev_pvfinder_output_histogram
                         + event_number * 4000u + interval * 100u;
         for (int i = thread_id; i < 100; i += blockDim.x) g_hist[i] = 0.0f;
@@ -578,10 +615,18 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
         }
     }
 
-    // Shared memory accumulators: s_feat[800] + s_hist[100]
+    // Shared memory accumulators: s_feat[800] + s_hist[100]. Zero-init must
+    // cover whatever the l6a_m-bounded accumulation step below touches, so
+    // this is bounded by max(l6a_m, active_neurons), not active_neurons
+    // alone -- if l6a_m were ever set wider than active_channels*100, entries
+    // between the two would accumulate into (correctly zeroed) memory rather
+    // than uninitialized shared memory. The documented, intended usage is
+    // l6a_m == active_neurons; this bound is just a safety margin against
+    // that invariant being violated, not a normal operating mode.
+    const unsigned zero_init_bound = l6a_m > active_neurons ? l6a_m : active_neurons;
     __shared__ float s_feat[800];
     __shared__ float s_hist[100];
-    for (int i = thread_id; i < 800; i += blockDim.x) s_feat[i] = 0.0f;
+    for (unsigned i = thread_id; i < zero_init_bound; i += blockDim.x) s_feat[i] = 0.0f;
     for (int i = thread_id; i < 100; i += blockDim.x) s_hist[i] = 0.0f;
     __syncthreads();
 
@@ -660,19 +705,29 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     }
     __syncthreads();
 
-    // Reduce s_feat[800] → s_hist[100] via softplus of per-bin channel sums
+    // Reduce s_feat[800] → s_hist[100] via softplus of per-bin channel sums.
+    // Phase 27: bounded by active_channels, not the hardcoded 8 -- channels
+    // >= active_channels are guaranteed zero (never accumulated into, per
+    // the intended l6a_m == active_neurons usage), so skipping them is
+    // exact, not approximate.
     for (int k = thread_id; k < 100; k += blockDim.x) {
         float chan_sum = 0.0f;
-        for (int c = 0; c < 8; ++c) chan_sum += s_feat[c * 100 + k];
+        for (unsigned c = 0; c < active_channels; ++c) chan_sum += s_feat[c * 100 + k];
         s_hist[k] = pvfinder_softplus(chan_sum);
     }
     __syncthreads();
 
     const float weight = 1.0f / n_local;
 
+    // Phase 27: only the active_neurons portion is written -- the buffer's
+    // tail (positions >= active_neurons) is left whatever it already was
+    // (stale/uninitialized), same as l6a_m's own "untouched neurons" design.
+    // This is a pure throughput probe (FC-alone benchmarking never re-reads
+    // this buffer through UNet), not something that would be valid if the
+    // output were actually consumed downstream.
     float* g_feat = parameters.dev_pvfinder_interval_features
                     + (unsigned long long)event_number * 32000u + interval * 800u;
-    for (int i = thread_id; i < 800; i += blockDim.x)
+    for (unsigned i = thread_id; i < active_neurons; i += blockDim.x)
         g_feat[i] = s_feat[i] * weight;
 
     float* g_hist = parameters.dev_pvfinder_output_histogram
@@ -726,6 +781,7 @@ __global__ void pvfinder_reduce_l6a_kernel(
     unsigned chunk_end,
     unsigned T_chunk,
     unsigned l6a_m,
+    unsigned active_channels,        // Phase 27 throughput probe, see m_l6a_active_channels
     const float* __restrict__ b6A,   // bias[800], only read when FuseBiasRelu
     unsigned* work_counter,          // only used when UseGridStride
     // only used when PrecomputedOffset -- no default: this project's
@@ -748,7 +804,8 @@ __global__ void pvfinder_reduce_l6a_kernel(
             const unsigned event_number = chunk_start + rel_ev;
             pvfinder_reduce_l6a_process_slot<UseAtomic, WarpParallelTracks, FuseBiasRelu,
                 PrecomputedOffset>(
-                parameters, chunk_start, event_number, interval, l6a_m, b6A, event_col_offset);
+                parameters, chunk_start, event_number, interval, l6a_m, active_channels, b6A,
+                event_col_offset);
             __syncthreads();
         }
     } else {
@@ -760,7 +817,8 @@ __global__ void pvfinder_reduce_l6a_kernel(
         const unsigned event_number = chunk_start + rel_ev;
         pvfinder_reduce_l6a_process_slot<UseAtomic, WarpParallelTracks, FuseBiasRelu,
             PrecomputedOffset>(
-            parameters, chunk_start, event_number, interval, l6a_m, b6A, event_col_offset);
+            parameters, chunk_start, event_number, interval, l6a_m, active_channels, b6A,
+            event_col_offset);
     }
 }
 
@@ -987,6 +1045,7 @@ void pvfinder_fc_aggregation_t::operator()(
     const bool use_fused_bias_relu = m_use_fused_bias_relu_reduce.value();
     const bool use_grid_stride_reduce = m_use_grid_stride_reduce.value();
     const bool fc_single_hidden_layer = m_fc_single_hidden_layer.value();
+    const unsigned l1_l5_hidden_width = m_l1_l5_hidden_width.value();
     const bool use_precomputed_csr_offset = m_use_precomputed_csr_offset.value();
     // Phase 19: reused across chunks, sized once to this call's B_CHUNK+1.
     std::vector<unsigned> host_col_offset;
@@ -1051,20 +1110,23 @@ void pvfinder_fc_aggregation_t::operator()(
         global_function(pvfinder_l1_to_l5_kernel)(
             dim3(k1_blocks), dim3(KERNEL1_BLOCK), context)(
             arguments, dev_weights, chunk_start, chunk_end, csr_col_offset, T_chunk,
-            fc_single_hidden_layer);
+            fc_single_hidden_layer, l1_l5_hidden_width);
 
         // --- cuBLAS SGEMM: L6A ---
         // W6A [20×800] row-major = [800×20] col-major → CUBLAS_OP_T gives [800×20].
         // X [T_chunk×20] row-major = [20×T_chunk] col-major, op=N.
         // Y = W6A^T × X → [l6a_m×T_chunk] col-major → dev_l6a_output.
-        // Only the M argument (rows computed) is overridable via m_l6a_m -- lda/ldb/ldc
+        // The M argument (rows computed) is overridable via m_l6a_m, and (Phase 26)
+        // the K argument (reduction depth) via m_l1_l5_hidden_width -- lda/ldb/ldc
         // stay fixed at the real buffer strides (20, 20, 800) regardless, since a
-        // smaller M is a valid cuBLAS sub-block write into the same 800-row-stride
-        // output buffer (see m_l6a_m doc comment for why this is throughput-only).
+        // smaller M or K is a valid cuBLAS sub-block read/write into the same
+        // wider-strided real buffers (see m_l6a_m/m_l1_l5_hidden_width doc
+        // comments for why this is throughput-only).
         const int l6a_m = (int)m_l6a_m.value();
+        const int l1_l5_hidden_width_i = (int)l1_l5_hidden_width;
         cublasSgemm(cublas,
             CUBLAS_OP_T, CUBLAS_OP_N,
-            l6a_m, (int)T_chunk, 20,
+            l6a_m, (int)T_chunk, l1_l5_hidden_width_i,
             &alpha,
             w6A, 20,
             data<dev_pvfinder_l5_output_t>(arguments), 20,
@@ -1077,6 +1139,7 @@ void pvfinder_fc_aggregation_t::operator()(
         // GEMM output instead (Phase 7, see m_use_fused_bias_relu_reduce doc
         // comment).
         const unsigned l6a_m_u = (unsigned)l6a_m;
+        const unsigned active_channels_u = m_l6a_active_channels.value();
         if (!use_fused_bias_relu) {
             const unsigned k2_blocks = (T_chunk * l6a_m_u + KERNEL2_BLOCK - 1) / KERNEL2_BLOCK;
             global_function(pvfinder_l6a_bias_relu_kernel)(
@@ -1104,13 +1167,13 @@ void pvfinder_fc_aggregation_t::operator()(
             if (use_precomputed_csr_offset) {
                 global_function(pvfinder_reduce_l6a_kernel<true, true, true, true, true>)(
                     dim3((unsigned)tl_grid_stride_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A,
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A,
                     data<dev_pvfinder_reduce_work_counter_t>(arguments),
                     data<dev_pvfinder_event_col_offset_t>(arguments));
             } else {
                 global_function(pvfinder_reduce_l6a_kernel<true, true, true, true>)(
                     dim3((unsigned)tl_grid_stride_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A,
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A,
                     data<dev_pvfinder_reduce_work_counter_t>(arguments), nullptr);
             }
         } else if (use_warp_parallel) {
@@ -1120,31 +1183,31 @@ void pvfinder_fc_aggregation_t::operator()(
             if (use_fused_bias_relu) {
                 global_function(pvfinder_reduce_l6a_kernel<true, true, true, false>)(
                     dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A, nullptr, nullptr);
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A, nullptr, nullptr);
             } else {
                 global_function(pvfinder_reduce_l6a_kernel<true, true, false, false>)(
                     dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A, nullptr, nullptr);
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A, nullptr, nullptr);
             }
         } else if (use_nonatomic) {
             if (use_fused_bias_relu) {
                 global_function(pvfinder_reduce_l6a_kernel<false, false, true, false>)(
                     dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A, nullptr, nullptr);
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A, nullptr, nullptr);
             } else {
                 global_function(pvfinder_reduce_l6a_kernel<false, false, false, false>)(
                     dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A, nullptr, nullptr);
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A, nullptr, nullptr);
             }
         } else {
             if (use_fused_bias_relu) {
                 global_function(pvfinder_reduce_l6a_kernel<true, false, true, false>)(
                     dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A, nullptr, nullptr);
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A, nullptr, nullptr);
             } else {
                 global_function(pvfinder_reduce_l6a_kernel<true, false, false, false>)(
                     dim3(grid_blocks), dim3(KERNEL3_BLOCK), context)(
-                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, b6A, nullptr, nullptr);
+                    arguments, chunk_start, chunk_end, T_chunk, l6a_m_u, active_channels_u, b6A, nullptr, nullptr);
             }
         }
 

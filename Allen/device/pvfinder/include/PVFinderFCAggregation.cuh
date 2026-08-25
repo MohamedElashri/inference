@@ -325,6 +325,52 @@ private:
     // (or past) the empirically optimal point; no net win to land. Removed.
     // See optimization_plan.md Phase 24 for the full numbers.
 
+    // Phase 26 (optimization_plan.md, 2026-08-10): follow-up to the 90%
+    // exploration -- Phase 25 found l6a_m + fc_single_hidden_layer alone
+    // (even pushed to near-degenerate extremes) plateau around 87-88%,
+    // because L1-L5's own kernel time never shrinks with l6a_m (Phase 18)
+    // and becomes one of the two dominant remaining costs once L6A is this
+    // narrow. This property extends the same "use a real trained
+    // sub-block of a wider matrix" trick m_l6a_m already uses to L1-L5's
+    // own hidden width (currently 20, real architecture value): only the
+    // first hidden_width of each layer's 20 neurons are computed
+    // (zero-padded downstream, matching l6a_m's "untouched neurons read as
+    // zero" convention), AND the L6A GEMM's K dimension is correspondingly
+    // reduced to hidden_width (a valid cuBLAS sub-block read, lda/ldb held
+    // at the real stride 20 -- same trick m_l6a_m already uses for the
+    // GEMM's M dimension) so the simulated throughput reflects a narrower
+    // L1-L5 output feeding a correspondingly narrower L6A input, not just
+    // L1-L5's own kernel in isolation.
+    Allen::Property<unsigned> m_l1_l5_hidden_width {
+        this, "l1_l5_hidden_width", 20u,
+        "Throughput-ceiling probe: use only the first N of L1-L5's 20 real "
+        "hidden neurons per layer, and correspondingly shrink L6A's GEMM K "
+        "dimension (default 20 = physics-valid; smaller is NOT "
+        "physics-valid, timing only). See optimization_plan.md Phase 26"};
+
+    // Phase 27 (optimization_plan.md, 2026-08-10): follow-up to Phase 26's
+    // near-null result -- narrowing L1-L5's width barely moved retention at
+    // l6a_m=8/single_hidden_layer=true, because at that point there was
+    // little left in L1-L5 to save. Investigating why the ceiling still sat
+    // around 86-88% found that pvfinder_reduce_l6a_kernel's shared-memory
+    // zero-init, its softplus reduction's channel loop, and its output
+    // write-back are all hardcoded to the buffer's full shape (800 neurons
+    // / 8 channels), NOT bounded by l6a_m -- l6a_m only bounds the GEMM/
+    // accumulation step. A real narrower latentChannels would shrink the
+    // buffer itself, cutting these three costs too; l6a_m alone can't
+    // simulate that. This property bounds exactly those three operations,
+    // in channel units. Intended usage: set this to l6a_m/100 so both
+    // probes represent the SAME hypothetical architecture consistently
+    // (e.g. l6a_m=100, l6a_active_channels=1 together simulate
+    // latentChannels=1) -- NOT physics-valid when < 8, timing only.
+    Allen::Property<unsigned> m_l6a_active_channels {
+        this, "l6a_active_channels", 8u,
+        "Throughput-ceiling probe: bound pvfinder_reduce_l6a_kernel's "
+        "shared-memory zero-init, channel-reduction loop, and output "
+        "write-back to this many of the real 8 channels (default 8 = "
+        "physics-valid; set to l6a_m/100 for a consistent narrower-L6A "
+        "simulation with m_l6a_m). See optimization_plan.md Phase 27"};
+
     // Phase 8 (optimization_plan.md, 2026-08-05): profiling at real -t16
     // contention (not the -t1 clean-attribution methodology used through
     // Phase 7) found cudaMemsetAsync at 14.4% of total CUDA API time --
