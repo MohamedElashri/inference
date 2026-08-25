@@ -221,9 +221,8 @@ def default_rich_reco_options(init_override_opts={}):
             # Settings for the global PID minimisation
             # ===========================================================
             # Number of iterations of the global PID background and
-            # likelihood minimisation. Default in CPU HLT2 is 2, but can be set to 1 for now as
-            # Allen does not yet have a full implementation of the global PID minimisation.
-            "nLikelihoodIterations": 1,
+            # likelihood minimisation.
+            "nLikelihoodIterations": 2,
             # The following are technical settings per iteration.
             # Do not change unless you know what you are doing ;)
             # Array size must be at least as big as the number of iterations

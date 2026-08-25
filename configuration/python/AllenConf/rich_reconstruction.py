@@ -341,11 +341,7 @@ def make_global_pid(
             f"BackgroundEstimationMethod must be one of ('FromReco', 'FromCones'), got {background_method!r}"
         )
     if background_method == "FromCones":
-        # Phase 1 of #618 (the real geomeff-based estimator) isn't implemented yet --
-        # backgroundsForRichFromCones falls back to the FromReco estimator, so results
-        # aren't numerically meaningful yet, but the sequence builds and runs end to
-        # end, exercising rich_raytrace_cherenkov_cones_t's geomeff outputs so CI and
-        # Moore can already have a test sequence for this path.
+        # Rec/HLT2 like path
         rich_global_pid_t = rich_global_pid_from_cones_t
         geomeff_kwargs = dict(
             dev_rich_geomeff_offsets_r1_t=photons[RICH_1]["dev_rich_geomeff_offsets"],
@@ -356,6 +352,7 @@ def make_global_pid(
             dev_rich_geomeff_fractions_per_hypo_r1_t=photons[RICH_1][
                 "dev_rich_geomeff_fractions_per_hypo"
             ],
+            dev_rich_hypos_r1_t=photons[RICH_1]["dev_rich_hypos"],
             dev_rich_geomeff_offsets_r2_t=photons[RICH_2]["dev_rich_geomeff_offsets"],
             dev_rich_geomeff_pd_ids_r2_t=photons[RICH_2]["dev_rich_geomeff_pd_ids"],
             dev_rich_geomeff_fractions_r2_t=photons[RICH_2][
@@ -364,11 +361,23 @@ def make_global_pid(
             dev_rich_geomeff_fractions_per_hypo_r2_t=photons[RICH_2][
                 "dev_rich_geomeff_fractions_per_hypo"
             ],
+            dev_rich_hypos_r2_t=photons[RICH_2]["dev_rich_hypos"],
         )
     else:
+        # Alternative quartic reco "FromReco" path
         rich_global_pid_t = rich_global_pid_from_reco_t
-        geomeff_kwargs = {}
-
+        geomeff_kwargs = dict(
+            dev_rich_geomeff_offsets_r1_t=photons[RICH_1]["dev_rich_geomeff_offsets"],
+            dev_rich_geomeff_pd_ids_r1_t=photons[RICH_1]["dev_rich_geomeff_pd_ids"],
+            dev_rich_geomeff_pd_fractions_r1_t=photons[RICH_1][
+                "dev_rich_geomeff_pd_fractions"
+            ],
+            dev_rich_geomeff_offsets_r2_t=photons[RICH_2]["dev_rich_geomeff_offsets"],
+            dev_rich_geomeff_pd_ids_r2_t=photons[RICH_2]["dev_rich_geomeff_pd_ids"],
+            dev_rich_geomeff_pd_fractions_r2_t=photons[RICH_2][
+                "dev_rich_geomeff_pd_fractions"
+            ],
+        )
     rich_global_pid = make_algorithm(
         rich_global_pid_t,
         name="rich_global_pid",
@@ -400,6 +409,14 @@ def make_global_pid(
         # alg settings
         nLikelihoodIterations=options["nLikelihoodIterations"],
         IgnoreExpectedSignals=options["PDBackIgnoreExpSignals"],
+        PDBckWeights=[v for pair in options["PDBckWeights"] for v in pair],
+        PDBackThresholds=[v for pair in options["PDBackThresholds"] for v in pair],
+        PDBackMinPixBackground=[
+            v for pair in options["PDBackMinPixBackground"] for v in pair
+        ],
+        PDBackMaxPixBackground=[
+            v for pair in options["PDBackMaxPixBackground"] for v in pair
+        ],
         **geomeff_kwargs,
     )
 
