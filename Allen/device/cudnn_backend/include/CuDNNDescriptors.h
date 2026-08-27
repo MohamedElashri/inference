@@ -7,6 +7,7 @@
 #include <utility>
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #endif
 
 namespace Allen::CuDNN {
@@ -24,26 +25,22 @@ namespace Allen::CuDNN {
    * @brief RAII wrapper for a cuDNN convolution's four descriptors.
    *
    * Design constraints (Allen compatibility):
-   *  - Algorithm is pinned to IMPLICIT_GEMM at create() time (not selected via
-   *    cudnnFindConvolutionForwardAlgorithmEx / cudnnGetConvolutionForwardAlgorithm_v7).
-   *    Two algorithm-selection strategies were built and measured as alternatives (both
-   *    ranked a candidate, then required it to survive one live, checked
-   *    cudnnConvolutionForward call under its true queried workspace size before adopting
-   *    it -- to close the gap where Find or the v7 heuristic reports success on an
-   *    algorithm that then fails at actual runtime): "guarded Find" (real hardware timing)
-   *    and "guarded heur_v7" (cuDNN's static, non-benchmarked cost model). Both were
-   *    confirmed STABLE across 30/30 clean full-scale -t16 stress-test launches each, with
-   *    deterministic, identical promotion of a Tensor-Core-capable algorithm every time.
-   *    But a direct throughput comparison showed that promoted algorithm was *slower* in
-   *    real production use than plain IMPLICIT_GEMM -- FP16 eager -8.76%, FP16+graph
-   *    -7.26% -- because it requires a multi-MB per-thread workspace (im2col-style scratch
-   *    written to and read from GPU global memory on every call), and the resulting memory-
-   *    bandwidth contention across 16 concurrent threads costs more than the Tensor-Core
-   *    math saves. Find's/heur_v7's own ranking never sees this: both are one-shot,
-   *    isolated single-call measurements at create() time with no concurrent memory
-   *    pressure, so neither could have caught it. IMPLICIT_GEMM is simply the right
-   *    algorithm for this shape (thin, 16-channel network) under real concurrent load,
-   *    independent of the earlier crash investigation -- pinning it is not a compromise.
+   *  - Algorithm is pinned to IMPLICIT_GEMM at create() time by default,
+   *    rather than selected via cudnnFindConvolutionForwardAlgorithmEx or
+   *    cudnnGetConvolutionForwardAlgorithm_v7's heuristic. For this
+   *    network's thin, low-channel shapes under real concurrent multi-thread
+   *    load, an algorithm promoted by either search strategy tends to need a
+   *    multi-MB per-thread workspace (im2col-style scratch written to and
+   *    read from GPU global memory on every call); the resulting
+   *    memory-bandwidth contention across many concurrent threads costs more
+   *    than any Tensor-Core math it buys back. A one-shot, isolated timing
+   *    or cost-model measurement at create() time has no way to see that
+   *    concurrent-load cost, so IMPLICIT_GEMM's near-zero workspace
+   *    footprint wins for this shape under production load even though it
+   *    isn't the fastest single-call candidate in isolation. A bounded,
+   *    live-verified heuristic search is available opt-in via
+   *    workspace_budget_bytes for callers where that tradeoff differs (see
+   *    below).
    *  - Workspace is thread_local, not a single shared buffer: cuDNN writes real
    *    per-call intermediate scratch state into it during forward() (im2col buffers,
    *    partial reductions, etc.) -- it is NOT read-only/inert. A single workspace
@@ -122,11 +119,10 @@ namespace Allen::CuDNN {
     ConvDescriptors& operator=(const ConvDescriptors&) = delete;
 
     // Create descriptors with fixed input shape. Algorithm is pinned to
-    // IMPLICIT_GEMM by default (see rationale below) rather than selected via
+    // IMPLICIT_GEMM by default (see rationale above) rather than selected via
     // cudnnFindConvolutionForwardAlgorithmEx -- unless workspace_budget_bytes
     // is nonzero, in which case a bounded heuristic search is used instead
-    // (see the workspace_budget_bytes parameter doc below; Phase 2 of
-    // optimization_plan.md).
+    // (see the workspace_budget_bytes parameter doc below).
     // dtype: CUDNN_DATA_FLOAT (default) or CUDNN_DATA_HALF for FP16 Tensor Core path.
     // Compute type is always CUDNN_DATA_FLOAT (FP32 accumulation) for both dtypes.
     void create(
@@ -194,10 +190,8 @@ namespace Allen::CuDNN {
           // real cudnnConvolutionForward() call time with CUDNN_STATUS_BAD_PARAM.
           // Guard against that by actually executing each within-budget
           // candidate once, here at init time, against scratch buffers sized
-          // to this descriptor's real tensors, and only adopting the first one
-          // that genuinely succeeds -- mirroring the "guarded Find"/"guarded
-          // heur_v7" approach already described (but not currently used) in
-          // this class's header comment.
+          // to this descriptor's real tensors, and only adopting the first
+          // one that genuinely succeeds.
           const size_t elem_size  = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
           const size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
           const size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
@@ -296,6 +290,29 @@ namespace Allen::CuDNN {
         m_output_desc, dev_output));
     }
 
+    // BF16 forward: for descriptors created with dtype=CUDNN_DATA_BFLOAT16.
+    // Mirrors forward_half exactly; BF16 shares FP32's exponent range, so it
+    // avoids the overflow-to-NaN failure mode FP16 can hit on wide-dynamic-
+    // range inputs.
+    void forward_bf16(
+      cudnnHandle_t         handle,
+      const float           alpha, const float beta,
+      const __nv_bfloat16*  dev_input,
+      const __nv_bfloat16*  dev_filter,
+      __nv_bfloat16*        dev_output) const
+    {
+      ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
+        handle,
+        &alpha,
+        m_input_desc,  dev_input,
+        m_filter_desc, dev_filter,
+        m_conv_desc,
+        m_algo,
+        get_thread_local_workspace(this, m_ws_bytes), m_ws_bytes,
+        &beta,
+        m_output_desc, dev_output));
+    }
+
 #else
     void create(cudnnHandle_t, std::array<int,4>, std::array<int,4>,
                 std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
@@ -309,6 +326,8 @@ namespace Allen::CuDNN {
     void forward(const Handle&, float, float,
                  const float*, const float*, float*) const {}
     void forward_half(cudnnHandle_t, float, float,
+                      const void*, const void*, void*) const {}
+    void forward_bf16(cudnnHandle_t, float, float,
                       const void*, const void*, void*) const {}
 #endif
   };

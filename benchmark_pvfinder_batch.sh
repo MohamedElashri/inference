@@ -22,70 +22,85 @@ Options:
   -r, --repetitions N        Repetitions per thread / stream (default: 500)
   --repeats N                Number of repeated benchmark runs (default: 3)
   --cnn-weights PATH         Override pvfinder_unet weight_file
+  --fc-weights PATH          Override pvfinder_fc_aggregation weight_file
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
+  --use-bf16 BOOL            Set pvfinder_unet.use_bf16 true/false (default: false)
+                             eager path only, takes precedence over use_fp16
   --skip-mode MODE           Set pvfinder_unet.skip_mode: concat|add|none (default: concat)
                              add/none are throughput-only ablations, not physics-valid
   --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
                              only active when use_fp16=false and skip_mode=concat
   --use-fused-cbr BOOL       Set pvfinder_unet.use_fused_cbr true/false (default: false)
                              rcbn1 only, FP32 only; falls back automatically if
-                             unsupported on the GPU (see optimization_plan.md Phase 1)
+                             unsupported on the GPU
   --fwd-algo-ws-budget-mb N  Set pvfinder_unet.fwd_algo_ws_budget_bytes = N*1024*1024
-                             (default: 0 = pinned IMPLICIT_GEMM, no search; see
-                             optimization_plan.md Phase 2)
+                             (default: 0 = pinned IMPLICIT_GEMM, no search)
   --use-fused-rcbn3 BOOL     Set pvfinder_unet.use_fused_rcbn3 true/false (default: false)
-                             rcbn3 only, eager FP32 path only; see
-                             optimization_plan.md Phase 3
+                             rcbn3 only, eager FP32 path only
+  --use-merged-oint-outc BOOL
+                             Set pvfinder_unet.use_merged_oint_outc true/false
+                             (default: false); eager FP32 path, skip_mode=concat
+                             only -- measured as a throughput regression, kept
+                             for reference
+  --use-merged-up1 BOOL     Set pvfinder_unet.use_merged_up1 true/false
+                             (default: false); eager FP32 path only -- same
+                             result as use-merged-oint-outc, a measured
+                             throughput regression kept for reference
   --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
-                             (default: 800, physics-valid; any other value is
-                             throughput-only tile-alignment testing, not physics-valid)
+                             (default: unset -- leaves Allen's own build-derived
+                             default, L6A_WIDTH, in effect; that's 800 for the
+                             standard 8-channel build, and scales with
+                             --unet-batch-channels for others. Any value other
+                             than that build's real L6A_WIDTH is throughput-only
+                             tile-alignment testing, not physics-valid -- passing
+                             a value for the wrong build's L6A_WIDTH, e.g. 800
+                             against a --unet-batch-channels 4 build, is an
+                             invalid cuBLAS call, not just non-physical)
   --use-nonatomic-l6a-reduce BOOL
                              Set pvfinder_fc_aggregation.use_nonatomic_l6a_reduce
-                             true/false (default: false); see optimization_plan.md
+                             true/false (default: false)
   --use-warp-parallel-reduce BOOL
                              Set pvfinder_fc_aggregation.use_warp_parallel_reduce
-                             true/false (default: false); Phase 6 idea 2, see
-                             optimization_plan.md
+                             true/false (default: false)
   --fc-chunk-size N          Set pvfinder_fc_aggregation.fc_chunk_size
-                             (default: 20); Phase 6 idea 3, see optimization_plan.md
+                             (default: 20)
   --use-fused-bias-relu-reduce BOOL
                              Set pvfinder_fc_aggregation.use_fused_bias_relu_reduce
-                             true/false (default: false); Phase 7 idea 1, see
-                             optimization_plan.md
+                             true/false (default: false)
   --skip-redundant-memset BOOL
                              Set pvfinder_fc_aggregation.skip_redundant_memset
-                             true/false (default: false); Phase 8 idea 1, see
-                             optimization_plan.md
+                             true/false (default: false)
   --use-grid-stride-reduce BOOL
                              Set pvfinder_fc_aggregation.use_grid_stride_reduce
-                             true/false (default: false); Phase 15, see
-                             optimization_plan.md
+                             true/false (default: false)
   --fc-single-hidden-layer BOOL
                              Set pvfinder_fc_aggregation.fc_single_hidden_layer
-                             true/false (default: false); Phase 18 throughput-ceiling
-                             probe -- skips L1-L5's layers 2-5 (NOT physics-valid when
-                             true), see optimization_plan.md
+                             true/false (default: false); throughput-ceiling
+                             probe -- skips L1-L5's layers 2-5 (NOT physics-valid
+                             when true)
   --l1-l5-hidden-width N     Set pvfinder_fc_aggregation.l1_l5_hidden_width
                              (default: 20, physics-valid); throughput-ceiling probe --
                              uses only the first N of L1-L5's 20 real neurons per layer
                              and shrinks L6A's GEMM K accordingly (NOT physics-valid
-                             when < 20), see optimization_plan.md Phase 26
+                             when < 20)
   --l6a-active-channels N    Set pvfinder_fc_aggregation.l6a_active_channels
-                             (default: 8, physics-valid); throughput-ceiling probe --
-                             bounds L6A's zero-init/channel-reduction/write-back to N
-                             of the real 8 channels (NOT physics-valid when < 8); set
-                             to l6a-m/100 for a consistent narrower-L6A simulation,
-                             see optimization_plan.md Phase 27
+                             (default: unset -- leaves Allen's own build-derived
+                             default, N_LATENT_CHANNELS, in effect; that's 8 for
+                             the standard build, and scales with
+                             --unet-batch-channels for others); throughput-ceiling
+                             probe -- bounds L6A's zero-init/channel-reduction/
+                             write-back to N of this build's real N_LATENT_CHANNELS
+                             channels (NOT physics-valid when < N_LATENT_CHANNELS);
+                             set to l6a-m/100 for a consistent narrower-L6A
+                             simulation
   --use-precomputed-csr-offset BOOL
                              Set pvfinder_fc_aggregation.use_precomputed_csr_offset
-                             true/false (default: false); Phase 19, see
-                             optimization_plan.md
+                             true/false (default: false)
   --safe-avg-entries-per-event N
                              Set pvfinder_fc_aggregation.safe_avg_entries_per_event
-                             (default: 600, Phase 9's validated margin); CAUTION --
-                             lowering this reclaims T_chunk_max headroom for a larger
-                             fc_chunk_size at real crash risk if set too low, see
-                             optimization_plan.md Phase 20 before changing
+                             (default: 600); CAUTION -- lowering this reclaims
+                             T_chunk_max headroom for a larger fc_chunk_size at
+                             real crash risk if set too low
   --profile                  Run each sequence under nsys
   --result-root DIR          Directory for batches (default: benchmark_results)
   -h, --help                 Show this help
@@ -110,13 +125,17 @@ MEMORY=300
 REPS=500
 REPEATS=3
 CNN_WEIGHTS_OVERRIDE=""
+FC_WEIGHTS_OVERRIDE=""
 USE_FP16=false
+USE_BF16=false
 SKIP_MODE=concat
 USE_CUDA_GRAPH=false
 USE_FUSED_CBR=false
 FWD_ALGO_WS_BUDGET_MB=0
 USE_FUSED_RCBN3=false
-L6A_M=800
+USE_MERGED_OINT_OUTC=false
+USE_MERGED_UP1=false
+L6A_M=""    # unset default: leaves Allen's own build-derived L6A_WIDTH in effect
 USE_NONATOMIC_L6A_REDUCE=false
 USE_WARP_PARALLEL_REDUCE=false
 FC_CHUNK_SIZE=20
@@ -125,7 +144,7 @@ SKIP_REDUNDANT_MEMSET=false
 USE_GRID_STRIDE_REDUCE=false
 FC_SINGLE_HIDDEN_LAYER=false
 L1_L5_HIDDEN_WIDTH=20
-L6A_ACTIVE_CHANNELS=8
+L6A_ACTIVE_CHANNELS=""    # unset default: leaves Allen's own build-derived N_LATENT_CHANNELS in effect
 USE_PRECOMPUTED_CSR_OFFSET=false
 SAFE_AVG_ENTRIES_PER_EVENT=600
 PROFILE=0
@@ -142,12 +161,16 @@ while [[ $# -gt 0 ]]; do
         --repetitions|-r) REPS="$2"; shift 2 ;;
         --repeats) REPEATS="$2"; shift 2 ;;
         --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
+        --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --use-fp16) USE_FP16="$2"; shift 2 ;;
+        --use-bf16) USE_BF16="$2"; shift 2 ;;
         --skip-mode) SKIP_MODE="$2"; shift 2 ;;
         --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
         --use-fused-cbr) USE_FUSED_CBR="$2"; shift 2 ;;
         --fwd-algo-ws-budget-mb) FWD_ALGO_WS_BUDGET_MB="$2"; shift 2 ;;
         --use-fused-rcbn3) USE_FUSED_RCBN3="$2"; shift 2 ;;
+        --use-merged-oint-outc) USE_MERGED_OINT_OUTC="$2"; shift 2 ;;
+        --use-merged-up1) USE_MERGED_UP1="$2"; shift 2 ;;
         --l6a-m) L6A_M="$2"; shift 2 ;;
         --use-nonatomic-l6a-reduce) USE_NONATOMIC_L6A_REDUCE="$2"; shift 2 ;;
         --use-warp-parallel-reduce) USE_WARP_PARALLEL_REDUCE="$2"; shift 2 ;;
@@ -178,6 +201,11 @@ case "${USE_FP16}" in
     *) echo "ERROR: --use-fp16 must be true or false" >&2; exit 1 ;;
 esac
 
+case "${USE_BF16}" in
+    true|false) ;;
+    *) echo "ERROR: --use-bf16 must be true or false" >&2; exit 1 ;;
+esac
+
 case "${SKIP_MODE}" in
     concat|add|none) ;;
     *) echo "ERROR: --skip-mode must be concat, add, or none" >&2; exit 1 ;;
@@ -201,6 +229,16 @@ fi
 case "${USE_FUSED_RCBN3}" in
     true|false) ;;
     *) echo "ERROR: --use-fused-rcbn3 must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_MERGED_OINT_OUTC}" in
+    true|false) ;;
+    *) echo "ERROR: --use-merged-oint-outc must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_MERGED_UP1}" in
+    true|false) ;;
+    *) echo "ERROR: --use-merged-up1 must be true or false" >&2; exit 1 ;;
 esac
 
 case "${USE_NONATOMIC_L6A_REDUCE}" in
@@ -243,8 +281,8 @@ if ! [[ "${L1_L5_HIDDEN_WIDTH}" =~ ^[0-9]+$ ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -lt
     exit 1
 fi
 
-if ! [[ "${L6A_ACTIVE_CHANNELS}" =~ ^[0-9]+$ ]] || [[ "${L6A_ACTIVE_CHANNELS}" -lt 1 ]] || [[ "${L6A_ACTIVE_CHANNELS}" -gt 8 ]]; then
-    echo "ERROR: --l6a-active-channels must be an integer in [1, 8] (8 = physics-valid default)" >&2
+if [[ -n "${L6A_ACTIVE_CHANNELS}" ]] && { ! [[ "${L6A_ACTIVE_CHANNELS}" =~ ^[0-9]+$ ]] || [[ "${L6A_ACTIVE_CHANNELS}" -lt 1 ]]; }; then
+    echo "ERROR: --l6a-active-channels must be a positive integer (leave unset for this build's own physics-valid N_LATENT_CHANNELS default -- the upper bound is build-dependent, see --unet-batch-channels)" >&2
     exit 1
 fi
 
@@ -258,8 +296,8 @@ if ! [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" =~ ^[0-9]+$ ]] || [[ "${SAFE_AVG_ENTRIES
     exit 1
 fi
 
-if ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]] || [[ "${L6A_M}" -gt 800 ]]; then
-    echo "ERROR: --l6a-m must be an integer in [1, 800] (800 = physics-valid default)" >&2
+if [[ -n "${L6A_M}" ]] && { ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]]; }; then
+    echo "ERROR: --l6a-m must be a positive integer (leave unset for this build's own physics-valid L6A_WIDTH default -- the upper bound is build-dependent, see --unet-batch-channels)" >&2
     exit 1
 fi
 
@@ -286,6 +324,20 @@ if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
     fi
 else
     CNN_WEIGHTS_ABS="${SCRIPT_DIR}/cnn_weights.bin"
+fi
+
+if [[ -n "${FC_WEIGHTS_OVERRIDE}" ]]; then
+    if [[ "${FC_WEIGHTS_OVERRIDE}" = /* ]]; then
+        FC_WEIGHTS_ABS="${FC_WEIGHTS_OVERRIDE}"
+    else
+        FC_WEIGHTS_ABS="${SCRIPT_DIR}/${FC_WEIGHTS_OVERRIDE}"
+    fi
+    if [[ ! -f "${FC_WEIGHTS_ABS}" ]]; then
+        echo "ERROR: --fc-weights file not found: ${FC_WEIGHTS_ABS}" >&2
+        exit 1
+    fi
+else
+    FC_WEIGHTS_ABS="${SCRIPT_DIR}/fc_weights.bin"
 fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -329,16 +381,19 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_MERGED_OINT_OUTC" "$USE_BF16" "$USE_MERGED_UP1" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, skip_mode, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw = sys.argv[1:]
+path, weights, use_fp16_raw, skip_mode, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_merged_oint_outc_raw, use_bf16_raw, use_merged_up1_raw = sys.argv[1:]
 use_fp16 = use_fp16_raw == "true"
+use_bf16 = use_bf16_raw == "true"
+use_merged_up1 = use_merged_up1_raw == "true"
 use_cuda_graph = use_cuda_graph_raw == "true"
 use_fused_cbr = use_fused_cbr_raw == "true"
 fwd_ws_budget_bytes = int(fwd_ws_budget_mb_raw) * 1024 * 1024
 use_fused_rcbn3 = use_fused_rcbn3_raw == "true"
+use_merged_oint_outc = use_merged_oint_outc_raw == "true"
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -346,11 +401,14 @@ with open(path, "r", encoding="utf-8") as handle:
 pvfinder_unet = data.setdefault("pvfinder_unet", {})
 pvfinder_unet["weight_file"] = weights
 pvfinder_unet["use_fp16"] = use_fp16
+pvfinder_unet["use_bf16"] = use_bf16
+pvfinder_unet["use_merged_up1"] = use_merged_up1
 pvfinder_unet["skip_mode"] = skip_mode
 pvfinder_unet["use_cuda_graph"] = use_cuda_graph
 pvfinder_unet["use_fused_cbr"] = use_fused_cbr
 pvfinder_unet["fwd_algo_ws_budget_bytes"] = fwd_ws_budget_bytes
 pvfinder_unet["use_fused_rcbn3"] = use_fused_rcbn3
+pvfinder_unet["use_merged_oint_outc"] = use_merged_oint_outc
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -365,7 +423,7 @@ patch_fc_config() {
         "$USE_FUSED_BIAS_RELU_REDUCE" "$SKIP_REDUNDANT_MEMSET" \
         "$USE_GRID_STRIDE_REDUCE" "$FC_SINGLE_HIDDEN_LAYER" \
         "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" \
-        "$L1_L5_HIDDEN_WIDTH" "$L6A_ACTIVE_CHANNELS" <<'PY'
+        "$L1_L5_HIDDEN_WIDTH" "$L6A_ACTIVE_CHANNELS" "$FC_WEIGHTS_ABS" <<'PY'
 import json
 import sys
 
@@ -373,13 +431,23 @@ import sys
  use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw,
  fc_single_hidden_layer_raw, use_precomputed_csr_offset_raw,
  safe_avg_entries_per_event_raw, l1_l5_hidden_width_raw,
- l6a_active_channels_raw) = sys.argv[1:]
+ l6a_active_channels_raw, fc_weights_abs) = sys.argv[1:]
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 
 fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
-fc_agg["l6a_m"] = int(l6a_m_raw)
+fc_agg["weight_file"] = fc_weights_abs
+# l6a_m and l6a_active_channels used to always be patched in, defaulting to
+# this script's own hardcoded 800/8 -- silently overriding Allen's own
+# build-derived defaults (L6A_WIDTH/N_LATENT_CHANNELS) even for a build
+# whose real width is different, which is an invalid cuBLAS call (M larger
+# than the buffer's real leading dimension), not just a wrong physics
+# result. Now left out of the config entirely (leaving Allen's own
+# compile-time-correct default in effect) unless the caller explicitly
+# passed --l6a-m / --l6a-active-channels.
+if l6a_m_raw != "":
+    fc_agg["l6a_m"] = int(l6a_m_raw)
 fc_agg["use_nonatomic_l6a_reduce"] = use_nonatomic_raw == "true"
 fc_agg["use_warp_parallel_reduce"] = use_warp_parallel_raw == "true"
 fc_agg["fc_chunk_size"] = int(fc_chunk_size_raw)
@@ -390,7 +458,8 @@ fc_agg["fc_single_hidden_layer"] = fc_single_hidden_layer_raw == "true"
 fc_agg["use_precomputed_csr_offset"] = use_precomputed_csr_offset_raw == "true"
 fc_agg["safe_avg_entries_per_event"] = int(safe_avg_entries_per_event_raw)
 fc_agg["l1_l5_hidden_width"] = int(l1_l5_hidden_width_raw)
-fc_agg["l6a_active_channels"] = int(l6a_active_channels_raw)
+if l6a_active_channels_raw != "":
+    fc_agg["l6a_active_channels"] = int(l6a_active_channels_raw)
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -495,13 +564,17 @@ run_sequence() {
     echo "repeats=${REPEATS}"
     echo "profile=${PROFILE}"
     echo "cnn_weights=${CNN_WEIGHTS_ABS}"
+    echo "fc_weights=${FC_WEIGHTS_ABS}"
     echo "use_fp16=${USE_FP16}"
+    echo "use_bf16=${USE_BF16}"
     echo "skip_mode=${SKIP_MODE}"
     echo "use_cuda_graph=${USE_CUDA_GRAPH}"
     echo "use_fused_cbr=${USE_FUSED_CBR}"
     echo "fwd_algo_ws_budget_mb=${FWD_ALGO_WS_BUDGET_MB}"
     echo "use_fused_rcbn3=${USE_FUSED_RCBN3}"
-    echo "l6a_m=${L6A_M}"
+    echo "use_merged_oint_outc=${USE_MERGED_OINT_OUTC}"
+    echo "use_merged_up1=${USE_MERGED_UP1}"
+    echo "l6a_m=${L6A_M:-<build-default L6A_WIDTH>}"
     echo "use_nonatomic_l6a_reduce=${USE_NONATOMIC_L6A_REDUCE}"
     echo "use_warp_parallel_reduce=${USE_WARP_PARALLEL_REDUCE}"
     echo "fc_chunk_size=${FC_CHUNK_SIZE}"
@@ -510,7 +583,7 @@ run_sequence() {
     echo "use_grid_stride_reduce=${USE_GRID_STRIDE_REDUCE}"
     echo "fc_single_hidden_layer=${FC_SINGLE_HIDDEN_LAYER}"
     echo "l1_l5_hidden_width=${L1_L5_HIDDEN_WIDTH}"
-    echo "l6a_active_channels=${L6A_ACTIVE_CHANNELS}"
+    echo "l6a_active_channels=${L6A_ACTIVE_CHANNELS:-<build-default N_LATENT_CHANNELS>}"
     echo "use_precomputed_csr_offset=${USE_PRECOMPUTED_CSR_OFFSET}"
     echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
     echo "mdf=${MDF}"
@@ -521,7 +594,7 @@ git -C "${SCRIPT_DIR}" rev-parse HEAD > "${BATCH_DIR}/git_head.txt"
 git -C "${SCRIPT_DIR}" status --short > "${BATCH_DIR}/git_status_short.txt"
 git -C "${SCRIPT_DIR}" log --oneline -8 --decorate > "${BATCH_DIR}/git_log_oneline.txt"
 
-sha256sum "${CNN_WEIGHTS_ABS}" > "${BATCH_DIR}/weights.sha256"
+sha256sum "${CNN_WEIGHTS_ABS}" "${FC_WEIGHTS_ABS}" > "${BATCH_DIR}/weights.sha256"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi > "${BATCH_DIR}/nvidia_smi.txt" 2>&1 || true

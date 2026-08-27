@@ -69,6 +69,22 @@ struct GlobalDescriptors {
     __half* fp16_cat2 = nullptr;  // [N, 2*N_FEAT, W_HALF]    — also up2_c output
     __half* fp16_up2  = nullptr;  // [N, N_FEAT, W_IN]
 
+    // BF16 CBR descriptors and
+    // weights (CUDNN_DATA_BFLOAT16, BN-folded at init) -- exact structural
+    // mirror of the FP16 fields above, added instead of reusing them so the
+    // already-validated FP16 path is untouched by this addition. No shared
+    // bf16_pool activation buffer here, deliberately -- this phase's BF16
+    // support is eager-path-only (no CUDA graph capture), and the eager
+    // FP16 path itself does not use s_desc.fp16_pool either; it uses a
+    // thread_local pool instead (GraphScratchPoolBF16 below), for the same
+    // reason the FP16 one does (see that struct's comment).
+    Allen::CuDNN::ConvDescriptors rcbn1_bf, rcbn2_bf, rcbn3_bf, up1c_bf, up2c_bf;
+    __nv_bfloat16* rcbn1_w_bf = nullptr; __nv_bfloat16* rcbn1_b_bf = nullptr;
+    __nv_bfloat16* rcbn2_w_bf = nullptr; __nv_bfloat16* rcbn2_b_bf = nullptr;
+    __nv_bfloat16* rcbn3_w_bf = nullptr; __nv_bfloat16* rcbn3_b_bf = nullptr;
+    __nv_bfloat16* up1c_w_bf  = nullptr; __nv_bfloat16* up1c_b_bf  = nullptr;
+    __nv_bfloat16* up2c_w_bf  = nullptr; __nv_bfloat16* up2c_b_bf  = nullptr;
+
     // ConvTranspose descriptors (filter + conv only; tensor descs are local in operator())
     cudnnFilterDescriptor_t       filter_up1_t = nullptr;
     cudnnConvolutionDescriptor_t  conv_up1_t   = nullptr;
@@ -95,6 +111,23 @@ struct GlobalDescriptors {
     cudnnConvolutionBwdDataAlgo_t algo_up2_t_slim   = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
     void*                         ws_up2_t_slim     = nullptr;
     size_t                        ws_up2_bytes_slim = 0;
+
+    // Merged out_intermediate+outc
+    // Conv1d(k=9) taps per branch [N_FEAT, K_MERGED=9] and the single scalar
+    // bias, folded once at init from the trained (unmerged) weights -- see
+    // fold_oint_outc_kernel. concat skip-mode only; opt-in via
+    // use_merged_oint_outc.
+    float* oint_outc_merged_a    = nullptr;
+    float* oint_outc_merged_b    = nullptr;
+    float* oint_outc_merged_bias = nullptr;
+
+    // Merged up1 ConvTranspose+Conv
+    // phase-dependent taps ([N_FEAT,N_FEAT,3] each) and scalar-per-channel
+    // bias ([N_FEAT]), folded once at init -- see fold_up1_merge_kernel.
+    // Eager FP32 path only; opt-in via use_merged_up1.
+    float* up1_merge_K_even = nullptr;
+    float* up1_merge_K_odd  = nullptr;
+    float* up1_merge_bias   = nullptr;
 };
 
 static GlobalDescriptors s_desc;
@@ -269,6 +302,52 @@ static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16()
     return pool;
 }
 
+// ---------------------------------------------------------------------------
+// BF16 counterpart of GraphScratchPoolFP16. Same thread_local/never-freed
+// rules, same layout/sizes, same
+// reuse of the existing FP32 GraphScratchPool at the path's boundaries
+// (x1, x3/logits, up2/cat2). Eager-path-only for now -- not wired into
+// either CUDA graph capture function, unlike the FP16 pool (which serves
+// both) -- so this is simpler than its FP16 counterpart in that respect,
+// not because the underlying risk differs.
+// ---------------------------------------------------------------------------
+struct GraphScratchPoolBF16 {
+    __nv_bfloat16* ncw  = nullptr;  // [N, N_BATCH_CHANNELS, W_IN]
+    __nv_bfloat16* x1   = nullptr;  // [N, N_FEAT, W_IN]
+    __nv_bfloat16* x2   = nullptr;  // [N, N_FEAT, W_HALF]
+    __nv_bfloat16* x3   = nullptr;  // [N, N_FEAT, W_QTR]
+    __nv_bfloat16* up1  = nullptr;  // [N, N_FEAT, W_HALF]
+    __nv_bfloat16* cat2 = nullptr;  // [N, N_FEAT, 2*W_HALF] -- also up2_c output
+    __nv_bfloat16* up2  = nullptr;  // [N, N_FEAT, W_IN]      -- reused as general scratch
+};
+
+static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16()
+{
+    thread_local GraphScratchPoolBF16 pool;
+    if (pool.ncw == nullptr) {
+        constexpr int N = N_CHUNK_INTERVALS;
+        const size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
+        const size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
+        const size_t sz_x2   = (size_t)N * N_FEAT * W_HALF;
+        const size_t sz_x3   = (size_t)N * N_FEAT * W_QTR;
+        const size_t sz_up1  = (size_t)N * N_FEAT * W_HALF;
+        const size_t sz_cat2 = (size_t)N * N_FEAT * 2 * W_HALF;
+        const size_t sz_up2  = (size_t)N * N_FEAT * W_IN;
+        cudaMalloc(&pool.ncw,  sz_ncw  * sizeof(__nv_bfloat16));
+        cudaMalloc(&pool.x1,   sz_x1   * sizeof(__nv_bfloat16));
+        cudaMalloc(&pool.x2,   sz_x2   * sizeof(__nv_bfloat16));
+        cudaMalloc(&pool.x3,   sz_x3   * sizeof(__nv_bfloat16));
+        cudaMalloc(&pool.up1,  sz_up1  * sizeof(__nv_bfloat16));
+        cudaMalloc(&pool.cat2, sz_cat2 * sizeof(__nv_bfloat16));
+        cudaMalloc(&pool.up2,  sz_up2  * sizeof(__nv_bfloat16));
+        const size_t total_bytes =
+            (sz_ncw + sz_x1 + sz_x2 + sz_x3 + sz_up1 + sz_cat2 + sz_up2) * sizeof(__nv_bfloat16);
+        printf("[pvfinder_unet] eager BF16 scratch pool allocated: %.2f MB (thread_local)\n",
+               total_bytes / (1024.0 * 1024.0));
+    }
+    return pool;
+}
+
 // Weight blob: device pointers per layer (filled in init(), used in operator()).
 struct WeightBlob {
     const float* w_rcbn1_w;  const float* w_rcbn1_b;
@@ -338,6 +417,18 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
         f32_to_f16_kernel<<<((K  + threads - 1) / threads), threads, 0, stream>>>(b_h, b_f, K);
     };
 
+    // Helper: convert FP32 BN-folded weights to BF16. Structurally identical
+    // to to_half above.
+    auto to_bf16 = [](const float* w_f, const float* b_f, int K, int CxHxW,
+                      __nv_bfloat16*& w_bf, __nv_bfloat16*& b_bf, cudaStream_t stream) {
+        size_t wn = (size_t)K * CxHxW;
+        cudaMalloc(&w_bf, wn * sizeof(__nv_bfloat16));
+        cudaMalloc(&b_bf, (size_t)K * sizeof(__nv_bfloat16));
+        int threads = 256;
+        f32_to_bf16_kernel<<<((wn + threads - 1) / threads), threads, 0, stream>>>(w_bf, w_f, (int)wn);
+        f32_to_bf16_kernel<<<((K  + threads - 1) / threads), threads, 0, stream>>>(b_bf, b_f, K);
+    };
+
     // Fold BN into conv weights for each CBR layer, then build the fused graph.
     // All fold kernels run on stream 0 (init is single-threaded here).
     fold_bn(wb.w_rcbn1_w, wb.w_rcbn1_b,
@@ -353,9 +444,14 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     cudaDeviceSynchronize();
     s_desc.rcbn1_h.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
                           {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
+    to_bf16(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
+            s_desc.rcbn1_w_bf, s_desc.rcbn1_b_bf, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn1_bf.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
+                          {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
-    // Optional true single-pass Conv+Bias+ReLU for rcbn1 (Phase 1 of
-    // optimization_plan.md). Uses the same BN-folded weights/bias as rcbn1
+    // Optional true single-pass Conv+Bias+ReLU for rcbn1. Uses the same
+    // BN-folded weights/bias as rcbn1
     // above. Creation can fail if no engine supports this op-graph shape on
     // the current GPU/cuDNN version -- caught here so the process still
     // starts and use_fused_cbr silently falls back to the two-pass path.
@@ -381,6 +477,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     cudaDeviceSynchronize();
     s_desc.rcbn2_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
                           {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
+    to_bf16(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
+            s_desc.rcbn2_w_bf, s_desc.rcbn2_b_bf, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn2_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
+                          {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_rcbn3_w, wb.w_rcbn3_b,
             wb.w_rcbn3_gamma, wb.w_rcbn3_beta,
@@ -395,6 +496,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     cudaDeviceSynchronize();
     s_desc.rcbn3_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                           {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
+    to_bf16(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
+            s_desc.rcbn3_w_bf, s_desc.rcbn3_b_bf, 0);
+    cudaDeviceSynchronize();
+    s_desc.rcbn3_bf.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+                          {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_up1c_w, wb.w_up1c_b,
             wb.w_up1c_gamma, wb.w_up1c_beta,
@@ -409,6 +515,25 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     cudaDeviceSynchronize();
     s_desc.up1c_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
+    to_bf16(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
+            s_desc.up1c_w_bf, s_desc.up1c_b_bf, 0);
+    cudaDeviceSynchronize();
+    s_desc.up1c_bf.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+                         {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
+
+    // Fold up1's ConvTranspose+Conv into phase-dependent merged taps, from
+    // the raw (unfused) ConvTranspose
+    // weight/bias and the already-BN-folded up1c_w_f/b_f above.
+    {
+        cudaMalloc(&s_desc.up1_merge_K_even, (size_t)N_FEAT * N_FEAT * 3 * sizeof(float));
+        cudaMalloc(&s_desc.up1_merge_K_odd,  (size_t)N_FEAT * N_FEAT * 3 * sizeof(float));
+        cudaMalloc(&s_desc.up1_merge_bias,   (size_t)N_FEAT * sizeof(float));
+        launch_fold_up1_merge(
+            s_desc.up1_merge_K_even, s_desc.up1_merge_K_odd, s_desc.up1_merge_bias,
+            wb.w_up1t_w, wb.w_up1t_b, s_desc.up1c_w_f, s_desc.up1c_b_f,
+            N_FEAT, /*stream=*/0);
+        cudaDeviceSynchronize();
+    }
 
     fold_bn(wb.w_up2c_w, wb.w_up2c_b,
             wb.w_up2c_gamma, wb.w_up2c_beta,
@@ -423,8 +548,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     cudaDeviceSynchronize();
     s_desc.up2c_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
+    to_bf16(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
+            s_desc.up2c_w_bf, s_desc.up2c_b_bf, 0);
+    cudaDeviceSynchronize();
+    s_desc.up2c_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+                         {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
-    // Allocate dedicated FP16 activation pool for Phase M benchmark.
+    // Allocate dedicated FP16 activation pool.
     // Layout: ncw | x1 | x2 | x3 | up1 | cat2 | up2
     // cat2 slot is also reused as up2_c output (same element count).
     {
@@ -453,6 +583,23 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2},
                             {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
 
+    // Fold out_intermediate+outc into a single merged Conv1d(k=9) per
+    // branch, once, from the already-
+    // loaded (unmerged) weights. Concat mode only -- w_oint_a_w/w_oint_b_w
+    // are only meaningful in that mode (see load_weights()'s split of the
+    // trained out_intermediate weight). K_MERGED = K1+K2-1 = 5+5-1 = 9.
+    {
+        constexpr int K1 = 5, K2 = 5, K_MERGED = K1 + K2 - 1;
+        cudaMalloc(&s_desc.oint_outc_merged_a,    (size_t)N_FEAT * K_MERGED * sizeof(float));
+        cudaMalloc(&s_desc.oint_outc_merged_b,    (size_t)N_FEAT * K_MERGED * sizeof(float));
+        cudaMalloc(&s_desc.oint_outc_merged_bias, sizeof(float));
+        launch_fold_oint_outc(
+            s_desc.oint_outc_merged_a, s_desc.oint_outc_merged_b, s_desc.oint_outc_merged_bias,
+            wb.w_oint_a_w, wb.w_oint_b_w, wb.w_oint_b, wb.w_outc_w, wb.w_outc_b,
+            N_FEAT, K1, K2, K_MERGED, /*stream=*/0);
+        cudaDeviceSynchronize();
+    }
+
     // One-time diagnostic: confirms the header's design intent -- "IMPLICIT_GEMM
     // pinned everywhere -> zero workspace" -- actually holds when
     // fwd_algo_ws_budget_bytes==0 (the default). ConvDescriptors::create() pins
@@ -460,9 +607,9 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // algorithm search); an earlier cudnnFindConvolutionForwardAlgorithmEx-based
     // selection experiment was tried and reverted (see CuDNNDescriptors.h's class
     // comment) because it regressed under real -t16 memory-bandwidth contention
-    // despite looking faster in isolation. Phase 2 (optimization_plan.md) reopens
+    // despite looking faster in isolation. fwd_algo_ws_budget_bytes below reopens
     // this with a workspace-budgeted heuristic search instead of an unrestricted
-    // one -- active only when fwd_algo_ws_budget_bytes is set nonzero below. Each
+    // one -- active only when it is set nonzero. Each
     // ConvDescriptors' workspace is thread_local (not a single shared buffer), so
     // even a nonzero size here would not be a cross-thread race. Logged once so
     // the actual algorithm/workspace state is visible rather than assumed. Routed
@@ -498,7 +645,7 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
            s_desc.up1c_h.workspace_bytes(), s_desc.up2c_h.workspace_bytes(),
            s_desc.rcbn1_h.algo_id(), s_desc.rcbn2_h.algo_id(), s_desc.rcbn3_h.algo_id(),
            s_desc.up1c_h.algo_id(), s_desc.up2c_h.algo_id());
-    // Phase 1 (optimization_plan.md): whether the fused-graph rcbn1 path is
+    // Whether the fused-graph rcbn1 path is
     // usable on this GPU/cuDNN version at all (see the try/catch around its
     // create() call above).
     fprintf(stderr, "[pvfinder_unet] rcbn1 ConvBiasReluGraph available: %s (workspace bytes: %zu)\n",
@@ -870,6 +1017,19 @@ void pvfinder_unet_t::run_convbnrelu_half(
 {
     desc.forward_half(handle, 1.f, 0.f, input, w_fused, output);
     launch_bias_relu_half(output, b_fused, K, W_out, N, block, ctx);
+}
+
+// BF16 counterpart of run_convbnrelu_half.
+void pvfinder_unet_t::run_convbnrelu_bf16(
+    const Allen::CuDNN::ConvDescriptors& desc,
+    const __nv_bfloat16* input, __nv_bfloat16* output,
+    const __nv_bfloat16* w_fused, const __nv_bfloat16* b_fused,
+    int K, int W_out, int N,
+    cudnnHandle_t handle,
+    const dim3& block, const Allen::Context& ctx) const
+{
+    desc.forward_bf16(handle, 1.f, 0.f, input, w_fused, output);
+    launch_bias_relu_bf16(output, b_fused, K, W_out, N, block, ctx);
 }
 
 // Conv1d only (no BN/ReLU).
@@ -1260,7 +1420,14 @@ void pvfinder_unet_t::operator()(
 
     const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
 
-    const bool use_fp16 = m_use_fp16.value();
+    // BF16 takes precedence over
+    // FP16 if both are somehow set (not a supported configuration, just a
+    // deterministic tie-break) -- forcing use_fp16 false here means every
+    // existing use_fp16-gated branch below (including the CUDA graph FP16
+    // path, which BF16 does not support) is correctly bypassed without
+    // needing to touch that logic.
+    const bool use_bf16 = m_use_bf16.value();
+    const bool use_fp16 = m_use_fp16.value() && !use_bf16;
     // Skip-connection ablation ("concat" | "add" | "none") — applies to the FP32
     // path only; the FP16 Tensor Core path below always uses "concat".
     const std::string& skip_mode = m_skip_mode.value();
@@ -1269,13 +1436,21 @@ void pvfinder_unet_t::operator()(
     // (FP32+concat or FP16+concat), so any call outside skip_mode=="concat" simply
     // takes the eager branch below instead, by construction, with no risk of
     // replaying a stale/mismatched graph.
-    const bool graph_eligible = skip_mode == "concat" && m_use_cuda_graph.value();
-    // Phase 1 (optimization_plan.md): true single-pass Conv+Bias+ReLU for rcbn1,
-    // eager FP32 path only. FP16 has no fused-graph variant (see m_use_fused_cbr's
-    // doc comment), so this is simply ignored whenever use_fp16=true.
+    // BF16 has no CUDA-graph-capture variant (eager-path-only) --
+    // excluded here so a use_bf16=true call always takes the eager branch
+    // below, never the FP32 graph path (which use_fp16=false alone, forced
+    // above when use_bf16 is set, would otherwise incorrectly make eligible).
+    const bool graph_eligible = skip_mode == "concat" && m_use_cuda_graph.value() && !use_bf16;
+    // True single-pass Conv+Bias+ReLU for rcbn1, eager FP32 path only. FP16
+    // has no fused-graph variant (see m_use_fused_cbr's doc comment), so
+    // this is simply ignored whenever use_fp16=true.
     const bool use_fused_cbr = m_use_fused_cbr.value() && s_desc.rcbn1_fused_available;
-    // Phase 3 (optimization_plan.md): hand-written fused rcbn3, eager FP32 path only.
+    // Hand-written fused rcbn3, eager FP32 path only.
     const bool use_fused_rcbn3 = m_use_fused_rcbn3.value();
+    // Merged out_intermediate+outc, eager FP32 path, skip_mode=="concat" only.
+    const bool use_merged_oint_outc = m_use_merged_oint_outc.value();
+    // Merged up1, eager FP32 path only.
+    const bool use_merged_up1 = m_use_merged_up1.value();
     const bool use_graph_fp32 = graph_eligible && !use_fp16;
     const bool use_graph_fp16 = graph_eligible && use_fp16;
 
@@ -1303,6 +1478,11 @@ void pvfinder_unet_t::operator()(
             s_desc.rcbn3_h.ensure_thread_local_workspace();
             s_desc.up1c_h.ensure_thread_local_workspace();
             s_desc.up2c_h.ensure_thread_local_workspace();
+            s_desc.rcbn1_bf.ensure_thread_local_workspace();
+            s_desc.rcbn2_bf.ensure_thread_local_workspace();
+            s_desc.rcbn3_bf.ensure_thread_local_workspace();
+            s_desc.up1c_bf.ensure_thread_local_workspace();
+            s_desc.up2c_bf.ensure_thread_local_workspace();
             if (s_desc.rcbn1_fused_available) s_desc.rcbn1_fused.ensure_thread_local_workspace();
             tl_warmed = true;
         }
@@ -1330,6 +1510,17 @@ void pvfinder_unet_t::operator()(
     __half* fp16_up1  = use_fp16 ? fp16_pool_tl->up1  : nullptr;
     __half* fp16_cat2 = use_fp16 ? fp16_pool_tl->cat2 : nullptr;
     __half* fp16_up2  = use_fp16 ? fp16_pool_tl->up2  : nullptr;
+
+    // BF16 pool pointers (only used when use_bf16 is true) -- same
+    // thread_local-per-OS-thread rationale as the FP16 pool above.
+    const GraphScratchPoolBF16* bf16_pool_tl = use_bf16 ? &get_thread_local_graph_scratch_pool_bf16() : nullptr;
+    __nv_bfloat16* bf16_ncw  = use_bf16 ? bf16_pool_tl->ncw  : nullptr;
+    __nv_bfloat16* bf16_x1   = use_bf16 ? bf16_pool_tl->x1   : nullptr;
+    __nv_bfloat16* bf16_x2   = use_bf16 ? bf16_pool_tl->x2   : nullptr;
+    __nv_bfloat16* bf16_x3   = use_bf16 ? bf16_pool_tl->x3   : nullptr;
+    __nv_bfloat16* bf16_up1  = use_bf16 ? bf16_pool_tl->up1  : nullptr;
+    __nv_bfloat16* bf16_cat2 = use_bf16 ? bf16_pool_tl->cat2 : nullptr;
+    __nv_bfloat16* bf16_up2  = use_bf16 ? bf16_pool_tl->up2  : nullptr;
 
     for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += B_EVENTS_MAX) {
         const float* ncw = ncw_base + chunk_start * ncw_stride;
@@ -1420,6 +1611,73 @@ void pvfinder_unet_t::operator()(
 
             cudaCheck(cudaGraphLaunch(graphExec, context.stream()));
             continue;
+        } else if (use_bf16) {
+            // ---- BF16 path ----
+            // Structurally identical to the FP16 path below: CBR layers run
+            // as Tensor Core BF16 convs; ConvTranspose and the output stage
+            // stay FP32, with explicit F32<->BF16 conversions at the
+            // boundaries. Motivated by a confirmed FP16 bug: FP16 produces
+            // real NaN on real data (input values up to ~109,000 exceed FP16's ~65504
+            // max representable magnitude at the very first f32->half
+            // cast); BF16 shares FP32's exponent range, so that specific
+            // overflow cannot recur here. Eager path only -- no CUDA graph
+            // capture variant yet (see graph_eligible's exclusion above).
+
+            // Encoder
+            launch_f32_to_bf16(bf16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
+            run_convbnrelu_bf16(s_desc.rcbn1_bf, bf16_ncw, bf16_x1,
+                s_desc.rcbn1_w_bf, s_desc.rcbn1_b_bf, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_bf16(s_desc.rcbn2_bf, bf16_x1, bf16_up2,
+                s_desc.rcbn2_w_bf, s_desc.rcbn2_b_bf, N_FEAT, W_IN, N, handle, block, context);
+            launch_maxpool_bf16(bf16_up2, bf16_x2, N, N_FEAT, W_IN, block, context);
+
+            run_convbnrelu_bf16(s_desc.rcbn3_bf, bf16_x2, bf16_up2,
+                s_desc.rcbn3_w_bf, s_desc.rcbn3_b_bf, N_FEAT, W_HALF, N, handle, block, context);
+            launch_maxpool_bf16(bf16_up2, bf16_x3, N, N_FEAT, W_HALF, block, context);
+
+            // ConvTranspose1: needs FP32. Convert bf16_x3 → x3.
+            launch_bf16_to_f32(x3, bf16_x3, N * N_FEAT * W_QTR, block, context);
+            run_conv_transpose(x3, up2,
+                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
+                s_wb.w_up1t_w, s_wb.w_up1t_b,
+                N, N_FEAT, W_HALF, block, context, handle,
+                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+
+            // up1_c BF16: convert FP32 up2 → bf16_up2, then conv.
+            launch_f32_to_bf16(bf16_up2, up2, N * N_FEAT * W_HALF, block, context);
+            run_convbnrelu_bf16(s_desc.up1c_bf, bf16_up2, bf16_up1,
+                s_desc.up1c_w_bf, s_desc.up1c_b_bf, N_FEAT, W_HALF, N, handle, block, context);
+
+            // Concat BF16: bf16_up1 + bf16_x2 → bf16_cat2.
+            launch_concat_bf16(bf16_up1, bf16_x2, bf16_cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
+
+            // ConvTranspose2: needs FP32. Convert bf16_cat2 → cat2.
+            launch_bf16_to_f32(cat2, bf16_cat2, N * N_FEAT * 2 * W_HALF, block, context);
+            run_conv_transpose(cat2, logits,
+                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
+                s_wb.w_up2t_w, s_wb.w_up2t_b,
+                N, N_FEAT, W_IN, block, context, handle,
+                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+
+            // up2_c BF16: convert FP32 logits → bf16_up2, conv → bf16_cat2 (reused).
+            launch_f32_to_bf16(bf16_up2, logits, N * N_FEAT * W_IN, block, context);
+            run_convbnrelu_bf16(s_desc.up2c_bf, bf16_up2, bf16_cat2,
+                s_desc.up2c_w_bf, s_desc.up2c_b_bf, N_FEAT, W_IN, N, handle, block, context);
+
+            // Output stage: FP32. Convert bf16_x1 (rcbn1 skip) → x1, bf16_cat2 → up2.
+            launch_bf16_to_f32(x1, bf16_x1, N * N_FEAT * W_IN, block, context);
+            launch_bf16_to_f32(up2, bf16_cat2, N * N_FEAT * W_IN, block, context);
+
+            run_conv(s_desc.oint_half, x1, logits,
+                s_wb.w_oint_b_w, nullptr,
+                N, N_FEAT, W_IN, block, context, handle, 0.f);
+            run_conv(s_desc.oint_half, up2, logits,
+                s_wb.w_oint_a_w, nullptr,
+                N, N_FEAT, W_IN, block, context, handle, 1.f);
+            launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+            run_conv(s_desc.outc, logits, oint,
+                s_wb.w_outc_w, s_wb.w_outc_b,
+                N, 1, W_IN, block, context, handle, 0.f);
         } else if (!use_fp16) {
             // ---- FP32 path (Phase L baseline) ----
             if (use_fused_cbr) {
@@ -1441,12 +1699,23 @@ void pvfinder_unet_t::operator()(
             }
             launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
 
-            run_conv_transpose(x3, up2,
-                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
-                s_wb.w_up1t_w, s_wb.w_up1t_b,
-                N, N_FEAT, W_HALF, block, context, handle,
-                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
-            run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
+            // Merged up1 ConvTranspose+Conv+BiasReLU -- writes x3 -> up1 directly,
+            // skipping the intermediate `up2` scratch write entirely
+            // (safe: up2 is unconditionally overwritten again below
+            // before anything reads it).
+            if (use_merged_up1) {
+                launch_up1_merge(x3, up1,
+                    s_desc.up1_merge_K_even, s_desc.up1_merge_K_odd, s_desc.up1_merge_bias,
+                    s_wb.w_up1t_w, s_wb.w_up1t_b, s_desc.up1c_w_f, s_desc.up1c_b_f,
+                    N_FEAT, W_QTR, N, block, context);
+            } else {
+                run_conv_transpose(x3, up2,
+                    s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
+                    s_wb.w_up1t_w, s_wb.w_up1t_b,
+                    N, N_FEAT, W_HALF, block, context, handle,
+                    s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
+            }
 
             // Skip 1: merge up1 (decoder) with x2 (encoder) ahead of ConvTranspose2.
             if (skip_mode == "concat") {
@@ -1471,25 +1740,47 @@ void pvfinder_unet_t::operator()(
             run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
 
             // Skip 2: merge up2 (decoder) with x1 (encoder) ahead of the output conv.
-            if (skip_mode == "concat") {
-                run_conv(s_desc.oint_half, x1, logits,
-                    s_wb.w_oint_b_w, nullptr,
-                    N, N_FEAT, W_IN, block, context, handle, 0.f);
-                run_conv(s_desc.oint_half, up2, logits,
-                    s_wb.w_oint_a_w, nullptr,
-                    N, N_FEAT, W_IN, block, context, handle, 1.f);
+            // Merged out_intermediate+outc fast path, concat mode only.
+            // Writes into `logits` (aliases x3, not
+            // x1), NOT directly into `oint` -- oint aliases x1, which this kernel
+            // is still reading as an input across many threads/blocks, so writing
+            // there in the same launch would race; the original unmerged path
+            // avoids this the same way (its own final outc call reads logits and
+            // writes oint only once x1 is no longer needed). One extra cheap copy
+            // (logits -> oint) restores the same buffer the softplus stage below
+            // expects.
+            if (skip_mode == "concat" && use_merged_oint_outc) {
+                launch_oint_outc_merged(up2, x1, logits,
+                    s_desc.oint_outc_merged_a, s_desc.oint_outc_merged_b, s_desc.oint_outc_merged_bias,
+                    s_wb.w_oint_a_w, s_wb.w_oint_b_w, s_wb.w_oint_b,
+                    s_wb.w_outc_w, s_wb.w_outc_b,
+                    N_FEAT, W_IN, N, /*K1=*/5, /*K2=*/5, /*P1=*/2, /*P2=*/2,
+                    /*K_MERGED=*/9, /*P_MERGED=*/4,
+                    block, context);
+                squeeze_copy_kernel<<<
+                    ((unsigned)(N * W_IN) + block.x - 1) / block.x, block,
+                    0, context.stream()>>>(logits, oint, N * W_IN);
             } else {
-                if (skip_mode == "add") {
-                    launch_accumulate(up2, x1, N * N_FEAT * W_IN, block, context);
+                if (skip_mode == "concat") {
+                    run_conv(s_desc.oint_half, x1, logits,
+                        s_wb.w_oint_b_w, nullptr,
+                        N, N_FEAT, W_IN, block, context, handle, 0.f);
+                    run_conv(s_desc.oint_half, up2, logits,
+                        s_wb.w_oint_a_w, nullptr,
+                        N, N_FEAT, W_IN, block, context, handle, 1.f);
+                } else {
+                    if (skip_mode == "add") {
+                        launch_accumulate(up2, x1, N * N_FEAT * W_IN, block, context);
+                    }
+                    run_conv(s_desc.oint_half, up2, logits,
+                        s_wb.w_oint_a_w, nullptr,
+                        N, N_FEAT, W_IN, block, context, handle, 0.f);
                 }
-                run_conv(s_desc.oint_half, up2, logits,
-                    s_wb.w_oint_a_w, nullptr,
-                    N, N_FEAT, W_IN, block, context, handle, 0.f);
+                launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+                run_conv(s_desc.outc, logits, oint,
+                    s_wb.w_outc_w, s_wb.w_outc_b,
+                    N, 1, W_IN, block, context, handle, 0.f);
             }
-            launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
-            run_conv(s_desc.outc, logits, oint,
-                s_wb.w_outc_w, s_wb.w_outc_b,
-                N, 1, W_IN, block, context, handle, 0.f);
         } else {
             // ---- FP16 path (Phase M benchmark) ----
             // CBR layers run as Tensor Core FP16 convs; ConvTranspose and output

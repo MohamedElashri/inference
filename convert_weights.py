@@ -2,7 +2,7 @@
 Convert PVFinder .pyt weights to binary format for the Allen C++ implementation.
 
 Produces two files:
-  fc_weights.bin  — FC MLP layers 1–6A (used by PVFinderTrackAggregation)
+  fc_weights.bin  — FC MLP layers 1-6A (used by PVFinderTrackAggregation)
   cnn_weights.bin — UNet CNN layers     (used by PVFinderUNet)
 
 Usage:
@@ -55,8 +55,8 @@ def write_fc_weights(f, state_dict):
     """
     layer_names = ["layer1", "layer2", "layer3", "layer4", "layer5", "layer6A"]
     for name in layer_names:
-        w = state_dict[f"{name}.weight"].cpu().numpy().astype(np.float32)
-        b = state_dict[f"{name}.bias"].cpu().numpy().astype(np.float32)
+        w = state_dict[f"{name}.weight"].float().cpu().numpy()
+        b = state_dict[f"{name}.bias"].float().cpu().numpy()
         out_c, in_c = w.shape
         print(f"  FC {name}: [{in_c} → {out_c}]")
         if name == "layer6A":
@@ -71,18 +71,18 @@ def write_fc_weights(f, state_dict):
 # ---------------------------------------------------------------------------
 
 def _write_conv1d(f, key_w, key_b, state_dict, label):
-    w = state_dict[key_w].cpu().numpy().astype(np.float32)  # [out, in, k]
-    b = state_dict[key_b].cpu().numpy().astype(np.float32)  # [out]
+    w = state_dict[key_w].float().cpu().numpy()  # [out, in, k]
+    b = state_dict[key_b].float().cpu().numpy()  # [out]
     out_c, in_c, k = w.shape
     print(f"  CNN {label}: Conv1d({in_c}→{out_c}, k={k})")
     _i32(f, in_c); _i32(f, out_c); _i32(f, k)
     _w32(f, w); _w32(f, b)
 
 def _write_bn1d(f, prefix, state_dict, label):
-    gamma = state_dict[f"{prefix}.weight"].cpu().numpy().astype(np.float32)
-    beta  = state_dict[f"{prefix}.bias"].cpu().numpy().astype(np.float32)
-    mean  = state_dict[f"{prefix}.running_mean"].cpu().numpy().astype(np.float32)
-    var   = state_dict[f"{prefix}.running_var"].cpu().numpy().astype(np.float32)
+    gamma = state_dict[f"{prefix}.weight"].float().cpu().numpy()
+    beta  = state_dict[f"{prefix}.bias"].float().cpu().numpy()
+    mean  = state_dict[f"{prefix}.running_mean"].float().cpu().numpy()
+    var   = state_dict[f"{prefix}.running_var"].float().cpu().numpy()
     eps   = float(1e-5)  # PyTorch default
     n     = len(gamma)
     print(f"  CNN {label}: BN1d(features={n})")
@@ -91,8 +91,8 @@ def _write_bn1d(f, prefix, state_dict, label):
     _w32(f, gamma); _w32(f, beta); _w32(f, mean); _w32(f, var)
 
 def _write_convt1d(f, key_w, key_b, state_dict, label):
-    w = state_dict[key_w].cpu().numpy().astype(np.float32)  # [in, out, k]
-    b = state_dict[key_b].cpu().numpy().astype(np.float32)  # [out]
+    w = state_dict[key_w].float().cpu().numpy()  # [in, out, k]
+    b = state_dict[key_b].float().cpu().numpy()  # [out]
     in_c, out_c, k = w.shape
     stride = 2
     print(f"  CNN {label}: ConvTranspose1d({in_c}→{out_c}, k={k}, s={stride})")

@@ -4,6 +4,7 @@
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #endif
 
 // ---------------------------------------------------------------------------
@@ -24,7 +25,14 @@ namespace pvfinder_unet {
 
 // UNet architecture constants (default weights: HDplusUNet100 iter12Ca)
 // Override N_FEAT at build time with -DPVFINDER_UNET_N_FEAT=<n> (e.g. 16 for the lighter model).
+// Override N_BATCH_CHANNELS (the FC/UNet handoff's latentChannels) at build
+// time with -DPVFINDER_UNET_N_BATCH_CHANNELS=<n> to run a model trained
+// with a different latent-channel count.
+#ifdef PVFINDER_UNET_N_BATCH_CHANNELS
+static constexpr int N_BATCH_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
+#else
 static constexpr int N_BATCH_CHANNELS = 8;   // input latent channels
+#endif
 #ifdef PVFINDER_UNET_N_FEAT
 static constexpr int N_FEAT    = PVFINDER_UNET_N_FEAT;
 #else
@@ -96,7 +104,24 @@ private:
 
     Allen::Property<bool> m_use_fp16 {
         this, "use_fp16", false,
-        "Phase M benchmark: use FP16 Tensor Core path for CBR layers (physics approximate)"};
+        "use FP16 Tensor Core path for CBR layers (physics approximate)"};
+
+    // BF16 Tensor Core path for CBR layers, same structure as m_use_fp16
+    // (ConvTranspose and the output stage stay FP32 either way -- see the
+    // eager-path comment in the .cu). Motivated by a confirmed FP16 bug:
+    // input values up to ~109,000 exceed FP16's ~65504 max representable
+    // magnitude at the very first f32->half cast, producing real NaN on
+    // ~0.5% of real intervals. BF16 shares FP32's exponent range, so that
+    // specific overflow cannot recur here -- still physics-approximate
+    // (reduced mantissa, like FP16), not physics-exact. If both use_fp16 and
+    // use_bf16 are set, BF16 takes precedence (see operator()'s branch
+    // order) -- an arbitrary but deterministic choice, not expected to
+    // matter since setting both is not a supported configuration.
+    Allen::Property<bool> m_use_bf16 {
+        this, "use_bf16", false,
+        "BF16 Tensor Core path for CBR layers (physics approximate, but "
+        "avoids the FP16 path's confirmed overflow-to-NaN failure mode). "
+        "Takes precedence over use_fp16 if both are set."};
 
     // True single-pass Conv+Bias+ReLU for rcbn1, via the cuDNN backend graph API
     // (Allen::CuDNN::ConvBiasReluGraph), instead of a cuDNN conv followed by a
@@ -113,13 +138,13 @@ private:
         "instead of conv + separate bias/ReLU kernel (falls back automatically if "
         "unsupported on this GPU)"};
 
-    // Phase 2 (optimization_plan.md): retest of forward-conv algorithm selection,
-    // bounded to a workspace budget instead of the unrestricted Find/heur_v7
-    // search that was tried and reverted (see CuDNNDescriptors.h's ConvDescriptors
-    // class comment). 0 (default) keeps every forward conv pinned to IMPLICIT_GEMM,
-    // bit-for-bit identical to current production behaviour. A nonzero value
-    // applies to ALL forward ConvDescriptors (rcbn1/2/3, up1_c, up2_c, oint_half,
-    // outc, and their FP16 counterparts) uniformly.
+    // Forward-conv algorithm selection, bounded to a workspace budget instead
+    // of an unrestricted Find/heur_v7 search (see CuDNNDescriptors.h's
+    // ConvDescriptors class comment for why unrestricted search is not used
+    // by default). 0 (default) keeps every forward conv pinned to
+    // IMPLICIT_GEMM, bit-for-bit identical to current production behaviour.
+    // A nonzero value applies to ALL forward ConvDescriptors (rcbn1/2/3,
+    // up1_c, up2_c, oint_half, outc, and their FP16 counterparts) uniformly.
     Allen::Property<unsigned> m_fwd_algo_ws_budget_bytes {
         this, "fwd_algo_ws_budget_bytes", 0u,
         "0 (default): pin IMPLICIT_GEMM everywhere (no search). Nonzero: bounded "
@@ -127,9 +152,9 @@ private:
         "whose workspace fits this many bytes (falls back to IMPLICIT_GEMM if none "
         "fits or the query fails)"};
 
-    // Phase 3 (optimization_plan.md): hand-written fused Conv+Bias+ReLU for
-    // rcbn3 only (the eager FP32 path only -- not FP16, not the CUDA-graph
-    // path), replacing cuDNN + a separate bias_relu_kernel pass with one
+    // Hand-written fused Conv+Bias+ReLU for rcbn3 only (the eager FP32 path
+    // only -- not FP16, not the CUDA-graph path), replacing cuDNN + a
+    // separate bias_relu_kernel pass with one
     // kernel that keeps the activation slice in shared memory instead of
     // round-tripping the raw conv output through DRAM. Physics-identical
     // (same weights/bias, same cross-correlation math) when correct; default
@@ -138,6 +163,30 @@ private:
         this, "use_fused_rcbn3", false,
         "rcbn3 only, eager FP32 path only: use a hand-written shared-memory "
         "fused Conv+Bias+ReLU kernel instead of cuDNN + separate bias/ReLU kernel"};
+
+    // Merge out_intermediate+outc into a single Conv1d(k=9) per branch,
+    // exact everywhere (interior via the merged kernel, boundary via the
+    // original nested formula -- see oint_outc_merged_kernel). Eager FP32
+    // path, skip_mode=="concat" only; ignored otherwise (falls back to the
+    // existing unmerged path). Measured as a net throughput regression (the
+    // hand-written merged kernel loses to tuned cuDNN despite fewer FLOPs) --
+    // kept for reference, default off.
+    Allen::Property<bool> m_use_merged_oint_outc {
+        this, "use_merged_oint_outc", false,
+        "eager FP32 path, skip_mode=concat only: replace the two-branch "
+        "oint_half + bias_add + outc sequence with a single merged "
+        "Conv1d(k=9)-per-branch kernel (exact, incl. boundary)"};
+
+    // Merge up1's ConvTranspose1d(k=2,s=2) + Conv1d(k=5,pad=2) into one
+    // phase-dependent kernel (exact, incl. boundary -- see up1_merge_kernel's
+    // comment). Eager FP32 path only. Same result as
+    // use_merged_oint_outc above: correct but a net throughput regression
+    // versus the tuned cuDNN path it replaces -- kept for reference, default
+    // off.
+    Allen::Property<bool> m_use_merged_up1 {
+        this, "use_merged_up1", false,
+        "eager FP32 path only: replace up1's ConvTranspose+Conv+BiasReLU "
+        "sequence with a single merged kernel (exact, incl. boundary)"};
 
     // Skip-connection ablation (FP32 path only; ignored when use_fp16=true).
     // "concat" — current physics-validated behaviour (default).
@@ -184,6 +233,15 @@ private:
         const Allen::CuDNN::ConvDescriptors& desc,
         const __half* input, __half* output,
         const __half* w_fused, const __half* b_fused,
+        int K, int W_out, int N,
+        cudnnHandle_t handle,
+        const dim3& block, const Allen::Context& ctx) const;
+
+    // BF16 counterpart of run_convbnrelu_half.
+    void run_convbnrelu_bf16(
+        const Allen::CuDNN::ConvDescriptors& desc,
+        const __nv_bfloat16* input, __nv_bfloat16* output,
+        const __nv_bfloat16* w_fused, const __nv_bfloat16* b_fused,
         int K, int W_out, int N,
         cudnnHandle_t handle,
         const dim3& block, const Allen::Context& ctx) const;

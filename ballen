@@ -27,6 +27,7 @@ function help {
   echo "  --cublas                        Enable cuBLAS GEMM for PVFinder L6A (sets -DWITH_CUBLAS=ON)"
   echo "  --cuda-arch <arch>              Set CUDA_ARCH (e.g. 86 for SM 8.6, 75 for SM 7.5; default: COMPATIBILITY)"
   echo "  --unet-feat <n>                 Override UNet N_FEAT (e.g. 16 for 16-channel model; default: 64)"
+  echo "  --unet-batch-channels <n>       Override UNet N_BATCH_CHANNELS / latentChannels (e.g. 4; default: 8)"
     echo "  -f, --force                     Force rebuild, even if 'Allen' binary exists"
     echo "  -t, --lcg-toolchain <path>      Specify the LCG toolchain folder location"
     echo "  -d, --dry-run                   Print commands without executing them"
@@ -63,6 +64,7 @@ while [[ "$#" -gt 0 ]]; do
         --cublas) USE_CUBLAS=1 ;;
         --cuda-arch) [[ -n "$2" && "$2" != -* ]] && CUDA_ARCH_OVERRIDE="$2" && shift || { echo "Error: --cuda-arch requires an argument"; exit 1; } ;;
         --unet-feat) [[ -n "$2" && "$2" != -* ]] && UNET_N_FEAT="$2" && shift || { echo "Error: --unet-feat requires an argument"; exit 1; } ;;
+        --unet-batch-channels) [[ -n "$2" && "$2" != -* ]] && UNET_N_BATCH_CHANNELS="$2" && shift || { echo "Error: --unet-batch-channels requires an argument"; exit 1; } ;;
         -h|--help) help ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
@@ -148,6 +150,9 @@ function build_gpu {
         fi
         if [[ -n "${UNET_N_FEAT:-}" ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_FEAT=${UNET_N_FEAT}"
+        fi
+        if [[ -n "${UNET_N_BATCH_CHANNELS:-}" ]]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_BATCH_CHANNELS=${UNET_N_BATCH_CHANNELS}"
         fi
         if [[ -n "${CUDA_ARCH_OVERRIDE:-}" ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DCUDA_ARCH=${CUDA_ARCH_OVERRIDE}"

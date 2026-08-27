@@ -5,6 +5,29 @@
 
 namespace pvfinder_fc_aggregation {
 
+// N_LATENT_CHANNELS shares PVFinderUNet.cuh's PVFINDER_UNET_N_BATCH_CHANNELS
+// build macro (wired via ballen's --unet-batch-channels flag) rather than
+// getting its own -- both represent the exact same physical quantity (the
+// UNet's bottleneck/output channel count, which is also the number of
+// channels in the per-interval features FC aggregation reduces into), and
+// a build where the two disagreed would silently pair a UNet sized for one
+// architecture with FC aggregation sized for another. One flag keeps them
+// consistent by construction.
+#ifdef PVFINDER_UNET_N_BATCH_CHANNELS
+constexpr unsigned N_LATENT_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
+#else
+constexpr unsigned N_LATENT_CHANNELS = 8u;
+#endif
+constexpr unsigned N_BINS_PER_CHANNEL = 100u;
+constexpr unsigned N_INTERVALS = 40u;
+// L6A's physical width: one neuron per (channel, bin) pair. 800 by default.
+constexpr unsigned L6A_WIDTH = N_LATENT_CHANNELS * N_BINS_PER_CHANNEL;
+// Layer6A's weight matrix is [L6A_WIDTH x 20]; 16000 floats by default.
+constexpr unsigned L6A_WEIGHT_FLOATS = L6A_WIDTH * 20u;
+// dev_pvfinder_interval_features's per-event stride (40 intervals x
+// L6A_WIDTH); 32000 floats by default.
+constexpr unsigned INTERVAL_FEATURES_STRIDE = N_INTERVALS * L6A_WIDTH;
+
 struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
     HOST_INPUT(host_number_of_reconstructed_velo_tracks_t, unsigned) host_number_of_reconstructed_velo_tracks;
@@ -14,7 +37,9 @@ struct Parameters {
     
     // Output array: [events x 40 intervals x 100 bins] -> 4000 floats per event mapping the KDE layout targets
     DEVICE_OUTPUT(dev_pvfinder_output_histogram_t, float) dev_pvfinder_output_histogram;
-    // 8-channel interval features: [events x 40 intervals x 8 channels x 100 bins] = 32000 floats per event
+    // N_LATENT_CHANNELS-channel interval features: [events x 40 intervals x
+    // N_LATENT_CHANNELS channels x 100 bins] = INTERVAL_FEATURES_STRIDE
+    // floats per event (32000 by default, i.e. 8 channels).
     // Preserved un-collapsed for UNet NCW input: channel c of interval i = latent dim c summed over tracks in i
     DEVICE_OUTPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
     // CSR index structure for interval-sorted track access:
@@ -24,16 +49,16 @@ struct Parameters {
     DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
     // cuBLAS L6A GEMM intermediate buffers — sized per chunk, reused across chunks.
     //   dev_pvfinder_l5_output: L1-L5 hidden states, shape [T_chunk_max × 20] row-major.
-    //   dev_pvfinder_l6a_output: raw L6A GEMM output, shape [800 × T_chunk_max] col-major (cuBLAS layout).
+    //   dev_pvfinder_l6a_output: raw L6A GEMM output, shape [L6A_WIDTH × T_chunk_max] col-major (cuBLAS layout, L6A_WIDTH=800 by default).
     //   Both are allocated only when ALLEN_WITH_CUBLAS is defined; zero-sized otherwise.
     DEVICE_OUTPUT(dev_pvfinder_l5_output_t,  float) dev_pvfinder_l5_output;
     DEVICE_OUTPUT(dev_pvfinder_l6a_output_t, float) dev_pvfinder_l6a_output;
-    // Phase 15 (optimization_plan.md): single-element atomic work counter for
-    // pvfinder_reduce_l6a_kernel's grid-stride work-stealing mode -- reset to
-    // 0 before each chunk's launch, claimed via atomicAdd by one thread per
-    // block. See m_use_grid_stride_reduce's doc comment.
+    // Single-element atomic work counter for pvfinder_reduce_l6a_kernel's
+    // grid-stride work-stealing mode -- reset to 0 before each chunk's
+    // launch, claimed via atomicAdd by one thread per block. See
+    // m_use_grid_stride_reduce's doc comment.
     DEVICE_OUTPUT(dev_pvfinder_reduce_work_counter_t, unsigned) dev_pvfinder_reduce_work_counter;
-    // Phase 19 (optimization_plan.md): per-chunk cumulative CSR column offsets,
+    // Per-chunk cumulative CSR column offsets,
     // one per event in the chunk plus a leading 0 (size B_CHUNK_max+1),
     // precomputed on the host from the same host_csr readback that already
     // computes T_chunk and uploaded once per chunk. Only used when
@@ -54,28 +79,40 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
 private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 
-    // Throughput-only override of how many of L6A's 800 neurons actually get
-    // computed and reduced. Default 800 = physics-valid (8 channels x 100 bins,
-    // matches w6A/b6A and every downstream buffer, which all stay sized for 800
-    // regardless of this value). A smaller value shrinks the cuBLAS GEMM's M,
-    // the bias/ReLU kernel's work, AND the per-track accumulation loop in the
-    // reduction kernel (the actual dominant cost in this block, ~6x the GEMM's
-    // own share -- an earlier GEMM-only version of this property, isolating just
-    // the GEMM to test cuBLAS tile-alignment effects, undersold any real width
-    // reduction because it left the reduction kernel doing full-800 work
-    // regardless). Neurons >= this value simply never get a nonzero
-    // contribution; downstream buffers stay the same 800/100 shape (just
-    // partially zero), so nothing else needs to change to test this. Any value
-    // other than 800 is NOT physics-valid.
-    Allen::Property<unsigned> m_l6a_m {
-        this, "l6a_m", 800u,
-        "Override how many of L6A's 800 neurons are computed (GEMM + bias/ReLU "
-        "+ reduction, all three) for width/throughput testing "
-        "(800 = physics-valid default; any other value is throughput-only)"};
+    // Path to the FC-stage weight file, mirroring PVFinderUNet.cuh's
+    // m_weight_file / --cnn-weights on the CNN side.
+    Allen::Property<std::string> m_weight_file {
+        this, "weight_file", "/data/home/melashri/iris/inference/fc_weights.bin",
+        "path to fc_weights.bin produced by convert_weights.py"};
 
-    // Profiling (2026-07-30, optimization_plan.md) found pvfinder_reduce_l6a_kernel
-    // costs ~9x the L6A GEMM it reduces -- by far the single most expensive kernel
-    // in the FC stage. The per-track accumulation loop writes each shared-memory
+    // Throughput-only override of how many of L6A's L6A_WIDTH neurons
+    // actually get computed and reduced. Default L6A_WIDTH (800 for the
+    // default N_LATENT_CHANNELS=8; scales with --unet-batch-channels) =
+    // physics-valid, matching w6A/b6A and every downstream buffer, which all
+    // stay sized for L6A_WIDTH regardless of this value. A smaller value
+    // shrinks the cuBLAS GEMM's M, the bias/ReLU kernel's work, AND the
+    // per-track accumulation loop in the reduction kernel (the actual
+    // dominant cost in this block, ~6x the GEMM's own share -- an earlier
+    // GEMM-only version of this property, isolating just the GEMM to test
+    // cuBLAS tile-alignment effects, undersold any real width reduction
+    // because it left the reduction kernel doing full-width work
+    // regardless). Neurons >= this value simply never get a nonzero
+    // contribution; downstream buffers stay the same L6A_WIDTH/100 shape
+    // (just partially zero), so nothing else needs to change to test this.
+    // Any value other than L6A_WIDTH is NOT physics-valid -- this is a
+    // sub-block-of-a-wider-real-buffer throughput probe, not a way to
+    // actually run a smaller latentChannels architecture (that requires a
+    // build with a matching --unet-batch-channels, see N_LATENT_CHANNELS
+    // above).
+    Allen::Property<unsigned> m_l6a_m {
+        this, "l6a_m", L6A_WIDTH,
+        "Override how many of L6A's L6A_WIDTH neurons are computed (GEMM + "
+        "bias/ReLU + reduction, all three) for width/throughput testing "
+        "(L6A_WIDTH, 800 by default, is the physics-valid default for this "
+        "build; any other value is throughput-only)"};
+
+    // pvfinder_reduce_l6a_kernel is by far the single most expensive kernel
+    // in the FC stage. Its per-track accumulation loop writes each shared-memory
     // slot s_feat[n] via atomicAdd, but the thread<->n mapping (n = thread_id,
     // thread_id+blockDim.x, ...) is identical on every iteration of the enclosing
     // track loop, so each slot is written by exactly one thread for the block's
@@ -89,30 +126,17 @@ private:
         "per-track accumulation loop (see comment above) -- candidate fix for "
         "the reduction being ~9x the cost of the GEMM it reduces"};
 
-    // Phase 6 (optimization_plan.md, 2026-08-04): hardware profiling with ncu
-    // found pvfinder_reduce_l6a_kernel is occupancy-bound (1.7% SM throughput,
-    // 10.9% warp occupancy), not compute- or memory-bound. Idea 1 (compact
-    // non-empty (event, interval) blocks out of the grid using a host-built
-    // map) was implemented and benchmarked here, but regressed real
-    // throughput at every thread count (worst at -t4/-t16) -- the host-side
-    // cost of building the map and an extra per-chunk cudaMemcpy outweighed
-    // the grid-shrinking benefit, especially under multi-stream contention.
-    // Rejected and removed; see optimization_plan.md Phase 6 for the full
-    // benchmark table and root-cause analysis. Idea 2 below is what actually
-    // worked.
-    //
-    // Idea 2: even among non-empty intervals, the per-track
-    // accumulation loop is fully serial -- all threads in a block jointly
-    // process one track before moving to the next, so an interval with many
-    // tracks takes proportionally longer with no way for the rest of the
-    // block's warps to help. This flag splits tracks round-robin across the
-    // block's warps (mirroring the pattern pvfinder_fused_fc_aggregation_kernel
-    // already uses), each warp accumulating its assigned tracks into private
-    // registers, then combining the (small, fixed-size = 4-way) per-warp
-    // partial sums into shared memory via a bounded atomicAdd (not the
-    // O(n_local) atomics use_nonatomic_l6a_reduce targets -- this is a
-    // different, much smaller combine step that happens once per warp, not
-    // once per track).
+    // The per-track accumulation loop above is also fully serial within a
+    // block -- all threads jointly process one track before moving to the
+    // next, so an interval with many tracks takes proportionally longer
+    // with no way for the rest of the block's warps to help. This flag
+    // splits tracks round-robin across the block's warps instead (mirroring
+    // the pattern pvfinder_fused_fc_aggregation_kernel already uses), each
+    // warp accumulating its assigned tracks into private registers, then
+    // combining the small, fixed-size per-warp partial sums into shared
+    // memory via a bounded atomicAdd (unlike use_nonatomic_l6a_reduce's
+    // O(n_local) atomics, this combine step happens once per warp, not once
+    // per track).
     Allen::Property<bool> m_use_warp_parallel_reduce {
         this, "use_warp_parallel_reduce", false,
         "Split pvfinder_reduce_l6a_kernel's per-track accumulation across the "
@@ -120,16 +144,12 @@ private:
         "serially with the whole block -- candidate fix for track-heavy "
         "intervals dominating kernel wall-clock time"};
 
-    // Idea 3: independent of idea 2, the FC pipeline's chunk size (events
-    // processed per L1-L5/GEMM/bias-relu/reduce launch) caps
-    // pvfinder_reduce_l6a_kernel's grid at fc_chunk_size*40 blocks of 128
-    // threads (4 warps) each -- e.g. 800 blocks/3,200 warps at the default of
-    // 20, below the RTX 3090's ~5,248-warp concurrent capacity. Raising this
-    // widens the grid (and proportionally the
-    // dev_pvfinder_l5_output/l6a_output intermediate buffers, sized off this
-    // value in set_arguments_size). Modest/mixed on its own, but combines
-    // cleanly with idea 2 (use_warp_parallel_reduce) -- see
-    // optimization_plan.md Phase 6 for the combined benchmark results.
+    // The FC pipeline's chunk size (events processed per
+    // L1-L5/GEMM/bias-relu/reduce launch) caps pvfinder_reduce_l6a_kernel's
+    // grid width. Raising it widens the grid (and proportionally the
+    // dev_pvfinder_l5_output/l6a_output intermediate buffers, sized off
+    // this value in set_arguments_size); combines well with
+    // use_warp_parallel_reduce above.
     Allen::Property<unsigned> m_fc_chunk_size {
         this, "fc_chunk_size", 20u,
         "Number of events processed per L1-L5/GEMM/bias-relu/reduce chunk "
@@ -137,249 +157,107 @@ private:
         "pvfinder_reduce_l6a_kernel's grid at the cost of larger intermediate "
         "buffers"};
 
-    // Phase 7 (optimization_plan.md, 2026-08-04): post-Phase-6 re-profiling
-    // found pvfinder_reduce_l6a_kernel and pvfinder_l6a_bias_relu_kernel now
-    // tied for FC's single biggest cost (~28% each). Nothing else reads
-    // dev_pvfinder_l6a_output between the bias/ReLU kernel's in-place write
-    // and the reduce kernel's read -- they're two full passes (one
+    // Nothing else reads dev_pvfinder_l6a_output between
+    // pvfinder_l6a_bias_relu_kernel's in-place write and
+    // pvfinder_reduce_l6a_kernel's read -- they're two full passes (one
     // read-modify-write, one read) over the same buffer that can be fused
     // into the reduce kernel's own read, applying bias+LeakyReLU inline on
     // the raw GEMM output instead of reading a value a separate kernel
-    // already wrote back. Same math, one fewer kernel launch, one fewer full
-    // DRAM read-modify-write pass over an ~24 MB buffer.
+    // already wrote back. Same math, one fewer kernel launch, one fewer
+    // full DRAM read-modify-write pass over the L6A output buffer.
     Allen::Property<bool> m_use_fused_bias_relu_reduce {
         this, "use_fused_bias_relu_reduce", false,
         "Apply L6A bias+LeakyReLU inline inside pvfinder_reduce_l6a_kernel's "
         "read of the raw GEMM output instead of running "
         "pvfinder_l6a_bias_relu_kernel as a separate pass -- candidate fix "
-        "for FC's now-largest kernel cost post-Phase-6"};
+        "for FC's largest kernel cost"};
 
-    // Phase 7 also tried replacing pvfinder_l1_to_l5_kernel's per-thread
-    // linear CSR walk with a shared-memory prefix sum + binary search --
-    // implemented, benchmarked, found to be a net wash-to-slight-regression
-    // (the binary search kernel's own per-instance cost was ~2% *higher*
-    // than the linear scan; the shared-memory setup/sync overhead roughly
-    // cancels the reduced iteration count at the chunk sizes actually in
-    // use). Removed. See optimization_plan.md Phase 7 for the numbers.
-
-    // Phase 7 also tried forcing CUBLAS_TF32_TENSOR_OP_MATH on the L6A
-    // GEMM's cuBLAS handle (default is the library's own choice, which ncu
-    // showed already runs the classic CUDA-core kernel at 70% SM / 46% DRAM
-    // throughput -- already well utilized, not idling like every other
-    // kernel touched in Phases 6-7). Benchmarked: a wash at low thread
-    // counts (+0.6pp) and a small net *negative* at -t8/-t16 (-0.4 to
-    // -0.75pp), the production-relevant regime. Correctness was fine (diff
-    // landed within the pipeline's existing noise floor, surprisingly, given
-    // TF32's real precision trade-off -- plausibly because this GEMM's K=20
-    // is too shallow a reduction depth for the coarser mantissa to compound
-    // into anything larger) but the performance case didn't hold up.
-    // Removed. See optimization_plan.md Phase 7 for the numbers.
-
-    // Phase 18 (optimization_plan.md, 2026-08-09): requested by way of asking
-    // what pvfinder_l1_to_l5_kernel's *ceiling* looks like -- if L1-L5 were
-    // architecturally 1 hidden layer instead of 5, how much of FC's runtime
-    // would that actually buy back? This is a structural throughput probe,
-    // not a real architecture change: it reuses layer1's real trained
-    // weights (w1/b1, 9->20) and skips layers 2-5 entirely, writing layer1's
-    // raw output straight to dev_pvfinder_l5_output in place of layer5's.
-    // Every downstream buffer (dev_pvfinder_l5_output, L6A's GEMM, the
-    // reduce kernel) is unchanged -- layer1's output is already the same
-    // 20-wide shape layer5's would have been, so nothing else needs to
-    // change to test this. The output is garbage (layer6A's weights were
-    // trained expecting layer5's transformation, not layer1's) -- this flag
-    // answers a timing question only, never a correctness one. Always
-    // false in any physics-valid run.
+    // Throughput-ceiling probe: if L1-L5 were architecturally 1 hidden layer
+    // instead of 5, how much of FC's runtime would that buy back? Not a
+    // real architecture change: reuses layer1's real trained weights
+    // (w1/b1, 9->20) and skips layers 2-5 entirely, writing layer1's raw
+    // output straight to dev_pvfinder_l5_output in place of layer5's. Every
+    // downstream buffer is unchanged -- layer1's output is already the same
+    // 20-wide shape layer5's would have been. Output is not physically
+    // meaningful (layer6A's weights expect layer5's transformation, not
+    // layer1's) -- this flag answers a timing question only, never a
+    // correctness one.
     Allen::Property<bool> m_fc_single_hidden_layer {
         this, "fc_single_hidden_layer", false,
         "Throughput-ceiling probe: skip pvfinder_l1_to_l5_kernel's layers "
         "2-5, feeding layer1's raw 20-wide output straight to L6A (default "
         "false = physics-valid all-5-layers; true is NOT physics-valid, "
-        "timing only). See optimization_plan.md Phase 18"};
+        "timing only)"};
 
-    // Phase 19 (optimization_plan.md, 2026-08-09): pvfinder_reduce_l6a_kernel's
-    // per-slot ev_col_offset computation -- a serial walk over this chunk's
-    // per-event CSR sentinels, from chunk_start up to event_number -- used to
-    // be computed unconditionally by EVERY thread in the block (not gated by
-    // thread_id at all), for EVERY (event, interval) slot, including slots
-    // that immediately early-return on n_local==0 without ever using the
-    // value. Never targeted by any prior phase (Phases 6/13/14 all targeted
-    // different CSR-walk costs: L1-L5's own per-track lookup, or the reduce
-    // grid's shape -- not this scalar offset specifically). The reorder
-    // (compute only once n_local>0 is known) is always-on now, no flag
-    // needed -- zero-risk, same result, just less wasted work on empty
-    // slots.
-    //
-    // Two candidate fixes for the walk itself were tried: (1) have only
-    // thread 0 compute it and broadcast via shared memory instead of every
-    // thread redundantly re-walking it -- benchmarked null (nsys: exactly
-    // flat kernel time across 200 profiled launches; -t16: +0.13pp, well
-    // within the ~0.02-0.17% baseline spread measured that session) and
-    // removed; (2) replace the O(events-in-chunk) walk with an O(1) lookup
-    // into a per-chunk offset array precomputed on the host, below. Fix 1's
-    // null result plausibly means the walk's data (a small, ~16KB-per-100-
-    // events buffer reread by every slot) stays L2-resident and its latency
-    // is hidden by the grid-stride kernel's own warp-level concurrency at
-    // clean -t1 -- but Fix 2 (which removes the chain outright rather than
-    // just deduplicating who runs it) still won for real at -t16, +0.68pp to
-    // +0.76pp confirmed across two independent sweeps, despite showing the
-    // same flat nsys -t1 kernel-time signal as Fix 1. Consistent with this
-    // plan's standing pattern (Phase 8) of costs that are real under -t16
-    // contention but invisible in clean -t1 profiling. See
-    // optimization_plan.md Phase 19 for the full numbers.
+    // Replaces pvfinder_reduce_l6a_kernel's per-slot ev_col_offset
+    // computation (a serial walk over this chunk's per-event CSR sentinels)
+    // with an O(1) lookup into a per-chunk offset array, precomputed on the
+    // host (piggybacking on the existing T_chunk host walk) and uploaded
+    // once per chunk. A measured, real win under production-scale
+    // multi-thread contention, though invisible in single-thread profiling.
     Allen::Property<bool> m_use_precomputed_csr_offset {
         this, "use_precomputed_csr_offset", false,
         "Replace pvfinder_reduce_l6a_kernel's O(events-in-chunk) ev_col_offset "
         "walk with an O(1) lookup into a per-chunk offset array, precomputed "
         "on the host (piggybacking on the existing T_chunk host walk) and "
-        "uploaded once per chunk -- confirmed real +0.68-0.76pp FC-alone "
-        "retention gain, see optimization_plan.md Phase 19"};
+        "uploaded once per chunk"};
 
-    // Phase 20 (optimization_plan.md, 2026-08-09): SAFE_AVG_ENTRIES_PER_EVENT
-    // used to be a hardcoded compile-time constexpr (600u, established in
-    // Phase 9 from a 10,000-event calibration: ~2.2x margin over the
-    // observed worst chunk). Requested follow-up: Phase 9 already found
-    // fc_chunk_size=150 gives zero improvement over 100 even with a
-    // proportionally larger buffer (margin held fixed at 600u) -- this
-    // property exists to test the narrower, previously-unexamined question
-    // of whether a *bigger* chunk at *roughly the same* memory footprint as
-    // today's baseline helps, by tightening this margin just enough to fund
-    // the larger chunk within the same T_chunk_max. A fresh, larger
-    // (20,000-event) re-calibration for this phase found the true observed
-    // worst-case per-event-equivalent entry count sits at ~260-265 across
-    // chunk sizes 100-150 (consistent with Phase 9's original ~272, despite
-    // the per-event *mean* differing notably between samples -- 234.83 here
-    // vs. Phase 9's 196, a reminder that this bound is empirical, not
-    // provable, and genuinely varies sample to sample). Exposed as a
-    // runtime property (rather than requiring a rebuild per candidate
-    // value) specifically so a value can be tested cautiously and dialed
-    // back without recompiling if a large-scale stress test or
-    // compute-sanitizer run flags trouble -- see Phase 9's "CUDA error 700,
-    // corrupted the whole CUDA context" history for why this constant
-    // deserves particular caution. Default 600 preserves today's
-    // physics-valid, already-validated behavior exactly.
+    // Per-event CSR-entry safety margin used to size T_chunk_max = this *
+    // fc_chunk_size. This bound is empirical (calibrated against a large
+    // sample of real events), not provably safe: setting it too low risks a
+    // real illegal-memory-access crash if some dataset exceeds what it was
+    // calibrated against. Smaller values reclaim memory to allow a larger
+    // fc_chunk_size, at that risk. Exposed as a runtime property (rather
+    // than a compile-time constant) so a candidate value can be tested and
+    // dialed back without recompiling.
     Allen::Property<unsigned> m_safe_avg_entries_per_event {
         this, "safe_avg_entries_per_event", 600u,
         "Per-event CSR-entry safety margin used to size T_chunk_max = "
-        "this * fc_chunk_size (default 600, Phase 9's validated value; "
-        "smaller values reclaim memory for a larger fc_chunk_size at real "
-        "crash risk if set too low -- see optimization_plan.md Phase 20 "
-        "before changing)"};
+        "this * fc_chunk_size (default 600; smaller values reclaim memory "
+        "for a larger fc_chunk_size at real crash risk if set too low)"};
 
-    // Phase 21 (optimization_plan.md, 2026-08-09) tried letting each of a
-    // grid-stride block's 4 warps independently claim and fully process its
-    // own (event, interval) slot -- targeting Phase 15's leftover
-    // within-block imbalance (a block still waits at __syncthreads() for
-    // its slowest warp before claiming a new shared slot). Implemented,
-    // correctness-verified (dump diff, compute-sanitizer memcheck and
-    // racecheck all clean), but benchmarked at a large, decisive
-    // regression: pvfinder_reduce_l6a_kernel's own time rose 5.1x (nsys)
-    // and real -t16 FC-alone retention dropped ~10.6-11pp. Trading away
-    // Phase 6's own dominant win (splitting one busy slot's tracks across
-    // all 4 warps, -74.6% kernel time on its own) to let sparse slots skip
-    // waiting on busy blockmates cost far more than it saved, for this
-    // kernel's actual (skewed) track-count distribution. Removed. See
-    // optimization_plan.md Phase 21 for the full numbers.
-
-    // Phase 22 (optimization_plan.md, 2026-08-09) tried widening
-    // pvfinder_reduce_l6a_kernel's block (128 -> 256, N_WARPS 4 -> 8) so
-    // more warps cooperate on each slot's track loop -- pushing further in
-    // the direction Phase 6 already proved works (the opposite of Phase
-    // 21's rejected idea). Implemented (WarpParallelTracks's round-robin
-    // split and bounded atomicAdd combine both generalize to any warp count
-    // with no other change), correctness-verified, but benchmarked at a
-    // real regression: nsys showed this kernel's own time rise ~8.5% (not
-    // fall), and real -t16 FC-alone retention dropped -0.58pp. Plausible
-    // reading: doubling block size roughly halves blocks resident per SM,
-    // so total concurrent warp count doesn't actually increase -- only the
-    // per-slot synchronization/zero-init overhead across a wider block
-    // does. Removed. See optimization_plan.md Phase 22 for the full
-    // numbers.
-
-    // Phase 23 (optimization_plan.md, 2026-08-10): Idea 2 originally proposed
-    // fusing L6A's bias+LeakyReLU into the cuBLAS GEMM's own epilogue. Not
-    // directly achievable: cuBLASLt's built-in matmul epilogues only support
-    // standard ReLU, not LeakyReLU -- substituting standard ReLU would
-    // silently zero negative pre-activations instead of scaling them by
-    // 0.01, a real physics change, not acceptable. A bias-only epilogue
-    // (CUBLASLT_EPILOGUE_BIAS) is achievable and physics-safe, but before
-    // building the real cuBLASLt integration (T_chunk-varying layout
-    // descriptors, l6a_m sub-block indexing, workspace/algo lifecycle --
-    // real correctness risk), its ceiling was measured cheaply first: drop
-    // the b6A[n] term entirely from the reduce kernel's LeakyReLU (NOT
-    // physics-valid, timing only -- strictly more savings than a real
-    // bias-only fusion could ever achieve, since that would still read the
-    // bias-added value). Result: +0.01pp at -t16, indistinguishable from
-    // this session's noise floor (baseline spreads 0.04-0.05%) -- a
-    // conclusive null, ruling out the real cuBLASLt implementation without
-    // ever needing to build it. Removed. See optimization_plan.md Phase 23
-    // for the full numbers.
-
-    // Phase 24 (optimization_plan.md, 2026-08-10) tested whether Phase 15's
-    // occupancy-API-derived grid-stride reduce grid size is actually the
-    // empirically best launch size, by sweeping a percentage scale factor
-    // (50%, 150%, 200%) against it. Result: below 100% is a real regression
-    // (nsys: +24% kernel time at 50%; -t16: -0.37pp, muted but real); at or
-    // above 100% is flat to within noise (150%: -0.18pp, ~noise; 200%:
-    // -0.04pp, noise) -- no further gain from oversubscribing beyond the
-    // occupancy ceiling. Confirms Phase 15's original choice was already at
-    // (or past) the empirically optimal point; no net win to land. Removed.
-    // See optimization_plan.md Phase 24 for the full numbers.
-
-    // Phase 26 (optimization_plan.md, 2026-08-10): follow-up to the 90%
-    // exploration -- Phase 25 found l6a_m + fc_single_hidden_layer alone
-    // (even pushed to near-degenerate extremes) plateau around 87-88%,
-    // because L1-L5's own kernel time never shrinks with l6a_m (Phase 18)
-    // and becomes one of the two dominant remaining costs once L6A is this
-    // narrow. This property extends the same "use a real trained
-    // sub-block of a wider matrix" trick m_l6a_m already uses to L1-L5's
-    // own hidden width (currently 20, real architecture value): only the
-    // first hidden_width of each layer's 20 neurons are computed
-    // (zero-padded downstream, matching l6a_m's "untouched neurons read as
-    // zero" convention), AND the L6A GEMM's K dimension is correspondingly
-    // reduced to hidden_width (a valid cuBLAS sub-block read, lda/ldb held
-    // at the real stride 20 -- same trick m_l6a_m already uses for the
-    // GEMM's M dimension) so the simulated throughput reflects a narrower
-    // L1-L5 output feeding a correspondingly narrower L6A input, not just
-    // L1-L5's own kernel in isolation.
+    // Throughput-ceiling probe: use only the first N of L1-L5's 20 real
+    // hidden neurons per layer, and correspondingly shrink L6A's GEMM K
+    // dimension (a valid cuBLAS sub-block read of the same wider-strided
+    // real weight buffer, lda/ldb held at the real stride 20 -- the same
+    // trick m_l6a_m uses for the GEMM's M dimension), so the simulated
+    // throughput reflects a narrower L1-L5 output feeding a correspondingly
+    // narrower L6A input, not just L1-L5's own kernel in isolation.
     Allen::Property<unsigned> m_l1_l5_hidden_width {
         this, "l1_l5_hidden_width", 20u,
         "Throughput-ceiling probe: use only the first N of L1-L5's 20 real "
         "hidden neurons per layer, and correspondingly shrink L6A's GEMM K "
         "dimension (default 20 = physics-valid; smaller is NOT "
-        "physics-valid, timing only). See optimization_plan.md Phase 26"};
+        "physics-valid, timing only)"};
 
-    // Phase 27 (optimization_plan.md, 2026-08-10): follow-up to Phase 26's
-    // near-null result -- narrowing L1-L5's width barely moved retention at
-    // l6a_m=8/single_hidden_layer=true, because at that point there was
-    // little left in L1-L5 to save. Investigating why the ceiling still sat
-    // around 86-88% found that pvfinder_reduce_l6a_kernel's shared-memory
-    // zero-init, its softplus reduction's channel loop, and its output
-    // write-back are all hardcoded to the buffer's full shape (800 neurons
-    // / 8 channels), NOT bounded by l6a_m -- l6a_m only bounds the GEMM/
-    // accumulation step. A real narrower latentChannels would shrink the
-    // buffer itself, cutting these three costs too; l6a_m alone can't
-    // simulate that. This property bounds exactly those three operations,
-    // in channel units. Intended usage: set this to l6a_m/100 so both
-    // probes represent the SAME hypothetical architecture consistently
-    // (e.g. l6a_m=100, l6a_active_channels=1 together simulate
-    // latentChannels=1) -- NOT physics-valid when < 8, timing only.
+    // Complements m_l6a_m: that property bounds how many of L6A_WIDTH's
+    // flat neurons the GEMM/accumulation step touches, but pvfinder_reduce_
+    // l6a_kernel's shared-memory zero-init, its softplus reduction's channel
+    // loop, and its output write-back are all hardcoded to the buffer's
+    // full shape (L6A_WIDTH neurons / N_LATENT_CHANNELS channels) regardless
+    // of l6a_m. This property bounds exactly those three operations, in
+    // channel units, as a throughput-only sub-block probe *within this
+    // build's real N_LATENT_CHANNELS* -- unlike N_LATENT_CHANNELS itself (a
+    // build-time constant sized to match the loaded weight file, see its
+    // definition above), this never actually shrinks the buffer, so it
+    // cannot be used to run a genuinely different architecture the way
+    // rebuilding with a different --unet-batch-channels can. Intended usage:
+    // set this to l6a_m/100 so both probes represent the SAME hypothetical
+    // (narrower-than-this-build) architecture consistently -- NOT
+    // physics-valid when less than N_LATENT_CHANNELS, timing only.
     Allen::Property<unsigned> m_l6a_active_channels {
-        this, "l6a_active_channels", 8u,
+        this, "l6a_active_channels", N_LATENT_CHANNELS,
         "Throughput-ceiling probe: bound pvfinder_reduce_l6a_kernel's "
         "shared-memory zero-init, channel-reduction loop, and output "
-        "write-back to this many of the real 8 channels (default 8 = "
-        "physics-valid; set to l6a_m/100 for a consistent narrower-L6A "
-        "simulation with m_l6a_m). See optimization_plan.md Phase 27"};
+        "write-back to this many of this build's real N_LATENT_CHANNELS "
+        "channels (default N_LATENT_CHANNELS = physics-valid; set to "
+        "l6a_m/100 for a consistent narrower-L6A simulation with m_l6a_m)"};
 
-    // Phase 8 (optimization_plan.md, 2026-08-05): profiling at real -t16
-    // contention (not the -t1 clean-attribution methodology used through
-    // Phase 7) found cudaMemsetAsync at 14.4% of total CUDA API time --
-    // much more prominent than the quieter -t1 measurements suggested.
     // pvfinder_reduce_l6a_kernel's block still gets launched for every
-    // (event, interval) slot including empty ones (block compaction was
-    // tried and rejected in Phase 6), so an early-return-and-rely-on-a-
-    // separate-whole-buffer-memset design pays for a memset that's mostly
-    // redundant with work the kernel is already positioned to do itself.
+    // (event, interval) slot including empty ones, so an
+    // early-return-and-rely-on-a-separate-whole-buffer-memset design pays
+    // for a memset that's mostly redundant with work the kernel is already
+    // positioned to do itself under real multi-thread contention.
     // pvfinder_reduce_l6a_kernel now unconditionally writes explicit zeros
     // for empty slots instead of early-returning (always-on, not gated by
     // this flag -- provably correctness-preserving on its own, since it
@@ -398,179 +276,23 @@ private:
         "for empty (event, interval) slots instead -- candidate fix for "
         "cudaMemsetAsync's real cost under -t16 contention"};
 
-    // Phase 10 also tried launching pvfinder_l1_to_l5_kernel once across the
-    // whole batch instead of once per L6A chunk, targeting its low measured
-    // occupancy (18.7% warps active vs. 30.8%/63.9% for reduce/GEMM) by
-    // decoupling its grid width from L6A's memory-constrained chunk size.
-    // Implemented, correctness-verified, benchmarked: +0.09 percentage
-    // points -- statistically indistinguishable from noise, no real win.
-    // Removed. See optimization_plan.md Phase 10 for the numbers. (Phase 10
-    // also found and fixed a genuine, pre-existing correctness bug in
-    // pvfinder_reduce_l6a_kernel while investigating this -- see that
-    // kernel's own doc comment in the .cu file.)
-
-    // Phase 11 (optimization_plan.md, 2026-08-06) tried storing the L6A GEMM's
-    // output (dev_pvfinder_l6a_output) as FP16 instead of FP32, via
-    // cublasGemmEx with CUDA_R_16F as the C type and CUBLAS_COMPUTE_32F
-    // (compute itself stayed FP32) -- targeting that buffer's ~24 MB
-    // footprint as the fixed memory ceiling that has capped fc_chunk_size at
-    // every point in this project (Phase 6's 20->40, Phase 8's 40->100,
-    // Phase 9's crash/fix all trace back to this buffer's size). Implemented
-    // (a parallel __half buffer, a 4th template bool on
-    // pvfinder_reduce_l6a_kernel converting back to float via __half2float
-    // at the point of read, a use_fp16_l6a_storage property), and
-    // correctness-checked two ways: self-consistency across chunk sizes
-    // (fp16 chunk=100 vs chunk=200, same 200 events) matched to within
-    // 2.4e-7 -- ruling out any indexing/chunking bug in the new code -- but
-    // fp16 chunk=100 vs the FP32 reference (same events, same chunk size)
-    // showed massive, widespread divergence: 63.5% of dev_pvfinder_interval_
-    // features elements changed measurably, 23% by more than 100 (against a
-    // mean reference magnitude of only 423), 9% by more than the mean
-    // magnitude itself, max_abs_diff=140175 -- essentially as large as the
-    // reference's own most extreme value. Only 146 of the ~589k
-    // large-divergence elements actually involved a reference value beyond
-    // FP16's max representable magnitude (65504), ruling out simple overflow
-    // as the dominant cause -- the real driver is that s_feat[n]'s
-    // accumulation sums up to hundreds of per-track FP16-quantized terms
-    // (each with only 10 mantissa bits, ~0.05% relative precision) per
-    // interval, and that quantization noise compounds across the sum far
-    // more than a "just shrink the storage format" framing suggested. This
-    // is a genuine, physics-breaking precision loss, not a rare edge case --
-    // rejected without proceeding to the planned chunk-size sweep (a
-    // throughput win isn't worth shipping if it corrupts the majority of
-    // output elements). Removed. See optimization_plan.md Phase 11 for the
-    // full percentile breakdown and methodology.
-
-    // Phase 12 (optimization_plan.md, 2026-08-06) tried capturing the
-    // per-chunk kernel-launch sequence (L1-L5, cuBLAS GEMM, optional
-    // bias/ReLU, reduce) for all of a call's non-empty chunks as one CUDA
-    // graph, replayed via a single cudaGraphLaunch instead of up to ~3 host
-    // API calls per chunk -- targeting cudaLaunchKernel overhead under real
-    // -t16 contention. Implemented (capture-once/replay-verbatim, verified
-    // safe since Allen's argument buffer addresses and each chunk's T_chunk
-    // are bit-identical across repeated calls with the same n_events -- no
-    // per-replay parameter patching needed, unlike PVFinderUNet's own CUDA
-    // graph), correctness-verified (matched the eager path within float
-    // accumulation noise, both on first capture+launch and after 7 cached
-    // replays), and benchmarked at two chunk sizes: at fc_chunk_size=100
-    // (5 chunks/call, the production default) it was a wash -- 73.34%
-    // eager vs. 73.72% graph FC-alone retention, well within the 0.07-0.38%
-    // baseline run-to-run spread. At fc_chunk_size=20 (25 chunks/call, more
-    // host calls bundled per graph launch) it was a real *regression* --
-    // 68.81% eager vs. 66.37% graph, five times larger than that
-    // configuration's own 0.10-0.43% baseline spread. Rejected: no benefit
-    // at the config that matters, and bundling more chunks into a bigger
-    // graph made things worse, not better -- the opposite of what
-    // "eliminating N host API calls via 1 graph launch" would predict if
-    // host-side dispatch overhead were the bottleneck it was hypothesized
-    // to be. Removed. See optimization_plan.md Phase 12 for the full
-    // implementation notes and both benchmark tables.
-
-    // Phase 13 (optimization_plan.md, 2026-08-06) tried shrinking
-    // pvfinder_reduce_l6a_kernel's grid to only non-empty (event, interval)
-    // slots via a compacted work-list -- built on the host from CSR data
-    // already resident there (the existing DtoH readback used for T_chunk
-    // already copies each event's full 42-word interval_start array, not
-    // just the sentinel) and uploaded via a single H2D copy for the whole
-    // batch before the chunk loop, specifically to avoid the *extra
-    // per-chunk* cudaMemcpy that Phase 6's own (host-map-based) attempt at
-    // this was attributed to regressing on. Correctness-verified (matched
-    // the eager path within float-accumulation noise). But because every
-    // launched block became guaranteed non-empty, this mode couldn't rely
-    // on Phase 8's self-zeroing trick for empty slots and had to force a
-    // full memset back on regardless of skip_redundant_memset -- and that
-    // reintroduced cost, plus whatever the compacted grid's more uniform
-    // block sizes did to GPU-side scheduling, outweighed the grid-shrinking
-    // benefit: FC-alone retention dropped from 73.07% (eager) to 69.37%
-    // (compacted), a real -3.70pp regression, confirmed clean after an
-    // initial contended run (baseline spread 10.64%, another user's process
-    // on the shared GPU) was discarded and retried (0.23% spread). So this
-    // DID avoid Phase 6's specific extra-memcpy cost driver, but still
-    // regressed for a different reason -- the reintroduced memset (or a
-    // GPU-scheduling effect from the new grid shape) dominates instead.
-    // Rejected. Removed. See optimization_plan.md Phase 13 for the full
-    // numbers.
-
-    // Phase 14 (optimization_plan.md, 2026-08-06) tried replacing
-    // pvfinder_l1_to_l5_kernel's per-thread linear CSR scan with a per-thread
-    // binary search over a precomputed, once-per-batch-uploaded per-event
-    // cumulative CSR offset array (dev_pvfinder_event_csr_offset) -- a
-    // different mechanism than Phase 7's rejected *block-collaborative*
-    // shared-memory binary search (no per-block setup/sync cost here, just
-    // a plain per-thread search over a small, heavily-L1/L2-cached global
-    // array). csr_offset, the kernel's existing but previously-dead
-    // parameter, was resurrected into real use to convert a thread's
-    // chunk-relative t into the batch-wide position the search needed.
-    // Correctness-verified (matched the eager path within float-accumulation
-    // noise). But benchmarked at a real, reproducible -3.73pp retention
-    // regression (73.20% eager vs. 69.47% lookup, both runs clean at
-    // 0.08-0.55% baseline spread) -- remarkably close in magnitude to Phase
-    // 13's own -3.70pp regression from a different, unrelated idea. Rejected.
-    // Plausible reading (not confirmed via further profiling): the linear
-    // scan has strong warp-coherence properties a binary search doesn't
-    // preserve -- neighboring threads share consecutive CSR slot t values,
-    // which given typical event sizes (~196 entries/event) usually land in
-    // the same or an adjacent event, so a warp's threads scan nearly
-    // identical iteration counts via cheap, predictable, cached sequential
-    // reads. A binary search's data-dependent branching can diverge more at
-    // event-boundary threads even while doing fewer total iterations
-    // (log2(100)~7 vs. up to 100 worst-case for the scan), and its access
-    // pattern is less prefetch-friendly than the scan's simple stride.
-    // Removed. See optimization_plan.md Phase 14 for the full numbers.
-
-    // Phase 15 (optimization_plan.md, 2026-08-06): pvfinder_reduce_l6a_kernel
-    // launches exactly one block per (event, interval) slot in the current
-    // chunk (n_chunk_events*40 blocks), which Phase 6's own profiling found
-    // only 30.8% warp-occupied. Ideas 1 (Phase 13, shrink the grid via
-    // compaction) and 2 (Phase 14, cut L1-L5's scan cost) both targeted
-    // occupancy/iteration-count via restructuring how work is distributed
-    // across blocks/threads, and both regressed by almost exactly the same
-    // amount (-3.70pp, -3.73pp) -- a pattern worth being aware of, since this
-    // idea makes a similar kind of bet. This one: instead of a grid sized to
-    // the chunk's slot count, launch a FIXED number of blocks sized to the
-    // GPU's actual occupancy ceiling for this kernel (SM count *
-    // cudaOccupancyMaxActiveBlocksPerMultiprocessor, queried once per thread
-    // and cached -- portable, no hardcoded RTX 3090 SM count), each looping
-    // via an atomicAdd-claimed work counter over the SAME dense
+    // pvfinder_reduce_l6a_kernel launches exactly one block per
+    // (event, interval) slot in the current chunk (n_chunk_events*40
+    // blocks), which typically leaves it partially warp-occupied. Instead
+    // of a grid sized to the chunk's slot count, this launches a FIXED
+    // number of blocks sized to the GPU's actual occupancy ceiling for this
+    // kernel (SM count * cudaOccupancyMaxActiveBlocksPerMultiprocessor,
+    // queried once per thread and cached -- portable across devices), each
+    // looping via an atomicAdd-claimed work counter over the same dense
     // (event, interval) slot space (including empty slots, which still
-    // self-zero exactly as today -- Phase 13's forced-memset regression risk
-    // doesn't apply here since nothing about empty-slot handling changes).
-    // Only combined with the winning warp_parallel+fused_bias_relu
-    // combination (matching Phase 11/13's scoping precedent).
+    // self-zero exactly as in the static-grid path). Only combined with
+    // warp_parallel_reduce + fused_bias_relu_reduce above.
     Allen::Property<bool> m_use_grid_stride_reduce {
         this, "use_grid_stride_reduce", false,
         "Launch pvfinder_reduce_l6a_kernel as a fixed, occupancy-sized grid "
         "that work-steals over all (event, interval) slots via an atomic "
         "counter, instead of one block per slot -- candidate fix for "
-        "reduce's still-partial (30.8%) warp occupancy via a different "
-        "mechanism than Phase 13's rejected static compaction"};
-
-    // Phase 17 (optimization_plan.md, 2026-08-07) tried routing L1-L5's 5
-    // dense layers through cuBLAS (a gather kernel materializing the
-    // scattered per-track input into a dense buffer, then 5 cublasSgemm
-    // calls mirroring L6A's own GEMM convention, each followed by a shared
-    // bias+LeakyReLU epilogue kernel, ping-ponging between two scratch
-    // buffers) instead of the hand-written per-thread register kernel --
-    // motivated by L1-L5's low 18.7% occupancy vs. L6A's 70% SM utilization
-    // via cuBLAS, and by Phase 16's confirmation that cuBLAS decisively
-    // beats a hand-written equivalent when the whole FC pipeline is
-    // compared (38% vs. 74%). Correctness-verified (matched the eager path
-    // within float-accumulation noise, max_abs_diff=0.039 -- larger than
-    // single-GEMM-only diffs elsewhere in this file but still negligible,
-    // consistent with 5 sequential GEMMs compounding rounding differently
-    // than the hand-written version's in-register chain). But benchmarked
-    // at a real, tightly-reproducible -2.04pp regression (74.00% eager+
-    // grid-stride-reduce vs. 71.96% cublas_l1_l5, both clean at 0.19-0.71%
-    // baseline spread). Plausible reading (not confirmed via further
-    // profiling): unlike L6A's single GEMM (20->800, wide enough for
-    // cuBLAS's tiling advantage to amortize against), L1-L5's 5 layers are
-    // narrow (out_f=20 throughout) and, critically, the hand-written
-    // kernel does all 5 layers back-to-back in registers with only ONE
-    // final global-memory write -- while the cuBLAS-routed version pays
-    // for 4 extra full round-trips through DRAM to materialize each
-    // layer's intermediate output, a real memory-traffic cost the thin
-    // per-layer GEMMs don't have enough compute to amortize away. Removed.
-    // See optimization_plan.md Phase 17 for the full numbers.
+        "reduce's partial warp occupancy"};
 };
 
 } // namespace pvfinder_fc_aggregation
