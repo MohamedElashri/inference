@@ -44,6 +44,7 @@ target_link_libraries(Stream
     Lumi
     Muon
     PV_beamline
+    PVFinder
     Plume
     SciFi
     UT

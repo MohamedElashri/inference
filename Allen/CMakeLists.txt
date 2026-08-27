@@ -318,6 +318,16 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   message(STATUS "Device architecture set to ${DEVICE_ARCHITECTURE}")
 endif()
 
+# --- CuDNN optional support (CUDA only) ---
+if(TARGET_DEVICE STREQUAL "CUDA")
+  option(WITH_CUDNN "Enable cuDNN support for CNN inference algorithms" OFF)
+  if(WITH_CUDNN)
+    find_package(CuDNN REQUIRED)
+    add_compile_definitions(ALLEN_WITH_CUDNN)
+    message(STATUS "cuDNN integration enabled (version ${CUDNN_VERSION})")
+  endif()
+endif()
+
 # Setup project for the configured target
 if(TARGET_DEVICE STREQUAL "CPU")
   # This seems to be needed across compilers
