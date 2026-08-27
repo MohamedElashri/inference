@@ -14,13 +14,9 @@ __device__ float3 normalize(float3 v) {
     }
 }
 
-__device__ float3 cross(float3 a, float3 b) {
-    return make_float3(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x
-    );
-}
+// NOTE: cross(float3, float3) is now provided by Allen's backend/include/BackendCommon.h
+// (added upstream after v7r9). The previous local definition here was numerically
+// identical and has been removed to avoid an overload ambiguity.
 
 __device__ float dot(float3 a, float3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;

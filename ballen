@@ -139,7 +139,7 @@ function build_gpu {
         echo "'Allen' binary not found in $BUILD_GPU, doing full build..."
         dryrun mkdir -p "$ALLEN_REPO/$BUILD_GPU"
         if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_GPU" ]]; then cd "$ALLEN_REPO/$BUILD_GPU" || exit; fi
-        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake"
+        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake"
         if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
         CMAKE_ARGS="-DSTANDALONE=ON -DTARGET_DEVICE=CUDA -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
         if [[ $USE_CUDNN -eq 1 ]]; then
@@ -184,7 +184,7 @@ function build_cpu {
         echo "'Allen' binary not found in $BUILD_CPU, doing full build..."
         dryrun mkdir -p "$ALLEN_REPO/$BUILD_CPU"
         if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_CPU" ]]; then cd "$ALLEN_REPO/$BUILD_CPU" || exit; fi
-        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13-opt+g.cmake"
+        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_108c/x86_64_v3-el9-gcc13-opt+g.cmake"
         if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
         dryrun cmake -DSTANDALONE=ON -DTARGET_DEVICE=CPU -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" ..
         echo "Bootstrapping parameter files and dependencies (single-threaded)..."
