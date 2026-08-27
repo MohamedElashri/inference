@@ -55,10 +55,11 @@ void data_quality_validator_velo::data_quality_validator_velo_t::output_monitor(
   for (size_t i = 0; i < event_list.size(); ++i) {
     const auto evnum = event_list[i];
     const auto velo_tracks_offset = event_velo_tracks_offsets[evnum];
-    Velo::Consolidated::ConstTracks velo_tracks {offsets_all_velo_tracks.data(),
-                                                 offsets_velo_track_hit_number.data(),
-                                                 evnum,
-                                                 first<host_number_of_events_t>(arguments)};
+    Velo::Consolidated::ConstTracks velo_tracks {
+      offsets_all_velo_tracks.data(),
+      offsets_velo_track_hit_number.data(),
+      evnum,
+      first<host_number_of_events_t>(arguments)};
     unsigned n_velo_states = velo_tracks.number_of_tracks(evnum);
 
     Velo::Consolidated::ConstStates velo_states {velo_states_base.data(), velo_tracks.total_number_of_tracks()};

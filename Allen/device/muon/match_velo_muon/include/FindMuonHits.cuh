@@ -53,10 +53,11 @@ namespace find_muon_hits {
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 64, "block dimension X"};
     Allen::Property<bool> m_enable_tupling {this, "enable_tupling", false, "Enable tupling boolean"};
-    Allen::Property<int> m_required_number_of_hits {this,
-                                                    "required_number_of_hits",
-                                                    4,
-                                                    "Minimum number of hits to accept a muon stub"};
+    Allen::Property<int> m_required_number_of_hits {
+      this,
+      "required_number_of_hits",
+      4,
+      "Minimum number of hits to accept a muon stub"};
   };
 
 } // namespace find_muon_hits

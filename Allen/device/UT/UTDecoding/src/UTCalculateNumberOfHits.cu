@@ -206,11 +206,12 @@ __global__ void ut_calculate_number_of_hits::ut_calculate_number_of_hits(
   uint32_t* hit_offsets = parameters.dev_ut_hit_offsets + event_number * UT::Constants::n_groups;
   uint16_t* nonempty_channels = parameters.dev_ut_nonempty_channels + event_number * UT::Decoding::number_of_channels;
   const UTBoards boards {ut_boards};
-  const UTRawEvent<mep> raw_event {parameters.dev_ut_raw_input,
-                                   parameters.dev_ut_raw_input_offsets,
-                                   parameters.dev_ut_raw_input_sizes,
-                                   parameters.dev_ut_raw_input_types,
-                                   event_number + event_start};
+  const UTRawEvent<mep> raw_event {
+    parameters.dev_ut_raw_input,
+    parameters.dev_ut_raw_input_offsets,
+    parameters.dev_ut_raw_input_sizes,
+    parameters.dev_ut_raw_input_types,
+    event_number + event_start};
 
   // First fill shared counters
   __shared__ uint8_t shared_bin_number[UT::Decoding::number_of_channels];

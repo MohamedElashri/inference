@@ -11,6 +11,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 #include "ROOTHeaders.h"
 #include "CheckerInvoker.h"
 
@@ -91,6 +92,10 @@ struct TrackCheckerHistos {
   std::unique_ptr<TH1D> h_ghost_isMuon_Eta_reconstructed;
   std::unique_ptr<TH1D> h_ghost_isMuon_nPV_reconstructed;
 
+  std::unique_ptr<TH1D> h_rich_ckResAll;
+  std::unique_ptr<TH1D> h_rich_ckThetaExp;
+  std::unique_ptr<TH1D> h_rich_ckThetaRec;
+
   TFile* m_file = nullptr;
   void write();
 
@@ -109,6 +114,10 @@ struct TrackCheckerHistos {
   void fillMomentumResolutionHisto(const MCParticle& mcp, const float p, const float qop);
   void fillMuonIDHistos(const Checker::Track& track);
   void fillMuonIDMatchedHistos(const Checker::Track& track, const MCParticle& mcp);
+  void fillRichHistos(
+    const Checker::Track& track,
+    const std::vector<Allen::Rich::PhotonReco::Photon>& photons,
+    Allen::Rich::ParticleIDType true_pid);
   void fillMuonReconstructedMatchedIsMuon(const MCParticle& mcp);
   void fillMuonFromSReconstructedMatchedIsMuon(const MCParticle& mcp);
   void fillMuonFromBReconstructedMatchedIsMuon(const MCParticle& mcp);

@@ -60,13 +60,15 @@ namespace downstream_v2_fit_tracks {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<float> m_clone_killing_threshold {this,
-                                                      "clone_killing_threshold",
-                                                      1.0,
-                                                      "the clone killing threshold"};
+    Allen::Property<float> m_clone_killing_threshold {
+      this,
+      "clone_killing_threshold",
+      1.0,
+      "the clone killing threshold"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
-    CloneKiller m_downstream_clone_killer {"downstream_clone_killer",
-                                           "/GhostProbability/Hlt1_DownstreamV2CloneKiller.json"};
+    CloneKiller m_downstream_clone_killer {
+      "downstream_clone_killer",
+      "/GhostProbability/Hlt1_DownstreamV2CloneKiller.json"};
   };
 
   __global__ void downstream_v2_fit_tracks(Parameters, const CloneKiller::DeviceType*, float clone_killing_threshold);

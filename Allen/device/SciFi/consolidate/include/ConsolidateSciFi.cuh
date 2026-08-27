@@ -95,7 +95,7 @@ namespace scifi_consolidate_tracks {
 
   __global__ void scifi_consolidate_tracks(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const std::array<float, 16> momentum_parameters,
     Allen::Monitoring::Histogram<>::DeviceType dev_histogram_n_long_tracks_forward,
     Allen::Monitoring::AveragingCounter<>::DeviceType dev_n_long_tracks_forward_counter);
@@ -122,51 +122,60 @@ namespace scifi_consolidate_tracks {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
-    Allen::Property<std::array<float, 16>> m_momentum_parameters {this,
-                                                                  "momentum_parameters",
-                                                                  {},
-                                                                  "momentum_parameters"};
+    Allen::Property<std::array<float, 16>> m_momentum_parameters {
+      this,
+      "momentum_parameters",
+      {},
+      "momentum_parameters"};
 
     Allen::Monitoring::AveragingCounter<> m_counter_long_tracks_forward {this, "n_long_tracks_forward"};
 
-    Allen::Monitoring::Histogram<> m_histogram_n_long_tracks_forward {this,
-                                                                      "n_long_tracks_forward_event",
-                                                                      "n_long_tracks_forward_event",
-                                                                      {501u, -0.5f, 500.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_n_long_tracks_forward {
+      this,
+      "n_long_tracks_forward_event",
+      "n_long_tracks_forward_event",
+      {501u, -0.5f, 500.5f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_eta {this,
-                                                                       "long_track_forward_eta",
-                                                                       "#eta",
-                                                                       {500u, 0.f, 10.f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_eta {
+      this,
+      "long_track_forward_eta",
+      "#eta",
+      {500u, 0.f, 10.f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_phi {this,
-                                                                       "long_track_forward_phi",
-                                                                       "#phi",
-                                                                       {1000u, -3.2f, 3.2f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_phi {
+      this,
+      "long_track_forward_phi",
+      "#phi",
+      {1000u, -3.2f, 3.2f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_nhits {this,
-                                                                         "long_track_forward_nhits",
-                                                                         "N. hits / track",
-                                                                         {51u, -0.5f, 50.5f}};
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_qop {this,
-                                                                       "long_track_forward_qop",
-                                                                       "q/p",
-                                                                       {200u, -1e-3f, 1e-3f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_nhits {
+      this,
+      "long_track_forward_nhits",
+      "N. hits / track",
+      {51u, -0.5f, 50.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_qop {
+      this,
+      "long_track_forward_qop",
+      "q/p",
+      {200u, -1e-3f, 1e-3f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_pt {this,
-                                                                      "long_track_forward_pt",
-                                                                      "pt",
-                                                                      {500u, 0.f, 1e4f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_pt {
+      this,
+      "long_track_forward_pt",
+      "pt",
+      {500u, 0.f, 1e4f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_tx {this,
-                                                                      "long_track_forward_tx",
-                                                                      "tx",
-                                                                      {200u, -1.0f, 1.0f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_tx {
+      this,
+      "long_track_forward_tx",
+      "tx",
+      {200u, -1.0f, 1.0f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_ty {this,
-                                                                      "long_track_forward_ty",
-                                                                      "ty",
-                                                                      {200u, -0.4f, 0.4f}};
+    Allen::Monitoring::Histogram<> m_histogram_long_track_forward_ty {
+      this,
+      "long_track_forward_ty",
+      "ty",
+      {200u, -0.4f, 0.4f}};
   };
 
 } // namespace scifi_consolidate_tracks

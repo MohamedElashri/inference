@@ -115,10 +115,10 @@ void CompareRecAllenMuonHits::operator()(
 
   for (const auto& muon_hit_allen : muon_hits_allen) {
     auto tmp_iter = std::remove_if(muon_hits_rec.begin(), muon_hits_rec.end(), [&muon_hit_allen](auto& muon_hit_rec) {
-      return muon_hit_rec.tile == muon_hit_allen.tile && fabsf(muon_hit_rec.x - muon_hit_allen.x) < 1e-3 &&
-             fabsf(muon_hit_rec.y - muon_hit_allen.y) < 1e-3 && fabsf(muon_hit_rec.z - muon_hit_allen.z) < 1e-1 &&
+      return muon_hit_rec.tile == muon_hit_allen.tile && fabsf(muon_hit_rec.x - muon_hit_allen.x) < 1e-3f &&
+             fabsf(muon_hit_rec.y - muon_hit_allen.y) < 1e-3f && fabsf(muon_hit_rec.z - muon_hit_allen.z) < 1e-1f &&
              muon_hit_rec.uncrossed == muon_hit_allen.uncrossed && muon_hit_rec.time == muon_hit_allen.time &&
-             fabsf(muon_hit_rec.dx - muon_hit_allen.dx) < 1e-3 && fabsf(muon_hit_rec.dy - muon_hit_allen.dy) < 1e-3 &&
+             fabsf(muon_hit_rec.dx - muon_hit_allen.dx) < 1e-3f && fabsf(muon_hit_rec.dy - muon_hit_allen.dy) < 1e-3f &&
              muon_hit_rec.delta_time == muon_hit_allen.delta_time && muon_hit_rec.region == muon_hit_allen.region;
     });
     const auto n_hits_found = std::distance(tmp_iter, muon_hits_rec.end());

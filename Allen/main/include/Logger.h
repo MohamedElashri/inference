@@ -16,6 +16,7 @@
 #define warning_cout logger::logger(logger::warning)
 #define error_cout logger::logger(logger::error)
 
+#include <atomic>
 #include <iosfwd>
 #include <ostream>
 #include <streambuf>
@@ -25,7 +26,7 @@
 namespace logger {
   class Logger {
   public:
-    int verbosityLevel = 3;
+    std::atomic<int> verbosityLevel {3};
   };
 
   std::ostream& logger(int requestedLogLevel);

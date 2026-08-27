@@ -91,22 +91,22 @@ __global__ void downstream_make_secondary_vertices::downstream_make_secondary_ve
 
   // Create views
   if (threadIdx.x == 0) {
-    new (parameters.dev_sv_fit_results_view + event_number)
-      Allen::Views::Physics::SecondaryVertices {parameters.dev_sv_fit_results,
-                                                parameters.dev_offsets_downstream_secondary_vertices,
-                                                event_number,
-                                                number_of_events};
+    new (parameters.dev_sv_fit_results_view + event_number) Allen::Views::Physics::SecondaryVertices {
+      parameters.dev_sv_fit_results,
+      parameters.dev_offsets_downstream_secondary_vertices,
+      event_number,
+      number_of_events};
   }
   __syncthreads();
 
   for (unsigned sv_idx = threadIdx.x; sv_idx < n_svs; sv_idx += blockDim.x) {
-    new (parameters.dev_two_track_composite_view + sv_offset + sv_idx)
-      Allen::Views::Physics::CompositeParticle {parameters.dev_two_track_sv_track_pointers[sv_offset + sv_idx],
-                                                parameters.dev_sv_fit_results_view + event_number,
-                                                parameters.dev_downstream_secondary_vertices_pv[sv_offset + sv_idx],
-                                                2u,
-                                                sv_idx,
-                                                parameters.dev_downstream_secondary_vertices_ip + sv_offset + sv_idx};
+    new (parameters.dev_two_track_composite_view + sv_offset + sv_idx) Allen::Views::Physics::CompositeParticle {
+      parameters.dev_two_track_sv_track_pointers[sv_offset + sv_idx],
+      parameters.dev_sv_fit_results_view + event_number,
+      parameters.dev_downstream_secondary_vertices_pv[sv_offset + sv_idx],
+      2u,
+      sv_idx,
+      parameters.dev_downstream_secondary_vertices_ip + sv_offset + sv_idx};
   }
 
   if (threadIdx.x == 0) {

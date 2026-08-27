@@ -50,8 +50,9 @@ void DumpUTHits::operator()(const LHCb::ODIN& odin, const UT::HitHandler& hitHan
 {
 
   /*Write UT variables for GPU to binary file */
-  DumpUtils::FileWriter outfile {m_outputDirectory.value() + "/" + std::to_string(odin.runNumber()) + "_" +
-                                 std::to_string(odin.eventNumber()) + ".bin"};
+  DumpUtils::FileWriter outfile {
+    m_outputDirectory.value() + "/" + std::to_string(odin.runNumber()) + "_" + std::to_string(odin.eventNumber()) +
+    ".bin"};
 
   // UT
   // Variables written to binary file as GPU input for VeloUT tracking

@@ -11,8 +11,8 @@
 
 #pragma once
 
+#include <atomic>
 #include <iostream>
-
 #include <Algorithm.cuh>
 
 #ifndef ALLEN_STANDALONE
@@ -47,18 +47,19 @@ namespace Allen::Monitoring {
 
     friend void to_json(nlohmann::json& j, CountersHistogram const& h)
     {
-      j = {{"type", "histogram:WeightedHistogram:d"},
-           {"title", h.m_title},
-           {"dimension", 1},
-           {"empty", h.m_totNEntries == 0},
-           {"nEntries", h.m_totNEntries},
-           {"axis",
-            {{{"nBins", h.m_bins.size() - 2},
-              {"minValue", h.m_minValue},
-              {"maxValue", h.m_maxValue},
-              {"title", ""},
-              {"labels", h.m_labels}}}},
-           {"bins", h.m_bins}};
+      j = {
+        {"type", "histogram:WeightedHistogram:d"},
+        {"title", h.m_title},
+        {"dimension", 1},
+        {"empty", h.m_totNEntries == 0},
+        {"nEntries", h.m_totNEntries},
+        {"axis",
+         {{{"nBins", h.m_bins.size() - 2},
+           {"minValue", h.m_minValue},
+           {"maxValue", h.m_maxValue},
+           {"title", ""},
+           {"labels", h.m_labels}}}},
+        {"bins", h.m_bins}};
     }
 
     void registerHistogram()
@@ -122,22 +123,33 @@ namespace Allen::Monitoring {
     void registerAveragingCounter(AveragingCounter<unsigned>* c) { m_av_counters.push_back(c); }
     void initAccumulators(unsigned number_of_streams);
     void mergeAndReset(bool singlethreaded = false);
-    char* bufferForStream(unsigned stream_id) const { return m_dev_buffer_ptr[m_stream_current_buffer[stream_id]]; }
+    char* bufferForStream(unsigned stream_id) const
+    {
+      return m_dev_buffer_ptr[m_stream_current_buffer[stream_id].load(std::memory_order_acquire)];
+    }
     void synchronizeStream(unsigned stream_id)
     {
-      m_stream_done[stream_id] = false;
-      m_stream_current_buffer[stream_id] = m_current_buffer;
+      m_stream_done[stream_id].store(false, std::memory_order_release);
+      m_stream_current_buffer[stream_id].store(
+        m_current_buffer.load(std::memory_order_acquire), std::memory_order_release);
     }
-    void streamDone(unsigned stream_id) { m_stream_done[stream_id] = true; }
+    void streamDone(unsigned stream_id) { m_stream_done[stream_id].store(true, std::memory_order_release); }
 
   private:
     char* m_dev_buffer_ptr[2] {nullptr, nullptr}; // double buffering
     char* m_host_buffer_ptr {nullptr};
     std::size_t m_buffer_size {0};
 
-    unsigned m_current_buffer {0};
-    std::vector<unsigned> m_stream_current_buffer;
-    std::vector<bool> m_stream_done;
+    // Written by the aggregation thread (mergeAndReset()) and/or each stream's own
+    // worker thread (synchronizeStream()/streamDone()), read cross-thread by the
+    // other side -- must be genuinely atomic, not just re-typed, to avoid a data
+    // race under the C++ memory model (see lhcb/Allen#630). initAccumulators() runs
+    // once, single-threaded, strictly before any worker/aggregation thread starts,
+    // so it move-assigns freshly-sized vectors instead of resizing (std::atomic<T>
+    // is neither copy- nor move-constructible, so resize() would not compile).
+    std::atomic<unsigned> m_current_buffer {0};
+    std::vector<std::atomic<unsigned>> m_stream_current_buffer;
+    std::vector<std::atomic<bool>> m_stream_done;
 
     CountersHistogram m_counters_histogram;
 
@@ -166,6 +178,19 @@ namespace Allen::Monitoring {
     {
       return AccumulatorManager::get()->bufferForStream(stream_id) + m_buffer_infos->offset;
     }
+
+  protected:
+    // Set by a derived class' registerAccumulator() override once it has actually
+    // registered *this with Gaudi::svcLocator()->monitoringHub(); the destructor
+    // only calls removeEntity() if this is true. Needed because AccumulatorManager
+    // only calls registerAccumulator() on the first owner of a given unique name
+    // (see AccumulatorManager::initAccumulators), and because tools that
+    // introspect algorithms without a real Gaudi ApplicationMgr (e.g.
+    // configuration/src/default_properties.cpp) construct and destroy
+    // AccumulatorBase-derived objects without ever calling initAccumulators() at
+    // all -- Gaudi::svcLocator() lazily creates (and leaks) a whole ApplicationMgr
+    // if this destructor calls it unconditionally in that context.
+    bool m_registered {false};
 
   private:
     const Allen::Algorithm* m_owner;
@@ -216,12 +241,13 @@ namespace Allen::Monitoring {
     friend void reset(Counter& c) { c.m_entries = 0.0; }
     friend void to_json(nlohmann::json& j, Counter const& c)
     {
-      j = {{"type", "counter:Counter:d"}, {"empty", c.m_entries == 0}, {"nEntries", c.m_entries}};
+      j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(c.m_entries)}, {"nEntries", c.m_entries}};
     }
     void registerAccumulator() override
     {
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "counter:Counter:d", *this);
+      m_registered = true;
 #endif
     }
     void fillAccumulator(void* ptr) override { m_entries += reinterpret_cast<T*>(ptr)[0]; }
@@ -286,16 +312,18 @@ namespace Allen::Monitoring {
     }
     friend void to_json(nlohmann::json& j, AveragingCounter const& c)
     {
-      j = {{"type", "counter:AveragingCounter:d"},
-           {"empty", c.m_entries == 0},
-           {"nEntries", c.m_entries},
-           {"sum", c.m_sum},
-           {"mean", c.m_sum / c.m_entries}};
+      j = {
+        {"type", "counter:AveragingCounter:d"},
+        {"empty", LHCb::essentiallyZero(c.m_entries)},
+        {"nEntries", c.m_entries},
+        {"sum", c.m_sum},
+        {"mean", c.m_sum / c.m_entries}};
     }
     void registerAccumulator() override
     {
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "counter:AveragingCounter:d", *this);
+      m_registered = true;
 #endif
     }
     void fillAccumulator(void* ptr) override
@@ -415,11 +443,12 @@ namespace Allen::Monitoring {
         double y = minValue + i * step;
         xbins.emplace_back((-c + std::exp(y * std::log(2) / b)) / a);
       }
-      j = nlohmann::json {{"nBins", axis.nBins},
-                          {"minValue", axis.minValue},
-                          {"maxValue", axis.maxValue},
-                          {"title", axis.title},
-                          {"xbins", xbins}};
+      j = nlohmann::json {
+        {"nBins", axis.nBins},
+        {"minValue", axis.minValue},
+        {"maxValue", axis.maxValue},
+        {"title", axis.title},
+        {"xbins", xbins}};
     }
 
     unsigned int nBins;       // number of bins for this Axis
@@ -547,13 +576,14 @@ namespace Allen::Monitoring {
 
     friend void to_json(nlohmann::json& j, HistogramND const& h)
     {
-      j = {{"type", "histogram:Histogram:d"},
-           {"title", h.m_title},
-           {"dimension", h.m_allen_stride.size()},
-           {"empty", h.m_totNEntries == 0},
-           {"nEntries", h.m_totNEntries},
-           {"axis", h.axisArray()},
-           {"bins", h.m_bins}};
+      j = {
+        {"type", "histogram:Histogram:d"},
+        {"title", h.m_title},
+        {"dimension", h.m_allen_stride.size()},
+        {"empty", LHCb::essentiallyZero(h.m_totNEntries)},
+        {"nEntries", h.m_totNEntries},
+        {"axis", h.axisArray()},
+        {"bins", h.m_bins}};
     }
 
     void registerAccumulator() override
@@ -582,6 +612,7 @@ namespace Allen::Monitoring {
       m_totNEntries = 0.0;
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "histogram:Histogram:d", *this);
+      m_registered = true;
 #endif
     }
 
@@ -645,6 +676,8 @@ namespace Allen::Monitoring {
 
   template<typename HistogramType>
   struct HistogramBinAsCounter {
+    HistogramBinAsCounter() = default;
+
     HistogramBinAsCounter(
       [[maybe_unused]] const Allen::Algorithm* owner,
       [[maybe_unused]] std::string name,
@@ -655,15 +688,25 @@ namespace Allen::Monitoring {
     {
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(owner->name(), name, "counter:Counter:d", *this);
+      m_registered = true;
+#endif
+    }
+    ~HistogramBinAsCounter()
+    {
+#ifndef ALLEN_STANDALONE
+      if (m_registered) {
+        Gaudi::svcLocator()->monitoringHub().removeEntity(*this);
+      }
 #endif
     }
     friend void to_json(nlohmann::json& j, HistogramBinAsCounter const& c)
     {
-      j = {{"type", "counter:Counter:d"},
-           {"empty", c.m_histo->m_bins[c.m_bin + 1] == 0},
-           {"nEntries", c.m_histo->m_bins[c.m_bin + 1]}};
+      const auto entries =
+        (c.m_histo != nullptr && c.m_bin + 1 < c.m_histo->m_bins.size()) ? c.m_histo->m_bins[c.m_bin + 1] : 0.0;
+      j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(entries)}, {"nEntries", entries}};
     }
-    const HistogramType* m_histo;
-    unsigned m_bin;
+    const HistogramType* m_histo {nullptr};
+    unsigned m_bin {0};
+    bool m_registered {false};
   };
 } // namespace Allen::Monitoring

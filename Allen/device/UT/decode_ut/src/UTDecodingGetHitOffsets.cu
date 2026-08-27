@@ -76,11 +76,12 @@ __global__ void ut_decoding_get_hit_offsets::ut_decoding_get_number_of_hits(
   const auto event_number = parameters.dev_event_list[blockIdx.x];
 
   // Read raw data
-  const UTRawEvent<mep> raw_event {parameters.dev_ut_raw_input,
-                                   parameters.dev_ut_raw_input_offsets,
-                                   parameters.dev_ut_raw_input_sizes,
-                                   parameters.dev_ut_raw_input_types,
-                                   event_number + event_start};
+  const UTRawEvent<mep> raw_event {
+    parameters.dev_ut_raw_input,
+    parameters.dev_ut_raw_input_offsets,
+    parameters.dev_ut_raw_input_sizes,
+    parameters.dev_ut_raw_input_types,
+    event_number + event_start};
 
   // Offsets
   const auto bank_offset = parameters.dev_ut_banks_offsets[event_number];

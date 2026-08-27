@@ -8,40 +8,37 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import sys
-import os
-import time
-import pprint
-import signal
-import re
-from subprocess import PIPE, STDOUT, Popen
-from threading import Thread
 import datetime
-import requests
+import os
+import re
+import signal
+import sys
 import traceback
 from collections import defaultdict
+from subprocess import PIPE, STDOUT, Popen
 
-ON_POSIX = 'posix' in sys.builtin_module_names
+import requests
+
+ON_POSIX = "posix" in sys.builtin_module_names
 
 
 def send(telegraf_string):
-    telegraf_url = 'http://localhost:8186/telegraf'
+    telegraf_url = "http://localhost:8186/telegraf"
     session = requests.session()
     session.trust_env = False
     try:
-        print('Sending telegraf string: %s' % telegraf_string)
+        print("Sending telegraf string: %s" % telegraf_string)
         response = session.post(telegraf_url, data=telegraf_string)
-        print('http response: %s' % response.headers)
+        print("http response: %s" % response.headers)
     except:
-        print('Failed to submit data string %s' % telegraf_string)
+        print("Failed to submit data string %s" % telegraf_string)
         print(traceback.format_exc())
 
 
 def send_to_telegraf(rates):
-
     now = datetime.datetime.now()
     timestamp = datetime.datetime.timestamp(now) * 1000000000
-    print('timestamp = ', timestamp)
+    print("timestamp = ", timestamp)
 
     for interface, rate in rates.items():
         telegraf_string = "AllenIntegrationTest,pcie40_interface=%s " % interface
@@ -53,26 +50,25 @@ def send_to_telegraf(rates):
         send(telegraf_string)
 
 
-pcie40_id = Popen(['pcie40_id'],
-                  stdout=PIPE,
-                  stderr=STDOUT,
-                  close_fds=ON_POSIX)
+pcie40_id = Popen(["pcie40_id"], stdout=PIPE, stderr=STDOUT, close_fds=ON_POSIX)
 o, e = pcie40_id.communicate()
 
 interface_expr = re.compile(r"Interface: (\d+)")
 rate_expr = re.compile(r"(\d+): (\d+\.\d+) Gbps, (\d+\.\d+) Gbps")
 interfaces = []
-for line in o.decode().split('\n'):
+for line in o.decode().split("\n"):
     line = line.strip()
     m = interface_expr.match(line)
     if m:
         interfaces.append(int(m.group(1)))
 
-with Popen(['unbuffer', 'pcie40_daq', '-rfegO'],
-           bufsize=1,
-           universal_newlines=True,
-           stdout=PIPE,
-           stderr=STDOUT) as pcie40_daq:
+with Popen(
+    ["unbuffer", "pcie40_daq", "-rfegO"],
+    bufsize=1,
+    universal_newlines=True,
+    stdout=PIPE,
+    stderr=STDOUT,
+) as pcie40_daq:
     rates = defaultdict(list)
     n = 0
     for line in pcie40_daq.stdout:

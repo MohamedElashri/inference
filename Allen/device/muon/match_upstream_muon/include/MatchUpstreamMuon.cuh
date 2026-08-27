@@ -36,7 +36,7 @@ namespace MatchUpstreamMuon {
 
   __global__ void match_upstream_muon(
     Parameters,
-    const float* magnet_polarity,
+    const float magnet_polarity,
     const MuonChambers* dev_muonmatch_search_muon_chambers,
     const SearchWindows* dev_muonmatch_search_windows,
     const unsigned number_of_events);

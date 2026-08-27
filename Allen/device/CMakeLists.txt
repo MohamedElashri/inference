@@ -32,8 +32,3 @@ add_subdirectory(downstream)
 add_subdirectory(rich)
 add_subdirectory(jets)
 add_subdirectory(ttrack)
-add_subdirectory(pvfinder)
-
-if(WITH_CUDNN)
-  add_subdirectory(cudnn_backend)
-endif()

@@ -75,17 +75,19 @@ protected:
   std::size_t n_matched_not_muons = 0;
   std::size_t n_is_muon_ghost = 0;
 
+  Allen::Rich::ParticleArray<Allen::Rich::ParticleArray<std::size_t>> pid_table {};
+
 public:
   TrackChecker(CheckerInvoker const* invoker, std::string const& root_file, std::string const& name) :
-    m_categories {Categories::make_track_eff_report_vector<T>()}, m_histo_categories {
-                                                                    Categories::make_histo_category_vector<T>()}
+    m_categories {Categories::make_track_eff_report_vector<T>()},
+    m_histo_categories {Categories::make_histo_category_vector<T>()}
   {
     m_histos = std::make_unique<TrackCheckerHistos>(invoker, root_file, name, m_histo_categories);
   }
 
   void report(size_t) const override
   {
-    if constexpr (!std::is_same_v<T, Checker::Subdetector::Muon>) {
+    if constexpr (!std::is_same_v<T, Checker::Subdetector::Muon> && !std::is_same_v<T, Checker::Subdetector::Rich>) {
       std::printf(
         "%-50s: %9lu/%9lu %6.2f%% ghosts\n",
         "TrackChecker output",
@@ -155,6 +157,34 @@ public:
           100 * static_cast<double>(n_is_muon_ghost) / static_cast<double>(m_nghosts));
       }
     }
+
+    if constexpr (std::is_same_v<T, Checker::Subdetector::Rich>) {
+      const Allen::Rich::ParticleArray<std::string> p_sym {{"e", "μ", "π", "K", "p", "d", "X"}};
+      const Allen::Rich::ParticleArray<std::string> p_sym2 {{"  e", "R μ", "e π", "c K", "o p", "  d", "  X"}};
+      printf("                   True particle type\n");
+      printf("     ");
+      for (const auto true_pid : Allen::Rich::particles()) {
+        printf("     %s ", p_sym[true_pid].c_str());
+      }
+      printf("\n");
+      for (const auto reco_pid : Allen::Rich::particles()) {
+        printf("%s ", p_sym2[reco_pid].c_str());
+        for (const auto true_pid : Allen::Rich::particles()) {
+          printf(" %6ld", pid_table[reco_pid][true_pid]);
+        }
+        printf("\n");
+      }
+
+      printf("eff ");
+      for (const auto true_pid : Allen::Rich::realParticles()) {
+        size_t sum = 0;
+        for (const auto reco_pid : Allen::Rich::realParticles()) {
+          sum += pid_table[reco_pid][true_pid];
+        }
+        printf("   %.2f", (double) pid_table[true_pid][true_pid] / sum);
+      }
+      printf("\n");
+    }
     printf("\n");
 
     // write histograms to file
@@ -170,6 +200,37 @@ public:
       const auto& mc_event = mc_events[evnum];
 
       accumulate_impl(event_tracks, mc_event);
+
+      // Check all tracks for duplicate LHCb IDs
+      for (size_t i_track = 0; i_track < event_tracks.size(); ++i_track) {
+        auto& track = event_tracks[i_track];
+        bool containsDuplicates = track.containsDuplicates();
+        if (containsDuplicates) {
+          warning_cout << "WARNING: Track #" << i_track << " contains duplicate LHCb IDs" << std::endl << std::hex;
+          for (unsigned i = 0; i < track.total_number_of_hits; i++) {
+            const auto id = track.allids[i];
+            warning_cout << "0x" << id << ", ";
+          }
+          warning_cout << std::endl << std::endl << std::dec;
+        }
+      }
+    }
+  }
+
+  void accumulate(
+    const MCEvents& mc_events,
+    std::span<Checker::Tracks> tracks,
+    std::vector<std::vector<std::vector<Allen::Rich::PhotonReco::Photon>>>& photons,
+    std::span<const mask_t> event_list)
+  {
+    auto guard = std::scoped_lock {m_mutex};
+    for (size_t i = 0; i < event_list.size(); ++i) {
+      const auto evnum = event_list[i];
+      auto& event_tracks = tracks[i];
+      auto& event_photons = photons[i];
+      const auto& mc_event = mc_events[evnum];
+
+      accumulate_impl(event_tracks, event_photons, mc_event);
 
       // Check all tracks for duplicate LHCb IDs
       for (size_t i_track = 0; i_track < event_tracks.size(); ++i_track) {
@@ -439,8 +500,9 @@ public:
       // find track with highest weight
       auto const& matched_tracks = tracks_it->second;
       auto track_with_weight = std::max_element(
-        matched_tracks.cbegin(), matched_tracks.cend(), [
-        ](const MCAssociator::TrackWithWeight& a, const MCAssociator::TrackWithWeight& b) noexcept {
+        matched_tracks.cbegin(),
+        matched_tracks.cend(),
+        [](const MCAssociator::TrackWithWeight& a, const MCAssociator::TrackWithWeight& b) noexcept {
           return a.m_w < b.m_w;
         });
 
@@ -494,6 +556,50 @@ public:
     }
     m_nghoststrigger += nghoststriggerperevt;
     m_ntrackstrigger += ntrackstriggerperevt;
+  }
+
+  void accumulate_impl(
+    const Checker::Tracks& tracks,
+    const std::vector<std::vector<Allen::Rich::PhotonReco::Photon>>& photons,
+    const MCEvent& mc_event)
+  {
+
+    MCAssociator mc_assoc {mc_event.m_mcps};
+    // linker table between MCParticles and matched tracks with weights
+    std::unordered_map<uint32_t, std::vector<MCAssociator::TrackWithWeight>> assoc_table;
+
+    // Match tracks to MCPs
+    for (size_t i_track = 0; i_track < tracks.size(); ++i_track) {
+      match_track_to_MCPs(mc_assoc, tracks, i_track, assoc_table);
+    }
+
+    // Iterator over MCPs
+    // Check which ones were matched to a track
+    for (const auto& mcp : mc_event.m_mcps) {
+      const auto key = mcp.key;
+
+      auto tracks_it = assoc_table.find(key);
+      if (tracks_it == assoc_table.end()) // no track matched to MCP
+        continue;
+
+      m_n_tracks_matched_to_MCP++;
+
+      // have MC association
+      // find track with highest weight
+      auto const& matched_tracks = tracks_it->second;
+      auto track_with_weight = std::max_element(
+        matched_tracks.cbegin(),
+        matched_tracks.cend(),
+        [](const MCAssociator::TrackWithWeight& a, const MCAssociator::TrackWithWeight& b) noexcept {
+          return a.m_w < b.m_w;
+        });
+
+      auto const& track = tracks[track_with_weight->m_idx];
+      rich_id_matching(track, photons[track_with_weight->m_idx], mcp);
+    }
+
+    // almost done, notify of end of event...
+    ++m_nevents;
   }
 
   const std::vector<Checker::HistoCategory>& histo_categories() const { return m_histo_categories; }
@@ -555,6 +661,39 @@ public:
     }
   }
 
+  void rich_id_matching(
+    const Checker::Track& track,
+    const std::vector<Allen::Rich::PhotonReco::Photon>& photons,
+    MCParticles::const_reference& mcp)
+  {
+    auto true_pid = Allen::Rich::ParticleIDType::BelowThreshold;
+    if (std::abs(mcp.pid) == 11) { // Electron
+      true_pid = Allen::Rich::ParticleIDType::Electron;
+    }
+    else if (std::abs(mcp.pid) == 13) { // Muon
+      true_pid = Allen::Rich::ParticleIDType::Muon;
+    }
+    else if (std::abs(mcp.pid) == 211) { // Pion
+      true_pid = Allen::Rich::ParticleIDType::Pion;
+    }
+    else if (std::abs(mcp.pid) == 321) { // Kaon
+      true_pid = Allen::Rich::ParticleIDType::Kaon;
+    }
+    else if (std::abs(mcp.pid) == 2212) { // Proton
+      true_pid = Allen::Rich::ParticleIDType::Proton;
+    }
+    else if (std::abs(mcp.pid) == 1000010020L) { // Deuteron mcp pid should probably be 64bit
+      true_pid = Allen::Rich::ParticleIDType::Deuteron;
+    }
+
+    const auto reco_pid =
+      track.pid == Allen::Rich::ParticleIDType::Unknown ? Allen::Rich::ParticleIDType::BelowThreshold : track.pid;
+
+    m_histos->fillRichHistos(track, photons, true_pid);
+
+    pid_table[reco_pid][true_pid]++;
+  }
+
   std::unique_ptr<TrackCheckerHistos> m_histos;
 };
 
@@ -564,4 +703,5 @@ using TrackCheckerLong = TrackChecker<Checker::Subdetector::SciFi>;
 using TrackCheckerSeeding = TrackChecker<Checker::Subdetector::SciFiSeeding>;
 using TrackCheckerSeedingXZ = TrackChecker<Checker::Subdetector::SciFiSeeding>;
 using TrackCheckerMuon = TrackChecker<Checker::Subdetector::Muon>;
+using TrackCheckerRich = TrackChecker<Checker::Subdetector::Rich>;
 using TrackCheckerDownstream = TrackChecker<Checker::Subdetector::Downstream>;

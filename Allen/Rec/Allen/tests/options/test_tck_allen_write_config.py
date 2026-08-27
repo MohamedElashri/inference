@@ -19,12 +19,13 @@ does not alter any properties as a side effect of configuration or
 persistence.
 """
 
-import os
 import json
+import os
 from pathlib import Path
 from subprocess import PIPE, run
-from AllenTesting.utils import sequence_differences
+
 from Allen.tck import manifest_from_git, sequence_from_git
+from AllenTesting.utils import sequence_differences
 
 tck_repo = Path(os.getenv("PREREQUISITE_0", "")) / "config_json.git"
 
@@ -36,14 +37,13 @@ manifest_entries = sorted(manifest.values(), key=lambda v: v["TCK"])
 for info in manifest_entries:
     s, tck_info = sequence_from_git(tck_repo, info["TCK"])
     tck_sequence = json.loads(s)
-    print('{release} {type:30s} {tck}'.format(**tck_info))
+    print("{release} {type:30s} {tck}".format(**tck_info))
     tck = info["TCK"]
 
     cmd = [
         "Allen",
         "-g",  # Use default binary geometry, irrelavant in this mode, but needs to be found
-        os.path.expandvars(
-            "${ALLEN_PROJECT_ROOT}/input/detector_configuration"),
+        os.path.expandvars("${ALLEN_PROJECT_ROOT}/input/detector_configuration"),
         "--param",
         os.path.expandvars("${PARAMFILESROOT}"),
         "--mdf",  # No input file
@@ -78,5 +78,7 @@ for info in manifest_entries:
             )
             with open(f"allen_{tck}.diff", "w") as f:
                 f.writelines(
-                    sequence_differences(allen_sequence, tck_sequence,
-                                         f"{tck}_allen", f"{tck}"))
+                    sequence_differences(
+                        allen_sequence, tck_sequence, f"{tck}_allen", f"{tck}"
+                    )
+                )

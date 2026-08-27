@@ -182,17 +182,18 @@ void PVCheckerHistos::accumulate(
 void PVCheckerHistos::write()
 {
   auto* dir = static_cast<TDirectory*>(m_file->Get(m_directory.c_str()));
-  std::tuple to_write {std::ref(m_tree),
-                       std::ref(m_mctree),
-                       std::ref(m_allPV),
-                       std::ref(eff_vs_z),
-                       std::ref(eff_vs_mult),
-                       std::ref(eff_matched_vs_z),
-                       std::ref(eff_matched_vs_mult),
-                       std::ref(eff_norm_z),
-                       std::ref(eff_norm_mult),
-                       std::ref(fakes_vs_mult),
-                       std::ref(fakes_norm)};
+  std::tuple to_write {
+    std::ref(m_tree),
+    std::ref(m_mctree),
+    std::ref(m_allPV),
+    std::ref(eff_vs_z),
+    std::ref(eff_vs_mult),
+    std::ref(eff_matched_vs_z),
+    std::ref(eff_matched_vs_mult),
+    std::ref(eff_norm_z),
+    std::ref(eff_norm_mult),
+    std::ref(fakes_vs_mult),
+    std::ref(fakes_norm)};
   for_each(to_write, [dir](auto& o) {
     o.get()->SetDirectory(nullptr);
     dir->WriteTObject(o.get().get());

@@ -26,7 +26,7 @@ __global__ void make_zone_offsets(create_reduced_scifi_hit_container::Parameters
   const unsigned n_zones = parameters.dev_number_of_events[0] * SciFi::Constants::n_zones;
   for (unsigned i = blockIdx.x * blockDim.x + threadIdx.x; i < n_zones + 1; i += gridDim.x * blockDim.x) {
     int index_input = parameters.dev_scifi_hit_offsets_input[i];
-    auto mask = (1 << (index_input % 32)) - 1;
+    auto mask = (1u << (index_input % 32)) - 1u;
     parameters.dev_scifi_hit_offsets[i] =
       counts[index_input / 32] + __popc((~parameters.dev_used_scifi_hits[index_input / 32]) & mask);
   }
@@ -43,8 +43,8 @@ __global__ void create_scifi_hit_container(create_reduced_scifi_hit_container::P
 
   for (unsigned i = blockIdx.x * blockDim.x + threadIdx.x; i < n_input_hits; i += gridDim.x * blockDim.x) {
     int index_input = i;
-    if (!(parameters.dev_used_scifi_hits[index_input / 32] & (1 << (index_input % 32)))) { // if unused
-      auto mask = (1 << (index_input % 32)) - 1;
+    if (!(parameters.dev_used_scifi_hits[index_input / 32] & (1u << (index_input % 32)))) { // if unused
+      auto mask = (1u << (index_input % 32)) - 1u;
       int index_output = counts[index_input / 32] + __popc((~parameters.dev_used_scifi_hits[index_input / 32]) & mask);
 
       hits_output.x0(index_output) = hits_input.x0(index_input);

@@ -9,26 +9,36 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import (
-    d2kpi_line_t, dst_d2kpi_line_t, passthrough_line_t, rich_1_line_t,
-    rich_2_line_t, displaced_di_muon_mass_line_t,
-    di_muon_mass_alignment_line_t, two_calo_clusters_line_t, odin_calib_line_t)
-from AllenConf.utils import initialize_number_of_events, line_maker
-from AllenConf.odin import decode_odin
+    d2kpi_line_t,
+    di_muon_mass_alignment_line_t,
+    displaced_di_muon_mass_line_t,
+    dst_d2kpi_line_t,
+    odin_calib_line_t,
+    passthrough_line_t,
+    rich_1_line_t,
+    rich_2_line_t,
+    two_calo_clusters_line_t,
+)
+from AllenCore.configuration_options import is_allen_standalone
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
-from AllenCore.configuration_options import is_allen_standalone
+
+from AllenConf.odin import decode_odin
+from AllenConf.utils import initialize_number_of_events, line_maker
 
 
 @configurable
-def make_pi02gammagamma_line(calo,
-                             velo_tracks,
-                             pvs,
-                             name="Hlt1Pi02GammaGamma",
-                             pre_scaler=0.05,
-                             pre_scaler_hash_string=None,
-                             post_scaler_hash_string=None,
-                             enable_tupling=False,
-                             enable_monitoring=True):
+def make_pi02gammagamma_middleoutermixed_line(
+    calo,
+    velo_tracks,
+    pvs,
+    name="Hlt1Pi02GammaGammaMiddleOuterMixed",
+    pre_scaler=0.05,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    enable_monitoring=True,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -41,28 +51,238 @@ def make_pi02gammagamma_line(calo,
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
         dev_particle_container_t=calo["dev_multi_event_diphotons"],
-        dev_cluster_particle_container_t=calo[
-            "dev_multi_event_neutral_particles"],
+        dev_cluster_particle_container_t=calo["dev_multi_event_neutral_particles"],
         host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
         dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
-        minMass=50,  #MeV
-        maxMass=300,  #MeV
-        minEt_clusters=400,  #MeV
-        minE19_clusters=0.7,
-        maxE19_clusters=1.0,
-        minPtEta=200,  #Pi0Pt>minPtEta*(10-Pi0Eta)
+        minMass=0,  # MeV
+        maxMass=500,  # MeV
+        minEt_clusters=400.0,  # MeV
+        minE19_clusters=0.7,  # 0.7
+        maxE19_clusters=1.0,  # 1.0
+        minPtEta=200,  # Pi0Pt>minPtEta*(10-Pi0Eta)
         max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=10,
         enable_tupling=enable_tupling,
-        enable_monitoring=enable_monitoring)
+        enable_monitoring=enable_monitoring,
+    )
 
 
-def make_dst_line(dstars,
-                  name="Hlt1DstD0Pi",
-                  enable_monitoring=True,
-                  enable_tupling=False,
-                  pre_scaler_hash_string=None,
-                  post_scaler_hash_string=None):
+@configurable
+def make_pi02gammagamma_middleinnermixed_line(
+    calo,
+    velo_tracks,
+    pvs,
+    name="Hlt1Pi02GammaGammaMiddleInnerMixed",
+    pre_scaler=0.05,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    enable_monitoring=True,
+):
+    number_of_events = initialize_number_of_events()
 
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo["dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  # MeV
+        maxMass=500,  # MeV
+        minEt_clusters=400.0,  # MeV
+        minE19_clusters=0.7,  # 0.7
+        maxE19_clusters=1.0,  # 1.0
+        minPtEta=200,  # Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=12,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring,
+    )
+
+
+@configurable
+def make_pi02gammagamma_inner_line(
+    calo,
+    velo_tracks,
+    pvs,
+    name="Hlt1Pi02GammaGammaInner",
+    pre_scaler=0.05,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    enable_monitoring=True,
+):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo["dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  # MeV
+        maxMass=500,  # MeV
+        minEt_clusters=400.0,  # MeV
+        minE19_clusters=0.7,  # 0.7
+        maxE19_clusters=1.0,  # 1.0
+        minPtEta=200,  # Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=2,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring,
+    )
+
+
+@configurable
+def make_pi02gammagamma_middle_line(
+    calo,
+    velo_tracks,
+    pvs,
+    name="Hlt1Pi02GammaGammaMiddle",
+    pre_scaler=0.035,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    enable_monitoring=True,
+):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo["dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  # MeV
+        maxMass=500,  # MeV
+        minEt_clusters=400.0,  # MeV
+        minE19_clusters=0.7,  # 0.7
+        maxE19_clusters=1.0,  # 1.0
+        minPtEta=200,  # Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=1,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring,
+    )
+
+
+@configurable
+def make_pi02gammagamma_outer_line(
+    calo,
+    velo_tracks,
+    pvs,
+    name="Hlt1Pi02GammaGammaOuter",
+    pre_scaler=0.06,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    enable_monitoring=True,
+):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo["dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  # MeV
+        maxMass=500,  # MeV
+        minEt_clusters=400.0,  # MeV
+        minE19_clusters=0.7,  # 0.7
+        maxE19_clusters=1.0,  # 1.0
+        minPtEta=200,  # Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=0,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring,
+    )
+
+
+@configurable
+def make_pi02gammagamma_line(
+    calo,
+    velo_tracks,
+    pvs,
+    name="Hlt1Pi02GammaGamma",
+    pre_scaler=0.05,
+    post_scaler=0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+    enable_monitoring=True,
+):
+    number_of_events = initialize_number_of_events()
+
+    return make_algorithm(
+        two_calo_clusters_line_t,
+        name=name,
+        pre_scaler=pre_scaler,
+        post_scaler=post_scaler,
+        host_number_of_events_t=number_of_events["host_number_of_events"],
+        dev_number_of_events_t=number_of_events["dev_number_of_events"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        dev_velo_tracks_t=velo_tracks["dev_velo_tracks_view"],
+        dev_particle_container_t=calo["dev_multi_event_diphotons"],
+        dev_cluster_particle_container_t=calo["dev_multi_event_neutral_particles"],
+        host_number_of_svs_t=calo["host_ecal_number_of_twoclusters"],
+        dev_number_of_pvs_t=pvs["dev_number_of_multi_final_vertices"],
+        minMass=0,  # MeV
+        maxMass=500,  # 300MeV
+        minEt_clusters=400.0,  # MeV
+        minE19_clusters=0.7,  # 0.7
+        maxE19_clusters=1.0,  # 1.0
+        minPtEta=200,  # Pi0Pt>minPtEta*(10-Pi0Eta)
+        max_n_pvs=1,
+        min_n_pvs=1,
+        selected_calo_region=-1,
+        enable_tupling=enable_tupling,
+        enable_monitoring=enable_monitoring,
+    )
+
+
+def make_dst_line(
+    dstars,
+    name="Hlt1DstD0Pi",
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -73,52 +293,57 @@ def make_dst_line(dstars,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=dstars["host_number_of_sv_track_combinations"],
         dev_particle_container_t=dstars["dev_multi_event_composites"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+    )
 
 
-def make_d2kpi_align_line(long_tracks,
-                          secondary_vertices,
-                          name="Hlt1D2KPiAlignment",
-                          enable_monitoring=True,
-                          pre_scaler_hash_string=None,
-                          post_scaler_hash_string=None,
-                          enable_tupling=False):
-
+def make_d2kpi_align_line(
+    long_tracks,
+    secondary_vertices,
+    name="Hlt1D2KPiAlignment",
+    pre_scaler=0.002,
+    enable_monitoring=True,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
         d2kpi_line_t,
         name=name,
+        pre_scaler=pre_scaler,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         enable_tupling=enable_tupling,
-        minComboPt=2000.,  #MeV
-        maxVertexChi2=10.,
-        maxDOCA=0.1,  #mm
-        minTrackPt=1000.,  #MeV
-        minTrackP=3000.,  #MeV
-        massWindow=60.,  #MeV
-        minTrackIP=0.07,  #mm
-        ctIPScale=2.,
+        minComboPt=2000.0,  # MeV
+        maxVertexChi2=10.0,
+        maxDOCA=0.1,  # mm
+        minTrackPt=1000.0,  # MeV
+        minTrackP=3000.0,  # MeV
+        massWindow=60.0,  # MeV
+        minTrackIP=0.07,  # mm
+        ctIPScale=2.0,
         minDira=0.9995,
-        minEta=2.,
-        maxEta=5.,
-        minZ=-330.,  #mm
+        minEta=2.0,
+        maxEta=5.0,
+        minZ=-330.0,  # mm
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+    )
 
 
 @configurable
-def make_passthrough_line(name="Hlt1Passthrough",
-                          pre_scaler=0.0001,
-                          pre_scaler_hash_string=None,
-                          post_scaler_hash_string=None,
-                          enable_tupling=False):
-
+def make_passthrough_line(
+    name="Hlt1Passthrough",
+    pre_scaler=0.0001,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -127,21 +352,24 @@ def make_passthrough_line(name="Hlt1Passthrough",
         pre_scaler=pre_scaler,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         dev_number_of_events_t=number_of_events["dev_number_of_events"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
-        enable_tupling=enable_tupling)
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_rich_line(line_type,
-                   long_tracks,
-                   long_track_particles,
-                   name,
-                   pre_scaler,
-                   post_scaler,
-                   maxTrChi2,
-                   pre_scaler_hash_string=None,
-                   post_scaler_hash_string=None,
-                   enable_tupling=False):
+def make_rich_line(
+    line_type,
+    long_tracks,
+    long_track_particles,
+    name,
+    pre_scaler,
+    post_scaler,
+    maxTrChi2,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -149,26 +377,31 @@ def make_rich_line(line_type,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         maxTrChi2=maxTrChi2,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_rich_1_line(long_tracks,
-                     long_track_particles,
-                     maxTrChi2,
-                     name="Hlt1RICH1Alignment",
-                     pre_scaler=1.0,
-                     post_scaler=1.0,
-                     pre_scaler_hash_string=None,
-                     post_scaler_hash_string=None,
-                     enable_tupling=False):
+def make_rich_1_line(
+    long_tracks,
+    long_track_particles,
+    maxTrChi2,
+    name="Hlt1RICH1Alignment",
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+):
     return make_rich_line(
         rich_1_line_t,
         long_tracks,
@@ -179,18 +412,21 @@ def make_rich_1_line(long_tracks,
         maxTrChi2,
         pre_scaler_hash_string,
         post_scaler_hash_string,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_rich_2_line(long_tracks,
-                     long_track_particles,
-                     maxTrChi2,
-                     name="Hlt1RICH2Alignment",
-                     pre_scaler=1.0,
-                     post_scaler=1.0,
-                     pre_scaler_hash_string=None,
-                     post_scaler_hash_string=None,
-                     enable_tupling=False):
+def make_rich_2_line(
+    long_tracks,
+    long_track_particles,
+    maxTrChi2,
+    name="Hlt1RICH2Alignment",
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_tupling=False,
+):
     return make_rich_line(
         rich_2_line_t,
         long_tracks,
@@ -201,17 +437,19 @@ def make_rich_2_line(long_tracks,
         maxTrChi2,
         pre_scaler_hash_string,
         post_scaler_hash_string,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_displaced_dimuon_mass_line(long_tracks,
-                                    secondary_vertices,
-                                    name="Hlt1DisplacedDiMuonAlignment",
-                                    pre_scaler=1.0,
-                                    post_scaler=1.0,
-                                    pre_scaler_hash_string=None,
-                                    post_scaler_hash_string=None):
-
+def make_displaced_dimuon_mass_line(
+    long_tracks,
+    secondary_vertices,
+    name="Hlt1DisplacedDiMuonAlignment",
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -219,32 +457,34 @@ def make_displaced_dimuon_mass_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler=pre_scaler,
         post_scaler=post_scaler,
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+    )
 
 
-def make_di_muon_mass_align_line(long_tracks,
-                                 secondary_vertices,
-                                 muonid,
-                                 pre_scaler=1.0,
-                                 post_scaler=1.0,
-                                 minMass=2996.,
-                                 maxMass=3196.,
-                                 maxDoca=0.2,
-                                 maxVertexChi2=10.,
-                                 minHighMassTrackPt=1000.,
-                                 minHighMassTrackP=6000.,
-                                 minIP=0.07,
-                                 minFdChi2=5.,
-                                 minDira=0.9995,
-                                 pre_scaler_hash_string=None,
-                                 post_scaler_hash_string=None,
-                                 name="Hlt1DiMuonHighMassAlignment",
-                                 enable_tupling=False):
+def make_di_muon_mass_align_line(
+    long_tracks,
+    secondary_vertices,
+    muonid,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    minMass=2996.0,
+    maxMass=3196.0,
+    maxDoca=0.2,
+    maxVertexChi2=10.0,
+    minHighMassTrackPt=1000.0,
+    minHighMassTrackP=6000.0,
+    minIP=0.07,
+    minFdChi2=5.0,
+    minDira=0.9995,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1DiMuonHighMassAlignment",
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -252,8 +492,7 @@ def make_di_muon_mass_align_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         dev_track_offsets_t=long_tracks["dev_offsets_long_tracks"],
         dev_chi2muon_t=muonid["dev_chi2corr"],
         pre_scaler=pre_scaler,
@@ -269,26 +508,30 @@ def make_di_muon_mass_align_line(long_tracks,
         minIP=minIP,
         minFdChi2=minFdChi2,
         minDira=minDira,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
 def make_tae_line(prefilters, accept_sub_events=False, pre_scaler=1):
     from .odin import tae_filter
+
     tf = tae_filter(accept_sub_events=accept_sub_events)
     return line_maker(
-        make_passthrough_line(
-            name="Hlt1TAEPassthrough", pre_scaler=pre_scaler),
-        prefilter=prefilters + [tf])
+        make_passthrough_line(name="Hlt1TAEPassthrough", pre_scaler=pre_scaler),
+        prefilter=prefilters + [tf],
+    )
 
 
 @configurable
-def make_odin_calib_line(pre_scaler=1.,
-                         post_scaler=1.,
-                         pre_scaler_hash_string=None,
-                         post_scaler_hash_string=None,
-                         name="Hlt1ODINCalib",
-                         enable_tupling=False):
+def make_odin_calib_line(
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1ODINCalib",
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
 
@@ -301,4 +544,5 @@ def make_odin_calib_line(pre_scaler=1.,
         post_scaler=post_scaler,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )

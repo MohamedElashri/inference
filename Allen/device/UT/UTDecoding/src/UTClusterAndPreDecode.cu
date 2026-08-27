@@ -344,17 +344,18 @@ __global__ void ut_cluster_and_pre_decode::ut_cluster_and_pre_decode(
   // This is 100% safe for clustering but will allocate too much memory
   // However, we need to do clustering first to know the exact memory size anyway
   // We will cleanup empty clusters during sorting
-  UT::PreDecodedHits ut_pre_decoded_hits {parameters.dev_ut_pre_decoded_hits,
-                                          parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups]};
+  UT::PreDecodedHits ut_pre_decoded_hits {
+    parameters.dev_ut_pre_decoded_hits, parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups]};
 
   const UTGeometry geometry(ut_geometry);
   const UTBoards boards(ut_boards);
 
-  const UTRawEvent<mep> raw_event {parameters.dev_ut_raw_input,
-                                   parameters.dev_ut_raw_input_offsets,
-                                   parameters.dev_ut_raw_input_sizes,
-                                   parameters.dev_ut_raw_input_types,
-                                   event_number + event_start};
+  const UTRawEvent<mep> raw_event {
+    parameters.dev_ut_raw_input,
+    parameters.dev_ut_raw_input_offsets,
+    parameters.dev_ut_raw_input_sizes,
+    parameters.dev_ut_raw_input_types,
+    event_number + event_start};
 
   const auto function = [&](const uint16_t index) {
     const uint16_t channel_index = nonempty_channels[index];

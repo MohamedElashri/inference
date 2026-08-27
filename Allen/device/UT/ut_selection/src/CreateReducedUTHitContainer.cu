@@ -22,8 +22,8 @@ __global__ void create_ut_hit_container(create_reduced_ut_hits_container::Parame
     parameters.dev_ut_hit_offsets_input[number_of_events * UT::Constants::n_groups];
   const UT::HitOffsets hit_offsets_input {parameters.dev_ut_hit_offsets_input, event_number};
   UT::ConstHits hits_input {parameters.dev_ut_hits_input, total_number_of_hits_input};
-  UT::Hits hits_output {parameters.dev_ut_hits,
-                        parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups]};
+  UT::Hits hits_output {
+    parameters.dev_ut_hits, parameters.dev_ut_hit_offsets[number_of_events * UT::Constants::n_groups]};
 
   const auto event_offset_input = hit_offsets_input.event_offset();
   for (unsigned i = threadIdx.x; i < hit_offsets_input.event_number_of_hits(); i += blockDim.x) {

@@ -99,29 +99,33 @@ namespace ttrack_dimuon_displaced {
     Allen::Property<float> m_min_p {this, "min_p", 0.f, "minimum momentum (MeV/c)"};
     Allen::Property<float> m_min_pt {this, "min_pt", 0.f, "minimum transverse momentum (MeV/c)"};
     Allen::Property<float> m_min_track_p {this, "min_track_p", 0.f, "minimum track momentum (MeV/c)"};
-    Allen::Property<float> m_min_max_track_p {this,
-                                              "min_max_track_p",
-                                              0.f,
-                                              "minimum momentum of a track that has larger momentum (MeV/c)"};
+    Allen::Property<float> m_min_max_track_p {
+      this,
+      "min_max_track_p",
+      0.f,
+      "minimum momentum of a track that has larger momentum (MeV/c)"};
 
     Allen::Property<float> m_max_eta {this, "max_eta", 10.f, "maximum eta"}; // Effectively no upper-limit by default
     Allen::Property<float> m_min_r2 {this, "min_r2", 0.f, "minimum distance to the beamline squared (mm^2)"};
 
     Allen::Property<float> m_min_m {this, "min_m", 0.f, "minimum mass (MeV/c^2)"};
-    Allen::Property<float> m_max_m {this,
-                                    "max_m",
-                                    std::numeric_limits<float>::max(),
-                                    "maximum mass (MeV/c^2)"}; // Effectively no upper-limit by default
-    Allen::Property<float> m_max_doca {this,
-                                       "max_doca",
-                                       std::numeric_limits<float>::max(),
-                                       "maximum distance of closest approach (mm)"};
+    Allen::Property<float> m_max_m {
+      this,
+      "max_m",
+      std::numeric_limits<float>::max(),
+      "maximum mass (MeV/c^2)"}; // Effectively no upper-limit by default
+    Allen::Property<float> m_max_doca {
+      this,
+      "max_doca",
+      std::numeric_limits<float>::max(),
+      "maximum distance of closest approach (mm)"};
 
     Allen::Property<float> m_max_ovtx_z {this, "max_ovtx_z", 8500.f, "maximum vertex z (mm)"};
-    Allen::Property<float> m_max_ip2 {this,
-                                      "max_ip2",
-                                      std::numeric_limits<float>::max(),
-                                      "maximum impact parameter squared of parent particle (mm^2)"};
+    Allen::Property<float> m_max_ip2 {
+      this,
+      "max_ip2",
+      std::numeric_limits<float>::max(),
+      "maximum impact parameter squared of parent particle (mm^2)"};
     Allen::Property<float> m_min_dira {this, "min_dira", 0.f, "minimum cosine of direction angle"};
 
     Allen::Property<bool> m_opposite_sign {this, "opposite_sign", true, "require opposite sign muons"};

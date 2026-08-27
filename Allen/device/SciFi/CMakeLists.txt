@@ -15,7 +15,7 @@ file(GLOB scifi_hybridseeding "hybridseeding/src/*cu")
 file(GLOB scifi_hybridseeding_consolidate "hybridseeding/consolidate/src/*cu")
 file(GLOB scifi_track_combiner "track_combiner/src/*cu")
 
-allen_add_device_library(SciFi STATIC
+allen_add_device_library(SciFi OBJECT
   ${scifi_preprocessing}
   ${scifi_looking_forward}
   ${scifi_consolidate}

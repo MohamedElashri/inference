@@ -62,13 +62,15 @@ namespace z_range_materialvertex_seed_line {
   private:
     // Commonly required properties
     // Line-specific properties
-    Allen::Property<float> m_min_z_materialvertex_seed {this,
-                                                        "min_z_materialvertex_seed",
-                                                        -1000.f,
-                                                        "min z for the material vertex seed"};
-    Allen::Property<float> m_max_z_materialvertex_seed {this,
-                                                        "max_z_materialvertex_seed",
-                                                        1000.f,
-                                                        "max z for the material vertex seed"};
+    Allen::Property<float> m_min_z_materialvertex_seed {
+      this,
+      "min_z_materialvertex_seed",
+      -1000.f,
+      "min z for the material vertex seed"};
+    Allen::Property<float> m_max_z_materialvertex_seed {
+      this,
+      "max_z_materialvertex_seed",
+      1000.f,
+      "max z for the material vertex seed"};
   };
 } // namespace z_range_materialvertex_seed_line

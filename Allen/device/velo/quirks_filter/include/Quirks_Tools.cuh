@@ -20,22 +20,6 @@
 #include <cstdint>
 #include <cmath>
 
-// host/device read-only load wrapper:
-// - on device expands to __ldg(ptr) (read-only cache)
-// - on host simply dereferences the pointer
-template<typename T>
-#ifdef __CUDA_ARCH__
-__device__ __inline__ T ldg_load(const T* ptr)
-{
-  return __ldg(ptr);
-}
-#else
-inline T ldg_load(const T* ptr)
-{
-  return *ptr;
-}
-#endif
-
 namespace quirks_tools {
 
   struct Parameters {
@@ -49,11 +33,6 @@ namespace quirks_tools {
     DEVICE_INPUT(dev_sorted_velo_clusters_container_t, char) dev_sorted_velo_clusters_container;
     DEVICE_INPUT(dev_offsets_estimated_input_size_t, unsigned) dev_offsets_estimated_input_size;
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
-
-    // per-module per-side counts (indexed by off_idx = event_idx * pairs + layer)
-    // These are produced/updated by the precompute kernel in No_std_file.cu
-    DEVICE_OUTPUT(dev_module_cluster_num_A_t, unsigned) dev_module_cluster_num_A;
-    DEVICE_OUTPUT(dev_module_cluster_num_C_t, unsigned) dev_module_cluster_num_C;
 
     // Output: one int per event: 0 = fail selection, 1 = pass selection
     DEVICE_OUTPUT(dev_quirks_pairs_t, unsigned) dev_quirks_pairs;
@@ -71,13 +50,14 @@ namespace quirks_tools {
     const unsigned max_opposite_considered,
     const unsigned hit_threshold,
     const unsigned max_pairs_per_module,
-    const float maxPHI,
+    const int16_t host_maxPHI_i16,
+    const int16_t host_window_start,
     const float maxR);
 
   // selection kernel prototype: now iterates over pair-lists (last arg = max_pairs_per_module)
   __global__ void quirks_selection_kernel(
     Parameters parameters,
-    const float maxPHIDF,
+    const int16_t host_maxPHIDF_i16,
     const unsigned minStations,
     const unsigned max_pairs_per_module);
 
@@ -94,22 +74,25 @@ namespace quirks_tools {
   private:
     // New tunables: explicit blockDim.x and blockDim.y (defaults multiply to 256 = 16*16).
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 16u, "block dimension X (owners / lanes)"};
-    Allen::Property<unsigned> m_block_dim_y {this,
-                                             "block_dim_y",
-                                             8u,
-                                             "block dimension Y (helpers) - product X*Y should be 256"};
+    Allen::Property<unsigned> m_block_dim_y {
+      this,
+      "block_dim_y",
+      8u,
+      "block dimension Y (helpers) - product X*Y should be 256"};
 
     // pair-list cap (per-module)
-    Allen::Property<unsigned> m_max_pairs_per_module {this,
-                                                      "max_pairs_per_module",
-                                                      20u,
-                                                      "max seed pairs stored per module (cap)"};
+    Allen::Property<unsigned> m_max_pairs_per_module {
+      this,
+      "max_pairs_per_module",
+      20u,
+      "max seed pairs stored per module (cap)"};
 
     // other tunables
-    Allen::Property<unsigned> m_max_opposite_considered {this,
-                                                         "max_opposite_considered",
-                                                         6,
-                                                         "max hits to search after binary search"};
+    Allen::Property<unsigned> m_max_opposite_considered {
+      this,
+      "max_opposite_considered",
+      6,
+      "max hits to search after binary search"};
     Allen::Property<unsigned> m_hit_threshold {this, "hit_threshold", 170, "max hits per module to process"};
     Allen::Property<unsigned> m_minStations {this, "minStations", 6u, "minimum consecutive stations required"};
     Allen::Property<float> m_maxR {this, "maxR", 4.5, "maxR (r-difference)"};

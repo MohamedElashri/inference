@@ -107,14 +107,16 @@ namespace diproton_highmass_line {
     Allen::Monitoring::Histogram<> m_histogram_p_pt {this, "p_pt", "pT(p)", {100u, 0.f, 1e4f}};
     Allen::Monitoring::Histogram<> m_histogram_p_p {this, "p_p", "p(p)", {100u, 0.f, 1e5f}};
 
-    Allen::Monitoring::Histogram<> m_histogram_track1_ghost_prob {this,
-                                                                  "track1_ghost_prob",
-                                                                  "track1 GhostProb",
-                                                                  {100u, 0.f, 1.0f}};
-    Allen::Monitoring::Histogram<> m_histogram_track2_ghost_prob {this,
-                                                                  "track2_ghost_prob",
-                                                                  "track2 GhostProb",
-                                                                  {100u, 0.f, 1.0f}};
+    Allen::Monitoring::Histogram<> m_histogram_track1_ghost_prob {
+      this,
+      "track1_ghost_prob",
+      "track1 GhostProb",
+      {100u, 0.f, 1.0f}};
+    Allen::Monitoring::Histogram<> m_histogram_track2_ghost_prob {
+      this,
+      "track2_ghost_prob",
+      "track2 GhostProb",
+      {100u, 0.f, 1.0f}};
   };
 
 } // namespace diproton_highmass_line

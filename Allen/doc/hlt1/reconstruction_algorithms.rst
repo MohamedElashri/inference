@@ -20,7 +20,7 @@ Format needed by one RawEvent for masked clustering code::
  word                | uint32_t | count                 |
  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++x
 
-raw_bank_offset: array containing the offsets to each raw bank, this array is 
+raw_bank_offset: array containing the offsets to each raw bank, this array is
 currently filled when running Brunel to create this output; it is needed to process
 several raw banks in parallel
 
@@ -39,7 +39,7 @@ Primary vertices
 Velo-UT tracks
 ^^^^^^^^^^^^^^^^^^^^^
 
-To configure the number of candidates to search for go to `CompassUTDefinitions.cuh` and change: 
+To configure the number of candidates to search for go to `CompassUTDefinitions.cuh` and change:
 
 .. code-block:: cpp
 
@@ -140,20 +140,20 @@ where tx and ty are the slope in that direction, and qop is the charge over mome
 convenient definition for calculating trajectories of charged particles in a magnetic field.
 
 1. After the reconstruction of the Velo tracks a simplified Kalman filter is used.
-The fit starts by getting a first estimate for the state from a linear fit between 
+The fit starts by getting a first estimate for the state from a linear fit between
 first and last hit.
 The Kalman filter is executed twice, to get a state at the beamline (closest to the beamline) and one at the
 end of the Velo(z=770mm). The scattering noise model is linear in tr**2. The x and y components
 are treated independently.
 For code see device/velo/simplified_kalman_filter
 2. After the long track reconstruction, another Kalman filter is used to produce
-the state that will be used in the secondary vertex reconstruction, this can include 
+the state that will be used in the secondary vertex reconstruction, this can include
 improved momentum resolution.
 
 There are two implementations, the Velo-only and the parameterised Kalman filter version:
-a. Simplified velo-only is the version used for all data taking up to EoY 2024 (at least). 
+a. Simplified velo-only is the version used for all data taking up to EoY 2024 (at least).
 (device/kalman/ParKalman/src/ParKalmanVeloOnly.cu), here the 'simplified_fit' function
-is used. This function uses similar simplifications as the filter above, but 
+is used. This function uses similar simplifications as the filter above, but
 includes a more involved noise function, that includes the momentum and charge information
 from long tracking, the RF foil and more parameters (see Rec/Tr/TrackFitEvent/include/Event/ParametrisedScatters.h).
 In addition to the state, a chi2 is also produced that can be used to cut on in the SV creation.
@@ -184,4 +184,3 @@ Electron ID
 
 Secondary vertices
 ^^^^^^^^^^^^^^^^^^^^^
-

@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB host_data_provider "src/*cpp")
 
-allen_add_host_library(HostDataProvider STATIC
+allen_add_host_library(HostDataProvider OBJECT
   ${host_data_provider}
 )
 

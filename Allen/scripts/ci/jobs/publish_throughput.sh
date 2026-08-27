@@ -18,7 +18,7 @@ set +x
 
 for SEQUENCE_DATASET in $(ls -1 | grep "devices_throughputs" | grep -Ei "devices_throughputs_([a-z0-9_]+?)" | sed 's/^devices_throughputs_//' | sed 's/.csv$//') ; do
 
-    if [ -f "test_throughput_details/${SEQUENCE_DATASET}_${BREAKDOWN_DEVICE_ID}_no_throughput_report.txt" ]; then 
+    if [ -f "test_throughput_details/${SEQUENCE_DATASET}_${BREAKDOWN_DEVICE_ID}_no_throughput_report.txt" ]; then
         continue;
     fi
 

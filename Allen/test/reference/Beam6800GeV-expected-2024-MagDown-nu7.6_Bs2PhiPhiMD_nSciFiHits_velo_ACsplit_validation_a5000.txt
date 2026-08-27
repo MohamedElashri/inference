@@ -54,4 +54,3 @@ TrackChecker output                               :      1677/    76848   2.18% 
 09_long_fromB_electrons                           :        44/      110  40.00% ( 42.39%),         1 (  2.22%) clones, pur  99.44%, hit eff  96.35%
 10_long_fromB_electrons_P>5GeV                    :        35/       74  47.30% ( 46.88%),         0 (  0.00%) clones, pur  99.29%, hit eff  98.69%
 11_long_fromSignal                                :       655/     1312  49.92% ( 49.64%),        11 (  1.65%) clones, pur  99.74%, hit eff  97.38%
-

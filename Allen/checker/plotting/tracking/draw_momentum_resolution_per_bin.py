@@ -12,28 +12,21 @@
 # date:   02/2019
 #
 
-import os, sys
-import argparse
+import sys
+
 import ROOT
-from ROOT import gStyle
-from ROOT import gROOT
-from ROOT import TStyle
-from ROOT import gPad
 
-from array import array
-
-sys.path.append('../')
+sys.path.append("../")
 from common.LHCbStyle import *
 
 
 def getTrackers():
-    return ["Upstream"]  #]
+    return ["Upstream"]  # ]
 
 
 nbins = 3
 
-f = ROOT.TFile.Open("../../../plotsfornote_root/momentum_resolution.root",
-                    "read")
+f = ROOT.TFile.Open("../../../plotsfornote_root/momentum_resolution.root", "read")
 
 setLHCbStyle()
 

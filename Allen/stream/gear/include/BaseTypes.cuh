@@ -15,6 +15,10 @@
 #include <sstream>
 #include "nlohmann/json.hpp"
 
+#ifndef ALLEN_STANDALONE
+#include <Gaudi/Algorithm.h>
+#endif
+
 namespace Allen {
   /**
    * @brief      Common interface for templated Property and SharedProperty
@@ -41,6 +45,10 @@ namespace Allen {
 
     const std::string& data_type() const { return m_data_type; }
 
+#ifndef ALLEN_STANDALONE
+    virtual void register_as_gaudi_property(Gaudi::Algorithm* alg) = 0;
+#endif
+
     std::string print() const
     {
       // very basic implementation based on streaming
@@ -63,6 +71,8 @@ namespace Allen {
     virtual void set_properties(const std::map<std::string, nlohmann::json>& algo_config) = 0;
 
     virtual std::map<std::string, nlohmann::json> get_properties() const = 0;
+
+    virtual std::vector<BaseProperty*> properties() const = 0;
 
     virtual std::map<std::string, nlohmann::json> get_properties_infos() const = 0;
 

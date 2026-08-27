@@ -35,7 +35,7 @@ constexpr int warp_size = 32;
     if (err != cudaSuccess) {                                                                                      \
       fprintf(                                                                                                     \
         stderr, "Failed to run %s\n%s (%d) at %s: %d\n", #stmt, cudaGetErrorString(err), err, __FILE__, __LINE__); \
-      throw std::invalid_argument("cudaCheck failed");                                                             \
+      throw Allen::CudaCheckFailed("cudaCheck failed");                                                            \
     }                                                                                                              \
   }
 
@@ -45,7 +45,7 @@ constexpr int warp_size = 32;
     if (err != cudaSuccess) {                                                                                      \
       fprintf(                                                                                                     \
         stderr, "Failed to invoke kernel\n%s (%d) at %s: %d\n", cudaGetErrorString(err), err, __FILE__, __LINE__); \
-      throw std::invalid_argument("cudaCheckKernelCall failed");                                                   \
+      throw Allen::CudaCheckFailed("cudaCheckKernelCall failed");                                                  \
     }                                                                                                              \
   }
 
@@ -106,6 +106,13 @@ entry:
   return ballot;
 #endif
 }
+
+__device__ inline auto atomicOr(uint64_t* arr, uint64_t value)
+{
+  static_assert(sizeof(unsigned long long) == sizeof(uint64_t));
+  return atomicOr(reinterpret_cast<unsigned long long*>(arr), value);
+}
+
 #endif
 
 namespace Allen {

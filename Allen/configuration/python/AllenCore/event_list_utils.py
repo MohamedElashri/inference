@@ -10,18 +10,21 @@
 ###############################################################################
 from PyConf.components import Algorithm
 from PyConf.dataflow import configurable_inputs
-from PyConf.control_flow import NodeLogic, CompositeNode
-from AllenCore.cftree_ops import get_best_order, BoolNode
+
 from AllenCore.algorithms import (
     event_list_intersection_t,
-    event_list_union_t,
     event_list_inversion_t,
+    event_list_union_t,
 )
+from AllenCore.cftree_ops import BoolNode
 
 
 def is_combiner(alg):
-    return alg.type in (event_list_intersection_t, event_list_union_t,
-                        event_list_inversion_t)
+    return alg.type in (
+        event_list_intersection_t,
+        event_list_union_t,
+        event_list_inversion_t,
+    )
 
 
 def add_event_list_combiners(order):
@@ -76,7 +79,8 @@ def add_event_list_combiners(order):
                 raise ValueError(f"more than one mask in {n}")
 
         if len(output_masks) == 1 and logic in [
-                BoolNode.AND, BoolNode.OR
+            BoolNode.AND,
+            BoolNode.OR,
         ]:  # one of the algorithms always accepts
             return []
 
@@ -95,8 +99,11 @@ def add_event_list_combiners(order):
                 lhs, rhs = node.children
                 combs_lhs = make_combiners_from(lhs)
                 combs_rhs = make_combiners_from(rhs)
-                return combs_lhs + combs_rhs + combine(
-                    node.combine_logic, combs_lhs[-1], combs_rhs[-1])
+                return (
+                    combs_lhs
+                    + combs_rhs
+                    + combine(node.combine_logic, combs_lhs[-1], combs_rhs[-1])
+                )
 
         else:
             raise ValueError(
@@ -121,8 +128,8 @@ def add_event_list_combiners(order):
 
     # Remove duplicate combiners
     final_sequence_unique = list()
-    for (alg, mask_in) in final_sequence:
-        for (alg_, _) in final_sequence_unique:
+    for alg, mask_in in final_sequence:
+        for alg_, _ in final_sequence_unique:
             if alg == alg_:
                 break
         else:
@@ -133,15 +140,13 @@ def add_event_list_combiners(order):
         if is_combiner(alg):
             continue  # combiner algorithms always run on all events, transforming masks
         mask_input = [
-            k for k, v in configurable_inputs(alg.type).items()
-            if v.type() == "mask_t"
+            k for k, v in configurable_inputs(alg.type).items() if v.type() == "mask_t"
         ]
         if len(mask_input):
             output_mask = [
-                v for v in combiners[mask][-1].outputs.values()
-                if v.type == "mask_t"
+                v for v in combiners[mask][-1].outputs.values() if v.type == "mask_t"
             ]
-            assert (len(mask_input) == 1 and len(output_mask) == 1)
+            assert len(mask_input) == 1 and len(output_mask) == 1
             alg.inputs[mask_input[0]] = output_mask[0]
 
     return tuple(final_sequence_unique)

@@ -126,11 +126,12 @@ __global__ void ut_decoding_predecode_hits::ut_decoding_predecode(
   const auto hit_offsets = parameters.dev_ut_lanes_hit_offsets + event_lane_offset;
 
   // Fetch raw data
-  const UTRawEvent<mep> raw_event {parameters.dev_ut_raw_input,
-                                   parameters.dev_ut_raw_input_offsets,
-                                   parameters.dev_ut_raw_input_sizes,
-                                   parameters.dev_ut_raw_input_types,
-                                   event_number + event_start};
+  const UTRawEvent<mep> raw_event {
+    parameters.dev_ut_raw_input,
+    parameters.dev_ut_raw_input_offsets,
+    parameters.dev_ut_raw_input_sizes,
+    parameters.dev_ut_raw_input_types,
+    event_number + event_start};
 
   // unsigned lane_idx = 0;
   for (unsigned hit_idx = threadIdx.x; hit_idx < event_num_hits; hit_idx += blockDim.x) {

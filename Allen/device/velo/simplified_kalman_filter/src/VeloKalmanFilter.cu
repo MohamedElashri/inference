@@ -84,6 +84,8 @@ void velo_kalman_filter::velo_kalman_filter_t::operator()(
   const Constants&,
   const Allen::Context& context) const
 {
+  Allen::memset_async<dev_velo_kalman_beamline_states_t>(arguments, 0, context);
+  Allen::memset_async<dev_velo_kalman_endvelo_states_t>(arguments, 0, context);
   global_function(velo_kalman_filter)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
     m_histogram_velo_total_track_eta.data(context),
@@ -203,8 +205,8 @@ __global__ void velo_kalman_filter::velo_kalman_filter(
   parameters.dev_velo_kalman_endvelo_states_view[event_number] = Allen::Views::Physics::KalmanStates {
     parameters.dev_velo_kalman_endvelo_states, parameters.dev_offsets_all_velo_tracks, event_number, number_of_events};
 
-  Velo::Consolidated::States kalman_beamline_states {parameters.dev_velo_kalman_beamline_states,
-                                                     total_number_of_tracks};
+  Velo::Consolidated::States kalman_beamline_states {
+    parameters.dev_velo_kalman_beamline_states, total_number_of_tracks};
   Velo::Consolidated::States kalman_endvelo_states {parameters.dev_velo_kalman_endvelo_states, total_number_of_tracks};
 
   for (unsigned i = threadIdx.x; i < velo_tracks_view.size(); i += blockDim.x) {

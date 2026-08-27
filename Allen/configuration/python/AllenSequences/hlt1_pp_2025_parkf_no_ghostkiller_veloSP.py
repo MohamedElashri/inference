@@ -8,24 +8,25 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1 import setup_hlt1_node
-from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1 import setup_hlt1_node
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
-from AllenConf.velo_reconstruction import make_pr_velo_tracks, decode_velo
 from AllenConf.scifi_reconstruction import make_forward_tracks
+from AllenConf.velo_reconstruction import decode_velo
+from AllenCore.generator import generate
 
-with decode_velo.bind(retina_decoding=False), make_velo_scifi_matches.bind(
-        ghost_killer_threshold=1.0), make_pr_velo_tracks.bind(
-            missing_modules=[21]), make_forward_tracks.bind(
-                ghost_killer_threshold=1.0):
+with (
+    decode_velo.bind(retina_decoding=False),
+    make_velo_scifi_matches.bind(ghost_killer_threshold=1.0),
+    make_forward_tracks.bind(ghost_killer_threshold=1.0),
+):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        threshold_settings=get_thresholds(
-            "forward_then_matching_tuned_mu5p3_1200KHz"),
+        threshold_settings=get_thresholds("forward_then_matching_tuned_mu5p3_1200KHz"),
         with_fullKF=True,
         with_ut=True,
-        enableDownstream=True)
+        enableDownstream=True,
+    )
 
 generate(hlt1_node)

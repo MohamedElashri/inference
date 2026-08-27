@@ -35,13 +35,13 @@ long_P>5GeV_AND_Pt>1GeV                           :       272/      281  96.80% 
 
 
 muon_validator validation:
-Muon fraction in all MCPs:                                                831/    74514   0.01% 
-Muon fraction in MCPs to which a track(s) was matched:                     35/     4460   0.01% 
-Correctly identified muons with isMuon:                                    32/       35  91.43% 
-Correctly identified muons from strange decays with isMuon:                 0/        0   -nan% 
-Correctly identified muons from B decays with isMuon:                       0/        0   -nan% 
-Tracks identified as muon with isMuon, but matched to non-muon MCP:       109/     4425   2.46% 
-Ghost tracks identified as muon with isMuon:                                0/       76   0.00% 
+Muon fraction in all MCPs:                                                831/    74514   0.01%
+Muon fraction in MCPs to which a track(s) was matched:                     35/     4460   0.01%
+Correctly identified muons with isMuon:                                    32/       35  91.43%
+Correctly identified muons from strange decays with isMuon:                 0/        0   -nan%
+Correctly identified muons from B decays with isMuon:                       0/        0   -nan%
+Tracks identified as muon with isMuon, but matched to non-muon MCP:       109/     4425   2.46%
+Ghost tracks identified as muon with isMuon:                                0/       76   0.00%
 
 
 pv_validator validation:
@@ -125,6 +125,11 @@ Hlt1OneMuonTrackLine:                    0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Passthrough:                         0/   500, (    0.00 +/-     0.00) kHz
 Hlt1PassthroughPVinSMOG2:                0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Pi02GammaGamma:                      0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaInner:                 0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddle:                0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddleInnerMixed:      0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddleOuterMixed:      0/   500, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaOuter:                 0/   500, (    0.00 +/-     0.00) kHz
 Hlt1Quirks:                              0/   500, (    0.00 +/-     0.00) kHz
 Hlt1RICH1Alignment:                      0/   500, (    0.00 +/-     0.00) kHz
 Hlt1RICH2Alignment:                      0/   500, (    0.00 +/-     0.00) kHz
@@ -157,13 +162,14 @@ Hlt1TwoKs:                               0/   500, (    0.00 +/-     0.00) kHz
 Hlt1TwoTrackKs:                          0/   500, (    0.00 +/-     0.00) kHz
 Hlt1TwoTrackMVA:                         0/   500, (    0.00 +/-     0.00) kHz
 Hlt1UpsilonAlignment:                    0/   500, (    0.00 +/-     0.00) kHz
+Hlt1VeloLargeClusters:                   3/   500, (  180.00 +/-   103.61) kHz
 Hlt1VeloMicroBias:                       1/   500, (   60.00 +/-    59.94) kHz
 Hlt1VeloMicroBiasVeloClosing:            0/   500, (    0.00 +/-     0.00) kHz
 Hlt1XiOmegaLLL:                          0/   500, (    0.00 +/-     0.00) kHz
 Physics:                                 0/   500, (    0.00 +/-     0.00) kHz
 SMOG2:                                  22/   500, ( 1320.00 +/-   275.16) kHz
-Technical:                               5/   500, (  300.00 +/-   133.49) kHz
-Inclusive:                              27/   500, ( 1620.00 +/-   303.23) kHz
+Technical:                               8/   500, (  480.00 +/-   168.34) kHz
+Inclusive:                              30/   500, ( 1800.00 +/-   318.62) kHz
 
 
 seed_validator validation:
@@ -318,6 +324,11 @@ Hlt1OneMuonTrackLine:                    0           0
 Hlt1Passthrough:                         0           0
 Hlt1PassthroughPVinSMOG2:                0           0
 Hlt1Pi02GammaGamma:                      0           0
+Hlt1Pi02GammaGammaInner:                 0           0
+Hlt1Pi02GammaGammaMiddle:                0           0
+Hlt1Pi02GammaGammaMiddleInnerMixed:      0           0
+Hlt1Pi02GammaGammaMiddleOuterMixed:      0           0
+Hlt1Pi02GammaGammaOuter:                 0           0
 Hlt1Quirks:                              0           0
 Hlt1RICH1Alignment:                      0           0
 Hlt1RICH2Alignment:                      0           0
@@ -350,16 +361,17 @@ Hlt1TwoKs:                               0           0
 Hlt1TwoTrackKs:                          0           0
 Hlt1TwoTrackMVA:                         0           0
 Hlt1UpsilonAlignment:                    0           0
+Hlt1VeloLargeClusters:                   3           0
 Hlt1VeloMicroBias:                       1           0
 Hlt1VeloMicroBiasVeloClosing:            0           0
 Hlt1XiOmegaLLL:                          0           0
 
-Total decisions:      28
+Total decisions:      31
 Total tracks:         50
 Total calos clusters: 0
 Total SVs:            34
 Total hits:           1559
-Total stdinfo:        564
+Total stdinfo:        567
 
 
 velo_validator validation:
@@ -370,4 +382,3 @@ TrackChecker output                               :       127/    13870   0.92% 
 04_long_strange                                   :       222/      226  98.23% ( 98.04%),        10 (  4.31%) clones, pur  99.54%, hit eff  95.03%
 05_long_strange_P>5GeV                            :       113/      116  97.41% ( 97.19%),         1 (  0.88%) clones, pur  99.58%, hit eff  98.38%
 08_long_electrons                                 :       585/      595  98.32% ( 98.39%),        55 (  8.59%) clones, pur  97.11%, hit eff  93.30%
-

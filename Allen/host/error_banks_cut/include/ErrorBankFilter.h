@@ -53,8 +53,8 @@ namespace error_bank_filter {
     // ---- constructor from a range of pair-like elements ----
     template<std::ranges::input_range R>
       requires(!std::same_as<std::remove_cvref_t<R>, bank_types_t>) &&
-      std::convertible_to<std::ranges::range_reference_t<R>, std::pair<key_type, mapped_type>> explicit bank_types_t(
-        R&& r)
+              std::convertible_to<std::ranges::range_reference_t<R>, std::pair<key_type, mapped_type>>
+    explicit bank_types_t(R&& r)
     {
       for (auto&& e : r)
         insert(e);
@@ -62,8 +62,8 @@ namespace error_bank_filter {
     // ---- generic assignment from a range of pair-like elements ----
     template<std::ranges::input_range R>
       requires(!std::same_as<std::remove_cvref_t<R>, bank_types_t>) &&
-      std::convertible_to<std::ranges::range_reference_t<R>, std::pair<key_type, mapped_type>> bank_types_t& operator=(
-        R&& r)
+              std::convertible_to<std::ranges::range_reference_t<R>, std::pair<key_type, mapped_type>>
+    bank_types_t& operator=(R&& r)
     {
       data_types.clear();
       other_types.clear();
@@ -163,19 +163,20 @@ namespace error_bank_filter {
       "sd_bank_types",
       {},
       "subdetector data, other and error bank types"};
-    Allen::Property<std::vector<std::string>> m_daq_error_types {this,
-                                                                 "daq_error_types",
-                                                                 {"DaqErrorFragmentThrottled",
-                                                                  "DaqErrorBXIDCorrupted",
-                                                                  "DaqErrorSyncBXIDCorrupted",
-                                                                  "DaqErrorFragmentMissing",
-                                                                  "DaqErrorFragmentTruncated",
-                                                                  "DaqErrorIdleBXIDCorrupted",
-                                                                  "DaqErrorFragmentMalformed",
-                                                                  "DaqErrorEVIDJumped",
-                                                                  "DaqErrorAlignFifoFull",
-                                                                  "DaqErrorFEfragSizeWrong"},
-                                                                 "DAQ error types"};
+    Allen::Property<std::vector<std::string>> m_daq_error_types {
+      this,
+      "daq_error_types",
+      {"DaqErrorFragmentThrottled",
+       "DaqErrorBXIDCorrupted",
+       "DaqErrorSyncBXIDCorrupted",
+       "DaqErrorFragmentMissing",
+       "DaqErrorFragmentTruncated",
+       "DaqErrorIdleBXIDCorrupted",
+       "DaqErrorFragmentMalformed",
+       "DaqErrorEVIDJumped",
+       "DaqErrorAlignFifoFull",
+       "DaqErrorFEfragSizeWrong"},
+      "DAQ error types"};
   };
 
 } // namespace error_bank_filter
@@ -184,9 +185,10 @@ namespace error_bank_filter {
 namespace Gaudi::Utils {
   inline std::string toString(error_bank_filter::bank_types_t bt)
   {
-    std::map<std::string, std::vector<std::string>> tmp = {{"data_types", std::move(bt.data_types)},
-                                                           {"other_types", std::move(bt.other_types)},
-                                                           {"error_types", std::move(bt.error_types)}};
+    std::map<std::string, std::vector<std::string>> tmp = {
+      {"data_types", std::move(bt.data_types)},
+      {"other_types", std::move(bt.other_types)},
+      {"error_types", std::move(bt.error_types)}};
     return toString(std::move(tmp));
   }
 

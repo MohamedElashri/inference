@@ -47,10 +47,11 @@ namespace downstream_busca_selector {
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {16, 1, 1}, "block dimensions"};
 
-    Allen::Property<std::string> m_NN_selection_path {this,
-                                                      "nn_selection_path",
-                                                      "/HLT1Downstream/Hlt1_Downstream_BuScaSelector_v2r1.json",
-                                                      "path to NN which should be used for selection"};
+    Allen::Property<std::string> m_NN_selection_path {
+      this,
+      "nn_selection_path",
+      "/HLT1Downstream/Hlt1_Downstream_BuScaSelector_v2r1.json",
+      "path to NN which should be used for selection"};
 
     DownstreamBuscaSelector m_busca_selector {"busca_selector", m_NN_selection_path};
   };

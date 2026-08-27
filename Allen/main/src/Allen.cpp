@@ -38,7 +38,6 @@
 #include <stdio.h>
 #include <filesystem>
 
-#include <zmq/zmq.hpp>
 #include <ZeroMQ/IZeroMQSvc.h>
 #include <zmq_compat.h>
 
@@ -52,7 +51,6 @@
 #include "Timer.h"
 #include "Constants.cuh"
 #include "MuonDefinitions.cuh"
-#include "Consumers.h"
 #include "CheckerInvoker.h"
 #include "HostBuffersManager.cuh"
 #include "FileWriter.h"
@@ -238,8 +236,8 @@ int allen(
   std::optional<zmq::socket_t> allen_control;
   size_t control_index = 0;
   if (!control_connection.empty()) {
-    allen_control = zmqSvc->socket(zmq::PAIR);
-    zmq::setsockopt(*allen_control, zmq::LINGER, -1);
+    allen_control = zmqSvc->socket(zmq::socket_type::pair);
+    allen_control->set(zmq::sockopt::linger, -1);
     allen_control->connect(control_connection.data());
     control_index = items.size() - 1;
     items[control_index] = {*allen_control, 0, zmq::POLLIN, 0};
@@ -271,7 +269,11 @@ int allen(
     muon_field_of_interest_params, folder_parameters + "allen_muon_field_of_interest_params.bin");
 
   // Initialize detector constants on GPU
-  Constants constants;
+  Constants& constants = updater->getConstants();
+
+  // Load geometry from files only in standalone:
+#ifdef ALLEN_STANDALONE
+  load_geometry(updater, config_reader.configured_bank_types(), options);
 
   // ParKF constants
   std::unique_ptr<ParKalmanReader> parKalmanFilter_reader;
@@ -290,9 +292,7 @@ int allen(
     parKalmanFilter_reader->UT_layer(),
     parKalmanFilter_reader->T_layer(),
     parKalmanFilter_reader->UTT_META());
-
-  // Register all consumers
-  register_consumers(updater, constants, config_reader.configured_bank_types());
+#endif
 
 #ifndef ALLEN_STANDALONE
   // Set up monitoring sink
@@ -339,14 +339,15 @@ int allen(
 
   std::vector<std::unique_ptr<Stream>> streams;
   for (unsigned t = 0; t < number_of_threads; ++t) {
-    streams.emplace_back(new Stream {t,
-                                     config_reader.configured_sequence(),
-                                     sched_seq,
-                                     print_memory_usage,
-                                     reserve_mb,
-                                     device_memory_alignment,
-                                     constants,
-                                     buffers_manager.get()});
+    streams.emplace_back(new Stream {
+      t,
+      config_reader.configured_sequence(),
+      sched_seq,
+      print_memory_usage,
+      reserve_mb,
+      device_memory_alignment,
+      constants,
+      buffers_manager.get()});
   }
 
   // Print configured sequence
@@ -389,19 +390,20 @@ int allen(
     // memory management for Allen-in-Moore. When called from here it
     // shouldn't be managed, so provide an empty deleter.
     std::shared_ptr<IInputProvider> provider {input_provider, [](IInputProvider*) {}};
-    return std::thread {run_stream,
-                        thread_id,
-                        stream_id,
-                        device_id,
-                        streams[stream_id].get(),
-                        std::move(provider),
-                        zmqSvc,
-                        checker_invoker.get(),
-                        root_service.get(),
-                        io_conf.number_of_repetitions,
-                        input_provider->layout() == IInputProvider::Layout::MEP,
-                        inject_mem_fail,
-                        prefer_shared};
+    return std::thread {
+      run_stream,
+      thread_id,
+      stream_id,
+      device_id,
+      streams[stream_id].get(),
+      std::move(provider),
+      zmqSvc,
+      checker_invoker.get(),
+      root_service.get(),
+      io_conf.number_of_repetitions,
+      input_provider->layout() == IInputProvider::Layout::MEP,
+      inject_mem_fail,
+      prefer_shared};
   };
 
   // Lambda with the execution of the input thread that polls the
@@ -461,33 +463,38 @@ int allen(
 
   // Start all workers and check if the threads are ready
   size_t thread_id = 0;
-  for (auto& [workers, start, n, type, handle] : {std::tuple {&stream_threads,
-                                                              start_thread {stream_thread},
-                                                              number_of_threads,
-                                                              std::string("GPU"),
-                                                              handle_ready {handle_stream_ready}},
-                                                  std::tuple {&io_workers,
-                                                              start_thread {slice_thread},
-                                                              static_cast<unsigned>(n_input),
-                                                              std::string("Slices"),
-                                                              handle_ready {handle_default_ready}},
-                                                  std::tuple {&io_workers,
-                                                              start_thread {output_thread},
-                                                              static_cast<unsigned>(n_write),
-                                                              std::string("Output"),
-                                                              handle_ready {handle_default_ready}},
+  for (auto& [workers, start, n, type, handle] :
+       {std::tuple {
+          &stream_threads,
+          start_thread {stream_thread},
+          number_of_threads,
+          std::string("GPU"),
+          handle_ready {handle_stream_ready}},
+        std::tuple {
+          &io_workers,
+          start_thread {slice_thread},
+          static_cast<unsigned>(n_input),
+          std::string("Slices"),
+          handle_ready {handle_default_ready}},
+        std::tuple {
+          &io_workers,
+          start_thread {output_thread},
+          static_cast<unsigned>(n_write),
+          std::string("Output"),
+          handle_ready {handle_default_ready}},
 #ifndef ALLEN_STANDALONE
-                                                  std::tuple {&agg_workers,
-                                                              start_thread {agg_thread},
-                                                              static_cast<unsigned>(n_agg),
-                                                              std::string("Agg"),
-                                                              handle_ready {handle_default_ready}}
+        std::tuple {
+          &agg_workers,
+          start_thread {agg_thread},
+          static_cast<unsigned>(n_agg),
+          std::string("Agg"),
+          handle_ready {handle_default_ready}}
 #endif
        }) {
     size_t n_ready = 0;
     for (unsigned i = 0; i < n; ++i) {
-      zmq::socket_t control = zmqSvc->socket(zmq::PAIR);
-      zmq::setsockopt(control, zmq::LINGER, 0);
+      zmq::socket_t control = zmqSvc->socket(zmq::socket_type::pair);
+      control.set(zmq::sockopt::linger, 0);
       auto con = connection(thread_id);
       control.bind(con.c_str());
       // I don't know why, but this prevents problems. Probably
@@ -545,8 +552,8 @@ int allen(
 
   std::optional<zmq::socket_t> throughput_socket;
   try {
-    throughput_socket = zmqSvc->socket(zmq::PUB);
-    zmq::setsockopt(*throughput_socket, zmq::LINGER, 0);
+    throughput_socket = zmqSvc->socket(zmq::socket_type::pub);
+    throughput_socket->set(zmq::sockopt::linger, 0);
     std::stringstream bus_suffix;
     bus_suffix << std::setfill('0') << std::setw(2) << std::hex << bus_id;
     std::string con = "ipc:///tmp/allen_throughput_" + bus_suffix.str();
@@ -1087,9 +1094,7 @@ loop_error:
   }
 
   input_provider->release_buffers();
-
-  // Reset device
-  Allen::device_reset();
+  updater->release_buffers();
 
 #ifndef ALLEN_STANDALONE
   if (register_monitoring_counters) {

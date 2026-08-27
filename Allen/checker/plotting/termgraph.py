@@ -30,14 +30,16 @@ import math
 
 
 class TermGraph:
-    def __init__(self,
-                 tg_width=50,
-                 tg_format='{:<4.2f}',
-                 delim=',',
-                 tick='█',
-                 sm_tick='▌',
-                 suffix="",
-                 x_max=50):
+    def __init__(
+        self,
+        tg_width=50,
+        tg_format="{:<4.2f}",
+        delim=",",
+        tick="█",
+        sm_tick="▌",
+        suffix="",
+        x_max=50,
+    ):
         self.tg_width = tg_width
         self.tg_format = tg_format
         self.DELIM = delim
@@ -68,9 +70,9 @@ class TermGraph:
             self.max_dat = self.x_max
         else:
             self.max_dat = max(data)
-        #epsilon = (maximum - minimum) / 1e6
-        #maximum += epsilon
-        #minimum -= epsilon
+        # epsilon = (maximum - minimum) / 1e6
+        # maximum += epsilon
+        # minimum -= epsilon
         rr = self.max_dat - self.min_dat
         stepCount = 10
         roughStep = rr / (stepCount - 1)
@@ -79,16 +81,17 @@ class TermGraph:
         stepPower = math.pow(10, -math.floor(math.log10(abs(roughStep))))
         normalizedStep = roughStep * stepPower
         goodNormalizedStep = list(
-            filter(lambda x: x > normalizedStep, goodNormalizedSteps))[0]
-        self.step = int(goodNormalizedStep / stepPower)
+            filter(lambda x: x > normalizedStep, goodNormalizedSteps)
+        )[0]
+        self.step = max(1, int(goodNormalizedStep / stepPower))
         self.scaleMax = int(math.ceil(self.max_dat / self.step) * self.step)
         self.scaleMin = int(math.floor(self.min_dat / self.step) * self.step)
-        self.strlen = max(
-            len(str(int(self.scaleMin))), len(str(int(self.scaleMax))))
+        self.strlen = max(len(str(int(self.scaleMin))), len(str(int(self.scaleMax))))
         self.nSteps = int((self.scaleMax - self.scaleMin) / self.step)
 
         self.tick_dist = int(
-            self.tg_width / (self.scaleMax - self.scaleMin) * self.step / 2)
+            self.tg_width / (self.scaleMax - self.scaleMin) * self.step / 2
+        )
 
         self.tg_width = int(self.tick_dist * 2 * self.nSteps)
         # print('Updating tg_width to: %d' % self.tg_width)
@@ -114,8 +117,7 @@ class TermGraph:
         l = int(l / 2)
         self.text += " " * (self.label_length - l - self.tick_dist + 2)
         for i in range(self.scaleMin, self.scaleMax + self.step, self.step):
-            self.text += '{:^{width}}'.format(
-                str(i), width='%d' % (self.tick_dist * 2))
+            self.text += "{:^{width}}".format(str(i), width="%d" % (self.tick_dist * 2))
         self.text += "\n"
 
     def normalize(self, data, width):
@@ -129,12 +131,12 @@ class TermGraph:
                 off_data.append(self.min_dat + dat)
         else:
             off_data = data
-        #self.max_dat += abs(self.min_dat)
+        # self.max_dat += abs(self.min_dat)
 
-        #if self.max_dat < self.x_max:
+        # if self.max_dat < self.x_max:
         # Don't need to normalize if the max value
         # is less than the width we allow.
-        #return off_data
+        # return off_data
         #    self.max_dat = self.x_max
 
         # max_dat / width is the value for a single tick. norm_factor is the
@@ -151,12 +153,11 @@ class TermGraph:
 
     def horiz_rows(self, labels, data, normal_dat):
         """Prepare the horizontal graph.
-           Each row is printed through the print_row function."""
+        Each row is printed through the print_row function."""
         val_min = min(data)
 
         for i in range(len(labels)):
-            label = "{:<{x}} │".format(
-                labels[i], x=self.find_max_label_length(labels))
+            label = "{:<{x}} │".format(labels[i], x=self.find_max_label_length(labels))
 
             values = data[i]
             num_blocks = normal_dat[i]
@@ -166,14 +167,13 @@ class TermGraph:
                 # whereas the rest categories have only spaces.
                 if j > 0:
                     len_label = len(label)
-                    label = ' ' * len_label
-                tail = ' {} %s'.format(
-                    self.tg_format.format(values)) % self.suffix
+                    label = " " * len_label
+                tail = " {} %s".format(self.tg_format.format(values)) % self.suffix
                 color = None
                 # print(label, end="")
                 self.text += label
                 yield (values, int(num_blocks), val_min, color)
-                self.text += tail + '\n'
+                self.text += tail + "\n"
 
     # Prints a row of the horizontal graph.
 
@@ -199,7 +199,7 @@ class TermGraph:
                 self.text += self.TICK
 
         for _ in range(max([num_blocks, 1]), self.tg_width):
-            self.text += ' '
+            self.text += " "
 
     def chart(self, data, labels):
         # One category/Multiple series graph with same scale
@@ -220,13 +220,13 @@ class TermGraph:
 
 
 def main():
-    g = TermGraph(suffix='Hz')
+    g = TermGraph(suffix="Hz")
     data = [-100, 500, 0, -111, 222.324324]
-    labels = ['foo', 'bar', 'banana', 'monkey', 'fish']
+    labels = ["foo", "bar", "banana", "monkey", "fish"]
     print(g.chart(data, labels))
 
 
-#Small test application
+# Small test application
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

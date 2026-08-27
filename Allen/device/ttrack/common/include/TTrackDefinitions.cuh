@@ -53,7 +53,8 @@ namespace TTracks::Vertex {
     }
 
     template<PackedMiniVertexVar var, typename T>
-    __device__ __host__ inline void set(unsigned idx, T value) requires(MutableView<T>)
+    __device__ __host__ inline void set(unsigned idx, T value)
+      requires(MutableView<T>)
     {
       m_data_ptr[index<var>(idx)] = value;
     }

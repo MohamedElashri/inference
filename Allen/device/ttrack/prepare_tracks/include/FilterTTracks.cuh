@@ -88,30 +88,35 @@ namespace filter_ttracks {
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
 
-    Allen::Property<float> m_max_abs_qop {this,
-                                          "max_abs_qop",
-                                          1.f / 5000.f,
-                                          "maximum absolute value of qop (in 1/MeV)"};
+    Allen::Property<float> m_max_abs_qop {
+      this,
+      "max_abs_qop",
+      1.f / 5000.f,
+      "maximum absolute value of qop (in 1/MeV)"};
 
-    Allen::Property<float> m_max_clonekiller_dx {this,
-                                                 "max_clonekiller_dx",
-                                                 1.f,
-                                                 "maximum delta x between tracks to run clone killer (in mm)"};
+    Allen::Property<float> m_max_clonekiller_dx {
+      this,
+      "max_clonekiller_dx",
+      1.f,
+      "maximum delta x between tracks to run clone killer (in mm)"};
 
-    Allen::Property<float> m_max_clonekiller_dy {this,
-                                                 "max_clonekiller_dy",
-                                                 15.f,
-                                                 "maximum delta y between tracks to run clone killer (in mm)"};
+    Allen::Property<float> m_max_clonekiller_dy {
+      this,
+      "max_clonekiller_dy",
+      15.f,
+      "maximum delta y between tracks to run clone killer (in mm)"};
 
-    Allen::Property<float> m_max_clonekiller_dtx {this,
-                                                  "max_clonekiller_dtx",
-                                                  0.008f,
-                                                  "maximum delta tx between tracks to run clone killer (in mm)"};
+    Allen::Property<float> m_max_clonekiller_dtx {
+      this,
+      "max_clonekiller_dtx",
+      0.008f,
+      "maximum delta tx between tracks to run clone killer (in mm)"};
 
-    Allen::Property<float> m_max_clonekiller_dty {this,
-                                                  "max_clonekiller_dty",
-                                                  0.015f,
-                                                  "maximum delta ty between tracks to run clone killer (in mm)"};
+    Allen::Property<float> m_max_clonekiller_dty {
+      this,
+      "max_clonekiller_dty",
+      0.015f,
+      "maximum delta ty between tracks to run clone killer (in mm)"};
 
     Allen::Property<short> m_max_clonekiller_allowed_shared_hits {
       this,
@@ -119,10 +124,11 @@ namespace filter_ttracks {
       7,
       "maximum allowed number of shared hits between tracks"};
 
-    Allen::Property<bool> m_with_kalman_filter {this,
-                                                "with_kalman_filter",
-                                                true,
-                                                "to enable the kalman filter on the filtered tracks"};
+    Allen::Property<bool> m_with_kalman_filter {
+      this,
+      "with_kalman_filter",
+      true,
+      "to enable the kalman filter on the filtered tracks"};
   };
 
   __constant__ float dev_average_dxdy[SciFi::Constants::n_layers];

@@ -37,10 +37,11 @@ namespace odin_eventtype {
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
     Allen::Property<bool> m_invert {this, "invert", false, "invert event"};
-    Allen::Property<uint16_t> m_event_type {this,
-                                            "event_type",
-                                            static_cast<uint16_t>(LHCb::ODIN::EventTypes::VeloOpen),
-                                            "ODIN event type"};
+    Allen::Property<uint16_t> m_event_type {
+      this,
+      "event_type",
+      static_cast<uint16_t>(LHCb::ODIN::EventTypes::VeloOpen),
+      "ODIN event type"};
 
   }; // odin_eventtype_t
 } // namespace odin_eventtype

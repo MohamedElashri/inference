@@ -123,8 +123,9 @@ std::tuple<std::string, std::string> Allen::sequence_conf(std::map<std::string, 
       throw std::runtime_error {"failed to open sequence configuration file " + json_configuration_file};
     }
 
-    return {std::string {std::istreambuf_iterator<char> {config_file}, std::istreambuf_iterator<char> {}},
-            configuration_source};
+    return {
+      std::string {std::istreambuf_iterator<char> {config_file}, std::istreambuf_iterator<char> {}},
+      configuration_source};
   }
 }
 
@@ -240,6 +241,12 @@ std::unique_ptr<IInputProvider> Allen::make_provider(
 
   logger::setVerbosity(verbosity);
 
+  // The Allen number of "all events" is 0 requested, but the LHCb
+  // norm is -1 requested, so make sure that also works
+  if (number_of_events_requested == -1) {
+    number_of_events_requested = 0;
+  }
+
   // Set a sane default for the number of events per input slice
   if (number_of_events_requested != 0 && events_per_slice > number_of_events_requested) {
     events_per_slice = number_of_events_requested;
@@ -297,13 +304,14 @@ std::unique_ptr<IInputProvider> Allen::make_provider(
       }
     }
 
-    MDFProviderConfig config {false,                     // verify MDF checksums
-                              2,                         // number of transpose threads
-                              events_per_slice * 10 + 1, // maximum number event of offsets in read buffer
-                              events_per_slice,          // number of events per read buffer
-                              io_conf.n_io_reps,         // number of loops over the input files
-                              !disable_run_changes,      // Whether to split slices by run number
-                              skip_banks};
+    MDFProviderConfig config {
+      false,                     // verify MDF checksums
+      2,                         // number of transpose threads
+      events_per_slice * 10 + 1, // maximum number event of offsets in read buffer
+      events_per_slice,          // number of events per read buffer
+      io_conf.n_io_reps,         // number of loops over the input files
+      !disable_run_changes,      // Whether to split slices by run number
+      skip_banks};
     return std::make_unique<MDFProvider>(
       io_conf.number_of_slices, events_per_slice, n_events, connections, bank_types, config);
   }

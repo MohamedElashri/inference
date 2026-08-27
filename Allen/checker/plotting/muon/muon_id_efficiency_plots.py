@@ -20,21 +20,15 @@
 # date:   05/2019
 #
 
-import os, sys
-import argparse
+import sys
+
 import ROOT
-from ROOT import gStyle
-from ROOT import gROOT
-from ROOT import TStyle
-from ROOT import TLegend
-from ROOT import gPad
-from ROOT import TMultiGraph
+from ROOT import TLegend, gPad
 
-sys.path.append('../')
-from common.LHCbStyle import *
-from common.Legend import *
-
+sys.path.append("../")
 from common.ConfigHistos import *
+from common.Legend import *
+from common.LHCbStyle import *
 
 
 def getEfficiencyHistoNames():
@@ -47,7 +41,7 @@ def getMuonCategories():
 
 def getGhostHistoNames():
     return ["eta", "nPV"]  # currently no eta information available from track
-    #return ["nPV"]
+    # return ["nPV"]
 
 
 def muonCategoryDict():
@@ -74,7 +68,8 @@ def muonCategoryDict():
 
 f = [ROOT.TFile.Open("../../../output/PrCheckerPlots.root", "read")]
 outputfile = ROOT.TFile(
-    "../../../plotsfornote_root/muon_id_efficiency_plots.root", "recreate")
+    "../../../plotsfornote_root/muon_id_efficiency_plots.root", "recreate"
+)
 
 setLHCbStyle()
 
@@ -88,21 +83,26 @@ muonCatDict = muonCategoryDict()
 outputfile.cd()
 
 for category in muonCategories:
-
     for histo in efficiencyHistos:
         title = muonCatDict[category]["title"] + " vs. " + histo
         canvas = ROOT.TCanvas(title, title)
         ROOT.gPad.SetTicks()
-        numeratorName = "Forward/" + muonCatDict[category][
-            "numerator"] + efficiencyHistoDict[histo][
-                "variable"] + "_reconstructed"
+        numeratorName = (
+            "Forward/"
+            + muonCatDict[category]["numerator"]
+            + efficiencyHistoDict[histo]["variable"]
+            + "_reconstructed"
+        )
         print("Opening " + numeratorName)
         numerator = f[0].Get(numeratorName)
         for infile in f[1:]:
             numerator.Add(infile.Get(numeratorName))
-        denominatorName = "Forward/" + muonCatDict[category][
-            "denominator"] + efficiencyHistoDict[histo][
-                "variable"] + "_reconstructible"
+        denominatorName = (
+            "Forward/"
+            + muonCatDict[category]["denominator"]
+            + efficiencyHistoDict[histo]["variable"]
+            + "_reconstructible"
+        )
         denominator = f[0].Get(denominatorName)
         for infile in f[1:]:
             denominator.Add(infile.Get(denominatorName))
@@ -126,31 +126,38 @@ for category in muonCategories:
         # draw variable distribution in same canvas
         norm = 0.9 / numerator.GetMaximum()
         numerator.Scale(norm)
-        numerator.SetTitle(efficiencyHistoDict[histo]["title"] +
-                           " distribution")
+        numerator.SetTitle(efficiencyHistoDict[histo]["title"] + " distribution")
         numerator.SetFillColorAlpha(ROOT.kBlack, 0.2)
         numerator.SetLineColor(ROOT.kWhite)
         numerator.Draw("hist bar same")
 
-        if (category == "matched_isMuon"):
+        if category == "matched_isMuon":
             place = find_place(canvas, 3)
         else:
             place = PLACES[0]
-            #place = find_place(canvas, 0)
+            # place = find_place(canvas, 0)
         legend = TLegend(place[0], place[1], place[2], place[3])
         legend.AddEntry(g_efficiency, muonCatDict[category]["title"], "ep")
-        legend.AddEntry(numerator,
-                        efficiencyHistoDict[histo]["title"] + " distribution",
-                        "f")
-        legend.SetFillColorAlpha(ROOT.kWhite, 0.)
+        legend.AddEntry(
+            numerator, efficiencyHistoDict[histo]["title"] + " distribution", "f"
+        )
+        legend.SetFillColorAlpha(ROOT.kWhite, 0.0)
         legend.SetTextSize(0.06)
         legend.Draw("same")
 
         # Draw second y axis
         low = 0
         high = 1.05
-        axis = ROOT.TGaxis(gPad.GetUxmax(), gPad.GetUymin(), gPad.GetUxmax(),
-                           gPad.GetUymax(), low, high, 510, "+L")
+        axis = ROOT.TGaxis(
+            gPad.GetUxmax(),
+            gPad.GetUymin(),
+            gPad.GetUxmax(),
+            gPad.GetUymax(),
+            low,
+            high,
+            510,
+            "+L",
+        )
         axis.SetTitleFont(132)
         axis.SetTitleSize(0.06)
         axis.SetTitleOffset(0.55)
@@ -159,18 +166,26 @@ for category in muonCategories:
         axis.Draw()
 
         canvas.Write()
-        cleantitle = muonCatDict[category]["title"].replace(" ", "").replace(
-            ",", "_").replace("<", "_")
-        canvas.SaveAs("../../../plotsfornote/muonID_isMuon_" + histo + "_" +
-                      cleantitle + ".pdf")
+        cleantitle = (
+            muonCatDict[category]["title"]
+            .replace(" ", "")
+            .replace(",", "_")
+            .replace("<", "_")
+        )
+        canvas.SaveAs(
+            "../../../plotsfornote/muonID_isMuon_" + histo + "_" + cleantitle + ".pdf"
+        )
 
 # ghost histos
 for histo in ghostHistos:
     title = "muon ID in ghost tracks vs. " + histo
     canvas = ROOT.TCanvas(title, title)
     ROOT.gPad.SetTicks()
-    numeratorName = "Forward/ghost_isMuon_" + efficiencyHistoDict[histo][
-        "variable"] + "_reconstructed"
+    numeratorName = (
+        "Forward/ghost_isMuon_"
+        + efficiencyHistoDict[histo]["variable"]
+        + "_reconstructed"
+    )
     denominatorName = "Forward/" + histo + "_Ghosts"
     print("Opening " + numeratorName)
     print("Opening " + denominatorName)
@@ -204,13 +219,13 @@ for histo in ghostHistos:
     place = find_place(canvas, 0)
     legend = TLegend(place[0], place[1], place[2], place[3])
     legend.AddEntry(g_efficiency, "muon ID in ghost tracks", "ep")
-    legend.AddEntry(numerator,
-                    efficiencyHistoDict[histo]["title"] + " distribution", "f")
+    legend.AddEntry(
+        numerator, efficiencyHistoDict[histo]["title"] + " distribution", "f"
+    )
     legend.Draw("same")
 
     canvas.Write()
-    canvas.SaveAs("../../../plotsfornote/muonID_isMuon_ghosts_" + histo +
-                  ".pdf")
+    canvas.SaveAs("../../../plotsfornote/muonID_isMuon_ghosts_" + histo + ".pdf")
 
 outputfile.Write()
 outputfile.Close()

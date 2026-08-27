@@ -54,13 +54,15 @@ namespace t_track_cosmic_line {
     }
 
   private:
-    Allen::Property<float> m_max_chi2X {this,
-                                        "max_chi2X",
-                                        0.26f,
-                                        "Max value of chi2X"}; // 95 percentile of chi2X distribution
-    Allen::Property<float> m_max_chi2Y {this,
-                                        "max_chi2Y",
-                                        134.0f,
-                                        "Max value of chi2Y"}; // 95 percentile of chi2Y distribution
+    Allen::Property<float> m_max_chi2X {
+      this,
+      "max_chi2X",
+      0.26f,
+      "Max value of chi2X"}; // 95 percentile of chi2X distribution
+    Allen::Property<float> m_max_chi2Y {
+      this,
+      "max_chi2Y",
+      134.0f,
+      "Max value of chi2Y"}; // 95 percentile of chi2Y distribution
   };
 } // namespace t_track_cosmic_line

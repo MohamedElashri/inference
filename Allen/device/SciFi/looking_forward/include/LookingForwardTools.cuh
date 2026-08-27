@@ -28,7 +28,7 @@ namespace LookingForward {
     const float qop,
     const int layer,
     const LookingForward::Constants* dev_looking_forward_constants,
-    const float* dev_magnet_polarity);
+    const float magnet_polarity);
 
   __device__ inline float linear_propagation(float x_0, float tx, float dz) { return x_0 + tx * dz; }
 
@@ -55,20 +55,22 @@ namespace LookingForward {
     const MiniState& ut_state,
     const int station,
     const LookingForward::Constants* dev_looking_forward_constants,
-    const float* dev_magnet_polarity)
+    const float magnet_polarity)
   {
     float tx_ty_corr = 0.f;
-    const float tx_pow[5] = {1,
-                             ut_state.tx(),
-                             ut_state.tx() * ut_state.tx(),
-                             ut_state.tx() * ut_state.tx() * ut_state.tx(),
-                             ut_state.tx() * ut_state.tx() * ut_state.tx() * ut_state.tx()};
+    const float tx_pow[5] = {
+      1,
+      ut_state.tx(),
+      ut_state.tx() * ut_state.tx(),
+      ut_state.tx() * ut_state.tx() * ut_state.tx(),
+      ut_state.tx() * ut_state.tx() * ut_state.tx() * ut_state.tx()};
 
-    const float ty_pow[5] = {1,
-                             ut_state.ty() * (-1.f) * *dev_magnet_polarity,
-                             ut_state.ty() * ut_state.ty(),
-                             ut_state.ty() * ut_state.ty() * ut_state.ty() * (-1.f) * *dev_magnet_polarity,
-                             ut_state.ty() * ut_state.ty() * ut_state.ty() * ut_state.ty()};
+    const float ty_pow[5] = {
+      1,
+      ut_state.ty() * (-1.f) * magnet_polarity,
+      ut_state.ty() * ut_state.ty(),
+      ut_state.ty() * ut_state.ty() * ut_state.ty() * (-1.f) * magnet_polarity,
+      ut_state.ty() * ut_state.ty() * ut_state.ty() * ut_state.ty()};
 
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {
@@ -85,7 +87,7 @@ namespace LookingForward {
     const float qop,
     const int layer,
     const LookingForward::Constants* dev_looking_forward_constants,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const float z)
   {
     // center of the magnet
@@ -94,9 +96,9 @@ namespace LookingForward {
     MiniState final_state = magnet_state;
 
     const float tx_ty_corr =
-      LookingForward::tx_ty_corr_multi_par(UT_state, layer / 4, dev_looking_forward_constants, dev_magnet_polarity);
+      LookingForward::tx_ty_corr_multi_par(UT_state, layer / 4, dev_looking_forward_constants, magnet_polarity);
 
-    final_state.tx() = tx_ty_corr * qop * (-1.f) * *dev_magnet_polarity + UT_state.tx();
+    final_state.tx() = tx_ty_corr * qop * (-1.f) * magnet_polarity + UT_state.tx();
 
     state_at_z_dzdy_corrected(final_state, z);
     // final_state = state_at_z(final_state, dev_looking_forward_constants->Zone_zPos[layer]);

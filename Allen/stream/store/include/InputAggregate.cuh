@@ -49,6 +49,8 @@ namespace Allen::Store {
       return m_argument_data_v[index].get();
     }
 
+    std::span<T> operator[](const unsigned index) const { return get(index); }
+
     auto data(const unsigned index) const { return get(index).data(); }
 
     auto first(const unsigned index) const { return get(index)[0]; }
@@ -74,7 +76,7 @@ namespace Allen::Store {
 #define INPUT_AGGREGATE(HOST_OR_DEVICE, ARGUMENT_NAME, ...)                        \
   struct ARGUMENT_NAME : public Allen::Store::aggregate_datatype, HOST_OR_DEVICE { \
     using type = Allen::Store::InputAggregate<__VA_ARGS__>;                        \
-    void parameter(__VA_ARGS__) const;                                             \
+    static constexpr std::string_view name = #ARGUMENT_NAME;                       \
   }
 
 #define HOST_INPUT_AGGREGATE(ARGUMENT_NAME, ...) \

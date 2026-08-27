@@ -58,12 +58,18 @@ void host_data_provider::host_data_provider_t::operator()(
   auto const& types = bno.types;
   ::memcpy(data<host_raw_types_t>(arguments), &types, sizeof(types));
 
-  // Copy the spans for the blocks
+  // Copy the spans for the blocks. std::memcpy's pointer arguments are declared
+  // non-null, but an empty bank's fragments span legitimately has a null .data()
+  // for this zero-length copy -- guard it explicitly instead of routing through
+  // Allen::memcpy: on the CUDA backend that wrapper is a synchronous cudaMemcpy,
+  // which serializes the whole GPU and is overkill for a host-to-host copy.
   auto const& blocks = bno.fragments;
-  ::memcpy(
-    data<host_raw_banks_t>(arguments),
-    blocks.data(),
-    blocks.size() * sizeof(typename std::remove_reference_t<decltype(blocks)>::value_type));
+  if (!blocks.empty()) {
+    ::memcpy(
+      data<host_raw_banks_t>(arguments),
+      blocks.data(),
+      blocks.size() * sizeof(typename std::remove_reference_t<decltype(blocks)>::value_type));
+  }
 
   // Copy the bank version
   auto version = bno.version;

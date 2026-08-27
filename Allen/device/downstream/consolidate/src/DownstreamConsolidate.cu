@@ -45,20 +45,21 @@ __global__ void downstream_consolidate::downstream_create_tracks_view(
   //
   for (unsigned track_index = threadIdx.x; track_index < downstream_tracks_size; track_index += blockDim.x) {
     new (parameters.dev_downstream_ut_track_view + downstream_tracks_offset + track_index)
-      Allen::Views::UT::Consolidated::Track {parameters.dev_downstream_hits_view,
-                                             parameters.dev_offsets_downstream_tracks,
-                                             parameters.dev_offsets_downstream_hit_numbers,
-                                             track_index,
-                                             event_number};
+      Allen::Views::UT::Consolidated::Track {
+        parameters.dev_downstream_hits_view,
+        parameters.dev_offsets_downstream_tracks,
+        parameters.dev_offsets_downstream_hit_numbers,
+        track_index,
+        event_number};
   }
 
   if (threadIdx.x == 0) {
-    new (parameters.dev_downstream_hits_view + event_number)
-      Allen::Views::UT::Consolidated::Hits {parameters.dev_downstream_track_hits,
-                                            parameters.dev_offsets_downstream_tracks,
-                                            parameters.dev_offsets_downstream_hit_numbers,
-                                            event_number,
-                                            number_of_events};
+    new (parameters.dev_downstream_hits_view + event_number) Allen::Views::UT::Consolidated::Hits {
+      parameters.dev_downstream_track_hits,
+      parameters.dev_offsets_downstream_tracks,
+      parameters.dev_offsets_downstream_hit_numbers,
+      event_number,
+      number_of_events};
 
     new (parameters.dev_downstream_ut_tracks_view + event_number) Allen::Views::UT::Consolidated::Tracks {
       parameters.dev_downstream_ut_track_view, parameters.dev_offsets_downstream_tracks, event_number};

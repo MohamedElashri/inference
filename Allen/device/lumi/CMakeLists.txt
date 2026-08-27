@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB lumi_src "src/*cu")
 
-allen_add_device_library(Lumi STATIC
+allen_add_device_library(Lumi OBJECT
   ${lumi_src}
 )
 
@@ -27,4 +27,3 @@ target_link_libraries(Lumi PRIVATE
 target_include_directories(Lumi PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/configuration/sequences>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-

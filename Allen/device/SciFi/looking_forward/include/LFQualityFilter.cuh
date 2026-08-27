@@ -73,10 +73,11 @@ namespace lf_quality_filter {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
-    Allen::Property<unsigned> m_maximum_number_of_candidates_per_ut_track {this,
-                                                                           "maximum_number_of_candidates_per_ut_track",
-                                                                           12,
-                                                                           "maximum_number_of_candidates_per_ut_track"};
+    Allen::Property<unsigned> m_maximum_number_of_candidates_per_ut_track {
+      this,
+      "maximum_number_of_candidates_per_ut_track",
+      12,
+      "maximum_number_of_candidates_per_ut_track"};
     Allen::Property<float> m_max_diff_ty_window {this, "max_diff_ty_window", 0.02, "max_diff_ty_window"};
     Allen::Property<float> m_max_final_quality {this, "max_final_quality", 0.5, "max_final_quality"};
     Allen::Property<float> m_factor_9_hits {this, "factor_9_hits", 5., "factor_9_hits"};
@@ -86,7 +87,8 @@ namespace lf_quality_filter {
     Allen::Property<float> m_ghost_killer_threshold {this, "ghost_killer_threshold", 0.5, "ghost_killer_threshold"};
 
     LFQualityNN forward_ghost_killer {"forward_ghost_killer", "/GhostProbability/Hlt1_LongGhostKiller_Forward.json"};
-    LFQualityNN forward_ghost_killer_no_ut {"forward_ghost_killer_no_ut",
-                                            "/GhostProbability/Hlt1_LongGhostKiller_noUT_Forward.json"};
+    LFQualityNN forward_ghost_killer_no_ut {
+      "forward_ghost_killer_no_ut",
+      "/GhostProbability/Hlt1_LongGhostKiller_noUT_Forward.json"};
   };
 } // namespace lf_quality_filter

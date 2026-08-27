@@ -8,13 +8,11 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#ifndef DUMPUTILS_H
-#define DUMPUTILS_H
+#pragma once
 
 #include <boost/filesystem.hpp>
 #include <boost/interprocess/streams/vectorstream.hpp>
 
-#include <Detector/Muon/TileID.h>
 #include <Kernel/STLExtensions.h>
 #include <fstream>
 #include <functional>
@@ -40,29 +38,29 @@ namespace DumpUtils {
   bool createDirectory(boost::filesystem::path dir);
 
   namespace detail {
-    template<typename>
-    constexpr bool is_span_v = false;
-    template<typename T, auto N>
-    constexpr bool is_span_v<std::span<T, N>> = true;
-
-    template<typename T>
-    std::ostream& write(std::ostream& os, const T& t)
+    inline std::ostream& write(std::ostream& os, std::span<const std::byte> bytes)
     {
-      // if you would like to know why there is a check for trivially copyable,
-      // please read the 'notes' section of https://en.cppreference.com/w/cpp/types/is_trivially_copyable
-      if constexpr (std::is_same_v<T, std::span<const std::byte>>) {
-        return os.write(reinterpret_cast<const char*>(t.data()), t.size());
-      }
-      else if constexpr (std::is_trivially_copyable_v<T> && !is_span_v<T>) {
-        return os.write(reinterpret_cast<const char*>(&t), sizeof(T));
+      return os.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    }
+    template<class T, std::size_t N>
+    std::ostream& write(std::ostream& os, std::span<T, N> s)
+    {
+      static_assert(std::is_trivially_copyable_v<T>);
+      return write(os, as_bytes(s));
+    }
+    template<typename T>
+    std::ostream& write(std::ostream& os, T const& t)
+    {
+      if constexpr (requires { LHCb::make_span(t); }) {
+        return write(os, LHCb::make_span(t));
       }
       else {
-        static_assert(std::is_trivially_copyable_v<typename T::value_type>);
-        using std::as_bytes;
-        return write(os, as_bytes(LHCb::make_span(t)));
+        // if you would like to know why there is a check for trivially copyable,
+        // please read the 'notes' section of https://en.cppreference.com/w/cpp/types/is_trivially_copyable
+        static_assert(std::is_trivially_copyable_v<T>);
+        return os.write(reinterpret_cast<char const*>(std::addressof(t)), static_cast<std::streamsize>(sizeof(T)));
       }
     }
-
   } // namespace detail
 
   class Writer {
@@ -98,5 +96,3 @@ namespace DumpUtils {
   using Dumps = std::vector<Dump>;
 
 } // namespace DumpUtils
-
-#endif

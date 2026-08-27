@@ -50,9 +50,10 @@ namespace host_veloscifi_dump {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<std::string> m_dump_output_filename {this,
-                                                         "dump_output_filename",
-                                                         "veloscifimatch.json",
-                                                         "dump output filename"};
+    Allen::Property<std::string> m_dump_output_filename {
+      this,
+      "dump_output_filename",
+      "veloscifimatch.json",
+      "dump output filename"};
   };
 } // namespace host_veloscifi_dump

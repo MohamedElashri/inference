@@ -19,9 +19,9 @@ This is to be called by the cmake, do not run this yourself
 """
 
 import os
-import sys
-import shutil
 import re
+import shutil
+import sys
 
 src_dir = sys.argv[1]
 dst_dir = sys.argv[2]
@@ -57,12 +57,12 @@ for root, dirs, files in os.walk(src_dir):
             # Rewire broken magfield symlinks
             if not os.path.exists(os.path.join(root, linkto)):
                 base = os.path.basename(linkto)
-                m = re.match(r'field\.([^.]+)\.(up|down)\.bin', base)
+                m = re.match(r"field\.([^.]+)\.(up|down)\.bin", base)
                 if m:
                     version, polarity = m.groups()
                     local_target = os.path.join(
-                        local_magfields_dir,
-                        f'magfield.{version}.{polarity}.bin')
+                        local_magfields_dir, f"magfield.{version}.{polarity}.bin"
+                    )
                     if os.path.exists(local_target):
                         os.remove(dst_f)
                         os.symlink(local_target, dst_f)

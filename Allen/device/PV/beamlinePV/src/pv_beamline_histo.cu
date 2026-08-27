@@ -19,6 +19,7 @@ void pv_beamline_histo::pv_beamline_histo_t::set_arguments_size(
   const Constants&) const
 {
   set_size<dev_zhisto_t>(arguments, first<host_number_of_events_t>(arguments) * (m_zmax - m_zmin) / m_dz);
+  set_size<dev_zhisto_fixed_t>(arguments, first<host_number_of_events_t>(arguments) * (m_zmax - m_zmin) / m_dz);
 }
 
 void pv_beamline_histo::pv_beamline_histo_t::operator()(
@@ -27,7 +28,7 @@ void pv_beamline_histo::pv_beamline_histo_t::operator()(
   const Constants&,
   const Allen::Context& context) const
 {
-  Allen::memset_async<dev_zhisto_t>(arguments, 0, context);
+  Allen::memset_async<dev_zhisto_fixed_t>(arguments, 0, context);
 
   global_function(pv_beamline_histo)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
@@ -41,6 +42,8 @@ void pv_beamline_histo::pv_beamline_histo_t::operator()(
     m_pp_maxTrackZ0Err,
     m_order_polynomial);
 }
+
+__constant__ struct BeamlinePVConstants::Common::Beamline dev_beamline;
 
 void updateCommon(const Constants& constants)
 {
@@ -65,17 +68,18 @@ void updateCommon(const Constants& constants)
                             static_cast<double>(constants.host_beamline[9]) /
                               (2 * std::pow(10, 6)); // Convert crossing angles between beams from microrad to rad,
                                                      // take half to convert the angle to the beam inclination
-  if ((CrossingAngleh == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
-    CrossingAngleh = fabs(static_cast<double>(constants.host_gen_crossing_angles[0])) / 2;
-  }
   double CrossingAnglev =
     constants.host_beamline.size() == 9 ? 0 : static_cast<double>(constants.host_beamline[10]) / (2 * std::pow(10, 6));
 
-  if ((CrossingAnglev == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
-    CrossingAnglev = fabs(static_cast<double>(constants.host_gen_crossing_angles[1])) / 2;
+  host_beamline.tx_SMOG.x = 0.;
+  host_beamline.tx_SMOG.y = 0.;
+  if (
+    !std::isnan(host_beamline.sprd[3] / host_beamline.sprd[5]) and
+    !std::isnan(host_beamline.sprd[4] / host_beamline.sprd[5])) {
+    host_beamline.tx_SMOG.x = static_cast<double>(host_beamline.sprd[3] / host_beamline.sprd[5]) + CrossingAngleh;
+    host_beamline.tx_SMOG.y = static_cast<double>(host_beamline.sprd[4] / host_beamline.sprd[5]) + CrossingAnglev;
   }
-  host_beamline.tx_SMOG.x = beamlineTx + CrossingAngleh;
-  host_beamline.tx_SMOG.y = beamlineTy + CrossingAnglev;
+
   Allen::memcpyToSymbol(dev_beamline, &host_beamline, sizeof(struct BeamlinePVConstants::Common::Beamline));
 }
 
@@ -89,6 +93,26 @@ __device__ float gauss_integral(float x, int order_polynomial)
   constexpr float p[] = {0.5f, 0.25f, 0.1875f, 0.15625f};
   // be careful: if you choose here one order more, you also need to choose 'a' differently (a(N)=sqrt(2N+3))
   return 0.5f + xi * (p[0] + eta * (p[1] + eta * p[2]));
+}
+
+// Fixed-point quantum used to accumulate the z-histogram. Each per-track,
+// per-bin contribution added below lies in [0, 1], and 2^-20 is exact in
+// float (multiplying/dividing by a power of two only shifts the exponent),
+// so the only rounding introduced is the final round-to-nearest-integer,
+// well below float's own ~2^-23 relative precision at values of this size.
+// The accumulator is 64-bit unsigned so that even the highest-multiplicity
+// (e.g. heavy-ion) events cannot overflow it.
+constexpr float histo_fixed_point_inv_precision = 1048576.f; // 2^20
+constexpr float histo_fixed_point_precision = 1.f / histo_fixed_point_inv_precision;
+
+__device__ void add_to_zhisto_bin(unsigned long long* bin, float value)
+{
+  // Integer atomicAdd is associative, unlike float atomicAdd, so the
+  // accumulated histogram no longer depends on GPU thread scheduling order.
+  // value should always be >= 0 (it is a difference of two increasing CDF-like
+  // terms, or 1 minus one such term); the max-with-zero only guards against
+  // the odd case where floating-point noise makes it marginally negative.
+  atomicAdd(bin, static_cast<unsigned long long>(llrintf(fmaxf(0.f, value) * histo_fixed_point_inv_precision)));
 }
 
 __global__ void pv_beamline_histo::pv_beamline_histo(
@@ -106,6 +130,7 @@ __global__ void pv_beamline_histo::pv_beamline_histo(
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   const auto velo_tracks_view = parameters.dev_velo_tracks_view[event_number];
   float* histo_base_pointer = parameters.dev_zhisto + Nbins * event_number;
+  unsigned long long* histo_fixed_base_pointer = parameters.dev_zhisto_fixed + Nbins * event_number;
 
   for (unsigned index = threadIdx.x; index < velo_tracks_view.size(); index += blockDim.x) {
     PVTrack trk = parameters.dev_pvtracks[velo_tracks_view.offset() + index];
@@ -151,13 +176,21 @@ __global__ void pv_beamline_histo::pv_beamline_histo(
           for (auto i = minbin; i < maxbin; ++i) {
             const float relz = (zmin + (i + 1) * dz - trk.z) / zerr;
             const float thisintegral = gauss_integral(relz, order_polynomial);
-            atomicAdd(histo_base_pointer + i, thisintegral - integral);
+            add_to_zhisto_bin(histo_fixed_base_pointer + i, thisintegral - integral);
             integral = thisintegral;
           }
           // deal with the last bin
-          atomicAdd(histo_base_pointer + maxbin, 1.f - integral);
+          add_to_zhisto_bin(histo_fixed_base_pointer + maxbin, 1.f - integral);
         }
       }
     }
+  }
+  __syncthreads();
+
+  // Every block owns the entire per-event bin range exclusively (one block
+  // per event), so once all of this event's tracks have been accumulated
+  // above, convert the deterministic fixed-point histogram back to float.
+  for (int i = threadIdx.x; i < Nbins; i += blockDim.x) {
+    histo_base_pointer[i] = static_cast<float>(histo_fixed_base_pointer[i]) * histo_fixed_point_precision;
   }
 }

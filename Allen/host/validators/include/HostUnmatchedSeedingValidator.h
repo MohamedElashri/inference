@@ -41,9 +41,10 @@ namespace host_unmatched_seeding_validator {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<std::string> m_root_output_filename {this,
-                                                         "root_output_filename",
-                                                         "PrCheckerPlots.root",
-                                                         "root output filename"};
+    Allen::Property<std::string> m_root_output_filename {
+      this,
+      "root_output_filename",
+      "PrCheckerPlots.root",
+      "root output filename"};
   };
 } // namespace host_unmatched_seeding_validator

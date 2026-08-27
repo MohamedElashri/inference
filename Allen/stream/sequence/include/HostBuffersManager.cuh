@@ -11,6 +11,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <queue>
 #include <vector>
 #include <span>
@@ -27,7 +28,7 @@ struct HostBuffersManager {
 
   HostBuffersManager(size_t nBuffers, size_t host_memory_size, const ConfigurationReader::Params& configuration);
 
-  Allen::Store::PersistentStore* get_persistent_store(size_t i) const { return m_persistent_stores.at(i); }
+  Allen::Store::PersistentStore* get_persistent_store(size_t i) const { return m_persistent_stores.at(i).get(); }
 
   size_t assignBufferToFill();
 
@@ -46,7 +47,7 @@ struct HostBuffersManager {
 
 private:
   std::vector<BufferStatus> buffer_statuses;
-  std::vector<Allen::Store::PersistentStore*> m_persistent_stores;
+  std::vector<std::unique_ptr<Allen::Store::PersistentStore>> m_persistent_stores;
 
   std::queue<size_t> empty_buffers;
   std::queue<size_t> filled_buffers;

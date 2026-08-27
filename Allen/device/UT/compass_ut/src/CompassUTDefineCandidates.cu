@@ -172,10 +172,11 @@ __global__ void compass_ut_define_candidates::compass_ut_hit_preselection(
     // Find hit ranges
     //
     unsigned num_ranges = 0;
-    CompassUT::Structs::LayerHitRanges hit_ranges = {ushort2 {invalid_hit, invalid_hit},
-                                                     ushort2 {invalid_hit, invalid_hit},
-                                                     ushort2 {invalid_hit, invalid_hit},
-                                                     ushort2 {invalid_hit, invalid_hit}};
+    CompassUT::Structs::LayerHitRanges hit_ranges = {
+      ushort2 {invalid_hit, invalid_hit},
+      ushort2 {invalid_hit, invalid_hit},
+      ushort2 {invalid_hit, invalid_hit},
+      ushort2 {invalid_hit, invalid_hit}};
     unsigned num_candidates = 0;
     const auto fired_sectors =
       dev_ut_layer_geometry->find_sectors(layer, expected_layer_y - yTolLayer, expected_layer_y + yTolLayer);

@@ -9,14 +9,16 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.scifi_reconstruction import forward_tracking
-from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 forward_tracks = forward_tracking()
 
 forward_tracking_sequence = CompositeNode(
-    "ForwardTracking", [forward_tracks["dev_scifi_track_hits"].producer],
+    "ForwardTracking",
+    [forward_tracks["dev_scifi_track_hits"].producer],
     NodeLogic.LAZY_AND,
-    force_order=True)
+    force_order=True,
+)
 
 generate(forward_tracking_sequence)

@@ -81,7 +81,7 @@ ExtrapolateInV(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
 {
   // step size in z
   const KalmanFloat dz = zTo - tI.m_Lastz;
-  if (dz == 0) return;
+  if (LHCb::essentiallyZero(dz)) return;
   // which set of parameters should be used
   unsigned index_offset = (dz > 0 ? 0 : 6);
 
@@ -217,6 +217,52 @@ ExtrapolateVUT(const float* dev_pars, KalmanFloat zTo, Vector5& x, Matrix5x5& F,
   Q(1, 3) = dev_pars[14] * yErr * tyErr;
   Q(2, 2) = txErr * txErr;
   Q(3, 3) = tyErr * tyErr;
+}
+
+__device__ inline void ExtrapolateVR1(const float* dev_pars, KalmanFloat zTo, Vector5& x, trackInfo& tI)
+{
+  /*
+  Stripped down version to `ExtrapolateVUT`
+  TODO remove scattering params
+  */
+  // cache the old state
+  KalmanFloat tx_old = x[2];
+  KalmanFloat ty_old = x[3];
+  // step size in z
+  KalmanFloat zFrom = tI.m_Lastz;
+  KalmanFloat dz = zTo - zFrom;
+  // ty
+  float par = tI.m_polarity * dev_pars[0];
+  x[3] += par * std::copysign((KalmanFloat) 1.0, x[1]) * x[4] * tx_old;
+
+  // calculate jacobian
+  // y
+  par = dev_pars[3];
+  x[1] += (par * ty_old + (((KalmanFloat) 1.0) - par) * x[3]) * dz;
+  // tx
+  par = tI.m_polarity * dev_pars[7];
+  KalmanFloat coeff = tI.m_polarity * dev_pars[5] * ((KalmanFloat) 1e1) +
+                      tI.m_polarity * dev_pars[6] * ((KalmanFloat) 1e-2) * zFrom +
+                      par * ((KalmanFloat) 1e2) * ty_old * ty_old;
+
+  KalmanFloat a = x[4] * coeff;
+  KalmanFloat t = ((KalmanFloat) 1.0) + tx_old * tx_old + ty_old * ty_old;
+  KalmanFloat b = a * a * t + ((KalmanFloat) 2.0) * a * tx_old * sqrtf(t);
+  KalmanFloat c = b - ty_old * ty_old - ((KalmanFloat) 1.0);
+  c = fabsf(c) < ((KalmanFloat) 1e-10) ? std::copysign((KalmanFloat) 1e-10, c) : c;
+  KalmanFloat sqroot_term = -(x[3] * x[3] + ((KalmanFloat) 1.0)) * (b + tx_old * tx_old) * c;
+  sqroot_term =
+    sqroot_term > ((KalmanFloat) 0.0) ? sqroot_term : ((KalmanFloat) 0.0); // happens with very low |tx| tracks
+  KalmanFloat sqroot = sqrtf(sqroot_term);
+
+  x[2] += (tx_old * c + std::copysign((KalmanFloat) 1.0, tx_old) * sqroot) / c;
+
+  par = dev_pars[12];
+  // x
+  KalmanFloat zmag = dev_pars[9] * ((KalmanFloat) 1e3) + dev_pars[10] * ((KalmanFloat) 1e-3) * zFrom +
+                     dev_pars[11] * ((KalmanFloat) 1e-5) * zFrom * zFrom + par * ((KalmanFloat) 1e3) * ty_old * ty_old;
+
+  x[0] += (zmag - zFrom) * tx_old + (zTo - zmag) * x[2];
 }
 
 __device__ inline void ExtrapolateInUT(
@@ -668,6 +714,42 @@ __device__ inline void ExtrapolateInT(
 
   tI.m_Lastz = zTo;
 }
+
+__device__ inline void ExtrapolateToR2(const float* dev_pars, KalmanFloat zTo, Vector5& x, trackInfo& tI)
+{
+  /*
+  This is just a stripped down version of `ExtrapolateInT`
+  TODO reduce param length on since we don't need the scattering params.
+  */
+  // cache the old state
+  float old_x2 = x[2];
+  float old_x3 = x[3];
+
+  // step size in z
+  KalmanFloat dz = zTo - tI.m_Lastz;
+
+  int offset = 0;
+  // if (x[1] < 0) offset += 1;
+  // offset *= 12;
+  // predict state
+  // tx
+  x[2] += dz * tI.m_polarity * dev_pars[offset + 4] * ((KalmanFloat) 1.e-1) * x[4];
+  x[2] += dz * tI.m_polarity * dev_pars[offset + 5] * ((KalmanFloat) 1.e3) * x[4] * x[4] * x[4];
+  x[2] += dz * tI.m_polarity * dev_pars[offset + 6] * ((KalmanFloat) 1e-7) * x[1] * x[1] * x[4];
+
+  // ty
+  float par = dev_pars[offset + 7] * x[4];
+  x[3] += par * x[4] * x[1];
+
+  // y
+  par = dev_pars[offset + 2];
+  x[1] += dz * (par * old_x3 + (((KalmanFloat) 1.0) - par) * x[3]);
+
+  // x
+  par = dev_pars[offset + 0];
+  x[0] += dz * (par * old_x2 + (((KalmanFloat) 1.0) - par) * x[2]);
+}
+
 __device__ inline void ExtrapolateTFT(const float* dev_pars, KalmanFloat& zTo, Vector5& x, Matrix5x5& F, trackInfo& tI)
 {
   // cache the old state
@@ -745,10 +827,10 @@ __device__ inline void CreateVeloSeedState(
   // Set the state.
   x(0) = (KalmanFloat) track.hit(nVeloHits - 1).x();
   x(1) = (KalmanFloat) track.hit(nVeloHits - 1).y();
-  x(2) = (KalmanFloat)(
-    (track.hit(0).x() - track.hit(nVeloHits - 1).x()) / (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
-  x(3) = (KalmanFloat)(
-    (track.hit(0).y() - track.hit(nVeloHits - 1).y()) / (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
+  x(2) = (KalmanFloat) ((track.hit(0).x() - track.hit(nVeloHits - 1).x()) /
+                        (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
+  x(3) = (KalmanFloat) ((track.hit(0).y() - track.hit(nVeloHits - 1).y()) /
+                        (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
   tI.m_Lastz = (KalmanFloat) track.hit(nVeloHits - 1).z();
 
   // Set covariance matrix with large uncertainties and no correlations.

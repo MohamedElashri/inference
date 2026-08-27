@@ -43,14 +43,16 @@ private:
 
   Gaudi::Property<std::string> m_weighting_method {this, "WeightingMethod"};
   Gaudi::Property<unsigned> m_max_cluster_size {this, "MaxClusterSize"};
-  Gaudi::Property<float> m_abs_tol {this,
-                                    "AbsoluteTolerance",
-                                    1e-5,
-                                    "Absolute difference tolerance between Allen vs Rec Hits"};
-  Gaudi::Property<float> m_rel_tol {this,
-                                    "RelativeTolerance",
-                                    1e-5,
-                                    "Relative difference tolerance between Allen vs Rec Hits"};
+  Gaudi::Property<float> m_abs_tol {
+    this,
+    "AbsoluteTolerance",
+    1e-5,
+    "Absolute difference tolerance between Allen vs Rec Hits"};
+  Gaudi::Property<float> m_rel_tol {
+    this,
+    "RelativeTolerance",
+    1e-5,
+    "Relative difference tolerance between Allen vs Rec Hits"};
 };
 
 DECLARE_COMPONENT(CompareRecAllenUTHits)
@@ -92,7 +94,7 @@ void CompareRecAllenUTHits::operator()(const std::vector<UT::Hit>& allen_hits, c
   auto sort_by_lhcb_id = [](const auto& hit_a, const auto& hit_b) -> bool { return hit_a.LHCbID < hit_b.LHCbID; };
   auto value_compatible = [&](const float a, const float b) {
     const bool small_value = std::abs(a - b) < m_abs_tol;
-    const bool small_diff = std::abs((a - b) / (0.5 * (a + b))) < m_rel_tol;
+    const bool small_diff = std::abs((a - b) / (0.5f * (a + b))) < m_rel_tol;
     return small_diff || small_value;
   };
   std::sort(sorted_allen_hits.begin(), sorted_allen_hits.end(), sort_by_lhcb_id);

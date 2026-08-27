@@ -140,7 +140,7 @@ __device__ inline std::tuple<float, float, float, float> firstStationWindow(
   const unsigned& i_station,
   const float& station_z,
   const MatchUpstreamMuon::Hit& magnet_hit,
-  const float* magnet_polarity,
+  const float magnet_polarity,
   const MatchUpstreamMuon::SearchWindows& Windows)
 
 {
@@ -159,7 +159,7 @@ __device__ inline std::tuple<float, float, float, float> firstStationWindow(
   const auto t = state.tx();
   const auto d = dtx(qop);
 
-  const auto slope = charge * magnet_polarity[0] < 0 ? t + d : t - d;
+  const auto slope = charge * magnet_polarity < 0 ? t + d : t - d;
 
   const auto xpos = magnet_hit.x + dz * slope;
   const auto xMin = xpos - xw;
@@ -282,7 +282,7 @@ __device__ inline bool match(
   const KalmanVeloState& state,
   const unsigned* station_ocurrences_offset,
   Muon::ConstHits& muon_hits_event,
-  const float* magnet_polarity,
+  const float magnet_polarity,
   const MatchUpstreamMuon::MuonChambers& MuCh,
   const MatchUpstreamMuon::SearchWindows& Windows)
 {

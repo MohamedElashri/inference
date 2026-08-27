@@ -57,6 +57,9 @@ namespace Allen::Rich::Decoding {
     /// Maximum Number of connections per Tel40
     static constexpr const uint64_t MaxConnectionsPerTel40 = MaxNumberMPOsPerSourceID * ConnectionsPerTel40MPO;
 
+    /// Number of possible source-ID payload values
+    static constexpr const uint64_t NSourceIDs = 164;
+
     /// Array of Tel40 for each link in a PDMDB
     using PDMDBLinkData = std::array<Tel40LinkData, MaxLinksPerPDMDB>;
 
@@ -66,8 +69,9 @@ namespace Allen::Rich::Decoding {
     /// Tel40 data for each Module
     using ModuleTel40Data = std::array<PDMDBData, SmartID::TotalModules>;
 
-    using Tel40SourceIDs = std::array<std::array<std::array<std::array<Tel40LinkData, 24>, 164>, 2>, 2>;
-    using Tel40SourceMetas = std::array<std::array<std::array<Tel40MetaData, 164>, 2>, 2>;
+    using Tel40SourceIDs =
+      DetectorArray<PanelArray<std::array<std::array<Tel40LinkData, MaxConnectionsPerTel40>, NSourceIDs>>>;
+    using Tel40SourceMetas = DetectorArray<PanelArray<std::array<Tel40MetaData, NSourceIDs>>>;
 
     // accessors
 
@@ -79,7 +83,7 @@ namespace Allen::Rich::Decoding {
       const uint32_t id,  // PD ID
       const int8_t pdmdb, // PDMDB ID
       const int8_t frame  // PDMDB Frame
-      ) const
+    ) const
     {
       // module number
       const auto modN = (id >> 6) & 0xF; // TODO: RichSmartID.h:912
@@ -94,8 +98,8 @@ namespace Allen::Rich::Decoding {
     __device__ const auto& tel40Data(const int16_t sID) const
     {
       const auto payload = sID & 0x3FF;
-      const auto side = (sID >> 10) & 0x1;
-      const auto rich = (sID >> 11) == 9; // Rich1 is 4, Rich2 is 9. Then, Rich1 is identified with 0, Rich2 is 1.
+      const auto side = static_cast<Detector::Side>((sID >> 10) & 0x1);
+      const auto rich = (sID >> 11) == 9 ? Detector::Rich2 : Detector::Rich1;
       return m_tel40ConnData[rich][side][payload];
     }
 
@@ -103,8 +107,8 @@ namespace Allen::Rich::Decoding {
     __device__ const auto& tel40Meta(const int16_t sID) const
     {
       const auto payload = sID & 0x3FF;
-      const auto side = (sID >> 10) & 0x1;
-      const auto rich = (sID >> 11) == 9; // Rich1 is 4, Rich2 is 9. Then, Rich1 is identified with 0, Rich2 is 1.
+      const auto side = static_cast<Detector::Side>((sID >> 10) & 0x1);
+      const auto rich = (sID >> 11) == 9 ? Detector::Rich2 : Detector::Rich1;
       return m_tel40ConnMeta[rich][side][payload];
     }
 

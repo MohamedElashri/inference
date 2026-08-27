@@ -81,12 +81,13 @@ namespace {
   // detM
   __device__ float fitXZ(const hybrid_seeding::CaseLayers& currentCase, seed_xz::multiHitCombination& hitComb)
   {
-    const unsigned int layers[6] = {currentCase.iFirst,
-                                    currentCase.iLast,
-                                    currentCase.iMiddle,
-                                    currentCase.iRem[0],
-                                    currentCase.iRem[1],
-                                    currentCase.iRem[2]};
+    const unsigned int layers[6] = {
+      currentCase.iFirst,
+      currentCase.iLast,
+      currentCase.iMiddle,
+      currentCase.iRem[0],
+      currentCase.iRem[1],
+      currentCase.iRem[2]};
 
     float rhs[3] = {0.f};
     float lhs[6];
@@ -140,7 +141,7 @@ namespace {
     }
     // Make track
     // FIXME: Hack to make clone selection systematically prefer tracks with more hits
-    if (lhs[0] == 5) score *= 10.f;
+    if (LHCb::essentiallyEqual(lhs[0], 5.f)) score *= 10.f;
     score += currentCase.case_data
                ->scoreOffset; // if 2 tracks using the same hits have the same chi2, privilagiate the first case
     return score;
@@ -320,12 +321,13 @@ __global__ void seed_xz::seed_xz(seed_xz::Parameters parameters)
         __syncthreads();
 
         for (const auto& currentCase : {Case0, Case1}) {
-          const unsigned int layers[6] = {currentCase.iFirst,
-                                          currentCase.iLast,
-                                          currentCase.iMiddle,
-                                          currentCase.iRem[0],
-                                          currentCase.iRem[1],
-                                          currentCase.iRem[2]};
+          const unsigned int layers[6] = {
+            currentCase.iFirst,
+            currentCase.iLast,
+            currentCase.iMiddle,
+            currentCase.iRem[0],
+            currentCase.iRem[1],
+            currentCase.iRem[2]};
 
           __shared__ unsigned nTriplets;
           __syncthreads();

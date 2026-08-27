@@ -78,21 +78,24 @@ namespace two_track_line_ks {
 
   private:
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 20.f, "maxVertexChi2 description"};
-    Allen::Property<float> m_minComboPt_Ks {this,
-                                            "minComboPt_Ks",
-                                            2500.f / Allen::Units::MeV,
-                                            "minComboPt Ks description"};
+    Allen::Property<float> m_minComboPt_Ks {
+      this,
+      "minComboPt_Ks",
+      2500.f / Allen::Units::MeV,
+      "minComboPt Ks description"};
     Allen::Property<float> m_minCosDira {this, "minCosDira", 0.99f, "minCosDira description"};
     Allen::Property<float> m_minEta_Ks {this, "minEta_Ks", 2.f, "minEta_Ks description"};
     Allen::Property<float> m_maxEta_Ks {this, "maxEta_Ks", 4.2f, "maxEta_Ks description"};
-    Allen::Property<float> m_minTrackPt_piKs {this,
-                                              "minTrackPt_piKs",
-                                              470.f / Allen::Units::MeV,
-                                              "minTrackPt_piKs description"};
-    Allen::Property<float> m_minTrackP_piKs {this,
-                                             "minTrackP_piKs",
-                                             5000.f / Allen::Units::MeV,
-                                             "minTrackP_piKs description"};
+    Allen::Property<float> m_minTrackPt_piKs {
+      this,
+      "minTrackPt_piKs",
+      470.f / Allen::Units::MeV,
+      "minTrackPt_piKs description"};
+    Allen::Property<float> m_minTrackP_piKs {
+      this,
+      "minTrackP_piKs",
+      5000.f / Allen::Units::MeV,
+      "minTrackP_piKs description"};
     Allen::Property<float> m_minTrackIPChi2_Ks {this, "minTrackIPChi2_Ks", 50.f, "minTrackIPChi2_Ks description"};
     Allen::Property<float> m_minM_Ks {this, "minM_Ks", 455.0f / Allen::Units::MeV, "minM_Ks description"};
     Allen::Property<float> m_maxM_Ks {this, "maxM_Ks", 545.0f / Allen::Units::MeV, "maxM_Ks description"};

@@ -49,8 +49,8 @@ void write_files(
   Buffers const& buffers)
 {
 
-  zmq::socket_t control = zmqSvc->socket(zmq::PAIR);
-  zmq::setsockopt(control, zmq::LINGER, 0);
+  zmq::socket_t control = zmqSvc->socket(socket_type::pair);
+  control.set(zmq::sockopt::linger, 0);
   control.connect(connection.c_str());
 
   std::optional<Allen::IO> output_file {};
@@ -139,8 +139,8 @@ void write_files(
 
 void timer(IZeroMQSvc* zmqSvc, std::string connection)
 {
-  zmq::socket_t control = zmqSvc->socket(zmq::PAIR);
-  zmq::setsockopt(control, zmq::LINGER, 0);
+  zmq::socket_t control = zmqSvc->socket(socket_type::pair);
+  control.set(zmq::sockopt::linger, 0);
   control.connect(connection.c_str());
 
   zmq::pollitem_t items[] = {{control, 0, zmq::POLLIN, 0}};
@@ -197,21 +197,21 @@ int main(int argc, char* argv[])
   }
 
   // Create a server socket and connect it.
-  zmq::socket_t server = zmqSvc->socket(zmq::REP);
-  zmq::setsockopt(server, zmq::LINGER, 0);
+  zmq::socket_t server = zmqSvc->socket(socket_type::rep);
+  server.set(zmq::sockopt::linger, 0);
   auto server_con = "tcp://*:"s + std::to_string(request_port);
   server.bind(server_con.c_str());
 
   // Create socket to monitor the output rate.
-  zmq::socket_t rate_socket = zmqSvc->socket(zmq::PUB);
-  zmq::setsockopt(rate_socket, zmq::LINGER, 0);
+  zmq::socket_t rate_socket = zmqSvc->socket(socket_type::pub);
+  rate_socket.set(zmq::sockopt::linger, 0);
   auto const rate_con = "tcp://*:"s + std::to_string(request_port + 1);
   rate_socket.bind(rate_con.c_str());
 
   // Create a control socket for the tick thread and bind it.
   std::string tick_connection = "inproc://tick";
-  zmq::socket_t tick_socket = zmqSvc->socket(zmq::PAIR);
-  zmq::setsockopt(tick_socket, zmq::LINGER, 0);
+  zmq::socket_t tick_socket = zmqSvc->socket(socket_type::pair);
+  tick_socket.set(zmq::sockopt::linger, 0);
   tick_socket.bind(tick_connection.c_str());
 
   // Start tick thread
@@ -228,8 +228,8 @@ int main(int argc, char* argv[])
 
   // Create a control socket for the writer thread and bind it.
   std::string writer_connection = "inproc://writer";
-  zmq::socket_t writer_socket = zmqSvc->socket(zmq::PAIR);
-  zmq::setsockopt(writer_socket, zmq::LINGER, 0);
+  zmq::socket_t writer_socket = zmqSvc->socket(socket_type::pair);
+  writer_socket.set(zmq::sockopt::linger, 0);
   writer_socket.bind(writer_connection.c_str());
 
   // Start writing thread
@@ -299,9 +299,10 @@ int main(int argc, char* argv[])
       if (msg == "PORT") {
         auto client_id = zmqSvc->receive<std::string>(server);
         auto port = data_port++;
-        auto& [client_name, data_socket] = clients.emplace_back(std::move(client_id), zmqSvc->socket(zmq::PAIR));
-        zmq::setsockopt(data_socket, zmq::LINGER, 500);
-        zmq::setsockopt(data_socket, zmq::SNDTIMEO, 500);
+        auto& [client_name, data_socket] =
+          clients.emplace_back(std::move(client_id), zmqSvc->socket(socket_type::pair));
+        data_socket.set(zmq::sockopt::linger, 500);
+        data_socket.set(zmq::sockopt::sndtimeo, 500);
         auto data_con = "tcp://*:"s + std::to_string(port);
         data_socket.bind(data_con.c_str());
         items.emplace_back(zmq::pollitem_t {data_socket, 0, zmq::POLLIN, 0});

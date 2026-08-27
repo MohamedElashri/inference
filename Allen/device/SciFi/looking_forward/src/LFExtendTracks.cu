@@ -114,7 +114,7 @@ __device__ void extend_tracks(
       }
 
       if (best_index != -1) {
-        track.add_hit_with_quality((uint16_t)(window_start + best_index), best_chi2);
+        track.add_hit_with_quality((uint16_t) (window_start + best_index), best_chi2);
         track.XhitsNum += 1;
       }
     }

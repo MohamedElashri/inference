@@ -9,27 +9,38 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import (
-    kstopipi_line_t, track_mva_line_t, two_track_mva_line_t,
-    two_track_mva_evaluator_t, two_track_line_ks_t, lambda2ppi_line_t,
-    lambda_ll_detached_track_line_t, ks_ll_detached_track_line_t,
-    xi_omega_lll_line_t, cone_jet_line_t, diproton_highmass_line_t,
-    tautophimu_line_t, quirks_line_t)
-from AllenConf.utils import initialize_number_of_events
-from AllenCore.generator import make_algorithm
+    cone_jet_line_t,
+    diproton_highmass_line_t,
+    ks_ll_detached_track_line_t,
+    kstopipi_line_t,
+    lambda2ppi_line_t,
+    lambda_ll_detached_track_line_t,
+    quirks_line_t,
+    tautophimu_line_t,
+    track_mva_line_t,
+    two_track_line_ks_t,
+    two_track_mva_evaluator_t,
+    two_track_mva_line_t,
+    xi_omega_lll_line_t,
+)
 from AllenCore.configuration_options import is_allen_standalone
+from AllenCore.generator import make_algorithm
+
 from AllenConf.utils import initialize_number_of_events
 from AllenConf.velo_reconstruction import velo_quirks_pairs
 
 
-def make_kstopipi_line(long_tracks,
-                       secondary_vertices,
-                       pre_scaler_hash_string=None,
-                       post_scaler_hash_string=None,
-                       post_scaler=1.0,
-                       name='Hlt1KsToPiPi_{hash}',
-                       double_muon_misid=False,
-                       enable_monitoring=True,
-                       enable_tupling=False):
+def make_kstopipi_line(
+    long_tracks,
+    secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    post_scaler=1.0,
+    name="Hlt1KsToPiPi_{hash}",
+    double_muon_misid=False,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -40,23 +51,25 @@ def make_kstopipi_line(long_tracks,
         enable_tupling=enable_tupling,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
-        post_scaler=post_scaler)
+        post_scaler=post_scaler,
+    )
 
 
-def make_track_mva_line(long_tracks,
-                        long_track_particles,
-                        maxChi2Ndof,
-                        pre_scaler_hash_string=None,
-                        post_scaler_hash_string=None,
-                        name='Hlt1TrackMVA_{hash}',
-                        enable_tupling=False,
-                        enable_monitoring=True,
-                        alpha=296,
-                        maxGhostProb=0.5):
+def make_track_mva_line(
+    long_tracks,
+    long_track_particles,
+    maxChi2Ndof,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1TrackMVA_{hash}",
+    enable_tupling=False,
+    enable_monitoring=True,
+    alpha=296,
+    maxGhostProb=0.5,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -64,65 +77,72 @@ def make_track_mva_line(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_reconstructed_scifi_tracks_t=long_tracks[
-            "host_number_of_reconstructed_scifi_tracks"],
+            "host_number_of_reconstructed_scifi_tracks"
+        ],
         dev_particle_container_t=long_track_particles[
-            "dev_multi_event_basic_particles"],
+            "dev_multi_event_basic_particles"
+        ],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_tupling=enable_tupling,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         maxChi2Ndof=maxChi2Ndof,
         alpha=alpha,
-        maxGhostProb=maxGhostProb)
+        maxGhostProb=maxGhostProb,
+    )
 
 
-def make_two_track_mva_line(long_tracks,
-                            secondary_vertices,
-                            pre_scaler_hash_string=None,
-                            post_scaler_hash_string=None,
-                            name='Hlt1TwoTrackMVA_{hash}',
-                            enable_tupling=False,
-                            enable_monitoring=True,
-                            minMVA=0.9569,
-                            maxGhostProb=0.5):
+def make_two_track_mva_line(
+    long_tracks,
+    secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1TwoTrackMVA_{hash}",
+    enable_tupling=False,
+    enable_monitoring=True,
+    minMVA=0.9569,
+    maxGhostProb=0.5,
+):
     number_of_events = initialize_number_of_events()
 
     two_track_mva_evaluator = make_algorithm(
         two_track_mva_evaluator_t,
-        name='two_track_mva_evaluator_{hash}',
+        name="two_track_mva_evaluator_{hash}",
         dev_consolidated_svs_t=secondary_vertices["dev_consolidated_svs"],
         dev_sv_offsets_t=secondary_vertices["dev_sv_offsets"],
-        host_number_of_svs_t=secondary_vertices["host_number_of_svs"])
+        host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
+    )
 
     return make_algorithm(
         two_track_mva_line_t,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
-        dev_two_track_mva_evaluation_t=two_track_mva_evaluator.
-        dev_two_track_mva_evaluation_t,
+        dev_two_track_mva_evaluation_t=two_track_mva_evaluator.dev_two_track_mva_evaluation_t,
         enable_tupling=enable_tupling,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         minMVA=minMVA,
-        maxGhostProb=maxGhostProb)
+        maxGhostProb=maxGhostProb,
+    )
 
 
-def make_two_track_line_ks(long_tracks,
-                           secondary_vertices,
-                           pre_scaler_hash_string=None,
-                           post_scaler_hash_string=None,
-                           name='Hlt1TwoTrackKs_{hash}',
-                           enable_tupling=False,
-                           minTrackPt_piKs=470,
-                           minTrackP_piKs=5000,
-                           minTrackIPChi2_Ks=50,
-                           maxEta_Ks=4.2,
-                           min_combip=0.72,
-                           minComboPt_Ks=100):
+def make_two_track_line_ks(
+    long_tracks,
+    secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1TwoTrackKs_{hash}",
+    enable_tupling=False,
+    minTrackPt_piKs=470,
+    minTrackP_piKs=5000,
+    minTrackIPChi2_Ks=50,
+    maxEta_Ks=4.2,
+    min_combip=0.72,
+    minComboPt_Ks=100,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -130,8 +150,7 @@ def make_two_track_line_ks(long_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         minTrackPt_piKs=minTrackPt_piKs,
@@ -140,24 +159,26 @@ def make_two_track_line_ks(long_tracks,
         maxEta_Ks=maxEta_Ks,
         min_combip=min_combip,
         minComboPt_Ks=minComboPt_Ks,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_lambda2ppi_line(secondary_vertices,
-                         name,
-                         pre_scaler_hash_string=None,
-                         post_scaler_hash_string=None,
-                         minPVZ=-200.,
-                         maxPVZ=200.,
-                         maxVtxChi2=10.,
-                         minVZ=-80.,
-                         minDIRA=0.9997,
-                         minpipchi2=12.,
-                         minpiipchi2=32.,
-                         minpipt=80.,
-                         enable_tupling=False,
-                         enable_monitoring=False):
-
+def make_lambda2ppi_line(
+    secondary_vertices,
+    name,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    minPVZ=-200.0,
+    maxPVZ=200.0,
+    maxVtxChi2=10.0,
+    minVZ=-80.0,
+    minDIRA=0.9997,
+    minpipchi2=12.0,
+    minpiipchi2=32.0,
+    minpipt=80.0,
+    enable_tupling=False,
+    enable_monitoring=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -165,8 +186,7 @@ def make_lambda2ppi_line(secondary_vertices,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         minPVZ=minPVZ,
         maxPVZ=maxPVZ,
         L_VZ_min=minVZ,
@@ -175,19 +195,21 @@ def make_lambda2ppi_line(secondary_vertices,
         L_p_MIPCHI2_min=minpipchi2,
         L_pi_MIPCHI2_min=minpiipchi2,
         L_pi_PT_min=minpipt,
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_tupling=enable_tupling,
-        enable_monitoring=is_allen_standalone() and enable_monitoring)
+        enable_monitoring=is_allen_standalone() and enable_monitoring,
+    )
 
 
-def make_lambda_ll_detached_track_line(sv_track_candidates,
-                                       name,
-                                       pre_scaler_hash_string=None,
-                                       post_scaler_hash_string=None,
-                                       enable_monitoring=True,
-                                       enable_tupling=False):
-
+def make_lambda_ll_detached_track_line(
+    sv_track_candidates,
+    name,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -195,22 +217,28 @@ def make_lambda_ll_detached_track_line(sv_track_candidates,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=sv_track_candidates[
-            "host_number_of_sv_track_combinations"],
-        dev_particle_container_t=sv_track_candidates[
-            "dev_multi_event_composites"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+            "host_number_of_sv_track_combinations"
+        ],
+        dev_particle_container_t=sv_track_candidates["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_monitoring=enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_ks_ll_detached_track_line(sv_track_candidates,
-                                   name,
-                                   pre_scaler_hash_string=None,
-                                   post_scaler_hash_string=None,
-                                   enable_monitoring=True,
-                                   enable_tupling=False):
-
+def make_ks_ll_detached_track_line(
+    sv_track_candidates,
+    name,
+    pi_PT_min=470,
+    Ks_PT_min=1400,
+    h_PT_min=700,
+    SUMPT_min=2500,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -218,22 +246,28 @@ def make_ks_ll_detached_track_line(sv_track_candidates,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=sv_track_candidates[
-            "host_number_of_sv_track_combinations"],
-        dev_particle_container_t=sv_track_candidates[
-            "dev_multi_event_composites"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+            "host_number_of_sv_track_combinations"
+        ],
+        dev_particle_container_t=sv_track_candidates["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        pi_PT_min=pi_PT_min,
+        Ks_PT_min=Ks_PT_min,
+        h_PT_min=h_PT_min,
+        SUMPT_min=SUMPT_min,
         enable_monitoring=enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_tautophimu_line(phi_plus_track,
-                         name="Hlt1TauToPhiMu",
-                         enable_monitoring=True,
-                         enable_tupling=False,
-                         pre_scaler_hash_string=None,
-                         post_scaler_hash_string=None):
-
+def make_tautophimu_line(
+    phi_plus_track,
+    name="Hlt1TauToPhiMu",
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -242,20 +276,21 @@ def make_tautophimu_line(phi_plus_track,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         enable_tupling=enable_tupling,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=phi_plus_track[
-            "host_number_of_sv_track_combinations"],
+        host_number_of_svs_t=phi_plus_track["host_number_of_sv_track_combinations"],
         dev_particle_container_t=phi_plus_track["dev_multi_event_composites"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+    )
 
 
-def make_detached_xi_omega_lll_line(sv_twotrack_candidates,
-                                    name,
-                                    pre_scaler_hash_string=None,
-                                    post_scaler_hash_string=None,
-                                    enable_monitoring=True,
-                                    enable_tupling=False):
-
+def make_detached_xi_omega_lll_line(
+    sv_twotrack_candidates,
+    name,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -263,23 +298,26 @@ def make_detached_xi_omega_lll_line(sv_twotrack_candidates,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=sv_twotrack_candidates[
-            "host_number_of_sv_track_combinations"],
-        dev_particle_container_t=sv_twotrack_candidates[
-            "dev_multi_event_composites"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+            "host_number_of_sv_track_combinations"
+        ],
+        dev_particle_container_t=sv_twotrack_candidates["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_monitoring=enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_cone_jet_line(jets,
-                       name='Hlt1ConeJet_{hash}',
-                       pre_scaler_hash_string=None,
-                       post_scaler_hash_string=None,
-                       pre_scaler=1.,
-                       min_pt=15000.,
-                       max_pt=1000000.,
-                       enable_tupling=False):
+def make_cone_jet_line(
+    jets,
+    name="Hlt1ConeJet_{hash}",
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    pre_scaler=1.0,
+    min_pt=15000.0,
+    max_pt=1000000.0,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -290,22 +328,25 @@ def make_cone_jet_line(jets,
         dev_particle_container_t=jets["dev_multi_event_jets"],
         min_jet_pt=min_pt,
         max_jet_pt=max_pt,
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         pre_scaler=pre_scaler,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_diproton_highmass_line(secondary_vertices,
-                                pre_scaler_hash_string=None,
-                                post_scaler_hash_string=None,
-                                minPT_p=4000,
-                                minPT_pp=4000,
-                                pre_scaler=1.,
-                                post_scaler=1.,
-                                name='Hlt1DiProtonHighMass_{hash}',
-                                enable_monitoring=True,
-                                enable_tupling=False):
+def make_diproton_highmass_line(
+    secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    minPT_p=4000,
+    minPT_pp=4000,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    name="Hlt1DiProtonHighMass_{hash}",
+    enable_monitoring=True,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -313,8 +354,7 @@ def make_diproton_highmass_line(secondary_vertices,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=secondary_vertices["host_number_of_svs"],
-        dev_particle_container_t=secondary_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=secondary_vertices["dev_multi_event_composites"],
         minPT_p=minPT_p,
         minPT_pp=minPT_pp,
         pre_scaler=pre_scaler,
@@ -322,19 +362,22 @@ def make_diproton_highmass_line(secondary_vertices,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
-def make_quirks_line(pre_scaler_hash_string="track_mva_line_pre",
-                     post_scaler_hash_string="track_mva_line_post",
-                     name="Hlt1Quirks",
-                     maxPHI=0.07,
-                     maxPHIDF=0.06,
-                     maxR=5.0,
-                     minStations=6,
-                     hit_threshold=200,
-                     max_opposite_considered=6,
-                     enable_tupling=True):
+def make_quirks_line(
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1Quirks",
+    maxPHI=0.07,
+    maxPHIDF=0.06,
+    maxR=5.0,
+    minStations=6,
+    hit_threshold=200,
+    max_opposite_considered=6,
+    enable_tupling=True,
+):
     number_of_events = initialize_number_of_events()
     quirks_pairs = velo_quirks_pairs(
         maxPHI=maxPHI,
@@ -342,12 +385,14 @@ def make_quirks_line(pre_scaler_hash_string="track_mva_line_pre",
         maxR=maxR,
         minStations=minStations,
         hit_threshold=hit_threshold,
-        max_opposite_considered=max_opposite_considered)
+        max_opposite_considered=max_opposite_considered,
+    )
     return make_algorithm(
         quirks_line_t,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         dev_quirks_pairs_t=quirks_pairs["dev_quirks_pairs"],
-        pre_scaler_hash_string=pre_scaler_hash_string,
-        post_scaler_hash_string=post_scaler_hash_string,
-        enable_tupling=enable_tupling)
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        enable_tupling=enable_tupling,
+    )

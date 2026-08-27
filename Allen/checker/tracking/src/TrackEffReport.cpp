@@ -94,7 +94,7 @@ void Checker::TrackEffReport::report() const
   const double n_tot = m_nfound + m_nclones;
   if (m_nfound) clonerate = double(m_nclones) / n_tot;
   if (m_naccept) eff = double(m_nfound) / double(m_naccept);
-  if (m_number_of_events) eff_per_event = m_eff_per_event / m_number_of_events;
+  if (!LHCb::essentiallyZero(m_number_of_events)) eff_per_event = m_eff_per_event / m_number_of_events;
 
   if (m_naccept > 0) {
     auto hitpur = std::accumulate(std::begin(m_hitpurs), std::end(m_hitpurs), 0.0) / (m_nfound + m_nclones);

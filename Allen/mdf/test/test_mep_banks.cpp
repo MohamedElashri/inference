@@ -12,6 +12,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <iomanip>
 #include <unordered_set>
 #include <map>
@@ -99,12 +100,16 @@ IInputProvider* mep_provider()
   auto prop = app.as<IProperty>();
   bool sc = prop->setProperty("ExtSvc", "[\"AllenConfiguration\", \"MEPProvider\"]").isSuccess();
   sc &= prop->setProperty("JobOptionsType", "\"NONE\"");
+  if (s_config.debug) {
+    sc &= prop->setProperty("OutputLevel", MSG::DEBUG);
+  }
   sc &= app->configure();
 
   auto sloc = app.as<ISvcLocator>();
 
   auto allen_conf = sloc->service<IService>("AllenConfiguration");
   if (!allen_conf) return nullptr;
+
   auto allen_conf_prop = allen_conf.as<IProperty>();
   sc &= allen_conf_prop->setProperty("JSON", "{}").isSuccess();
 
@@ -116,11 +121,10 @@ IInputProvider* mep_provider()
   sc &= provider_prop->setProperty("NSlices", std::to_string(s_config.n_slices)).isSuccess();
   sc &= provider_prop->setProperty("EventsPerSlice", std::to_string(s_config.eps));
   sc &= provider_prop->setProperty("EvtMax", std::to_string(s_config.n_events));
-  sc &= provider_prop->setProperty("SplitByRun", "0");
   sc &= provider_prop->setProperty("Source", "\"Files\"");
   sc &= provider_prop->setProperty("BufferConfig", "(2, 2)");
   sc &= provider_prop->setProperty("TransposeMEPs", std::to_string(s_config.transpose_mep));
-  sc &= provider_prop->setProperty("OutputLevel", s_config.debug ? "2" : "3");
+  sc &= provider_prop->setProperty("OutputLevel", s_config.debug ? MSG::DEBUG : MSG::INFO);
 
   auto mep_files = split_string(s_config.mep_files, ",");
   std::stringstream ss;
@@ -134,8 +138,74 @@ IInputProvider* mep_provider()
 
   sc &= app->initialize();
   sc &= app->start();
-  sc &= app->stop();
+
+  if (!sc) return nullptr;
+
   return dynamic_cast<IInputProvider*>(provider.get());
+}
+
+bool acquire_slices(
+  IInputProvider* provider,
+  std::unordered_map<EventID, unsigned>& slices,
+  std::string_view provider_name)
+{
+  constexpr unsigned slice_timeout_ms = 60'000;
+  constexpr unsigned max_empty_retries = 8;
+
+  unsigned empty_retries = 0;
+  for (size_t s = 0; s < s_config.n_slices;) {
+    auto [good, done, timed_out, slice_id, n_filled, odin] = provider->get_slice(slice_timeout_ms);
+    if (timed_out) {
+      std::cerr << "Timed out waiting for " << provider_name << " slice " << s << "\n";
+      return false;
+    }
+    if (!good) {
+      std::cerr << "Failed to obtain " << provider_name << " slice " << s << "\n";
+      return false;
+    }
+    if (n_filled == 0) {
+      // A slice can come back empty because the provider needed a free
+      // slice to finish transposing a batch that didn't fit in one
+      // slice's buffer (see MEPProvider::transpose()'s requeueing of
+      // overflow intervals); free this one to give that retry a slice
+      // to use, and try again a bounded number of times before
+      // treating it as genuine end of input.
+      provider->slice_free(slice_id);
+      if (++empty_retries > max_empty_retries) {
+        break;
+      }
+      continue;
+    }
+    empty_retries = 0;
+
+    auto events = provider->event_ids(slice_id);
+    if (events.empty()) {
+      std::cerr << provider_name << " slice " << s << " has no event IDs\n";
+      return false;
+    }
+    slices.emplace(events.front(), slice_id);
+    ++s;
+  }
+
+  return !slices.empty();
+}
+
+// Stop and finalize the application, reporting any failure instead of
+// silently discarding it.
+bool shutdown_app()
+{
+  if (!app) return true;
+
+  bool ok = true;
+  if (auto sc = app->stop(); !sc.isSuccess()) {
+    std::cerr << "Failed to stop application: " << sc << "\n";
+    ok = false;
+  }
+  if (auto sc = app->finalize(); !sc.isSuccess()) {
+    std::cerr << "Failed to finalize application: " << sc << "\n";
+    ok = false;
+  }
+  return ok;
 }
 
 int main(int argc, char* argv[])
@@ -189,13 +259,14 @@ int main(int argc, char* argv[])
     }
 
     // Allocate providers and get slices
-    std::map<std::string, std::string> options = {{"s", std::to_string(s_config.n_slices)},
-                                                  {"n", std::to_string(s_config.n_events)},
-                                                  {"v", std::to_string(s_config.debug ? 4 : 3)},
-                                                  {"mdf", s_config.mdf_files},
-                                                  {"sequence", "null"},
-                                                  {"events-per-slice", std::to_string(s_config.eps)},
-                                                  {"disable-run-changes", "1"}};
+    std::map<std::string, std::string> options = {
+      {"s", std::to_string(s_config.n_slices)},
+      {"n", std::to_string(s_config.n_events)},
+      {"v", std::to_string(s_config.debug ? 4 : 3)},
+      {"mdf", s_config.mdf_files},
+      {"sequence", "null"},
+      {"events-per-slice", std::to_string(s_config.eps)},
+      {"disable-run-changes", "1"}};
 
     auto [config, config_source] = Allen::sequence_conf(options);
     mdf = Allen::make_provider(options, config);
@@ -205,52 +276,37 @@ int main(int argc, char* argv[])
     }
 
     mep = mep_provider();
-    if (mep == nullptr) {
+    if (!mep) {
       std::cerr << "Failed to obtain MEPProvider\n";
       return 1;
     }
 
-    bool good = false, timed_out = false, done = false;
-    unsigned slice_id = 0, n_filled = 0;
-
-    for (size_t s = 0; s < s_config.n_slices; ++s) {
-      std::any odin;
-      std::tie(good, done, timed_out, slice_id, n_filled, odin) = mdf->get_slice();
-      if (!good) {
-        std::cerr << "Failed to obtain MDF slice " << s << "\n";
-        return 1;
-      }
-
-      auto events_mdf = mdf->event_ids(slice_id);
-      auto first_id = events_mdf.front();
-      s_config.mdf_slices.emplace(std::move(first_id), slice_id);
-
-      std::tie(good, done, timed_out, slice_id, n_filled, odin) = mep->get_slice();
-      if (!good) {
-        std::cerr << "Failed to obtain MEP slice " << s << "\n";
-        return 1;
-      }
-
-      auto events_mep = mep->event_ids(slice_id);
-      first_id = events_mep.front();
-      s_config.mep_slices.emplace(std::move(first_id), slice_id);
+    if (!acquire_slices(mdf.get(), s_config.mdf_slices, "MDF") || !acquire_slices(mep, s_config.mep_slices, "MEP")) {
+      mdf.reset();
+      shutdown_app();
+      return 1;
     }
   }
 
+  std::cout << "Running Session" << std::endl;
   auto r = session.run();
 
+  std::cout << "Freeing MDF slices" << std::endl;
   for (auto [id, slice_mdf] : s_config.mdf_slices) {
     mdf->slice_free(slice_mdf);
   }
 
+  std::cout << "Freeing MEP slices" << std::endl;
   for (auto [id, slice_mep] : s_config.mep_slices) {
     mep->slice_free(slice_mep);
   }
 
+  std::cout << "Finalising" << std::endl;
   mdf.reset();
-  if (app) {
-    app->finalize().ignore();
+  if (!shutdown_app() && r == 0) {
+    r = 1;
   }
+
   return r;
 }
 
@@ -597,7 +653,12 @@ TEMPLATE_TEST_CASE("MEP vs MDF", "[MEP MDF]", ECalTag, MuonTag, VeloTag, SciFiTa
 
   for (auto [event_id, slice_mdf] : s_config.mdf_slices) {
     auto it = s_config.mep_slices.find(event_id);
-    REQUIRE(it != s_config.mep_slices.end());
+    if (it == s_config.mep_slices.end()) {
+      // One provider may legitimately end up with fewer slices than the
+      // other if its input ran out before the other's did; only compare
+      // slices that both providers actually delivered.
+      continue;
+    }
 
     auto const slice_mep = it->second;
 

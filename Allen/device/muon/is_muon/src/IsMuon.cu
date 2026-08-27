@@ -59,16 +59,17 @@ __device__ std::pair<float, float> field_of_interest(
   const int region,
   const float momentum)
 {
-  return {elliptical_foi_window(
-            muon_foi_params->param(Muon::Constants::FoiParams::a, Muon::Constants::FoiParams::x, station, region),
-            muon_foi_params->param(Muon::Constants::FoiParams::b, Muon::Constants::FoiParams::x, station, region),
-            muon_foi_params->param(Muon::Constants::FoiParams::c, Muon::Constants::FoiParams::x, station, region),
-            momentum),
-          elliptical_foi_window(
-            muon_foi_params->param(Muon::Constants::FoiParams::a, Muon::Constants::FoiParams::y, station, region),
-            muon_foi_params->param(Muon::Constants::FoiParams::b, Muon::Constants::FoiParams::y, station, region),
-            muon_foi_params->param(Muon::Constants::FoiParams::c, Muon::Constants::FoiParams::y, station, region),
-            momentum)};
+  return {
+    elliptical_foi_window(
+      muon_foi_params->param(Muon::Constants::FoiParams::a, Muon::Constants::FoiParams::x, station, region),
+      muon_foi_params->param(Muon::Constants::FoiParams::b, Muon::Constants::FoiParams::x, station, region),
+      muon_foi_params->param(Muon::Constants::FoiParams::c, Muon::Constants::FoiParams::x, station, region),
+      momentum),
+    elliptical_foi_window(
+      muon_foi_params->param(Muon::Constants::FoiParams::a, Muon::Constants::FoiParams::y, station, region),
+      muon_foi_params->param(Muon::Constants::FoiParams::b, Muon::Constants::FoiParams::y, station, region),
+      muon_foi_params->param(Muon::Constants::FoiParams::c, Muon::Constants::FoiParams::y, station, region),
+      momentum)};
 }
 
 __device__ bool is_in_window(

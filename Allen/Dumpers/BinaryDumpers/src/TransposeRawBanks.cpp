@@ -8,9 +8,6 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include <cstring>
-#include <fstream>
-#include <string>
 #include <unordered_map>
 #include <vector>
 #include <array>
@@ -18,8 +15,6 @@
 #include "Gaudi/Accumulators/Histogram.h"
 
 #include <LHCbAlgs/MergingTransformer.h>
-#include <GaudiKernel/GaudiException.h>
-#include <Gaudi/Parsers/Factory.h>
 
 #include <Event/ODIN.h>
 #include <Event/RawBank.h>
@@ -50,45 +45,6 @@ using VOC = Gaudi::Functional::vector_of_const_<T>;
 // bank_data           | char     | variable
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-std::string toString(BankTypes e) { return bank_name(e); }
-std::ostream& toStream(BankTypes e, std::ostream& os) { return os << std::quoted(toString(e), '\''); }
-std::ostream& operator<<(std::ostream& s, BankTypes e) { return toStream(e, s); }
-
-StatusCode parse(BankTypes& bt, const std::string& in)
-{
-  auto s = std::string_view {in};
-  if (!s.empty() && s.front() == s.back() && (s.front() == '\'' || s.front() == '\"')) {
-    s.remove_prefix(1);
-    s.remove_suffix(1);
-  }
-  // Use BankSizes here because it has all he BankTypes as keys.
-  auto i = std::find_if(BankSizes.begin(), BankSizes.end(), [s](auto e) { return s == bank_name(std::get<0>(e)); });
-  if (i == BankSizes.end()) return StatusCode::FAILURE;
-  bt = i->first;
-  return StatusCode::SUCCESS;
-}
-
-namespace Gaudi::Parsers {
-  StatusCode parse(std::set<BankTypes>& s, const std::string& in)
-  {
-    s.clear();
-    using Gaudi::Parsers::parse;
-    std::set<std::string> ss;
-    return parse(ss, in).andThen([&]() -> StatusCode {
-      try {
-        std::transform(begin(ss), end(ss), std::inserter(s, begin(s)), [](const std::string& str) {
-          BankTypes t {};
-          parse(t, str).orThrow("Bad Parse", "");
-          return t;
-        });
-        return StatusCode::SUCCESS;
-      } catch (const GaudiException& e) {
-        return e.code();
-      }
-    });
-  }
-} // namespace Gaudi::Parsers
-
 namespace {
   bool check_top5(BankTypes bt, LHCb::RawBank const* bank)
   {
@@ -115,17 +71,18 @@ public:
   std::array<TransposedBanks, NBankTypes> operator()(VOC<LHCb::RawBank::View> const& rawEvents) const override;
 
 private:
-  Gaudi::Property<std::set<BankTypes>> m_bankTypes {this,
-                                                    "BankTypes",
-                                                    {BankTypes::VP,
-                                                     BankTypes::UT,
-                                                     BankTypes::FT,
-                                                     BankTypes::MUON,
-                                                     BankTypes::ODIN,
-                                                     BankTypes::Rich1,
-                                                     BankTypes::Rich2,
-                                                     BankTypes::ECal,
-                                                     BankTypes::Plume}};
+  Gaudi::Property<std::set<BankTypes>> m_bankTypes {
+    this,
+    "BankTypes",
+    {BankTypes::VP,
+     BankTypes::UT,
+     BankTypes::FT,
+     BankTypes::MUON,
+     BankTypes::ODIN,
+     BankTypes::Rich1,
+     BankTypes::Rich2,
+     BankTypes::ECal,
+     BankTypes::Plume}};
 
   std::array<std::unique_ptr<Gaudi::Accumulators::Histogram<1>>, NBankTypes> m_histos;
 
@@ -234,16 +191,27 @@ std::array<TransposedBanks, NBankTypes> TransposeRawBanks::operator()(VOC<LHCb::
 
     std::vector<uint32_t> bankOffsets;
     bankOffsets.push_back(0);
-    std::vector<uint16_t> bankSizes;
-    bankSizes.reserve(nBanks);
-    std::vector<uint8_t> bankTypes;
-    bankTypes.reserve(nBanks);
+
+    std::vector<uint32_t> bankSizes;
+    bankSizes.resize(2 + nBanks / 2 + 1);
+    // Only 1 event, so a single offset is enough. The offset
+    // counts uint16_t and is a uint32_t itself.
+    bankSizes[0] = 2;
+    uint16_t* sizes = reinterpret_cast<uint16_t*>(&bankSizes[1]);
+
+    std::vector<uint32_t> bankTypes;
+    bankTypes.resize(2 + nBanks / 4 + 1);
+    // Only 1 event, so a single offset offset is enough. The offset
+    // counts uint8_t and is a uint32_t itself.
+    bankTypes[0] = 4;
+    uint8_t* types = reinterpret_cast<uint8_t*>(&bankTypes[1]);
 
     std::vector<uint32_t> bankData;
     bankData.reserve(std::accumulate(banks.begin(), banks.end(), 0, [](int sum, const LHCb::RawBank* const b) {
       return sum + (b->size() + sizeof(unsigned) - 1) / sizeof(unsigned);
     }));
 
+    int ibank = 0;
     for (auto& bank : banks) {
       const uint32_t sourceID = static_cast<uint32_t>(bank->sourceID());
       bankData.push_back(sourceID);
@@ -268,15 +236,23 @@ std::array<TransposedBanks, NBankTypes> TransposeRawBanks::operator()(VOC<LHCb::
         offset++;
       }
       bankOffsets.push_back(offset * sizeof(uint32_t));
-      bankSizes.push_back(bank->size());
-      bankTypes.push_back(static_cast<uint8_t>(bank->type()));
+      sizes[ibank] = bank->size();
+      types[ibank] = static_cast<uint8_t>(bank->type());
+      ibank++;
     }
 
     // Dumping number_of_rawbanks + 1 offsets!
     DumpUtils::Writer bank_buffer;
     bank_buffer.write(nBanks, bankOffsets, bankData);
-    output[to_integral(bt)] =
-      TransposedBanks {bank_buffer.buffer(), std::move(bankSizes), std::move(bankTypes), banks[0]->version()};
+
+    // Offsets to events (we only process one event)
+    std::vector<uint32_t> event_offsets {};
+    event_offsets.resize(2);
+    event_offsets[0] = 0;
+    event_offsets[1] = bank_buffer.buffer().size();
+
+    output[to_integral(bt)] = TransposedBanks {
+      bank_buffer.buffer(), std::move(event_offsets), std::move(bankSizes), std::move(bankTypes), banks[0]->version()};
   }
   return output;
 }

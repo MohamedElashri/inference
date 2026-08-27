@@ -27,7 +27,7 @@ namespace LongTrack {
     const std::array<float, 16> momentum_parameters)
   {
     // Pick parametrisation from polarity condition
-    // magSign is -1*dev_magnet_polarity so negative sign is MagUp
+    // magSign is -1 * magnet_polarity so negative sign is MagUp
     const float* params = momentum_parameters.data() + (magSign < 0 ? 0 : 8);
 
     const auto dslope = txT - txV;

@@ -25,7 +25,6 @@ namespace lf_triplet_seeding {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
     HOST_INPUT(host_number_of_reconstructed_input_tracks_t, unsigned) host_number_of_reconstructed_input_tracks;
     HOST_INPUT(host_scifi_hit_count_t, unsigned) host_scifi_hit_count;
-    HOST_INPUT(host_track_type_id_t, Allen::TypeIDs) host_track_type_id;
     MASK_INPUT(dev_event_list_t) dev_event_list;
     DEVICE_INPUT(dev_number_of_events_t, unsigned) dev_number_of_events;
     DEVICE_INPUT(dev_scifi_hits_t, char) dev_scifi_hits;
@@ -61,12 +60,14 @@ namespace lf_triplet_seeding {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<unsigned> m_maximum_number_of_triplets_per_warp {this,
-                                                                     "maximum_number_of_triplets_per_warp",
-                                                                     LookingForward::max_triplets_per_track,
-                                                                     "maximum_number_of_triplets_per_warp"};
+    Allen::Property<unsigned> m_maximum_number_of_triplets_per_warp {
+      this,
+      "maximum_number_of_triplets_per_warp",
+      LookingForward::max_triplets_per_track,
+      "maximum_number_of_triplets_per_warp"};
     Allen::Property<float> m_chi2_max_triplet_single {this, "chi2_max_triplet_single", 8., "chi2_max_triplet_single"};
     Allen::Property<float> m_z_mag_difference {this, "z_mag_difference", 10., "z_mag_difference"};
+    Allen::Property<bool> m_with_ut {this, "with_ut", true, "UT or Velo tracks as input"};
     Allen::Monitoring::Counter<> m_n_overflow_maximum_number_of_triplets_per_warp {
       this,
       "n_overflow_maximum_number_of_triplets_per_warp"};

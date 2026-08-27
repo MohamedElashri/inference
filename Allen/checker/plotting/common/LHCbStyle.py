@@ -8,9 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from ROOT import gStyle
-from ROOT import gROOT
-from ROOT import TStyle
+from ROOT import TStyle, gROOT
 
 
 def setLHCbStyle():
@@ -75,13 +73,13 @@ def setLHCbStyle():
 
     # by default, do not display histogram decorations:
     lhcbStyle.SetOptStat(0)
-    #lhcbStyle.SetOptStat("emr")  # show only nent -e , mean - m , rms -r
+    # lhcbStyle.SetOptStat("emr")  # show only nent -e , mean - m , rms -r
     # full opts at http:#root.cern.ch/root/html/TStyle.html#TStyle:SetOptStat
     lhcbStyle.SetStatFormat("6.3g")  # specified as c printf options
     lhcbStyle.SetOptTitle(0)
     lhcbStyle.SetOptFit(0)
-    #lhcbStyle.SetOptFit(1011) # order is probability, Chi2, errors, parameters
-    #titles
+    # lhcbStyle.SetOptFit(1011) # order is probability, Chi2, errors, parameters
+    # titles
     lhcbStyle.SetTitleOffset(0.85, "X")
     lhcbStyle.SetTitleOffset(0.85, "Y")
     lhcbStyle.SetTitleOffset(1.2, "Z")

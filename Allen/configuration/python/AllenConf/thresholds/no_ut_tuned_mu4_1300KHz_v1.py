@@ -14,7 +14,7 @@ threshold_settings = Thresholds(
     TrackMuonMVA_maxCorrChi2=1.8,
     DiMuonDisplaced_maxCorrChi2=1.8,
     DiMuonHighMass_maxCorrChi2=1.8,
-    D2HH_ctIPScale=1.,
+    D2HH_ctIPScale=1.0,
     SingleHighPtLepton_pt=12500,
     SingleHighPtLepton_pt_noMuonID=12500,
     TrackMVA_maxGhostProb=0.2,
@@ -38,4 +38,5 @@ threshold_settings = Thresholds(
     DiPhotonHighMass_minET=2500,
     LambdaLLDetachedTrack_track_mipchi2=31,
     LambdaLLDetachedTrack_combination_bpvfd=16,
-    XiOmegaLLL_track_ipchi2=14)
+    XiOmegaLLL_track_ipchi2=14,
+)

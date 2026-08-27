@@ -69,9 +69,10 @@ namespace SVCombiner {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<dim3> m_block_dim_filter {this,
-                                              "block_dim_filter",
-                                              {16, 16, 1},
-                                              "block dimensions for filter step"};
+    Allen::Property<dim3> m_block_dim_filter {
+      this,
+      "block_dim_filter",
+      {16, 16, 1},
+      "block dimensions for filter step"};
   };
 } // namespace SVCombiner

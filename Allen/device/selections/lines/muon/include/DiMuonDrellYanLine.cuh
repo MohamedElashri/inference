@@ -88,10 +88,11 @@ namespace di_muon_drell_yan_line {
     using monitoring_types = std::tuple<transverse_momentum_t, chi2muon_t, muon_nn_t, mass_t, evtNo_t, runNo_t>;
 
   private:
-    Allen::Property<float> m_minTrackP {this,
-                                        "minTrackP",
-                                        15.f * Allen::Units::GeV,
-                                        "Minimal momentum for both daughters "};
+    Allen::Property<float> m_minTrackP {
+      this,
+      "minTrackP",
+      15.f * Allen::Units::GeV,
+      "Minimal momentum for both daughters "};
     Allen::Property<float> m_minTrackPt {this, "minTrackPt", 1.2f * Allen::Units::GeV, "Minimal pT for both daughters"};
     Allen::Property<float> m_maxTrackEta {this, "maxTrackEta", 4.9, "Maximal ETA for both daughters"};
     Allen::Property<float> m_minMass {this, "minMass", 5.f * Allen::Units::GeV, "Min mass of the composite"};

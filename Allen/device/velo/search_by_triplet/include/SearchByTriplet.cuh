@@ -121,6 +121,7 @@ namespace velo_search_by_triplet {
     Allen::Property<float> m_max_scatter {this, "max_scatter", 0.08f, "maximum scatter for seeding and forwarding"};
     Allen::Property<unsigned> m_skip {this, "max_skipped_modules", 1, "skipped modules"};
     Allen::Property<unsigned> m_missing_module_pairs {this, "missing_module_pairs", 0, "missing module pairs bitmask"};
+    Allen::Property<bool> m_use_missing_modules_prop {this, "UseMissingModulesProp", false, ""};
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 64, "block dimension x"};
   };
 } // namespace velo_search_by_triplet

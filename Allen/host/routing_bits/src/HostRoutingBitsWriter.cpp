@@ -32,8 +32,9 @@ void host_routingbits_writer::host_routingbits_writer_t::init()
   // Find set of decisionIDs that match each routing bit
   for (auto const& [expr, bit] : rb_map) {
     if (bit >= last_bit) {
-      throw StrException {std::string {"Routing bit defined outside of valid range [0,"} + std::to_string(last_bit) +
-                          "): " + std::to_string(bit) + " " + expr};
+      throw StrException {
+        std::string {"Routing bit defined outside of valid range [0,"} + std::to_string(last_bit) +
+        "): " + std::to_string(bit) + " " + expr};
     }
     std::regex rb_regex(expr);
     boost::dynamic_bitset<> rb_bitset(nlines);

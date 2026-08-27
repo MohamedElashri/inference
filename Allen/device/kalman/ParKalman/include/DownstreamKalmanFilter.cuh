@@ -45,7 +45,7 @@ namespace downstream_kalman_filter {
   //--------------------------------------------------
   __global__ void downstream_kalman_filter(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const ParKalmanFilter::KalmanParametrizations* dev_kalman_params);
 
   // Create KalmanStates views for the output (per-event structure)

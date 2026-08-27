@@ -9,36 +9,12 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 file(GLOB prefix_sum "prefix_sum/src/*cu")
-file(GLOB get_type_id "get_type_id/src/*cu")
-file(GLOB nn_propagation "nn_propagation/src/*cu")
 file(GLOB sorting "sorting/src/*cu")
 file(GLOB mva_models "mva_models/src/*cu")
 file(GLOB reduction "reduction/src/*cu")
-file(GLOB track_trajectory "track_trajectory/src/*cu")
 
-add_library(UtilsHeaders INTERFACE)
-
-target_link_libraries(UtilsHeaders
-  INTERFACE
-    Backend
-    EventModel
-    HostEventModel)
-
-target_include_directories(UtilsHeaders INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/binary_search/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sorting/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/float_operations/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/memory/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scaler/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tuple_operations/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/mva_models/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/linear_algebra/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/warp/include>)
-
-allen_add_device_library(Utils STATIC
+allen_add_device_library(Utils OBJECT
   ${prefix_sum}
-  ${get_type_id}
-  ${nn_propagation}
   ${sorting}
   ${mva_models}
   ${reduction}
@@ -46,22 +22,26 @@ allen_add_device_library(Utils STATIC
 )
 
 target_link_libraries(Utils
-  PUBLIC
-    UtilsHeaders
-    PRIVATE
+    PUBLIC
       Backend
       EventModel
       HostEventModel)
 
 target_include_directories(Utils PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/binary_search/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sorting/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/float_operations/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/memory/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scaler/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/mva_models/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/linear_algebra/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/warp/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prefix_sum/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/nn_propagation/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/get_type_id/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/track_trajectory/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scan_reduce/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>)
 
 allen_add_executable(prefix_sum_test prefix_sum/test/prefix_sum_test.cu)
-target_link_libraries(prefix_sum_test PRIVATE AllenLib Utils)
+target_link_libraries(prefix_sum_test PRIVATE AllenLib Utils AllenRuntime)
 
 allen_add_executable(reduction_test reduction/test/reduction_test.cu)
-target_link_libraries(reduction_test PRIVATE AllenLib Utils)
+target_link_libraries(reduction_test PRIVATE AllenLib Utils AllenRuntime)

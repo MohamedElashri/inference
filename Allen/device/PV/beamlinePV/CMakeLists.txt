@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB blPV "src/*")
 
-allen_add_device_library(PV_beamline STATIC
+allen_add_device_library(PV_beamline OBJECT
   ${blPV})
 
 add_library(PVCommon INTERFACE)

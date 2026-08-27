@@ -103,9 +103,10 @@ namespace downstream_make_secondary_vertices {
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {16, 1, 1}, "block dimensions"};
 
-    Allen::Monitoring::Histogram<> m_histogram_nsvs {this,
-                                                     "number_of_svs",
-                                                     "NSVs",
-                                                     {VertexFit::max_svs, 0, VertexFit::max_svs}};
+    Allen::Monitoring::Histogram<> m_histogram_nsvs {
+      this,
+      "number_of_svs",
+      "NSVs",
+      {VertexFit::max_svs, 0, VertexFit::max_svs}};
   };
 } // namespace downstream_make_secondary_vertices

@@ -72,16 +72,37 @@ LHCb/Hlt/HltServices. It is also needed to create a JSON manifest that
 contains all configurations available in the repository.
 """
 
-import json
-import os
-import sys
-import re
 import importlib
 import importlib.util
-from pathlib import Path
-from lxml import etree
+import json
+import os
+import re
+import sys
 from hashlib import md5
+from pathlib import Path
 from subprocess import PIPE, run
+
+from lxml import etree
+
+
+def clone_metainfo_repository(source, destination, branch="master"):
+    """Clone a metadata repository with a deterministic initial branch.
+
+    Build metadata repositories are shared between tests and can temporarily
+    have a ``key-*`` branch checked out while a new encoding key is committed.
+    Selecting the branch explicitly prevents a concurrent clone from inheriting
+    that transient HEAD.
+    """
+    result = run(
+        ["git", "clone", "-q", "--branch", branch, str(source), str(destination)],
+        stdout=PIPE,
+        stderr=PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        details = result.stderr.strip()
+        message = f"Failed to clone build metainfo repo {source} to {destination}"
+        raise RuntimeError(f"{message}: {details}" if details else message)
 
 
 def format_tck(tck: int):
@@ -96,10 +117,11 @@ def dependencies_from_build_manifest():
 
     if "ALLEN_INSTALL_DIR" in os.environ:
         manifest_tree = etree.parse(
-            os.path.expandvars("${ALLEN_INSTALL_DIR}/manifest.xml"))
-        projects = (
-            [manifest_tree.find("project")] +
-            [p for p in manifest_tree.find("used_projects").iterchildren()])
+            os.path.expandvars("${ALLEN_INSTALL_DIR}/manifest.xml")
+        )
+        projects = [manifest_tree.find("project")] + [
+            p for p in manifest_tree.find("used_projects").iterchildren()
+        ]
         deps = {p.get("name"): p.get("version") for p in projects}
         deps["LCG"] = manifest_tree.find("heptools").find("version").text
         return deps
@@ -115,8 +137,7 @@ def sequence_to_tck(config: dict):
 
     tck_config = {"Scheduler/" + k: v for k, v in config["sequence"].items()}
 
-    for alg_type, alg_name, alg_kind in config["sequence"][
-            "configured_algorithms"]:
+    for alg_type, alg_name, alg_kind in config["sequence"]["configured_algorithms"]:
         properties = {
             k: v if type(v) == str else json.dumps(v)
             for k, v in config[alg_name].items()
@@ -132,19 +153,18 @@ def sequence_to_tck(config: dict):
 
 
 def tck_to_sequence(config: dict):
-    """Convert a persisted configuration to an "Allen" configuration.
-    """
+    """Convert a persisted configuration to an "Allen" configuration."""
 
     scheduler_entries = [
         k.split("/")[1] for k in config.keys() if k.startswith("Scheduler/")
     ]
     sequence_config = {
-        "sequence": {e: config["Scheduler/" + e]
-                     for e in scheduler_entries}
+        "sequence": {e: config["Scheduler/" + e] for e in scheduler_entries}
     }
 
     for alg_type, alg_name, alg_kind in sequence_config["sequence"][
-            "configured_algorithms"]:
+        "configured_algorithms"
+    ]:
         tck_props = config[f"{alg_kind}/{alg_type}/{alg_name}"]["Properties"]
         properties = {}
         for k, v in tck_props.items():
@@ -157,8 +177,7 @@ def tck_to_sequence(config: dict):
     return sequence_config
 
 
-def json_tck_db(configuration: dict, sequence_type: str, metadata: dict,
-                tck: int):
+def json_tck_db(configuration: dict, sequence_type: str, metadata: dict, tck: int):
     """Create a JSON-formatted string that hlt_tck_tool can
     write to a git repository.
 
@@ -189,26 +208,21 @@ def json_tck_db(configuration: dict, sequence_type: str, metadata: dict,
 
     # Add the metadata to the TCK in a file called "metadata.json"
     # This is a name we can "never" change!
-    tck_config['metadata.json'] = metadata
+    tck_config["metadata.json"] = metadata
 
     manifest = {
         # FIXME the digest, TCK and branch are redundant, they're all in metadata
-        digest: {
-            "TCK": hex(tck),
-            "branch": sequence_type,
-            "metadata": metadata
-        }
+        digest: {"TCK": hex(tck), "branch": sequence_type, "metadata": metadata}
     }
     return {"manifest": manifest, digest: tck_config}
 
 
-def sequence_from_python(python_file: Path,
-                         node_name="hlt1_node",
-                         verbose=False) -> dict:
-    """Retrieve an Allen configuration in JSON format from a python module
-    """
+def sequence_from_python(
+    python_file: Path, node_name="hlt1_node", verbose=False
+) -> dict:
+    """Retrieve an Allen configuration in JSON format from a python module"""
 
-    from AllenCore.allen_standalone_generator import generate, build_sequence
+    from AllenCore.allen_standalone_generator import build_sequence, generate
     from AllenCore.AllenSequenceGenerator import generate_json_configuration
 
     module_name = python_file.stem
@@ -220,8 +234,7 @@ def sequence_from_python(python_file: Path,
             mod = importlib.import_module(f"AllenSequences.{module_name}")
         else:
             # Load sequence module from python file
-            spec = importlib.util.spec_from_file_location(
-                module_name, python_file)
+            spec = importlib.util.spec_from_file_location(module_name, python_file)
             mod = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = mod
             spec.loader.exec_module(mod)
@@ -229,8 +242,7 @@ def sequence_from_python(python_file: Path,
         node = getattr(mod, node_name)
 
     if node is None:
-        print(
-            f"Failed to get {node_name} from sequence file {str(python_file)}")
+        print(f"Failed to get {node_name} from sequence file {str(python_file)}")
         return None
 
     algorithms = build_sequence(node, verbose=verbose)
@@ -238,36 +250,30 @@ def sequence_from_python(python_file: Path,
 
 
 def sequence_to_git(
-        repository: Path,
-        sequence: dict,
-        sequence_type: str,
-        label: str,
-        tck: int,
-        stack: str,
-        extra_metadata={},
-        write_intermediate=False,
+    repository: Path,
+    sequence: dict,
+    sequence_type: str,
+    label: str,
+    tck: int,
+    stack: str,
+    extra_metadata={},
+    write_intermediate=False,
 ):
-    """Write an Allen configuration to a git repository with metadata.
-    """
+    """Write an Allen configuration to a git repository with metadata."""
     from Allen import TCK
 
     if not re.match(r"^0x1[0-9A-F]{7}$", format_tck(tck)):
-        raise ValueError(
-            f"TCK {format_tck(tck)} does not match 0x1XXXXXXX pattern")
+        raise ValueError(f"TCK {format_tck(tck)} does not match 0x1XXXXXXX pattern")
 
     # Collect metadata for TCK
     metadata = extra_metadata.copy()
     metadata["version"] = 1  # updating this must be synchronised with TCKUtils
     metadata["TCK"] = format_tck(tck)
     metadata["config_version"] = ["Allen", TCK.config_version]
-    metadata[
-        "application"] = "Hlt1"  # match the "SourceID" or the "process/stage"
+    metadata["application"] = "Hlt1"  # match the "SourceID" or the "process/stage"
     metadata["label"] = label
     metadata["type"] = sequence_type
-    metadata["stack"] = {
-        "name": stack,
-        "projects": dependencies_from_build_manifest()
-    }
+    metadata["stack"] = {"name": stack, "projects": dependencies_from_build_manifest()}
 
     # Craete JSON TCK DB
     db = json_tck_db(sequence, sequence_type, metadata, tck)
@@ -299,10 +305,10 @@ def sequence_from_git(repository: Path, tck: str, use_bindings=True) -> str:
 
     if use_bindings:
         from Allen import TCK
+
         sequence, info = TCK.sequence_from_git(str(repository), tck)
         tck_info = {
-            k: getattr(info, k)
-            for k in ("digest", "tck", "release", "type", "label")
+            k: getattr(info, k) for k in ("digest", "tck", "release", "type", "label")
         }
         tck_info["metadata"] = json.loads(info.metadata)
         return (sequence, tck_info)
@@ -322,10 +328,11 @@ def sequence_from_git(repository: Path, tck: str, use_bindings=True) -> str:
             return None
         tck_db = json.loads(p.stdout)
         digest, manifest_entry = next(
-            ((k, m) for k, m in tck_db["manifest"].items() if m["TCK"] == tck),
-            None)
+            ((k, m) for k, m in tck_db["manifest"].items() if m["TCK"] == tck), None
+        )
         release, seq_type = next(
-            (k, v) for k, v in manifest_entry["Release2Type"].items())
+            (k, v) for k, v in manifest_entry["Release2Type"].items()
+        )
         tck = manifest_entry["TCK"]
         label = manifest_entry["label"]
         metadata = manifest_entry["metadata"]
@@ -335,15 +342,11 @@ def sequence_from_git(repository: Path, tck: str, use_bindings=True) -> str:
             "metadata": metadata,
             "type": seq_type,
             "label": label,
-            "metadata": metadata
         }
         return (json.dumps(tck_to_sequence(tck_db[digest])), info)
 
 
-def property_from_git(repository: Path,
-                      tck: str,
-                      algorithm=".*",
-                      property=".*"):
+def property_from_git(repository: Path, tck: str, algorithm=".*", property=".*"):
     alg_re = re.compile(algorithm)
     prop_re = re.compile(property)
     """Retrieve an Allen configuration identified by TCK from a git
@@ -370,9 +373,7 @@ def manifest_from_git(repository: Path):
     repositry
     """
 
-    args = [
-        "hlt_tck_tool", "--list-manifest-as-json", f"{str(repository)}", "-"
-    ]
+    args = ["hlt_tck_tool", "--list-manifest-as-json", f"{str(repository)}", "-"]
     p = run(args, stdout=PIPE, stderr=PIPE)
     if p.returncode != 0:
         print("Failed to convert manifest from git repo to JSON")

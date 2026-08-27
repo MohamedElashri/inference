@@ -14,7 +14,6 @@
 #include <ButcherTableau.cuh>
 #include <ExtrapolatorCommon.cuh>
 #include <MagneticField.cuh>
-#include <FloatOperations.cuh>
 
 namespace Extrapolators {
   template<typename ftype = float, typename Table = ButcherTableau::CashKarp<ftype>>
@@ -159,13 +158,12 @@ namespace Extrapolators {
       State& state,
       Matrix_t& jacobian,
       float dz,
-      const MagneticField::Magfield& field) requires requires(Matrix_t m, unsigned i, unsigned j)
-    {
-      {
-        m(i, j)
+      const MagneticField::Magfield& field)
+      requires requires(Matrix_t m, unsigned i, unsigned j) {
+        {
+          m(i, j)
+        } -> std::convertible_to<float>;
       }
-      ->std::convertible_to<float>;
-    }
     {
       const float3 B = field.fieldVectorLinearInterpolation(
         make_float3(state.x + 0.5f * state.tx * dz, state.y + 0.5f * state.ty * dz, state.z + 0.5f * dz));

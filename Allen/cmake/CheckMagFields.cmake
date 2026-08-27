@@ -46,12 +46,12 @@ This is necessary due to missing magnetic field .bin files")
   endif()
   # Loop through the broken symlinks to find the versions and polarities
   set(VERSION_AND_POLARITY) # The list to be downloaded
-  
+
   # Extract file info for download
   foreach(f_symlink ${MAGFIELD_SYMLINKS_FOR_DOWNLOAD})
     file(READ_SYMLINK "${f_symlink}" f) # This loop is 100% broken symlinks, so this is safe
     get_filename_component(FILE_NAME "${f}" NAME)
-    
+
     # Identify the field version and polarity
     string(
     REGEX MATCH
@@ -59,11 +59,11 @@ This is necessary due to missing magnetic field .bin files")
     _match
     "${FILE_NAME}"
     )
-  
+
     if(NOT _match)
       message(FATAL_ERROR "Unexpected field filename: ${FILE_NAME}")
     endif()
-  
+
     set(FIELD_VERSION "${CMAKE_MATCH_1}")
     set(FIELD_POLARITY "${CMAKE_MATCH_2}")
 
@@ -100,7 +100,7 @@ endif()
 if(MAGFIELD_SYMLINKS_FOR_DOWNLOAD)
   # We will need python to build the mag fields
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
-  
+
   # Download the python file that converts CDF files to bin
   set(PY_SCRIPT "${LOCAL_MAGFIELDS_DIR}/python/cdf2bin.py")
 

@@ -789,7 +789,7 @@ This is achieved by editing your line algorithm, e.g. a function in `hlt1_calibr
 Taking the HLT1DiMuonLowMass line as an example, compared to above, we add the `enable_tupling` argument:
 
 .. code-block:: python
-  
+
   def make_di_muon_mass_line(forward_tracks,
                             secondary_vertices,
                             pre_scaler_hash_string="di_muon_mass_line_pre",
@@ -859,7 +859,7 @@ In the `.cuh` file for the line, the `struct Parameters` should be modified to i
 and to the namespace of the line, add a `fill_tuples` function and the monitoring types:
 
 .. code-block:: c++
-  
+
   __device__ bool z_range_materialvertex_seed_line::z_range_materialvertex_seed_line::fill_tuples(
   const Parameters& parameters,
   const DeviceProperties&,
@@ -929,10 +929,10 @@ Finally, we must add the parameter to the tuple that is filled in the line. In t
 
   DEVICE_OUTPUT(minHighMassTrackPt_t, float) minHighMassTrackPt;
 
-To the private members add 
+To the private members add
 
 .. code-block:: c++
-  
+
   Allen::Property<float> m_minHighMassTrackPt {this,"minHighMassTrackPt",300.f / Allen::Units::MeV,"minHighMassTrackPt description"};
 
 And finally in the `.cu` file, we modify the `fill_tuples` function:

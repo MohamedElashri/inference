@@ -17,7 +17,6 @@
 #include "VeloDefinitions.cuh"
 #include "VeloEventModel.cuh"
 #include "patPV_Definitions.cuh"
-#include "FloatOperations.cuh"
 #include "States.cuh"
 #include <cstdint>
 

@@ -33,7 +33,7 @@ void check_cyl_pvs::check_cyl_pvs_t::operator()(
   Allen::memset_async<dev_event_list_output_t>(arguments, 0, context);
 
   global_function(check_cyl_pvs)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
-    arguments, m_min_vtx_z, m_max_vtz_z, m_max_vtx_rho_sq, m_min_vtx_nTracks);
+    arguments, m_min_vtx_z, m_max_vtx_z, m_max_vtx_rho_sq, m_min_vtx_nTracks);
 
   Allen::copy<host_number_of_selected_events_t, dev_number_of_selected_events_t>(arguments, context);
   reduce_size<dev_event_list_output_t>(arguments, first<host_number_of_selected_events_t>(arguments));
@@ -42,7 +42,7 @@ void check_cyl_pvs::check_cyl_pvs_t::operator()(
 __global__ void check_cyl_pvs::check_cyl_pvs(
   check_cyl_pvs::Parameters parameters,
   const float min_vtx_z,
-  const float max_vtz_z,
+  const float max_vtx_z,
   const float max_vtx_rho_sq,
   const float min_vtx_nTracks)
 {
@@ -57,7 +57,7 @@ __global__ void check_cyl_pvs::check_cyl_pvs(
   for (unsigned i = threadIdx.x; i < parameters.dev_number_of_multi_final_vertices[event_number]; i += blockDim.x) {
     const auto& pv = vertices[i];
     const auto rho_sq = pv.position.x * pv.position.x + pv.position.y * pv.position.y;
-    const bool dec = pv.nTracks >= min_vtx_nTracks and pv.position.z >= min_vtx_z and pv.position.z < max_vtz_z and
+    const bool dec = pv.nTracks >= min_vtx_nTracks and pv.position.z >= min_vtx_z and pv.position.z < max_vtx_z and
                      rho_sq < max_vtx_rho_sq;
     if (dec) atomicOr(&event_decision, dec);
   }

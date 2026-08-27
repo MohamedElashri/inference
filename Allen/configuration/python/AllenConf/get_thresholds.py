@@ -8,20 +8,17 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.thresholds.thresholds import Thresholds
 
 
 def get_thresholds(threshold_setting_name):
     try:
         try:
             threshold_module = __import__(
-                f"AllenConf.thresholds.{threshold_setting_name}",
-                fromlist=[None])
+                f"AllenConf.thresholds.{threshold_setting_name}", fromlist=[None]
+            )
         except:
             print("Failed to load module")
         settings = getattr(threshold_module, "threshold_settings")
         return settings
     except:
-        print(
-            f"Error: {threshold_setting_name} not a valid set of threshold settings"
-        )
+        print(f"Error: {threshold_setting_name} not a valid set of threshold settings")

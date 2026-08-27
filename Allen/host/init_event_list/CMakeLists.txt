@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB host_init_event_list "src/*cpp")
 
-allen_add_host_library(HostInitEventList STATIC
+allen_add_host_library(HostInitEventList OBJECT
   ${host_init_event_list}
 )
 

@@ -39,9 +39,10 @@ namespace scifi_pre_decode {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<bool> m_decode_v8_as_v7 {this,
-                                             "decode_v8_as_v7",
-                                             {false},
-                                             "Decode v8 banks as v7 to reproduce a bug in July 2023 (MC only)"};
+    Allen::Property<bool> m_decode_v8_as_v7 {
+      this,
+      "decode_v8_as_v7",
+      {false},
+      "Decode v8 banks as v7 to reproduce a bug in July 2023 (MC only)"};
   };
 } // namespace scifi_pre_decode

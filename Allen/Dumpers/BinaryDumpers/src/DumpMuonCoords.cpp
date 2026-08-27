@@ -47,8 +47,8 @@ void DumpMuonCoords::operator()(const LHCb::ODIN& odin, const LHCb::MuonCoords& 
 {
 
   /*Write muon coord variables for GPU to binary file */
-  DumpUtils::FileWriter outfile {m_outputDirectory.value() + "/" + to_string(odin.runNumber()) + "_" +
-                                 to_string(odin.eventNumber()) + ".bin"};
+  DumpUtils::FileWriter outfile {
+    m_outputDirectory.value() + "/" + to_string(odin.runNumber()) + "_" + to_string(odin.eventNumber()) + ".bin"};
   constexpr int n_stations_muon = 4;
 
   auto uncrossed = std::array<std::vector<int>, n_stations_muon> {};

@@ -44,9 +44,10 @@ namespace odin_event_type_with_decoding_line {
     __device__ static bool select(const Parameters&, const DeviceProperties&, std::tuple<const ODINData> input);
 
   private:
-    Allen::Property<unsigned> m_odin_event_type {this,
-                                                 "odin_event_type",
-                                                 static_cast<uint16_t>(LHCb::ODIN::EventTypes::Lumi),
-                                                 "ODIN event type"};
+    Allen::Property<unsigned> m_odin_event_type {
+      this,
+      "odin_event_type",
+      static_cast<uint16_t>(LHCb::ODIN::EventTypes::Lumi),
+      "ODIN event type"};
   };
 } // namespace odin_event_type_with_decoding_line

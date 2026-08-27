@@ -13,7 +13,7 @@ file(GLOB calo_clustering "clustering/src/*cu")
 file(GLOB tools "tools/src/*cu")
 file(GLOB electronid_nn "electronid_nn/src/*cu")
 
-allen_add_device_library(Calo STATIC
+allen_add_device_library(Calo OBJECT
   ${calo_decoding}
   ${calo_clustering}
   ${tools}

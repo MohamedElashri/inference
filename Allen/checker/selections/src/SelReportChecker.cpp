@@ -10,8 +10,6 @@
 \*****************************************************************************/
 #include "SelReportChecker.h"
 
-std::string const SelReportChecker::SelRepTag::name = "SelReportChecker";
-
 void SelReportChecker::accumulate(
   const std::vector<std::string>& names_of_lines,
   const unsigned* sel_reps,

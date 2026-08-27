@@ -69,10 +69,11 @@ namespace compass_ut_define_candidates {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<float> m_min_momentum {this,
-                                           "min_momentum",
-                                           1500.f * Allen::Units::MeV,
-                                           "min momentum cut [MeV/c]"};
+    Allen::Property<float> m_min_momentum {
+      this,
+      "min_momentum",
+      1500.f * Allen::Units::MeV,
+      "min momentum cut [MeV/c]"};
     Allen::Property<float> m_min_pt {this, "min_pt", 300.f * Allen::Units::MeV, "min pT cut [MeV/c]"};
     Allen::Property<float> m_y_tol {this, "y_tol", 0.5f * Allen::Units::mm, "y tol [mm]"};
     Allen::Property<float> m_y_tol_slope {this, "y_tol_slope", 0.08f, "y tol slope [mm]"};

@@ -39,23 +39,26 @@ namespace check_localized_beamline_ip {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
-    Allen::Property<float> m_min_state_z {this,
-                                          "min_state_z",
-                                          -99999.,
-                                          "min z coordinate of region in which to count velo tracks"};
-    Allen::Property<float> m_max_state_z {this,
-                                          "max_state_z",
-                                          99999.,
-                                          "max z coordinate of region in which to count velo tracks"};
+    Allen::Property<float> m_min_state_z {
+      this,
+      "min_state_z",
+      -99999.,
+      "min z coordinate of region in which to count velo tracks"};
+    Allen::Property<float> m_max_state_z {
+      this,
+      "max_state_z",
+      99999.,
+      "max z coordinate of region in which to count velo tracks"};
     Allen::Property<float> m_max_state_rho_sq {
       this,
       "max_state_rho_sq",
       99999.,
       "max square of cylindrical radius of beamline state in which to count velo tracks"};
-    Allen::Property<float> m_min_local_nTracks {this,
-                                                "min_local_nTracks",
-                                                10.,
-                                                "min number of tracks in the designated region"};
+    Allen::Property<float> m_min_local_nTracks {
+      this,
+      "min_local_nTracks",
+      10.,
+      "min number of tracks in the designated region"};
   };
 
 } // namespace check_localized_beamline_ip

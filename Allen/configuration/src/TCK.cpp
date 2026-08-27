@@ -112,8 +112,8 @@ std::tuple<std::string, LHCb::TCK::Info> Allen::tck_from_git(std::string repo, s
     return {std::move(tck_config), std::move(tck_info)};
   } catch (std::runtime_error const& e) {
     git_libgit2_shutdown();
-    throw std::runtime_error {"Failed to extract JSON configuration for TCK " + tck + " from " + repo + ": " +
-                              e.what()};
+    throw std::runtime_error {
+      "Failed to extract JSON configuration for TCK " + tck + " from " + repo + ": " + e.what()};
   }
 }
 
@@ -186,8 +186,8 @@ std::tuple<std::string, std::string, LHCb::TCK::Info> Allen::load_tck(std::strin
   try {
     std::tie(config, info) = Allen::sequence_from_git(repo, tck);
   } catch (std::runtime_error const& e) {
-    throw std::runtime_error {"Failed to obtain sequence for TCK " + tck + " from repository at " + repo + ":" +
-                              e.what()};
+    throw std::runtime_error {
+      "Failed to obtain sequence for TCK " + tck + " from repository at " + repo + ":" + e.what()};
   }
 
   auto [check, check_error] = TCK::check_projects(nlohmann::json::parse(info.metadata));

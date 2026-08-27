@@ -18,8 +18,8 @@ add_library(UTCommon INTERFACE)
 target_include_directories(UTCommon INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>)
 install(TARGETS UTCommon EXPORT Allen)
- 
-allen_add_device_library(UT STATIC
+
+allen_add_device_library(UT OBJECT
   ${UT_decoding}
   ${UT_consolidate}
   ${UT_selection}

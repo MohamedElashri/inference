@@ -8,13 +8,12 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import glob
 import pytest
 from LHCbTesting import LHCbExeTest
 
 
-@pytest.mark.ctest_fixture_required('allen.create_tcks')
-@pytest.mark.shared_cwd('Allen')
+@pytest.mark.ctest_fixture_required("allen.create_tcks")
+@pytest.mark.shared_cwd("Allen")
 class Test(LHCbExeTest):
-    command = ['python', '../options/compare_hlt1_tcks.py']
+    command = ["python", "../options/compare_hlt1_tcks.py"]
     timeout = 1800

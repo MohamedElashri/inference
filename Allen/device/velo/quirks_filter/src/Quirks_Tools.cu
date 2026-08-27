@@ -23,32 +23,26 @@ namespace quirks_tools {
     const unsigned max_opposite_considered,
     const unsigned hit_threshold,
     const unsigned max_pairs_per_module,
-    const float maxPHI,
+    const int16_t maxPHI_i16,
+    const int16_t window_start,
     const float maxR)
   {
+    // use 2D grid: blockIdx.x == layer, blockIdx.y == event_block
     const unsigned number_of_VELO_layers = Velo::Constants::n_module_pairs;
-    const unsigned block_index = blockIdx.x;
-    const unsigned event_block = block_index / number_of_VELO_layers;
-    const unsigned layer = block_index % number_of_VELO_layers;
+    const unsigned layer = blockIdx.x;
+    const unsigned event_block = blockIdx.y;
 
     const unsigned event_number = parameters.dev_event_list[event_block];
-    const unsigned off_idx = event_number * number_of_VELO_layers + layer;
-    const unsigned count = parameters.dev_module_cluster_num[off_idx];
-
-    // initialize pair count for this module (must be done for every module, even if we early-return)
-    if (threadIdx.x == 0 && threadIdx.y == 0) parameters.dev_pair_count[off_idx] = 0u;
-    __syncthreads();
+    const unsigned layer_idx = event_number * number_of_VELO_layers + layer;
+    const unsigned count = parameters.dev_module_cluster_num[layer_idx];
 
     if (count == 0u || count >= hit_threshold) return;
 
-    const unsigned layer_offset = parameters.dev_offsets_estimated_input_size[off_idx];
+    const unsigned layer_offset = parameters.dev_offsets_estimated_input_size[layer_idx];
+
     const float maxR_sq = maxR * maxR;
 
     const auto& clusters = parameters.dev_velo_clusters[event_number];
-
-    // convert maxPHI to i16 domain for tolerance around 180 deg
-    const int16_t maxPHI_i16 = hit_phi_float_to_16(maxPHI * Allen::constants::pi_f_float / 180.0f);
-    const int16_t window_start = hit_phi_float_to_16((180 - maxPHI) / 180 * Allen::constants::pi_f_float);
 
     // For each A-side precomp entry, find candidate opposite-side hit using binary search on clusters.phi
     for (unsigned ia = threadIdx.x; ia < count; ia += blockDim.x) {
@@ -66,7 +60,7 @@ namespace quirks_tools {
       for (unsigned j = 0; j < max_opposite_considered; ++j) {
         const unsigned cand = m + j;
         // normalize candidate into [0,count) then add layer_offset
-        const unsigned hit_idx_in_layer = (cand < count) ? cand : (cand - count);
+        const unsigned hit_idx_in_layer = cand % count;
         const unsigned hitCand = layer_offset + hit_idx_in_layer;
         // phi distance from 180 deg
         const int16_t phi_j = clusters.phi(hitCand);
@@ -88,12 +82,12 @@ namespace quirks_tools {
         if (dr * dr >= maxR_sq) continue;
 
         // append pair (atomic)
-        const unsigned pos = atomicAdd(&parameters.dev_pair_count[off_idx], 1u);
-        if (pos < (unsigned) max_pairs_per_module) {
-          const unsigned module_pair_base = off_idx * (unsigned) max_pairs_per_module;
+        const unsigned pos = atomicAdd(&parameters.dev_pair_count[layer_idx], 1u);
+        if (pos < max_pairs_per_module) {
+          const unsigned module_pair_base = layer_idx * max_pairs_per_module;
           // store the normalized candidate index
           parameters.dev_pair_list[module_pair_base + pos] =
-            (uint32_t)((ia << 16) | (uint32_t)(hit_idx_in_layer & 0xFFFFu));
+            (uint32_t) ((ia << 16) | (uint32_t) (hit_idx_in_layer & 0xFFFFu));
         }
         else {
           break;
@@ -101,19 +95,18 @@ namespace quirks_tools {
       }
     } // for ia
     __syncthreads();
-    if (blockIdx.x == 0 && threadIdx.x == 0 && parameters.dev_pair_count[off_idx] > max_pairs_per_module) {
-      parameters.dev_pair_count[off_idx] = 0u;
+    if (threadIdx.x == 0 && parameters.dev_pair_count[layer_idx] > max_pairs_per_module) {
+      parameters.dev_pair_count[layer_idx] = 0u;
     }
   }
 
   // Selection kernel: iterate over pair-lists
   __global__ void quirks_selection_kernel(
     quirks_tools::Parameters parameters,
-    const float maxPHIDF,
+    const int16_t maxPHIDF_i16,
     const unsigned minStations,
     const unsigned max_pairs_per_module)
   {
-    const int16_t maxPHIDF_i16 = hit_phi_float_to_16(maxPHIDF * Allen::constants::pi_f_float / 180.0f);
 
     const unsigned event_block_index = blockIdx.x;
     const unsigned event_number = parameters.dev_event_list[event_block_index];
@@ -126,17 +119,17 @@ namespace quirks_tools {
     __syncthreads();
 
     const unsigned seed = threadIdx.x;
-    const auto& clusters = parameters.dev_velo_clusters[event_number];
+    const auto& clusters = parameters.dev_velo_clusters[0];
 
     // main search: each seed-thread processes multiple seed indices
     for (unsigned seed_layer = seed; seed_layer < effective_layers; seed_layer += blockDim.x) {
-      if (seed_layer > effective_layers) continue;
       if (s_found) break;
-      const unsigned off_idx_base = event_number * number_of_VELO_layers + seed_layer;
+      const unsigned layer_idx_base = event_number * number_of_VELO_layers + seed_layer;
       // use module start as base for precomp per-side arrays
-      const unsigned layer_offset = parameters.dev_offsets_estimated_input_size[off_idx_base];
-      const unsigned pair_module_base = (unsigned) off_idx_base * (unsigned) max_pairs_per_module;
-      const unsigned pair_count = parameters.dev_pair_count[off_idx_base];
+      const unsigned layer_offset = parameters.dev_offsets_estimated_input_size[layer_idx_base];
+
+      const unsigned pair_module_base = layer_idx_base * max_pairs_per_module;
+      const unsigned pair_count = parameters.dev_pair_count[layer_idx_base];
 
       if (pair_count == (unsigned) 0) {
         continue;
@@ -170,10 +163,11 @@ namespace quirks_tools {
           if (s_found) {
             break;
           }
-          const unsigned off_idx_j = event_number * number_of_VELO_layers + layer;
-          const unsigned layer_offset_j = parameters.dev_offsets_estimated_input_size[off_idx_j];
-          const unsigned pair_module_base_j = off_idx_j * max_pairs_per_module;
-          const unsigned pair_count_j = parameters.dev_pair_count[off_idx_j];
+          const unsigned layer_idx_j = event_number * number_of_VELO_layers + layer;
+          const unsigned layer_offset_j = parameters.dev_offsets_estimated_input_size[layer_idx_j];
+
+          const unsigned pair_module_base_j = layer_idx_j * max_pairs_per_module;
+          const unsigned pair_count_j = parameters.dev_pair_count[layer_idx_j];
 
           bool found_in_layer = false;
 
@@ -267,16 +261,27 @@ namespace quirks_tools {
     const unsigned number_of_VELO_layers = Velo::Constants::n_module_pairs;
     const unsigned num_events = size<dev_event_list_t>(arguments);
 
-    const unsigned precomp_blocks = num_events * number_of_VELO_layers;
+    Allen::memset_async<dev_pair_count_t>(arguments, 0u, context);
+    Allen::memset_async<dev_quirks_pairs_t>(arguments, 0u, context);
 
     // Launch pair-list generator (one block per module)
     const dim3 pair_threads = dim3(128, 1, 1); // tweak as needed; using 128 threads per module
-    global_function(generate_pair_list_kernel)(dim3(precomp_blocks), pair_threads, context)(
+    // compute phi-domain tolerances on the host and pass them into the kernel
+    const int16_t host_maxPHI_i16 = static_cast<int16_t>(
+      static_cast<float>(m_maxPHI) * Allen::constants::pi_f_float / 180.0f * Velo::Tools::convert_factor_i16);
+    const int16_t host_window_start = static_cast<int16_t>(
+      (180.0f - static_cast<float>(m_maxPHI)) / 180.0f * Allen::constants::pi_f_float *
+      Velo::Tools::convert_factor_i16); // 180 degrees in i16 domain
+
+    // launch with a 2D grid: x = layer index, y = event index
+    dim3 precomp_grid((unsigned) number_of_VELO_layers, (unsigned) num_events);
+    global_function(generate_pair_list_kernel)(precomp_grid, pair_threads, context)(
       arguments,
       static_cast<unsigned>(m_max_opposite_considered),
       static_cast<unsigned>(m_hit_threshold),
       static_cast<unsigned>(m_max_pairs_per_module),
-      static_cast<float>(m_maxPHI),
+      host_maxPHI_i16,
+      host_window_start,
       static_cast<float>(m_maxR));
 
     // Launch selection kernel
@@ -284,11 +289,10 @@ namespace quirks_tools {
     const unsigned by = m_block_dim_y;
     dim3 block_dim(bx, by);
     dim3 grid_dim(num_events);
+    const int16_t host_maxPHIDF_i16 =
+      static_cast<int16_t>(m_maxPHIDF * Allen::constants::pi_f_float / 180.0f * Velo::Tools::convert_factor_i16);
     global_function(quirks_selection_kernel)(grid_dim, block_dim, context)(
-      arguments,
-      static_cast<float>(m_maxPHIDF),
-      static_cast<float>(m_minStations),
-      static_cast<unsigned>(m_max_pairs_per_module));
+      arguments, host_maxPHIDF_i16, static_cast<float>(m_minStations), static_cast<unsigned>(m_max_pairs_per_module));
   }
 
 } // namespace quirks_tools

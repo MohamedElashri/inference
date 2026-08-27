@@ -13,6 +13,10 @@
 #include "AlgorithmTypes.cuh"
 #include "BackendCommon.h"
 
+#ifndef TARGET_DEVICE_CPU
+#include "SinglePassScan.cuh"
+#endif
+
 namespace PrefixSum {
 
 #ifndef TARGET_DEVICE_CPU
@@ -27,6 +31,22 @@ namespace PrefixSum {
   __global__ void prefix_sum_single_warp(unsigned* dev_array, const unsigned array_size);
 
   __global__ void prefix_sum_single_warp_x4(unsigned* dev_array, const unsigned array_size, unsigned* host_total);
+
+  // Chain scan
+  using TileStoreType = ScanReduce::SinglePassScan::TileState<unsigned>::StoreType;
+  constexpr unsigned values_per_thread = 8;
+  constexpr unsigned threads_per_block = 128;
+  __global__ void initialize_tile_state(unsigned tile_state_size, TileStoreType* tile_state_data);
+  __global__ void prefix_sum_single_pass(
+    unsigned* dev_array,
+    const unsigned array_size,
+    TileStoreType* tile_state_data,
+    unsigned* host_total);
+
+  // Different block sizes for input of different sizes
+  __global__ void prefix_sum_single_block_32x8(unsigned* dev_array, const unsigned array_size, unsigned* host_total);
+  __global__ void prefix_sum_single_block_64x8(unsigned* dev_array, const unsigned array_size, unsigned* host_total);
+  __global__ void prefix_sum_single_block_128x8(unsigned* dev_array, const unsigned array_size, unsigned* host_total);
 #endif
 
   template<typename Alg, typename Args>
@@ -47,25 +67,31 @@ namespace PrefixSum {
     }
     if (host_total != nullptr) *host_total = dev_array[array_size];
 #else
-    if (array_size > 2048) {
-      constexpr unsigned block_size = 256;
-      constexpr unsigned elements_per_thread = 4;
-      unsigned n_blocks = (array_size + block_size * elements_per_thread) / (block_size * elements_per_thread);
-
-      auto prefix_sum_aux_array = arguments.template make_buffer<Allen::Store::Scope::Device, unsigned>(n_blocks + 1);
-
-      alg.global_function(prefix_sum_reduce)(dim3(n_blocks), dim3(block_size / 2), context)(
-        dev_array, prefix_sum_aux_array.data(), array_size);
-
-      alg.global_function(prefix_sum_single_warp_x4)(dim3(1), dim3(32), context)(
-        prefix_sum_aux_array.data(), n_blocks, host_total);
-
-      alg.global_function(prefix_sum_scan)(dim3(n_blocks), dim3(block_size * elements_per_thread), context)(
-        dev_array, prefix_sum_aux_array.data(), array_size + 1);
+    if (array_size < 512) {
+      alg.global_function(prefix_sum_single_block_32x8)(dim3(1), dim3(32), context)(dev_array, array_size, host_total);
+    }
+    else if (array_size > 512 && array_size <= 2048) {
+      alg.global_function(prefix_sum_single_block_64x8)(dim3(1), dim3(64), context)(dev_array, array_size, host_total);
+    }
+    else if (array_size > 2048 && array_size <= 4096) {
+      alg.global_function(prefix_sum_single_block_128x8)(dim3(1), dim3(128), context)(
+        dev_array, array_size, host_total);
     }
     else {
-      alg.global_function(prefix_sum_single_warp_x4)(dim3(1), dim3(32), context)(dev_array, array_size, host_total);
+      constexpr unsigned values_per_block = threads_per_block * values_per_thread;
+      auto tile_state_size = ScanReduce::SinglePassScan::get_tile_state_size(array_size, values_per_block);
+      auto tile_state_data =
+        arguments.template make_buffer<Allen::Store::Scope::Device, TileStoreType>(tile_state_size);
+
+      const unsigned initialize_grid_size = (tile_state_size + threads_per_block - 1) / threads_per_block;
+      alg.global_function(initialize_tile_state)(dim3(initialize_grid_size), dim3(threads_per_block), context)(
+        tile_state_size, tile_state_data.data());
+
+      const unsigned prefix_sum_grid_size = (array_size + values_per_block - 1) / values_per_block;
+      alg.global_function(prefix_sum_single_pass)(dim3(prefix_sum_grid_size), dim3(threads_per_block), context)(
+        dev_array, array_size, tile_state_data.data(), host_total);
     }
+
     // Here we use unified memory to write to host a buffer from the device, in order to overlap the transfer and
     // compute but we still need to synchronize the stream to make sure the result is visible on the host
     if (host_total != nullptr) Allen::synchronize(context);

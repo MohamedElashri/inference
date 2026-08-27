@@ -38,10 +38,11 @@ namespace prescaler {
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
     Allen::Property<float> m_pre_scaler {this, "pre_scaler", 1.f, "Pre-scaling factor"};
-    Allen::Property<std::string> m_pre_scaler_hash_string {this,
-                                                           "pre_scaler_hash_string",
-                                                           "",
-                                                           "Pre-scaling hash string"};
+    Allen::Property<std::string> m_pre_scaler_hash_string {
+      this,
+      "pre_scaler_hash_string",
+      "",
+      "Pre-scaling hash string"};
     uint32_t m_pre_scaler_hash {0};
   }; // prescaler_t
 } // namespace prescaler

@@ -11,6 +11,8 @@
 #pragma once
 
 #include <string>
+#include <fmt/core.h>
+#include <source_location>
 
 namespace Allen {
   // Holds an execution context. An execution
@@ -55,4 +57,23 @@ namespace Allen {
     // Do not include cmath or math_constants just for this one constant
     constexpr float pi_f_float = 3.141592654f;
   } // namespace constants
+
+  namespace utils {
+    // This is needed here for now, but could be taken from Gaudi, once we drop Allen standalone
+    bool backTrace(std::string& btrace, const int depth, const int offset);
+  } // namespace utils
+
+  struct CudaCheckFailed : std::exception {
+    CudaCheckFailed(
+      const std::string& msg = "CudaCheckFailed",
+      std::source_location src_loc = std::source_location::current()) :
+      std::exception()
+    {
+      std::string stack;
+      utils::backTrace(stack, 100, 1);
+      m_message = fmt::format("{} at {}:{}\n{}", msg, src_loc.file_name(), src_loc.line(), stack);
+    }
+    const char* what() const noexcept override { return m_message.c_str(); }
+    std::string m_message;
+  };
 } // namespace Allen

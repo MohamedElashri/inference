@@ -44,12 +44,12 @@ void downstream_create_tracks::downstream_create_tracks_t::operator()(
 {
   Allen::memset_async<dev_offsets_downstream_tracks_t>(arguments, 0, context);
 
-  const auto dev_magnet_polarity = constants.dev_magnet_polarity.data();
+  const auto magnet_polarity = constants.magnet_polarity;
 
   // Create tracks
   global_function(downstream_create_tracks)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
-    dev_magnet_polarity,
+    magnet_polarity,
     m_ghost_killer_threshold,
     dev_downstream_ghostkiller.getDevicePointer(),
     m_n_overflow_downstream_create_tracks.data(context));
@@ -166,7 +166,7 @@ namespace {
 
 __global__ void downstream_create_tracks::downstream_create_tracks(
   downstream_create_tracks::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const float ghost_killer_threshold,
   const DownstreamGhostKiller::DeviceType* dev_downstream_ghostkiller,
   [[maybe_unused]] Allen::Monitoring::Counter<>::DeviceType dev_n_overflow_downstream_create_tracks)
@@ -326,17 +326,18 @@ __global__ void downstream_create_tracks::downstream_create_tracks(
 
       // Ghost killing
       const auto eta = asinhf(1.f / hypotf(ut_tx, ut_ty));
-      float ghost_killer_input[DownstreamGhostKiller::DeviceType::nInput] = {dist1 + dist2,
-                                                                             dist0,
-                                                                             dist3,
-                                                                             ft_chi2,
-                                                                             eta,
-                                                                             ut_x,
-                                                                             ut_y,
-                                                                             ut_tx,
-                                                                             ut_ty,
-                                                                             ft_tx - ut_tx,
-                                                                             ft_y - (ut_y + ut_ty * (ZEndT - zMidUT))};
+      float ghost_killer_input[DownstreamGhostKiller::DeviceType::nInput] = {
+        dist1 + dist2,
+        dist0,
+        dist3,
+        ft_chi2,
+        eta,
+        ut_x,
+        ut_y,
+        ut_tx,
+        ut_ty,
+        ft_tx - ut_tx,
+        ft_y - (ut_y + ut_ty * (ZEndT - zMidUT))};
       const auto ghost_killer_score = dev_downstream_ghostkiller->evaluate(ghost_killer_input);
 
       if (ghost_killer_score > ghost_killer_threshold * scaling_factor) continue;
@@ -351,7 +352,7 @@ __global__ void downstream_create_tracks::downstream_create_tracks(
       output_track.y = ut_y;
       output_track.tx = ut_tx;
       output_track.ty = ut_ty;
-      output_track.qop = Downstream::DownstreamExtrapolation::Physics::qop(ut_tx, ut_ty, ft_tx, *dev_magnet_polarity);
+      output_track.qop = Downstream::DownstreamExtrapolation::Physics::qop(ut_tx, ut_ty, ft_tx, magnet_polarity);
       output_track.chi2 = ut_chi2x + ut_chi2y;
       output_track.ghost_prob = ghost_killer_score;
       output_track.scifi_idx = ft_idx;

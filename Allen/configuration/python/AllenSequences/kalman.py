@@ -9,14 +9,17 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.hlt1_reconstruction import hlt1_reconstruction
-from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 kalman_sequence = CompositeNode(
-    "KalmanSequence", [
-        hlt1_reconstruction(algorithm_name='kalman_sequence')
-        ["dihadron_secondary_vertices"]["dev_two_track_particles"].producer
+    "KalmanSequence",
+    [
+        hlt1_reconstruction(algorithm_name="kalman_sequence")[
+            "dihadron_secondary_vertices"
+        ]["dev_two_track_particles"].producer
     ],
     NodeLogic.LAZY_AND,
-    force_order=True)
+    force_order=True,
+)
 generate(kalman_sequence)

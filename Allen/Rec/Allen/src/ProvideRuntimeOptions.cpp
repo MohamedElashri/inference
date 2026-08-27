@@ -21,23 +21,18 @@
 #include <Constants.cuh>
 #include <Logger.h>
 
-using Gaudi::Functional::Traits::useLegacyGaudiAlgorithm;
-
 class ProvideRuntimeOptions final
-  : public Gaudi::Functional::
-      Transformer<RuntimeOptions(std::array<TransposedBanks, NBankTypes> const&), useLegacyGaudiAlgorithm> {
+  : public Gaudi::Functional::Transformer<RuntimeOptions(std::array<TransposedBanks, NBankTypes> const&)> {
 
 public:
   /// Standard constructor
   ProvideRuntimeOptions(const std::string& name, ISvcLocator* pSvcLocator);
 
-  StatusCode initialize() override;
-
   /// Algorithm execution
   RuntimeOptions operator()(std::array<TransposedBanks, NBankTypes> const& allen_banks) const override;
 
 private:
-  SmartIF<AllenROOTService> m_rootService;
+  ServiceHandle<AllenROOTService> m_rootService {this, "AllenROOTService", "AllenROOTService"};
 };
 
 ProvideRuntimeOptions::ProvideRuntimeOptions(const std::string& name, ISvcLocator* pSvcLocator) :
@@ -49,14 +44,6 @@ ProvideRuntimeOptions::ProvideRuntimeOptions(const std::string& name, ISvcLocato
     // Output
     KeyValue {"RuntimeOptionsLocation", "Allen/Stream/RuntimeOptions"})
 {}
-
-StatusCode ProvideRuntimeOptions::initialize()
-{
-  return Transformer::initialize().andThen([&] {
-    m_rootService = svc<AllenROOTService>("AllenROOTService", true);
-    return m_rootService.isValid();
-  });
-}
 
 RuntimeOptions ProvideRuntimeOptions::operator()(std::array<TransposedBanks, NBankTypes> const& allen_banks) const
 {
@@ -73,14 +60,15 @@ RuntimeOptions ProvideRuntimeOptions::operator()(std::array<TransposedBanks, NBa
   const size_t slice_index = 0;
   const bool mep_layout = false;
 
-  return {tes_provider,
-          slice_index,
-          {event_start, event_end},
-          number_of_repetitions,
-          mep_layout,
-          param_inject_mem_fail,
-          nullptr,
-          m_rootService->rootService()};
+  return {
+    tes_provider,
+    slice_index,
+    {event_start, event_end},
+    number_of_repetitions,
+    mep_layout,
+    param_inject_mem_fail,
+    nullptr,
+    m_rootService->rootService()};
 }
 
 DECLARE_COMPONENT(ProvideRuntimeOptions)

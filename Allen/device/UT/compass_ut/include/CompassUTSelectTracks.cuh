@@ -50,10 +50,11 @@ namespace compass_ut_select_tracks {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
-    Allen::Property<int> m_min_independent_hits {this,
-                                                 "min_independent_hits",
-                                                 2,
-                                                 "minimum number of independent ut hits"};
+    Allen::Property<int> m_min_independent_hits {
+      this,
+      "min_independent_hits",
+      2,
+      "minimum number of independent ut hits"};
     Allen::Property<float> m_vp_clone_killing_threshold {
       this,
       "vp_clone_killing_threshold",

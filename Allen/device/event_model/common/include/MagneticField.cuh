@@ -18,9 +18,9 @@ namespace MagneticField {
 #ifdef __CUDA_ARCH__
     __device__ float3 fieldVectorLinearInterpolation(float3 pos) const
     {
-      const float x = (pos.x - minX) * invDx;
-      const float y = (pos.y - minY) * invDy;
-      const float z = (pos.z - minZ) * invDz;
+      const float x = (pos.x - minX) * invDx + 0.5f;
+      const float y = (pos.y - minY) * invDy + 0.5f;
+      const float z = (pos.z - minZ) * invDz + 0.5f;
       return {tex3D<float>(tex_Bx, x, y, z), tex3D<float>(tex_By, x, y, z), tex3D<float>(tex_Bz, x, y, z)};
     }
 #else
@@ -67,14 +67,15 @@ namespace MagneticField {
       const float h10 = h1x * h0y;
       const float h11 = h1x * h1y;
 
-      return {(h0z * (h00 * Bx[i000] + h10 * Bx[i000 + 1] + h01 * Bx[i010] + h11 * Bx[i010 + 1]) +
-               h1z * (h00 * Bx[i001] + h10 * Bx[i001 + 1] + h01 * Bx[i011] + h11 * Bx[i011 + 1])),
+      return {
+        (h0z * (h00 * Bx[i000] + h10 * Bx[i000 + 1] + h01 * Bx[i010] + h11 * Bx[i010 + 1]) +
+         h1z * (h00 * Bx[i001] + h10 * Bx[i001 + 1] + h01 * Bx[i011] + h11 * Bx[i011 + 1])),
 
-              (h0z * (h00 * By[i000] + h10 * By[i000 + 1] + h01 * By[i010] + h11 * By[i010 + 1]) +
-               h1z * (h00 * By[i001] + h10 * By[i001 + 1] + h01 * By[i011] + h11 * By[i011 + 1])),
+        (h0z * (h00 * By[i000] + h10 * By[i000 + 1] + h01 * By[i010] + h11 * By[i010 + 1]) +
+         h1z * (h00 * By[i001] + h10 * By[i001 + 1] + h01 * By[i011] + h11 * By[i011 + 1])),
 
-              (h0z * (h00 * Bz[i000] + h10 * Bz[i000 + 1] + h01 * Bz[i010] + h11 * Bz[i010 + 1]) +
-               h1z * (h00 * Bz[i001] + h10 * Bz[i001 + 1] + h01 * Bz[i011] + h11 * Bz[i011 + 1]))};
+        (h0z * (h00 * Bz[i000] + h10 * Bz[i000 + 1] + h01 * Bz[i010] + h11 * Bz[i010 + 1]) +
+         h1z * (h00 * Bz[i001] + h10 * Bz[i001 + 1] + h01 * Bz[i011] + h11 * Bz[i011 + 1]))};
     }
 
     float* Bx;

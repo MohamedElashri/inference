@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB associate_srcs "src/*.cu")
 
-allen_add_device_library(Associate STATIC
+allen_add_device_library(Associate OBJECT
   ${associate_srcs}
 )
 

@@ -79,7 +79,7 @@ fi
 
 
 
-if [ "${RUN_UNIT_TESTS}" = "1" ]; then 
+if [ "${RUN_UNIT_TESTS}" = "1" ]; then
     BUILD_DIR=`cat CTestTestfile.cmake | grep "# Build directory:" | awk '{ print $4 }'`
     REPLACEMENT_DIR=${PWD}
     sed -i CTestTestfile.cmake -e s:${BUILD_DIR}:${REPLACEMENT_DIR}:g

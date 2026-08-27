@@ -114,11 +114,12 @@ dec_reporter::dec_reporter(dec_reporter::Parameters parameters, unsigned key, un
 
     reports.set_dec_report(
       line_index,
-      HltDecReport {final_decision,
-                    std::byte {0},          // error
-                    static_cast<std::byte>( // number of candidates
-                      std::min(event_selected_candidates_counts[line_index], 15U)),
-                    std::byte {1},                                 // execution stage
-                    static_cast<unsigned short>(line_index + 1)}); // decision ID
+      HltDecReport {
+        final_decision,
+        std::byte {0},          // error
+        static_cast<std::byte>( // number of candidates
+          std::min(event_selected_candidates_counts[line_index], 15U)),
+        std::byte {1},                                 // execution stage
+        static_cast<unsigned short>(line_index + 1)}); // decision ID
   }
 }

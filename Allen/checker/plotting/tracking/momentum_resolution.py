@@ -17,23 +17,15 @@
 # date:   12/2018
 #
 
-import os, sys
-import argparse
-import ROOT
-from ROOT import gStyle
-from ROOT import gROOT
-from ROOT import TStyle
-from ROOT import gPad
-from ROOT import TGraphErrors
+import sys
 from array import array
-from ROOT import TMath
-from ROOT import TLegend
-from ROOT import TGraph
-from ROOT import TMultiGraph
 
-sys.path.append('../')
-from common.LHCbStyle import *
+import ROOT
+from ROOT import TGraphErrors, TLegend, TMath, gPad
+
+sys.path.append("../")
 from common.Legend import *
+from common.LHCbStyle import *
 
 
 def getHistos():
@@ -66,9 +58,9 @@ def getTrackers():
 def getResolutionInSlices(histo2D, var, var_dict):
     # fit slices
     n = 0
-    xFit, yFit = array('d'), array('d')
-    xFitErr, yFitErr = array('d'), array('d')
-    rms, rmsErr = array('d'), array('d')
+    xFit, yFit = array("d"), array("d")
+    xFitErr, yFitErr = array("d"), array("d")
+    rms, rmsErr = array("d"), array("d")
     nBinsX = histo2D.GetNbinsX()
     xAxis = histo2D.GetXaxis()
     for i in range(nBinsX + 1):
@@ -79,8 +71,8 @@ def getResolutionInSlices(histo2D, var, var_dict):
                 g1 = ROOT.TF1("g1", "gaus", -0.05, 0.05)
             elif tracker == "Upstream":
                 g1 = ROOT.TF1("g1", "gaus", -0.5, 0.5)
-            #histo1D.GetYaxis().SetTitle("Entries")
-            #histo1D.GetXaxis().SetTitle("Resolution (%/100)")
+            # histo1D.GetYaxis().SetTitle("Entries")
+            # histo1D.GetXaxis().SetTitle("Resolution (%/100)")
             histo1D.Fit(g1, "R")
             histo1D.Write()
             p = xAxis.GetBinCenter(i)
@@ -107,9 +99,9 @@ def getResolutionInSlices(histo2D, var, var_dict):
     title = var_dict[var]["title"]
     canvas = ROOT.TCanvas(name, title)
     canvas.cd()
-    print('{:s}: n = {:d}: '.format(tracker, n))
+    print("{:s}: n = {:d}: ".format(tracker, n))
     gr = TGraphErrors(n, xFit, yFit, xFitErr, yFitErr)
-    #gr.Draw("ap")
+    # gr.Draw("ap")
 
     name = tracker + name
     x_axis_title = var_dict[var]["x_axis_title"]
@@ -119,11 +111,11 @@ def getResolutionInSlices(histo2D, var, var_dict):
     gr.SetTitle("")
     gr.SetName(name)
 
-    #name = "dp_vs_p_rms"
-    #title = "dp vs p, histogram RMS"
-    #canvas = ROOT.TCanvas(name, title)
-    #gr = TGraphErrors( n, xFit, rms, xFitErr, rmsErr )
-    #gr.Draw("ap")
+    # name = "dp_vs_p_rms"
+    # title = "dp vs p, histogram RMS"
+    # canvas = ROOT.TCanvas(name, title)
+    # gr = TGraphErrors( n, xFit, rms, xFitErr, rmsErr )
+    # gr.Draw("ap")
 
     # overall momentum resolution
     histo1D = histo2D.ProjectionX("_px")
@@ -135,7 +127,7 @@ def getResolutionInSlices(histo2D, var, var_dict):
     norm = max_y / histo1D.GetMaximum()
     histo1D.Scale(norm)
     histo1D.Write()
-    n_bins = histo1D.GetXaxis().GetNbins()
+    n_bins = histo1D.GetXaxis().GetNbins()  # noqa: F841
     histo1D.SetFillColorAlpha(ROOT.kBlack, 0.2)
     histo1D.SetLineColor(ROOT.kWhite)
     histo1D.GetYaxis().SetRangeUser(0, max_y + 2 * max_y_error)
@@ -149,15 +141,23 @@ def getResolutionInSlices(histo2D, var, var_dict):
     legend = TLegend(place[0], place[1], place[2], place[3])
     legend.AddEntry(gr, var_dict[var]["graph_name"], "ep")
     legend.AddEntry(histo1D, var_dict[var]["distro_name"], "f")
-    legend.SetFillColorAlpha(ROOT.kWhite, 0.)
+    legend.SetFillColorAlpha(ROOT.kWhite, 0.0)
     legend.SetTextSize(0.06)
     legend.Draw("same")
 
     # Draw second y axis
     low = 0
-    high = 1.1 * histo1D.GetYaxis().GetXmax()  #1.2*max_y
-    axis = ROOT.TGaxis(gPad.GetUxmax(), gPad.GetUymin(), gPad.GetUxmax(),
-                       gPad.GetUymax(), low, high, 510, "+L")
+    high = 1.1 * histo1D.GetYaxis().GetXmax()  # 1.2*max_y
+    axis = ROOT.TGaxis(
+        gPad.GetUxmax(),
+        gPad.GetUymin(),
+        gPad.GetUxmax(),
+        gPad.GetUymax(),
+        low,
+        high,
+        510,
+        "+L",
+    )
     axis.SetTitleFont(132)
     axis.SetTitleSize(0.06)
     axis.SetTitleOffset(0.55)
@@ -168,18 +168,17 @@ def getResolutionInSlices(histo2D, var, var_dict):
 
     # Save plots
     canvas.Write()
-    canvas.SaveAs("../../../plotsfornote/" + tracker + "MomResVs" + var +
-                  ".pdf")
+    canvas.SaveAs("../../../plotsfornote/" + tracker + "MomResVs" + var + ".pdf")
 
     histo1D.Fit("gaus")
     sigma_p = histo1D.GetFunction("gaus").GetParameter(2)
     delta_sigma_p = histo1D.GetFunction("gaus").GetParError(2)
-    print('{:s}: sigma p = {:f} +/- {:f}'.format(tracker, sigma_p,
-                                                 delta_sigma_p))
+    print("{:s}: sigma p = {:f} +/- {:f}".format(tracker, sigma_p, delta_sigma_p))
 
 
-outputfile = ROOT.TFile("../../../plotsfornote_root/momentum_resolution.root",
-                        "recreate")
+outputfile = ROOT.TFile(
+    "../../../plotsfornote_root/momentum_resolution.root", "recreate"
+)
 
 # f = [ROOT.TFile.Open("../../../output/KstEE/PrCheckerPLots-KstEE.root", "read"),
 #      ROOT.TFile.Open("../../../output/KstMuMu/PrCheckerPLots-KstMuMu.root", "read"),

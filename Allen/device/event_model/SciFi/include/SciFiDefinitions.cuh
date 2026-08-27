@@ -226,7 +226,7 @@ namespace SciFi {
       return s.str();
     }
 
-    __device__ __host__ uint32_t channel() const { return (uint32_t)((channelID & channelMask) >> channelBits); }
+    __device__ __host__ uint32_t channel() const { return (uint32_t) ((channelID & channelMask) >> channelBits); }
 
     __device__ __host__ uint32_t sipm() const { return ((channelID & sipmMask) >> sipmBits); }
 

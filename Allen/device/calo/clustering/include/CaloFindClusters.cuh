@@ -63,21 +63,25 @@ namespace calo_find_clusters {
 
     Allen::Monitoring::Histogram<> m_histogram_n_clusters {this, "n_ecal_clusters", "NClusters", {401u, -0.5f, 400.5f}};
     Allen::Monitoring::Histogram<> m_histogram_ecal_digit_e {this, "ecal_digit_e", "EcalDigitE", {1000u, 0.f, 10000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_e {this,
-                                                               "ecal_cluster_e",
-                                                               "EcalClusterE",
-                                                               {5000u, 0.f, 50000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_et {this,
-                                                                "ecal_cluster_et",
-                                                                "EcalClusterEt",
-                                                                {500u, 0.f, 5000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_x {this,
-                                                               "ecal_cluster_x",
-                                                               "EcalClusterX",
-                                                               {800u, -4000.f, 4000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_y {this,
-                                                               "ecal_cluster_y",
-                                                               "EcalClusterY",
-                                                               {800u, -4000.f, 4000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_e {
+      this,
+      "ecal_cluster_e",
+      "EcalClusterE",
+      {5000u, 0.f, 50000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_et {
+      this,
+      "ecal_cluster_et",
+      "EcalClusterEt",
+      {500u, 0.f, 5000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_x {
+      this,
+      "ecal_cluster_x",
+      "EcalClusterX",
+      {800u, -4000.f, 4000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_ecal_cluster_y {
+      this,
+      "ecal_cluster_y",
+      "EcalClusterY",
+      {800u, -4000.f, 4000.f}};
   };
 } // namespace calo_find_clusters

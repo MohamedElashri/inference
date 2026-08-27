@@ -63,24 +63,28 @@ namespace heavy_ion_event_line {
     __device__ static bool select(const Parameters&, const DeviceProperties&, std::tuple<unsigned> input);
 
   private:
-    Allen::Property<int> m_min_velo_tracks_PbPb {this,
-                                                 "min_velo_tracks_PbPb",
-                                                 0,
-                                                 "Minimum number of VELO tracks in the PbPb region"};
-    Allen::Property<int> m_max_velo_tracks_PbPb {this,
-                                                 "max_velo_tracks_PbPb",
-                                                 -1,
-                                                 "Maximum number of VELO tracks in the PbPb region"};
+    Allen::Property<int> m_min_velo_tracks_PbPb {
+      this,
+      "min_velo_tracks_PbPb",
+      0,
+      "Minimum number of VELO tracks in the PbPb region"};
+    Allen::Property<int> m_max_velo_tracks_PbPb {
+      this,
+      "max_velo_tracks_PbPb",
+      -1,
+      "Maximum number of VELO tracks in the PbPb region"};
     Allen::Property<int> m_min_long_tracks {this, "min_long_tracks", 0, "Minimum number of Long tracks"};
     Allen::Property<int> m_max_long_tracks {this, "max_long_tracks", -1, "Maximum number of Long tracks"};
-    Allen::Property<int> m_min_velo_tracks_SMOG {this,
-                                                 "min_velo_tracks_SMOG",
-                                                 0,
-                                                 "Minimum number of VELO tracks in the SMOG region"};
-    Allen::Property<int> m_max_velo_tracks_SMOG {this,
-                                                 "max_velo_tracks_SMOG",
-                                                 -1,
-                                                 "Maximum number of VELO tracks in the SMOG region"};
+    Allen::Property<int> m_min_velo_tracks_SMOG {
+      this,
+      "min_velo_tracks_SMOG",
+      0,
+      "Minimum number of VELO tracks in the SMOG region"};
+    Allen::Property<int> m_max_velo_tracks_SMOG {
+      this,
+      "max_velo_tracks_SMOG",
+      -1,
+      "Maximum number of VELO tracks in the SMOG region"};
     Allen::Property<int> m_min_pvs_PbPb {this, "min_pvs_PbPb", 0, "Minimum number of PVs in the PbPb region"};
     Allen::Property<int> m_max_pvs_PbPb {this, "max_pvs_PbPb", -1, "Maximum number of PVs in the PbPb region"};
     Allen::Property<int> m_min_pvs_SMOG {this, "min_pvs_SMOG", 0, "Minimum number of PVs in the SMOG region"};

@@ -8,13 +8,21 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1_pp_ref import setup_hlt1_node, velo_micro_bas_lines
-from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1_pp_ref import setup_hlt1_node
+from AllenConf.hlt1_presets import VELO_MICRO_BIAS_PRESETS
+from AllenCore.generator import generate
 
-with velo_micro_bas_lines.bind(post_scalers=[0.1, 3.e-3]):
-    hlt1_node = setup_hlt1_node(
-        tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        threshold_settings=get_thresholds("pp_reference_run_2024"))
+
+def modify_presets():
+    VELO_MICRO_BIAS_PRESETS["pp"]["Hlt1VeloMicroBias"]["post_scaler"] = 0.1
+    VELO_MICRO_BIAS_PRESETS["pp"]["Hlt1VeloMicroBiasVeloClosing"]["post_scaler"] = 0.1
+
+
+hlt1_node = setup_hlt1_node(
+    tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+    threshold_settings=get_thresholds("pp_reference_run_2024"),
+    preset_modifiers=[modify_presets],
+)
 generate(hlt1_node)

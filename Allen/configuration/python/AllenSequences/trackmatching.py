@@ -10,15 +10,18 @@
 ###############################################################################
 from AllenConf.matching_reconstruction import velo_scifi_matching
 from AllenConf.ut_reconstruction import decode_ut
-from PyConf.control_flow import NodeLogic, CompositeNode
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 velo_scifi_matching_sequence = CompositeNode(
-    "Matching", [
+    "Matching",
+    [
         velo_scifi_matching(
-            algorithm_name='velo_scifi_matching_sequence', ut_hits=decode_ut())
+            algorithm_name="velo_scifi_matching_sequence", ut_hits=decode_ut()
+        )
     ],
     NodeLogic.LAZY_AND,
-    force_order=True)
+    force_order=True,
+)
 
 generate(velo_scifi_matching_sequence)

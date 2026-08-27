@@ -48,10 +48,11 @@ namespace calo_prefilter_clusters {
   private:
     Allen::Property<float> m_minEt_clusters {this, "minEt_clusters", 400.f, "minEt of each cluster"}; // MeV
     Allen::Property<float> m_minE19_clusters {this, "minE19_clusters", 0.6f, "min CaloNeutralE19 of each cluster"};
-    Allen::Property<dim3> m_block_dim_prefilter {this,
-                                                 "block_dim_prefilter",
-                                                 {256, 1, 1},
-                                                 "block dimensions for prefilter step"};
+    Allen::Property<dim3> m_block_dim_prefilter {
+      this,
+      "block_dim_prefilter",
+      {256, 1, 1},
+      "block dimensions for prefilter step"};
   };
 
 } // namespace calo_prefilter_clusters

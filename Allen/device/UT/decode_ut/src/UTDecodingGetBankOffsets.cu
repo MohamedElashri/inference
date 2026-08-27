@@ -71,11 +71,12 @@ __global__ void ut_decoding_get_bank_offsets::ut_decoding_get_number_of_banks(
     const auto event_number = parameters.dev_event_list[i];
 
     // Fetch raw data
-    const UTRawEvent<mep> raw_event {parameters.dev_ut_raw_input,
-                                     parameters.dev_ut_raw_input_offsets,
-                                     parameters.dev_ut_raw_input_sizes,
-                                     parameters.dev_ut_raw_input_types,
-                                     event_number + event_start};
+    const UTRawEvent<mep> raw_event {
+      parameters.dev_ut_raw_input,
+      parameters.dev_ut_raw_input_offsets,
+      parameters.dev_ut_raw_input_sizes,
+      parameters.dev_ut_raw_input_types,
+      event_number + event_start};
 
     // Fill offsets
     parameters.dev_ut_banks_offsets[event_number] = raw_event.number_of_raw_banks();

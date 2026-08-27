@@ -105,31 +105,36 @@ namespace kplus_to_three_tracks_line {
     Allen::Property<float> m_massWindow_max {this, "massWindow_max", 200.f * Allen::Units::MeV, "Upper mass window"};
     Allen::Property<float> m_minTrackIP {this, "minTrackIP", 0.5f * Allen::Units::mm, "Minimum track IP"};
     Allen::Property<float> m_minZ {this, "minZ", -341.f * Allen::Units::mm, "Minimum z of vertex"};
-    Allen::Property<float> m_minPairMass {this,
-                                          "minPairMass",
-                                          0.f * Allen::Units::MeV,
-                                          "Minimum mass of the two-track pair"};
-    Allen::Property<float> m_maxPairMass {this,
-                                          "maxPairMass",
-                                          1000.f * Allen::Units::MeV,
-                                          "Maximum mass of the two-track pair"};
+    Allen::Property<float> m_minPairMass {
+      this,
+      "minPairMass",
+      0.f * Allen::Units::MeV,
+      "Minimum mass of the two-track pair"};
+    Allen::Property<float> m_maxPairMass {
+      this,
+      "maxPairMass",
+      1000.f * Allen::Units::MeV,
+      "Maximum mass of the two-track pair"};
     Allen::Property<bool> m_is_dimuon {this, "is_dimuon", false, "Require dimuon"};
     Allen::Property<bool> m_is_dielectron {this, "is_dielectron", false, "Require dielectron"};
     Allen::Property<float> m_mass_companion {this, "mass_companion", Allen::mPi, "Mass of child 0"};
     Allen::Property<float> m_mass_seed_track_one {this, "mass_seed_track_one", Allen::mPi, "Mass of child 1"};
     Allen::Property<float> m_mass_seed_track_two {this, "mass_seed_track_two", Allen::mPi, "Mass of child 2"};
-    Allen::Property<float> m_minFlightDistance {this,
-                                                "minFlightDistance",
-                                                Allen::Units::mm,
-                                                "Mininum Flight Distance of mother"};
-    Allen::Monitoring::Histogram<> m_histogramTwoBodySeedMass {this,
-                                                               "two_body_seed_mass",
-                                                               "m(TwoBodySeed)",
-                                                               {100u, 0.f, Allen::mK}};
-    Allen::Monitoring::Histogram<> m_histogramTwoBodySeedPt {this,
-                                                             "two_body_seed_Pt",
-                                                             "pT(TwoBodySeed)",
-                                                             {100u, 0.f, 1e4}};
+    Allen::Property<float> m_minFlightDistance {
+      this,
+      "minFlightDistance",
+      Allen::Units::mm,
+      "Mininum Flight Distance of mother"};
+    Allen::Monitoring::Histogram<> m_histogramTwoBodySeedMass {
+      this,
+      "two_body_seed_mass",
+      "m(TwoBodySeed)",
+      {100u, 0.f, Allen::mK}};
+    Allen::Monitoring::Histogram<> m_histogramTwoBodySeedPt {
+      this,
+      "two_body_seed_Pt",
+      "pT(TwoBodySeed)",
+      {100u, 0.f, 1e4}};
   };
 
 } // namespace kplus_to_three_tracks_line

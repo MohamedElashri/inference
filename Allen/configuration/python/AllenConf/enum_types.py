@@ -27,6 +27,8 @@ class ActivityType(Enum):
 
 
 def includes_matching(tracking_type):
-    return tracking_type in (TrackingType.MATCHING,
-                             TrackingType.FORWARD_THEN_MATCHING,
-                             TrackingType.MATCHING_THEN_FORWARD)
+    return tracking_type in (
+        TrackingType.MATCHING,
+        TrackingType.FORWARD_THEN_MATCHING,
+        TrackingType.MATCHING_THEN_FORWARD,
+    )

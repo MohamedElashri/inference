@@ -271,11 +271,12 @@ __global__ void muon_populate_tile_and_tdc_kernel(
   unsigned* atomics_muon = parameters.dev_atomics_muon + event_number * 2 * Muon::Constants::n_stations *
                                                            Muon::Constants::n_regions * Muon::Constants::n_quarters;
 
-  const auto raw_event = Muon::RawEvent<mep_layout, decoding_version> {parameters.dev_muon_raw,
-                                                                       parameters.dev_muon_raw_offsets,
-                                                                       parameters.dev_muon_raw_sizes,
-                                                                       parameters.dev_muon_raw_types,
-                                                                       event_number + event_start};
+  const auto raw_event = Muon::RawEvent<mep_layout, decoding_version> {
+    parameters.dev_muon_raw,
+    parameters.dev_muon_raw_offsets,
+    parameters.dev_muon_raw_sizes,
+    parameters.dev_muon_raw_types,
+    event_number + event_start};
 
   for (unsigned bank_index = threadIdx.x; bank_index < raw_event.number_of_raw_banks(); bank_index += blockDim.x) {
     const auto raw_bank = raw_event.raw_bank(bank_index);

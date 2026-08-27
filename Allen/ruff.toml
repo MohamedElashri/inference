@@ -1,0 +1,19 @@
+[lint]
+select = [
+    # Pyflakes
+    "F",
+    # Pycodestyle
+    "E71",
+    "E9",
+    "W1",
+    "W6",
+    # isort
+    "I001"
+]
+ignore = [
+    # this is disabled for now, as we have imports with side effects
+    # and isort breaks such code
+    "F401", # unsued import
+    "F403", # import *
+    "F405", # `xyz` may be undefined, or defined from star imports
+]

@@ -102,9 +102,11 @@ namespace Velo {
     unsigned m_offset;
 
   public:
-    constexpr static unsigned element_size = sizeof(unsigned) + sizeof(int16_t) + 3 * sizeof(half_t);
+    constexpr static unsigned element_size = sizeof(unsigned) + sizeof(int16_t) + 3 * sizeof(half_t) + sizeof(int16_t);
     constexpr static unsigned offset_coordinates = sizeof(unsigned) / sizeof(half_t);
     constexpr static unsigned offset_phi = (sizeof(unsigned) + 3 * sizeof(half_t)) / sizeof(int16_t);
+    constexpr static unsigned offset_cluster_size =
+      (sizeof(unsigned) + 3 * sizeof(half_t) + sizeof(int16_t)) / sizeof(int16_t);
 
     Clusters_t() = default;
     Clusters_t(const Clusters_t&) = default;
@@ -186,6 +188,20 @@ namespace Velo {
     {
       return reinterpret_cast<typename ForwardType<T, int16_t>::t*>(m_base_pointer) +
              m_total_number_of_hits * offset_phi + m_offset;
+    }
+
+    __host__ __device__ int16_t cluster_size(const unsigned index) const
+    {
+      assert(m_offset + index < m_total_number_of_hits);
+      return reinterpret_cast<typename ForwardType<T, int16_t>::t*>(
+        m_base_pointer)[m_total_number_of_hits * offset_cluster_size + m_offset + index];
+    }
+
+    __host__ __device__ void set_cluster_size(const unsigned index, const int16_t value)
+    {
+      assert(m_offset + index < m_total_number_of_hits);
+      reinterpret_cast<typename ForwardType<T, int16_t>::t*>(
+        m_base_pointer)[m_total_number_of_hits * offset_cluster_size + m_offset + index] = value;
     }
   };
 

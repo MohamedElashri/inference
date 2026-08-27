@@ -61,14 +61,16 @@ namespace SMOG2_singletrack_line {
     Allen::Property<float> m_minP {this, "minP", 5000.f * Allen::Units::MeV, "minimum P"};
     Allen::Property<float> m_minPt {this, "minPt", 1500.f * Allen::Units::MeV, "minimum Pt"};
     Allen::Property<float> m_maxChi2Ndof {this, "maxChi2Ndof", 3.f, "maximum track fit chi2 per degree of freedom"};
-    Allen::Property<float> m_minBPVz {this,
-                                      "minBPVz",
-                                      -537.5f * Allen::Units::mm,
-                                      "minimum z for the best associated primary vertex"};
-    Allen::Property<float> m_maxBPVz {this,
-                                      "maxBPVz",
-                                      -337.5f * Allen::Units::mm,
-                                      "maximum z for the best associated primary vertex"};
+    Allen::Property<float> m_minBPVz {
+      this,
+      "minBPVz",
+      -537.5f * Allen::Units::mm,
+      "minimum z for the best associated primary vertex"};
+    Allen::Property<float> m_maxBPVz {
+      this,
+      "maxBPVz",
+      -337.5f * Allen::Units::mm,
+      "maximum z for the best associated primary vertex"};
     Allen::Property<float> m_maxGhostProb {this, "maxGhostProb", 0.5, "Maximum ghost probability of the tracks"};
   };
 } // namespace SMOG2_singletrack_line

@@ -62,10 +62,11 @@ namespace compass_ut_fit_tracks {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<float> m_sigma_velo_slope {this,
-                                               "sigma_velo_slope",
-                                               0.1f * Allen::Units::mrad,
-                                               "sigma velo slope [radians]"};
+    Allen::Property<float> m_sigma_velo_slope {
+      this,
+      "sigma_velo_slope",
+      0.1f * Allen::Units::mrad,
+      "sigma velo slope [radians]"};
     Allen::Property<float> m_min_momentum_final {this, "min_momentum_final", 2500.f, "final min momentum cut [MeV/c]"};
     Allen::Property<float> m_min_pt_final {this, "min_pt_final", 425.f, "final min pT cut [MeV/c]"};
     Allen::Property<float> m_min_ghost_prob_3_hit {this, "min_ghost_prob_3_hit", 0.5f, "min_ghost_prob_3_hit"};
@@ -73,9 +74,11 @@ namespace compass_ut_fit_tracks {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 
   private:
-    VeloUTGhostKiller m_dev_velout_ghostkiller_3hits {"dev_velout_ghostkiller_3hits",
-                                                      "/GhostProbability/Hlt1_VeloUTGhostKiller_3Hits.json"};
-    VeloUTGhostKiller m_dev_velout_ghostkiller_4hits {"dev_velout_ghostkiller_4hits",
-                                                      "/GhostProbability/Hlt1_VeloUTGhostKiller_4Hits.json"};
+    VeloUTGhostKiller m_dev_velout_ghostkiller_3hits {
+      "dev_velout_ghostkiller_3hits",
+      "/GhostProbability/Hlt1_VeloUTGhostKiller_3Hits.json"};
+    VeloUTGhostKiller m_dev_velout_ghostkiller_4hits {
+      "dev_velout_ghostkiller_4hits",
+      "/GhostProbability/Hlt1_VeloUTGhostKiller_4Hits.json"};
   };
 } // namespace compass_ut_fit_tracks

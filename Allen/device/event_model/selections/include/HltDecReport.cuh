@@ -69,9 +69,10 @@ public:
     std::byte number_of_candidates,
     std::byte execution_stage,
     unsigned short decision_id) :
-    m_report {shift<Mask::decision_mask>(decision) | shift<Mask::error_mask>(error) |
-              shift<Mask::number_of_candidates_mask>(number_of_candidates) |
-              shift<Mask::execution_stage_mask>(execution_stage) | shift<Mask::decision_id_mask>(decision_id)}
+    m_report {
+      shift<Mask::decision_mask>(decision) | shift<Mask::error_mask>(error) |
+      shift<Mask::number_of_candidates_mask>(number_of_candidates) |
+      shift<Mask::execution_stage_mask>(execution_stage) | shift<Mask::decision_id_mask>(decision_id)}
   {}
 
   __device__ __host__ HltDecReport(unsigned int report) : m_report {report} {}

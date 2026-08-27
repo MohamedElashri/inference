@@ -322,17 +322,18 @@ namespace MatchUpstreamMuon {
   };
 
   struct SearchWindows {
-    float Windows[8] {500.f * Allen::Units::mm, // M2
-                      400.f * Allen::Units::mm,
+    float Windows[8] {
+      500.f * Allen::Units::mm, // M2
+      400.f * Allen::Units::mm,
 
-                      600.f * Allen::Units::mm, // M3
-                      500.f * Allen::Units::mm,
+      600.f * Allen::Units::mm, // M3
+      500.f * Allen::Units::mm,
 
-                      700.f * Allen::Units::mm, // M4
-                      600.f * Allen::Units::mm,
+      700.f * Allen::Units::mm, // M4
+      600.f * Allen::Units::mm,
 
-                      800.f * Allen::Units::mm, // M5
-                      700.f * Allen::Units::mm
+      800.f * Allen::Units::mm, // M5
+      700.f * Allen::Units::mm
 
     };
   };

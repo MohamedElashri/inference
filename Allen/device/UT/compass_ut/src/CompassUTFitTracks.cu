@@ -40,9 +40,10 @@ namespace {
     float bdl = bdl_table[master_index(index1, index2, index3)];
 
     const int num_idx = 3;
-    const float bdls[num_idx] = {bdl_table[master_index(index1 + 1, index2, index3)],
-                                 bdl_table[master_index(index1, index2 + 1, index3)],
-                                 bdl_table[master_index(index1, index2, index3 + 1)]};
+    const float bdls[num_idx] = {
+      bdl_table[master_index(index1 + 1, index2, index3)],
+      bdl_table[master_index(index1, index2 + 1, index3)],
+      bdl_table[master_index(index1, index2, index3 + 1)]};
     const float deltaBdl[num_idx] = {0.02f, 50.0f, 80.0f};
     const float boundaries[num_idx] = {
       -0.3f + float(index1) * deltaBdl[0], -250.0f + float(index2) * deltaBdl[1], 0.0f + float(index3) * deltaBdl[2]};

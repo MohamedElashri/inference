@@ -29,8 +29,8 @@ namespace {
       for (auto bt : bts) {
         auto n = bank_name(bt);
         if (n == "Unknown") {
-          throw StrException {"Cannot map BankType " + std::to_string(to_integral(bt)) +
-                              " with unknown string representation"};
+          throw StrException {
+            "Cannot map BankType " + std::to_string(to_integral(bt)) + " with unknown string representation"};
         }
         to.insert(n);
       }

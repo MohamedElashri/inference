@@ -102,9 +102,9 @@ __global__ void kalman_velo_only::kalman_pv_ip(kalman_velo_only::Parameters para
   // Kalman-fitted tracks for this event.
   ParKalmanFilter::FittedTrack* event_tracks = parameters.dev_kf_tracks + event_long_tracks.offset();
   const bool* event_is_muon = parameters.dev_is_muon + event_long_tracks.offset();
-  Allen::device::span<PV::Vertex const> vertices {parameters.dev_multi_final_vertices +
-                                                    event_number * PV::max_number_vertices,
-                                                  *(parameters.dev_number_of_multi_final_vertices + event_number)};
+  Allen::device::span<PV::Vertex const> vertices {
+    parameters.dev_multi_final_vertices + event_number * PV::max_number_vertices,
+    *(parameters.dev_number_of_multi_final_vertices + event_number)};
 
   // The track <-> PV association table for this event.
   Associate::Consolidated::EventTable pv_table =
@@ -122,6 +122,7 @@ __global__ void kalman_filter::kalman_pv_ip(kalman_filter::Parameters parameters
   const auto event_long_tracks = parameters.dev_multi_event_long_tracks_view->container(event_number);
   parameters.dev_kalman_states_view[event_number] = Allen::Views::Physics::KalmanStates {
     parameters.dev_kalman_fit_results, parameters.dev_atomics_scifi, event_number, number_of_events};
+
   const auto kalman_states_view = parameters.dev_kalman_states_view[event_number];
   const unsigned total_number_of_long_tracks =
     parameters.dev_multi_event_long_tracks_view->number_of_contained_objects();
@@ -134,9 +135,9 @@ __global__ void kalman_filter::kalman_pv_ip(kalman_filter::Parameters parameters
   // Kalman-fitted tracks for this event.
   ParKalmanFilter::FittedTrack* event_tracks = parameters.dev_kf_tracks + event_long_tracks.offset();
   const bool* event_is_muon = parameters.dev_is_muon + event_long_tracks.offset();
-  Allen::device::span<PV::Vertex const> vertices {parameters.dev_multi_final_vertices +
-                                                    event_number * PV::max_number_vertices,
-                                                  *(parameters.dev_number_of_multi_final_vertices + event_number)};
+  Allen::device::span<PV::Vertex const> vertices {
+    parameters.dev_multi_final_vertices + event_number * PV::max_number_vertices,
+    *(parameters.dev_number_of_multi_final_vertices + event_number)};
 
   // The track <-> PV association table for this event.
   Associate::Consolidated::EventTable pv_table =

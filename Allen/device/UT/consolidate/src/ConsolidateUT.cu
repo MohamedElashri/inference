@@ -35,12 +35,12 @@ __global__ void create_ut_views(ut_consolidate_tracks::Parameters parameters)
   }
 
   if (threadIdx.x == 0) {
-    new (parameters.dev_ut_hits_view + event_number)
-      Allen::Views::UT::Consolidated::Hits {parameters.dev_ut_track_hits,
-                                            parameters.dev_offsets_ut_tracks,
-                                            parameters.dev_ut_track_hit_number,
-                                            event_number,
-                                            number_of_events};
+    new (parameters.dev_ut_hits_view + event_number) Allen::Views::UT::Consolidated::Hits {
+      parameters.dev_ut_track_hits,
+      parameters.dev_offsets_ut_tracks,
+      parameters.dev_ut_track_hit_number,
+      event_number,
+      number_of_events};
 
     new (parameters.dev_ut_tracks_view + event_number) Allen::Views::UT::Consolidated::VeloUTTracks {
       parameters.dev_ut_track_view, parameters.dev_offsets_ut_tracks, event_number};
@@ -122,12 +122,13 @@ __global__ void ut_consolidate_tracks::ut_consolidate_tracks(ut_consolidate_trac
   UT::ConstHits ut_hits {parameters.dev_ut_hits, total_number_of_hits};
 
   // Create consolidated SoAs.
-  UT::Consolidated::ExtendedTracks ut_tracks {parameters.dev_offsets_ut_tracks,
-                                              parameters.dev_ut_track_hit_number,
-                                              parameters.dev_ut_qop,
-                                              parameters.dev_ut_track_velo_indices,
-                                              event_number,
-                                              number_of_events};
+  UT::Consolidated::ExtendedTracks ut_tracks {
+    parameters.dev_offsets_ut_tracks,
+    parameters.dev_ut_track_hit_number,
+    parameters.dev_ut_qop,
+    parameters.dev_ut_track_velo_indices,
+    event_number,
+    number_of_events};
 
   const unsigned number_of_tracks_event = ut_tracks.number_of_tracks(event_number);
   const unsigned event_tracks_offset = ut_tracks.tracks_offset(event_number);

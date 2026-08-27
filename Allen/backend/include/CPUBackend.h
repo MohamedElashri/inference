@@ -51,7 +51,16 @@ using std::signbit;
 // #define CPU_USE_REAL_HALF 1
 #define __fdividef(x, y) ((x) / (y))
 #define __frsqrt_rn(x) (1.f / sqrtf(x))
+#define rsqrtf(x) __frsqrt_rn(x)
 #define __expf expf
+
+inline void __sincosf(float angle, float* sin, float* cos)
+{
+  *sin = std::sin(angle);
+  *cos = std::cos(angle);
+}
+
+inline float cbrtf(float x) { return std::pow(x, 1.f / 3.f); }
 
 constexpr int warp_size = 1;
 #define __bswap(x) __builtin_bswap32(x)
@@ -98,6 +107,31 @@ inline unsigned __fns(unsigned mask, unsigned base, int offset)
 
 unsigned inline __ballot_sync(unsigned mask, int predicate) { return predicate & mask; }
 
+inline float __shfl_down_sync(unsigned /*mask*/, float val, unsigned /*offset*/, int /*width*/ = warp_size)
+{
+  return val;
+}
+
+inline int __shfl_down_sync(unsigned /*mask*/, int val, unsigned /*offset*/, int /*width*/ = warp_size) { return val; }
+
+inline float __shfl_sync(unsigned /*mask*/, float val, unsigned /*srcLane*/, int /*width*/ = warp_size) { return val; }
+
+inline int __shfl_sync(unsigned /*mask*/, int val, unsigned /*srcLane*/, int /*width*/ = warp_size) { return val; }
+
+inline float __shfl_up_sync(unsigned /*mask*/, float val, unsigned /*offset*/, int /*width*/ = warp_size)
+{
+  return val;
+}
+
+inline int __shfl_up_sync(unsigned /*mask*/, int val, unsigned /*offset*/, int /*width*/ = warp_size) { return val; }
+
+inline float __shfl_xor_sync(unsigned /*mask*/, float val, unsigned /*laneMask*/, int /*width*/ = warp_size)
+{
+  return val;
+}
+
+inline int __shfl_xor_sync(unsigned /*mask*/, int val, unsigned /*laneMask*/, int /*width*/ = warp_size) { return val; }
+
 // Support for dynamic shared memory buffers
 #define DYNAMIC_SHARED_MEMORY_BUFFER(_type, _instance, _config)                                                  \
   auto _dynamic_shared_memory_buffer = std::vector<_type>(_config.dynamic_shared_memory_size() / sizeof(_type)); \
@@ -128,6 +162,7 @@ vectype(ulonglong) vectype(float) vectype(double)
   unsigned int y = 1;
   unsigned int z = 1;
 
+  dim3() = default;
   dim3(const unsigned int& x) : x(x) {}
   dim3(const unsigned int& x, const unsigned int& y) : x(x), y(y) {}
   dim3(const unsigned int& x, const unsigned int& y, const unsigned int& z) : x(x), y(y), z(z) {}
@@ -380,6 +415,10 @@ namespace Allen {
 
   void inline memcpy(void* dst, const void* src, size_t count, enum Allen::memcpy_kind)
   {
+    // std::memcpy's pointer arguments are declared non-null; a zero-length copy
+    // with a null src/dst (a valid, common case for empty buffers) would
+    // otherwise be undefined behaviour.
+    if (count == 0) return;
     std::memcpy(dst, src, count);
   }
 
@@ -394,7 +433,12 @@ namespace Allen {
     memcpy(dst, src, count, kind);
   }
 
-  void inline memset(void* devPtr, int value, size_t count) { std::memset(devPtr, value, count); }
+  void inline memset(void* devPtr, int value, size_t count)
+  {
+    // Same non-null-argument rationale as memcpy() above.
+    if (count == 0) return;
+    std::memset(devPtr, value, count);
+  }
 
   void inline memset_async(void* ptr, int value, size_t count, const Context&) { memset(ptr, value, count); }
 

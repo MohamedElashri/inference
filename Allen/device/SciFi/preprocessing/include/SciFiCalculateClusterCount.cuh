@@ -41,10 +41,11 @@ namespace scifi_calculate_cluster_count {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {240, 1, 1}, "block dimensions"};
-    Allen::Property<bool> m_decode_v8_as_v7 {this,
-                                             "decode_v8_as_v7",
-                                             {false},
-                                             "Decode v8 banks as v7 to reproduce a bug in July 2023 (MC only)"};
+    Allen::Property<bool> m_decode_v8_as_v7 {
+      this,
+      "decode_v8_as_v7",
+      {false},
+      "Decode v8 banks as v7 to reproduce a bug in July 2023 (MC only)"};
     Allen::Monitoring::Counter<> m_link_error_counter {this, "n_link_error"};
     Allen::Monitoring::Counter<> m_misordered_cluster_counter {this, "n_misordered_cluster"};
   };

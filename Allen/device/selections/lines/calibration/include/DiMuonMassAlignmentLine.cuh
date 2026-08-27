@@ -78,14 +78,16 @@ namespace di_muon_mass_alignment_line {
     using monitoring_types = std::tuple<evtNo_t, runNo_t>;
 
   private:
-    Allen::Property<float> m_minHighMassTrackPt {this,
-                                                 "minHighMassTrackPt",
-                                                 1000.f / Allen::Units::MeV,
-                                                 "minHighMassTrackPt description"};
-    Allen::Property<float> m_minHighMassTrackP {this,
-                                                "minHighMassTrackP",
-                                                6000.f / Allen::Units::MeV,
-                                                "minHighMassTrackP description"};
+    Allen::Property<float> m_minHighMassTrackPt {
+      this,
+      "minHighMassTrackPt",
+      1000.f / Allen::Units::MeV,
+      "minHighMassTrackPt description"};
+    Allen::Property<float> m_minHighMassTrackP {
+      this,
+      "minHighMassTrackP",
+      6000.f / Allen::Units::MeV,
+      "minHighMassTrackP description"};
     Allen::Property<float> m_minMass {this, "minMass", 2996.f / Allen::Units::MeV, "minMass description"};
     Allen::Property<float> m_maxMass {this, "maxMass", 3196.f / Allen::Units::MeV, "maxMass description"};
     Allen::Property<float> m_maxDoca {this, "maxDoca", 0.2f, "maxDoca description"};

@@ -33,7 +33,6 @@
 #include "LHCbID.cuh"
 #include "UTEventModel.cuh"
 #include "Logger.h"
-#include "Constants.cuh"
 
 using simd = SIMDWrapper::best::types;
 
@@ -41,8 +40,7 @@ class GaudiAllenTransformAllenRecUTHits final
   : public Gaudi::Functional::MultiTransformer<std::tuple<std::vector<UT::Hit>, std::vector<UT::Hit>>(
       const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
       const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-      LHCb::Pr::UT::Hits const& hit_handler,
-      const Constants* const&)> {
+      LHCb::Pr::UT::Hits const& hit_handler)> {
 public:
   // Standard constructor
   GaudiAllenTransformAllenRecUTHits(const std::string& name, ISvcLocator* pSvcLocator);
@@ -51,8 +49,7 @@ public:
   std::tuple<std::vector<UT::Hit>, std::vector<UT::Hit>> operator()(
     const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
     const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-    LHCb::Pr::UT::Hits const&,
-    const Constants* const&) const override;
+    LHCb::Pr::UT::Hits const&) const override;
 };
 
 DECLARE_COMPONENT(GaudiAllenTransformAllenRecUTHits)
@@ -64,10 +61,7 @@ GaudiAllenTransformAllenRecUTHits::GaudiAllenTransformAllenRecUTHits(
     name,
     pSvcLocator,
     // Inputs
-    {KeyValue {"ut_hit_offsets", ""},
-     KeyValue {"ut_hits", ""},
-     KeyValue {"UTHitsLocation", UTInfo::HitLocation},
-     KeyValue {"allen_constants", ""}},
+    {KeyValue {"ut_hit_offsets", ""}, KeyValue {"ut_hits", ""}, KeyValue {"UTHitsLocation", UTInfo::HitLocation}},
     // Outputs
     {KeyValue {"allen_ut_hits", ""}, KeyValue {"rec_ut_hits", ""}})
 {}
@@ -75,8 +69,7 @@ GaudiAllenTransformAllenRecUTHits::GaudiAllenTransformAllenRecUTHits(
 std::tuple<std::vector<UT::Hit>, std::vector<UT::Hit>> GaudiAllenTransformAllenRecUTHits::operator()(
   const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& ut_hit_offsets,
   const std::vector<char, LHCb::Allocators::EventLocal<char>>& ut_hits,
-  LHCb::Pr::UT::Hits const& hit_handler,
-  const Constants* const&) const
+  LHCb::Pr::UT::Hits const& hit_handler) const
 {
   // read in offsets and hits from the buffer
   const auto n_hits_total_allen = ut_hit_offsets[ut_hit_offsets.size() - 1];

@@ -62,7 +62,7 @@ void velo_search_by_triplet::cluster_container_checks::operator()(
                                     velo_container_view.x(hit_index) > previous_hit_x) ||
                                    (velo_container_view.phi(hit_index) == previous_hit_phi &&
                                     velo_container_view.id(hit_index) == previous_hit_id &&
-                                    velo_container_view.x(hit_index) == previous_hit_x &&
+                                    LHCb::essentiallyEqual(velo_container_view.x(hit_index), previous_hit_x) &&
                                     velo_container_view.y(hit_index) > previous_hit_y);
             }
             previous_hit_phi = velo_container_view.phi(hit_index);

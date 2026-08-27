@@ -42,9 +42,10 @@ namespace host_dummy_odin_provider {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<std::array<float, 4>> m_lumi_frac {this,
-                                                       "lumi_frac",
-                                                       {0.f, 0.f, 0.f, 0.f},
-                                                       "fraction of lumi events"};
+    Allen::Property<std::array<float, 4>> m_lumi_frac {
+      this,
+      "lumi_frac",
+      {0.f, 0.f, 0.f, 0.f},
+      "fraction of lumi events"};
   };
 } // namespace host_dummy_odin_provider

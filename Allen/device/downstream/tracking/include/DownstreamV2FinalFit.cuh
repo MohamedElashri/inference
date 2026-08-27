@@ -70,13 +70,15 @@ namespace downstream_v2_final_fits {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<float> m_ghost_killing_threshold {this,
-                                                      "ghost_killing_threshold",
-                                                      0.5,
-                                                      "the ghost killing threshold"};
+    Allen::Property<float> m_ghost_killing_threshold {
+      this,
+      "ghost_killing_threshold",
+      0.5,
+      "the ghost killing threshold"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
-    GhostKiller m_downstream_ghost_killer {"downstream_ghost_killer",
-                                           "/GhostProbability/Hlt1_DownstreamV2GhostKiller.json"};
+    GhostKiller m_downstream_ghost_killer {
+      "downstream_ghost_killer",
+      "/GhostProbability/Hlt1_DownstreamV2GhostKiller.json"};
   };
 
   __global__ void downstream_v2_final_fits(

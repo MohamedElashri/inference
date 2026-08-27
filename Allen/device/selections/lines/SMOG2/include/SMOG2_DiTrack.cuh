@@ -120,18 +120,21 @@ namespace SMOG2_ditrack_line {
     Allen::Property<float> m_minEta {this, "minEta", 2.0f, "minimum pseudoirapidity for composite particle"};
     Allen::Property<float> m_maxEta {this, "maxEta", 6.0f, "maximum pseudoirapidity for composite particle"};
     Allen::Property<float> m_maxTrackChi2Ndf {this, "maxTrackChi2Ndf", 4.f, "max track fit Chi2ndf"};
-    Allen::Property<float> m_minTrackP {this,
-                                        "minTrackP",
-                                        3000.f * Allen::Units::MeV,
-                                        "minimum final-state particles momentum"};
-    Allen::Property<float> m_minTrackPt {this,
-                                         "minTrackPt",
-                                         400.f * Allen::Units::MeV,
-                                         "minimum final-state particles transverse momentum"};
-    Allen::Property<float> m_minEitherTrackPt {this,
-                                               "minEitherTrackPt",
-                                               800.f * Allen::Units::MeV,
-                                               "minimum transverse momentum for at least one final-state particle"};
+    Allen::Property<float> m_minTrackP {
+      this,
+      "minTrackP",
+      3000.f * Allen::Units::MeV,
+      "minimum final-state particles momentum"};
+    Allen::Property<float> m_minTrackPt {
+      this,
+      "minTrackPt",
+      400.f * Allen::Units::MeV,
+      "minimum final-state particles transverse momentum"};
+    Allen::Property<float> m_minEitherTrackPt {
+      this,
+      "minEitherTrackPt",
+      800.f * Allen::Units::MeV,
+      "minimum transverse momentum for at least one final-state particle"};
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 20.f, "max SV Chi2"};
     Allen::Property<float> m_minZ {this, "minZ", -537.5f * Allen::Units::mm, "minimum accepted SV z"};
     Allen::Property<float> m_maxZ {this, "maxZ", -337.5f * Allen::Units::mm, "maximum accepted SV z"};
@@ -141,37 +144,44 @@ namespace SMOG2_ditrack_line {
     Allen::Property<float> m_maxTrackIPCHI2 {this, "maxTrackIPCHI2", 999999.f, "Max IPCHI2 for the final-state parts"};
     Allen::Property<float> m_m1 {this, "m1", -1.f * Allen::Units::MeV, "first final-state particle mass"};
     Allen::Property<float> m_m2 {this, "m2", -1.f * Allen::Units::MeV, "second final-state particle mass"};
-    Allen::Property<float> m_minMdipion {this,
-                                         "minMdipion",
-                                         -1.f * Allen::Units::MeV,
-                                         "Minimum mass assuming dipion hypothesis in MeV"};
+    Allen::Property<float> m_minMdipion {
+      this,
+      "minMdipion",
+      -1.f * Allen::Units::MeV,
+      "Minimum mass assuming dipion hypothesis in MeV"};
     Allen::Property<float> m_mMother {this, "mMother", -1.f * Allen::Units::MeV, "resonance mass"};
-    Allen::Property<float> m_massWindow {this,
-                                         "massWindow",
-                                         -1.f * Allen::Units::MeV,
-                                         "maximum mass difference wrt mM"};
+    Allen::Property<float> m_massWindow {
+      this,
+      "massWindow",
+      -1.f * Allen::Units::MeV,
+      "maximum mass difference wrt mM"};
     Allen::Property<float> m_minFDCHI2 {this, "minFDCHI2", -10.f, "Min flight distance CHI2 for the final-state part"};
-    Allen::Property<float> m_maxFDCHI2 {this,
-                                        "maxFDCHI2",
-                                        999999.f,
-                                        "Max flight distance CHI2 for the final-state part"};
+    Allen::Property<float> m_maxFDCHI2 {
+      this,
+      "maxFDCHI2",
+      999999.f,
+      "Max flight distance CHI2 for the final-state part"};
     Allen::Property<float> m_maxGhostProb {this, "maxGhostProb", 0.5, "Maximum ghost probability of the tracks"};
 
-    Allen::Monitoring::Histogram<> m_histogram_smogditrack_mass {this,
-                                                                 "SMOG2_ditrack_mass",
-                                                                 "mass [MeV]",
-                                                                 {100u, 2700.f, 4000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_smogditrack_pt {this,
-                                                               "SMOG2_ditrack_pt",
-                                                               "pT [MeV]",
-                                                               {100u, 100.f, 8000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_smogditrack_svz {this,
-                                                                "smogditrack_svz",
-                                                                "SV_z [mm]",
-                                                                {100u, -550.f, -300.f}};
-    Allen::Monitoring::Histogram<> m_histogram_smogditrack_pvz {this,
-                                                                "smogditrack_Pvz",
-                                                                "PV_z [mm]",
-                                                                {100u, -550.f, -300.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogditrack_mass {
+      this,
+      "SMOG2_ditrack_mass",
+      "mass [MeV]",
+      {100u, 2700.f, 4000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogditrack_pt {
+      this,
+      "SMOG2_ditrack_pt",
+      "pT [MeV]",
+      {100u, 100.f, 8000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogditrack_svz {
+      this,
+      "smogditrack_svz",
+      "SV_z [mm]",
+      {100u, -550.f, -300.f}};
+    Allen::Monitoring::Histogram<> m_histogram_smogditrack_pvz {
+      this,
+      "smogditrack_Pvz",
+      "PV_z [mm]",
+      {100u, -550.f, -300.f}};
   };
 } // namespace SMOG2_ditrack_line

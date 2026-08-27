@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB kalman_ParKalman "ParKalman/src/*cu")
 
-allen_add_device_library(Kalman STATIC
+allen_add_device_library(Kalman OBJECT
   ${kalman_ParKalman}
 )
 

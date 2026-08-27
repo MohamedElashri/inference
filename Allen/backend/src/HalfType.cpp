@@ -71,9 +71,9 @@ float __half2float_impl(const uint16_t h)
 {
   constexpr uint32_t shifted_exp = 0x7c00 << 13; // exponent mask after shift
 
-  int32_t o = ((int32_t)(h & 0x7fff)) << 13; // exponent/mantissa bits
-  uint32_t exp = shifted_exp & o;            // just the exponent
-  o += (127 - 15) << 23;                     // exponent adjust
+  int32_t o = ((int32_t) (h & 0x7fff)) << 13; // exponent/mantissa bits
+  uint32_t exp = shifted_exp & o;             // just the exponent
+  o += (127 - 15) << 23;                      // exponent adjust
 
   // handle exponent special cases
   if (exp == shifted_exp)                             // Inf/NaN?
@@ -83,7 +83,7 @@ float __half2float_impl(const uint16_t h)
     o = intbits(floatbits(o) - floatbits(113 << 23)); // renormalize
   }
 
-  o |= ((int32_t)(h & 0x8000)) << 16; // sign bit
+  o |= ((int32_t) (h & 0x8000)) << 16; // sign bit
   return floatbits(o);
 }
 

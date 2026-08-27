@@ -56,40 +56,17 @@ public:
       auto const& banks = transposed_banks[i];
       if (banks.data.empty()) continue;
 
-      // Offsets to events (we only process one event)
-      auto& offsets = m_offsets[i];
-      offsets[0] = 0;
-      offsets[1] = banks.data.size();
-
-      // Bank sizes
-      auto const n_banks = reinterpret_cast<unsigned const*>(banks.data.data())[0];
-
-      auto& sizes_offsets = m_sizes[i];
-      sizes_offsets.resize(2 + n_banks / 2 + 1);
-      // Only 1 event, so a single offset is enough. The offset
-      // counts uint16_t and is a uint32_t itself.
-      sizes_offsets[0] = 2;
-      uint16_t* sizes = reinterpret_cast<uint16_t*>(&sizes_offsets[1]);
-      std::copy_n(banks.sizes.begin(), banks.sizes.size(), sizes);
-
-      auto& types_offsets = m_types[i];
-      types_offsets.resize(2 + n_banks / 4 + 1);
-      // Only 1 event, so a single offset offset is enough. The offset
-      // counts uint8_t and is a uint32_t itself.
-      types_offsets[0] = 4;
-      uint8_t* types = reinterpret_cast<uint8_t*>(&types_offsets[1]);
-      std::copy_n(banks.types.begin(), banks.types.size(), types);
-
       // bank content
       auto data_size = static_cast<span_size_t<char const>>(banks.data.size());
       std::span<char const> b {banks.data.data(), data_size};
 
-      m_banks_and_offsets[i] = {{std::move(b)},
-                                {offsets.data(), 2u},
-                                static_cast<std::size_t>(data_size),
-                                {sizes_offsets.data(), sizes_offsets.size()},
-                                {types_offsets.data(), types_offsets.size()},
-                                banks.version};
+      m_banks_and_offsets[i] = {
+        {std::move(b)},
+        {banks.offsets.data(), banks.offsets.size()},
+        static_cast<std::size_t>(data_size),
+        {banks.sizes.data(), banks.sizes.size()},
+        {banks.types.data(), banks.types.size()},
+        banks.version};
     }
 
     return 0;
@@ -139,8 +116,5 @@ public:
 
 private:
   std::array<BanksAndOffsets, NBankTypes> m_banks_and_offsets;
-  std::array<std::array<unsigned int, 2>, NBankTypes> m_offsets;
-  std::array<std::vector<unsigned>, NBankTypes> m_sizes;
-  std::array<std::vector<unsigned>, NBankTypes> m_types;
   std::vector<std::vector<char>> m_masks;
 };

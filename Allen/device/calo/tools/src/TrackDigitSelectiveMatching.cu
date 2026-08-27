@@ -11,72 +11,63 @@
 #include "TrackDigitSelectiveMatching.cuh"
 #include "EcalScan.cuh"
 
-INSTANTIATE_ALGORITHM(track_digit_selective_matching::track_digit_selective_matching_t)
+INSTANTIATE_ALGORITHM_WITH_ID(
+  track_digit_selective_matching::track_digit_selective_matching_t<Allen::Views::Physics::MultiEventLongTracks>,
+  "track_digit_selective_matching_long_t")
+INSTANTIATE_ALGORITHM_WITH_ID(
+  track_digit_selective_matching::track_digit_selective_matching_t<Allen::Views::Physics::MultiEventDownstreamTracks>,
+  "track_digit_selective_matching_downstream_t")
 
-void track_digit_selective_matching::track_digit_selective_matching_t::set_arguments_size(
-  ArgumentReferences<Parameters> arguments,
+template<typename MultiEventTracks>
+void track_digit_selective_matching::track_digit_selective_matching_t<MultiEventTracks>::set_arguments_size(
+  ArgumentReferences<Parameters<MultiEventTracks>> arguments,
   const RuntimeOptions&,
   const Constants&) const
 {
-  set_size<dev_matched_ecal_energy_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_matched_ecal_digits_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_matched_ecal_digits_size_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_track_inEcalAcc_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_track_Eop_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_track_Eop3x3_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_delta_barycenter_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_delta_barycenter_x_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_region_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_delta_barycenter_y_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_dispersion_x_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_dispersion_x_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_dispersion_y_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_dispersion_xy_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_track_local_max_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_track_isElectron_t>(arguments, first<host_number_of_reconstructed_scifi_tracks_t>(arguments));
-  set_size<dev_ecal_digits_isTrackMatched_t>(arguments, first<host_ecal_number_of_digits_t>(arguments));
+  using P = Parameters<MultiEventTracks>;
+  const unsigned number_of_tracks = first<typename P::host_number_of_reconstructed_scifi_tracks_t>(arguments);
+  const unsigned number_of_digits = first<typename P::host_ecal_number_of_digits_t>(arguments);
+
+  set_size<typename P::dev_matched_ecal_energy_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_matched_ecal_digits_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_matched_ecal_digits_size_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_track_inEcalAcc_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_track_Eop_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_track_Eop3x3_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_delta_barycenter_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_delta_barycenter_x_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_region_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_delta_barycenter_y_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_dispersion_x_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_dispersion_y_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_dispersion_xy_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_track_local_max_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_track_isElectron_t>(arguments, number_of_tracks);
+  set_size<typename P::dev_ecal_digits_isTrackMatched_t>(arguments, number_of_digits);
 }
 
-void track_digit_selective_matching::track_digit_selective_matching_t::operator()(
-  const ArgumentReferences<Parameters>& arguments,
+template<typename MultiEventTracks>
+void track_digit_selective_matching::track_digit_selective_matching_t<MultiEventTracks>::operator()(
+  const ArgumentReferences<Parameters<MultiEventTracks>>& arguments,
   const RuntimeOptions&,
   const Constants& constants,
   Allen::Context const& context) const
 {
-  Allen::memset_async<dev_ecal_digits_isTrackMatched_t>(arguments, 0, context);
+  using P = Parameters<MultiEventTracks>;
 
-  global_function(track_digit_selective_matching)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
+  Allen::memset_async<typename P::dev_ecal_digits_isTrackMatched_t>(arguments, 0, context);
+
+  const auto kernel = track_digit_selective_matching<MultiEventTracks>;
+  global_function(kernel)(dim3(size<typename P::dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments, constants.dev_ecal_geometry);
 }
 
-__global__ void track_digit_selective_matching::track_digit_selective_matching(
-  track_digit_selective_matching::Parameters parameters,
-  const char* raw_ecal_geometry)
-{
-  if (const auto long_tracks =
-        Allen::dyn_cast<const Allen::Views::Physics::MultiEventLongTracks*>(*parameters.dev_tracks_view);
-      long_tracks) {
-    track_digit_selective_matching_implementation<Allen::Views::Physics::MultiEventLongTracks>(
-      parameters, long_tracks, raw_ecal_geometry);
-  }
-  else if (const auto downstream_tracks =
-             Allen::dyn_cast<const Allen::Views::Physics::MultiEventDownstreamTracks*>(*parameters.dev_tracks_view);
-           downstream_tracks) {
-    track_digit_selective_matching_implementation<Allen::Views::Physics::MultiEventDownstreamTracks>(
-      parameters, downstream_tracks, raw_ecal_geometry);
-  }
-  else {
-    // This flag tell compile this code it not reachable, so it will optimze with it
-    Allen::unreachable();
-  }
-}
-
 template<typename MultiEventTracks>
-__device__ void track_digit_selective_matching::track_digit_selective_matching_implementation(
-  track_digit_selective_matching::Parameters parameters,
-  const MultiEventTracks* dev_long_tracks_view,
+__global__ void track_digit_selective_matching::track_digit_selective_matching(
+  track_digit_selective_matching::Parameters<MultiEventTracks> parameters,
   const char* raw_ecal_geometry)
 {
+  const MultiEventTracks* dev_long_tracks_view = parameters.dev_tracks_view;
 
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
   // Long tracks.
@@ -107,12 +98,13 @@ __device__ void track_digit_selective_matching::track_digit_selective_matching_i
 
     // Define 6 z positions along the track inside the ECAL
     constexpr unsigned N_ecal_positions = 6;
-    const float ecal_positions[N_ecal_positions] = {z_front,
-                                                    z_showermax,
-                                                    z_front + 0.25f * ecal_delta_z,
-                                                    z_front + 0.5f * ecal_delta_z,
-                                                    z_front + 0.75f * ecal_delta_z,
-                                                    z_back};
+    const float ecal_positions[N_ecal_positions] = {
+      z_front,
+      z_showermax,
+      z_front + 0.25f * ecal_delta_z,
+      z_front + 0.5f * ecal_delta_z,
+      z_front + 0.75f * ecal_delta_z,
+      z_back};
 
     std::array<unsigned, N_ecal_positions> digit_indices = {9999, 9999, 9999, 9999, 9999, 9999};
     unsigned N_matched_digits {0};
@@ -182,3 +174,9 @@ __device__ void track_digit_selective_matching::track_digit_selective_matching_i
     parameters.dev_track_local_max[track_index + event_offset] = localmax;
   }
 }
+
+// These declarations need to be at the end of the file otherwise clang don't export them:
+template struct track_digit_selective_matching::track_digit_selective_matching_t<
+  Allen::Views::Physics::MultiEventLongTracks>;
+template struct track_digit_selective_matching::track_digit_selective_matching_t<
+  Allen::Views::Physics::MultiEventDownstreamTracks>;

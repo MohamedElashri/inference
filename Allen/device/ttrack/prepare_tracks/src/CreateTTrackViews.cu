@@ -87,11 +87,11 @@ __global__ void create_ttrack_views::create_ttrack_event_views(Parameters parame
     new (parameters.dev_ttracks_view + event_number) Allen::Views::Physics::TTracks {
       parameters.dev_ttrack_view, parameters.dev_offsets_filtered_seeding_tracks, event_number};
 
-    new (parameters.dev_track_kalman_states_view + event_number)
-      Allen::Views::Physics::KalmanStates {parameters.dev_track_kalman_states,
-                                           parameters.dev_offsets_filtered_seeding_tracks,
-                                           event_number,
-                                           parameters.dev_number_of_events[0]};
+    new (parameters.dev_track_kalman_states_view + event_number) Allen::Views::Physics::KalmanStates {
+      parameters.dev_track_kalman_states,
+      parameters.dev_offsets_filtered_seeding_tracks,
+      event_number,
+      parameters.dev_number_of_events[0]};
   }
 
   if (threadIdx.x == 0 && blockIdx.x == 0) {

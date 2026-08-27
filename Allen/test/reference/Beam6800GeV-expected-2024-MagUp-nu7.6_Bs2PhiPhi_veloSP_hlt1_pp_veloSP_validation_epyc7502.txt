@@ -27,13 +27,13 @@ long_fromB_P>5GeV_AND_Pt>1GeV                     :      1047/     1243  84.23% 
 
 
 muon_validator validation:
-Muon fraction in all MCPs:                                               7424/   585576   0.01% 
-Muon fraction in MCPs to which a track(s) was matched:                    231/    21920   0.01% 
-Correctly identified muons with isMuon:                                   131/      231  56.71% 
-Correctly identified muons from strange decays with isMuon:                 0/        0   -nan% 
-Correctly identified muons from B decays with isMuon:                      42/       67  62.69% 
-Tracks identified as muon with isMuon, but matched to non-muon MCP:      1824/    21689   8.41% 
-Ghost tracks identified as muon with isMuon:                              103/      628  16.40% 
+Muon fraction in all MCPs:                                               7424/   585576   0.01%
+Muon fraction in MCPs to which a track(s) was matched:                    231/    21920   0.01%
+Correctly identified muons with isMuon:                                   131/      231  56.71%
+Correctly identified muons from strange decays with isMuon:                 0/        0   -nan%
+Correctly identified muons from B decays with isMuon:                      42/       67  62.69%
+Tracks identified as muon with isMuon, but matched to non-muon MCP:      1824/    21689   8.41%
+Ghost tracks identified as muon with isMuon:                              103/      628  16.40%
 
 
 pv_validator validation:
@@ -293,4 +293,3 @@ TrackChecker output                               :      2998/   155681   1.93% 
 09_long_fromB_electrons                           :       118/      122  96.72% ( 97.25%),         3 (  2.48%) clones, pur  98.37%, hit eff  95.83%
 10_long_fromB_electrons_P>5GeV                    :        80/       83  96.39% ( 97.10%),         1 (  1.23%) clones, pur  99.02%, hit eff  97.65%
 11_long_fromSignal                                :      1304/     1313  99.31% ( 99.30%),        19 (  1.44%) clones, pur  99.72%, hit eff  97.18%
-

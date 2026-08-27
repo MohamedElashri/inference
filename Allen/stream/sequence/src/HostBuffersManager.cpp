@@ -10,8 +10,8 @@
 \*****************************************************************************/
 #include <HostBuffersManager.cuh>
 #include <Logger.h>
-#include <MakeSubBanks.cuh>
-#include <MakeSelRep.cuh>
+#include <HltSubBanks.cuh>
+#include <HltSelReport.cuh>
 #include <HltDecReport.cuh>
 #include <regex>
 
@@ -23,7 +23,7 @@ HostBuffersManager::HostBuffersManager(
   m_host_memory_size = host_memory_size;
   m_persistent_stores.reserve(nBuffers);
   for (size_t i = 0; i < nBuffers; ++i) {
-    m_persistent_stores.push_back(new Allen::Store::PersistentStore(host_memory_size, 64));
+    m_persistent_stores.push_back(std::make_unique<Allen::Store::PersistentStore>(host_memory_size, 64));
     buffer_statuses.push_back(BufferStatus::Empty);
     empty_buffers.push(i);
   }
@@ -56,7 +56,7 @@ size_t HostBuffersManager::assignBufferToFill()
   if (empty_buffers.empty()) {
     warning_cout << "No empty buffers available" << std::endl;
     warning_cout << "Adding new buffers" << std::endl;
-    m_persistent_stores.push_back(new Allen::Store::PersistentStore(m_host_memory_size, 64));
+    m_persistent_stores.push_back(std::make_unique<Allen::Store::PersistentStore>(m_host_memory_size, 64));
     buffer_statuses.push_back(BufferStatus::Filling);
     return m_persistent_stores.size() - 1;
   }
@@ -97,7 +97,7 @@ void HostBuffersManager::writeSingleEventPassthrough(const size_t b)
                << " is larger than the number of available buffers: " << m_persistent_stores.size() << std::endl;
     return;
   }
-  auto store = m_persistent_stores[b];
+  auto* store = m_persistent_stores[b].get();
 
   store->inject("host_init_number_of_events__host_number_of_events_t", std::vector<unsigned> {1});
   store->inject("global_decision__host_global_decision_t", std::vector<bool> {true});
@@ -109,11 +109,12 @@ void HostBuffersManager::writeSingleEventPassthrough(const size_t b)
   decrep.set_task_id(m_task_id);
   decrep.set_dec_report(
     0u,
-    HltDecReport {true,
-                  std::byte {0},                    // error
-                  std::byte {1},                    // number of candidates
-                  std::byte {1},                    // execution stage
-                  static_cast<unsigned short>(1)}); // decision ID
+    HltDecReport {
+      true,
+      std::byte {0},                    // error
+      std::byte {1},                    // number of candidates
+      std::byte {1},                    // execution stage
+      static_cast<unsigned short>(1)}); // decision ID
   store->inject("dec_reporter__host_dec_reports_t", dr_data);
   store->inject("host_routingbits_writer__host_routingbits_t", std::vector<unsigned> {m_passthrough_rbs, 0, 0});
 

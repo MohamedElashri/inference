@@ -81,14 +81,16 @@ namespace track_mva_line {
     Allen::Property<float> m_param1 {this, "param1", 1.f * Allen::Units::GeV* Allen::Units::GeV, "param1 description"};
     Allen::Property<float> m_param2 {this, "param2", 2.f * Allen::Units::GeV, "param2 description"};
     Allen::Property<float> m_param3 {this, "param3", 1.248f, "param3 description"};
-    Allen::Property<float> m_alpha {this,
-                                    "alpha",
-                                    296.f * Allen::Units::MeV,
-                                    "alpha description"}; // tuned to about 330 kHz (modulo GEC)
-    Allen::Property<float> m_minBPVz {this,
-                                      "minBPVz",
-                                      -330.f * Allen::Units::mm,
-                                      "minimum z for the best associated primary vertex"};
+    Allen::Property<float> m_alpha {
+      this,
+      "alpha",
+      296.f * Allen::Units::MeV,
+      "alpha description"}; // tuned to about 330 kHz (modulo GEC)
+    Allen::Property<float> m_minBPVz {
+      this,
+      "minBPVz",
+      -330.f * Allen::Units::mm,
+      "minimum z for the best associated primary vertex"};
     Allen::Property<float> m_maxGhostProb {this, "maxGhostProb", 0.5, "Maximum ghost probability of the tracks"};
 
     Allen::Monitoring::Histogram<> m_histogram_ghost_prob {this, "ghost_prob", "track GhostProb", {100u, 0.f, 0.6f}};

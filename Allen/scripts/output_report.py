@@ -9,19 +9,22 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from __future__ import print_function
+
 import argparse
+
 import zmq
 
 arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument('hostname')
-arg_parser.add_argument('-p', '--port', dest='port', type=int, default=35000)
+arg_parser.add_argument("hostname")
+arg_parser.add_argument("-p", "--port", dest="port", type=int, default=35000)
 arg_parser.add_argument(
-    '-c',
-    '--command',
-    dest='command',
+    "-c",
+    "--command",
+    dest="command",
     type=str,
-    default='report',
-    choices=['report', 'exit'])
+    default="report",
+    choices=["report", "exit"],
+)
 args = arg_parser.parse_args()
 
 context = zmq.Context.instance()
@@ -45,7 +48,7 @@ if args.command == "report":
                 print(report[i], int(report[i + 1]) / 1024**2, " MB")
     else:
         print("No reply to request for report")
-elif args.command == 'exit':
+elif args.command == "exit":
     request.send_string("EXIT")
     result = dict(poller.poll(500))
     if request in result:

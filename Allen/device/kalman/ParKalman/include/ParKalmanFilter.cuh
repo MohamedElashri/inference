@@ -116,14 +116,18 @@ namespace ParKalmanFilter {
     const KalmanFloat init_qop,
     const KalmanParametrizations* kalman_params,
     FittedTrack& track,
+    SimpleKalmanState& r1_f_state,
+    SimpleKalmanState& r1_b_state,
+    SimpleKalmanState& r2_f_state,
+    SimpleKalmanState& r2_b_state,
     const float* dev_UT_lay,
     const float* dev_T_lay,
     const float* dev_V_pars,
-    const float* dev_VUT_par,
+    const float* dev_VUT_pars,
     const float* dev_UT_pars,
     const float* dev_UTTF_pars,
-    const float* dev_T_par,
-    const float* dev_TFT_par,
+    const float* dev_T_pars,
+    const float* dev_TFT_pars,
     const float* dev_UTT_META,
     const KalmanFloat magSign);
 
@@ -161,6 +165,12 @@ namespace kalman_filter {
       DEPENDENCIES(dev_kalman_pv_ip_t),
       Allen::Views::Physics::PVTable)
     dev_kalman_pv_tables;
+
+    // all the RICH states:
+    DEVICE_OUTPUT(dev_kalman_R1_F_view_t, SimpleKalmanState) dev_kalman_R1_F_view;
+    DEVICE_OUTPUT(dev_kalman_R1_B_view_t, SimpleKalmanState) dev_kalman_R1_B_view;
+    DEVICE_OUTPUT(dev_kalman_R2_F_view_t, SimpleKalmanState) dev_kalman_R2_F_view;
+    DEVICE_OUTPUT(dev_kalman_R2_B_view_t, SimpleKalmanState) dev_kalman_R2_B_view;
   };
 
   //--------------------------------------------------
@@ -168,7 +178,7 @@ namespace kalman_filter {
   //--------------------------------------------------
   __global__ void kalman_filter(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const ParKalmanFilter::KalmanParametrizations* dev_kalman_params);
 
   __global__ void kalman_pv_ip(Parameters parameters);

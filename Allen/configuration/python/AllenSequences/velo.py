@@ -9,27 +9,28 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 
-from AllenConf.velo_reconstruction import decode_velo, make_velo_tracks, run_velo_kalman_filter
-from AllenConf.filters import make_gec
-from PyConf.control_flow import NodeLogic, CompositeNode
+from AllenConf.velo_reconstruction import (
+    decode_velo,
+    make_velo_tracks,
+    run_velo_kalman_filter,
+)
 from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 decoded_velo = decode_velo()
 velo_tracks = make_velo_tracks(decoded_velo)
 velo_states = run_velo_kalman_filter(velo_tracks)
 
-kalman_filter = velo_states['dev_velo_kalman_endvelo_states'].producer
+kalman_filter = velo_states["dev_velo_kalman_endvelo_states"].producer
 
 node = CompositeNode(
-    "VeloTracking", [kalman_filter], NodeLogic.LAZY_AND, force_order=True)
+    "VeloTracking", [kalman_filter], NodeLogic.LAZY_AND, force_order=True
+)
 
 # This is for import by the allen_gaudi_velo_with_mcchecking test
 config = {
-    'control_flow_node': node,
-    'reconstruction': {
-        'velo_tracks': velo_tracks,
-        'velo_states': velo_states
-    }
+    "control_flow_node": node,
+    "reconstruction": {"velo_tracks": velo_tracks, "velo_states": velo_states},
 }
 
 generate(node)

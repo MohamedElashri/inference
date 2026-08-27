@@ -13,7 +13,7 @@
 #include <span>
 #include <vector>
 
-#include <zmq/zmq.hpp>
+#include <zmq.hpp>
 
 #include "InputProvider.h"
 #include "BankTypes.h"

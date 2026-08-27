@@ -26,10 +26,11 @@ namespace Muon {
     static constexpr size_t stripYTableNumber = 2;
     static constexpr size_t n_tables = 3;
     static constexpr size_t n_dimensions = 3;
-    static constexpr size_t tableStationRegionOffset[] = {0,
-                                                          Constants::n_stations* Constants::n_regions,
-                                                          Constants::n_stations* Constants::n_regions * 2,
-                                                          Constants::n_stations* Constants::n_regions* n_tables};
+    static constexpr size_t tableStationRegionOffset[] = {
+      0,
+      Constants::n_stations* Constants::n_regions,
+      Constants::n_stations* Constants::n_regions * 2,
+      Constants::n_stations* Constants::n_regions* n_tables};
     int* gridX[n_tables];
     int* gridY[n_tables];
     float* sizeX[n_tables];

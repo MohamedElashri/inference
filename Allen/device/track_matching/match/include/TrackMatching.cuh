@@ -76,7 +76,7 @@ namespace track_matching {
   template<typename GhostKiller_t>
   __global__ void track_matching_veloSciFi(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const GhostKiller_t* dev_matching_ghost_killer,
     const std::array<float, 16>,
     const std::array<float, 5>,
@@ -89,7 +89,7 @@ namespace track_matching {
 
   __global__ void track_matching_add_ut_hits(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const std::array<float, 4 * 3> ut_x_loose_tolerance_parameters,
     const std::array<float, 4 * 3> ut_x_tight_tolerance_parameters,
     const float ut_y_tolerance_parameters,
@@ -125,87 +125,99 @@ namespace track_matching {
   private:
     Allen::Monitoring::Counter<> m_n_overflow_track_matching {this, "n_overflow_track_matching"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
-    Allen::Property<int> m_matching_no_ut_ghost_killer_version {this,
-                                                                "matching_no_ut_ghost_killer_version",
-                                                                2,
-                                                                "matching_no_ut_ghost_killer_version"};
-    Allen::Property<int> m_matching_with_ut_ghost_killer_version {this,
-                                                                  "matching_with_ut_ghost_killer_version",
-                                                                  2,
-                                                                  "matching_with_ut_ghost_killer_version"};
-    Allen::Property<float> m_multiplication_factor_dX {this,
-                                                       "multiplication_factor_dX",
-                                                       0.8,
-                                                       "multiplication_factor_dX"};
-    Allen::Property<float> m_multiplication_factor_dY {this,
-                                                       "multiplication_factor_dY",
-                                                       0.2,
-                                                       "multiplication_factor_dY"};
-    Allen::Property<float> m_multiplication_factor_dty {this,
-                                                        "multiplication_factor_dty",
-                                                        937.5,
-                                                        "multiplication_factor_dty"};
-    Allen::Property<float> m_multiplication_factor_dtx {this,
-                                                        "multiplication_factor_dtx",
-                                                        2.,
-                                                        "multiplication_factor_dtx"};
+    Allen::Property<int> m_matching_no_ut_ghost_killer_version {
+      this,
+      "matching_no_ut_ghost_killer_version",
+      2,
+      "matching_no_ut_ghost_killer_version"};
+    Allen::Property<int> m_matching_with_ut_ghost_killer_version {
+      this,
+      "matching_with_ut_ghost_killer_version",
+      2,
+      "matching_with_ut_ghost_killer_version"};
+    Allen::Property<float> m_multiplication_factor_dX {
+      this,
+      "multiplication_factor_dX",
+      0.8,
+      "multiplication_factor_dX"};
+    Allen::Property<float> m_multiplication_factor_dY {
+      this,
+      "multiplication_factor_dY",
+      0.2,
+      "multiplication_factor_dY"};
+    Allen::Property<float> m_multiplication_factor_dty {
+      this,
+      "multiplication_factor_dty",
+      937.5,
+      "multiplication_factor_dty"};
+    Allen::Property<float> m_multiplication_factor_dtx {
+      this,
+      "multiplication_factor_dtx",
+      2.,
+      "multiplication_factor_dtx"};
     Allen::Property<float> m_ghost_killer_threshold {this, "ghost_killer_threshold", 0.5, "ghost_killer_threshold"};
 
     // Configured in python
-    Allen::Property<std::array<float, 16>> m_momentum_parameters {this,
-                                                                  "momentum_parameters",
-                                                                  {},
-                                                                  "momentum_parameters"};
+    Allen::Property<std::array<float, 16>> m_momentum_parameters {
+      this,
+      "momentum_parameters",
+      {},
+      "momentum_parameters"};
 
-    Allen::Property<std::array<float, 5>> m_z_magnet_parameters {this,
-                                                                 "z_magnet_parameters",
-                                                                 {5287.6f, -7.98878f, 317.683f, 0.0119379f, -1418.42f},
-                                                                 "z_magnet_parameters"};
+    Allen::Property<std::array<float, 5>> m_z_magnet_parameters {
+      this,
+      "z_magnet_parameters",
+      {5287.6f, -7.98878f, 317.683f, 0.0119379f, -1418.42f},
+      "z_magnet_parameters"};
 
     // 4 parameters for each layer: offset, slope, min, max
-    Allen::Property<std::array<float, 4 * 3>> m_ut_x_loose_tolerance_parameters {this,
-                                                                                 "ut_x_loose_tolerance_parameters",
-                                                                                 {0.8333f,
-                                                                                  3.3333e4,
-                                                                                  1.2f,
-                                                                                  8.5f,
-                                                                                  /* Layer 0 */ 0.8333f,
-                                                                                  3.3333e4,
-                                                                                  1.2f,
-                                                                                  8.5f,
-                                                                                  /* Layer 1 */ 1.3333f,
-                                                                                  3.3333e4,
-                                                                                  1.5f,
-                                                                                  9.5f /* Layer 2 */},
-                                                                                 "ut_x_loose_tolerance_parameters"};
+    Allen::Property<std::array<float, 4 * 3>> m_ut_x_loose_tolerance_parameters {
+      this,
+      "ut_x_loose_tolerance_parameters",
+      {0.8333f,
+       3.3333e4,
+       1.2f,
+       8.5f,
+       /* Layer 0 */ 0.8333f,
+       3.3333e4,
+       1.2f,
+       8.5f,
+       /* Layer 1 */ 1.3333f,
+       3.3333e4,
+       1.5f,
+       9.5f /* Layer 2 */},
+      "ut_x_loose_tolerance_parameters"};
     // 4 parameters for each layer: offset, slope, min, max
-    Allen::Property<std::array<float, 4 * 3>> m_ut_x_tight_tolerance_parameters {this,
-                                                                                 "ut_x_tight_tolerance_parameters",
-                                                                                 {0.2f,
-                                                                                  0.6e4f,
-                                                                                  0.5f,
-                                                                                  2.0f,
-                                                                                  /* Layer 0 */ 0.4f,
-                                                                                  1.2e4f,
-                                                                                  1.0f,
-                                                                                  4.0f,
-                                                                                  /* Layer 1 */ 0.4f,
-                                                                                  1.2e4f,
-                                                                                  1.0f,
-                                                                                  4.0f /* Layer 2 */},
-                                                                                 "ut_x_tight_tolerance_parameters"};
-    Allen::Property<float> m_ut_y_tolerance_parameters {this,
-                                                        "ut_y_tolerance_parameters",
-                                                        1.f,
-                                                        "ut_y_tolerance_parameters"};
+    Allen::Property<std::array<float, 4 * 3>> m_ut_x_tight_tolerance_parameters {
+      this,
+      "ut_x_tight_tolerance_parameters",
+      {0.2f,
+       0.6e4f,
+       0.5f,
+       2.0f,
+       /* Layer 0 */ 0.4f,
+       1.2e4f,
+       1.0f,
+       4.0f,
+       /* Layer 1 */ 0.4f,
+       1.2e4f,
+       1.0f,
+       4.0f /* Layer 2 */},
+      "ut_x_tight_tolerance_parameters"};
+    Allen::Property<float> m_ut_y_tolerance_parameters {
+      this,
+      "ut_y_tolerance_parameters",
+      1.f,
+      "ut_y_tolerance_parameters"};
 
     Allen::Property<unsigned> m_min_num_ut_hits {this, "min_num_ut_hits", 2u, "min_num_ut_hits"};
 
     Allen::Property<bool> m_force_skip_ut {this, "force_skip_ut", false, "force_skip_ut"};
     Allen::Property<bool> m_force_no_ut_nn {this, "force_no_ut_nn", true, "force_no_ut_nn"};
 
-    MatchingGhostKiller matching_ghost_killer {"matching_ghost_killer",
-                                               "/GhostProbability/Hlt1_LongGhostKiller_Matching.json"};
+    MatchingGhostKiller matching_ghost_killer {
+      "matching_ghost_killer",
+      "/GhostProbability/Hlt1_LongGhostKiller_Matching.json"};
     MatchingWithUTGhostKiller matching_with_ut_ghost_killer {
       "matching_with_ut_ghost_killer",
       "/GhostProbability/Hlt1_LongGhostKiller_MatchingWithUT.json"};

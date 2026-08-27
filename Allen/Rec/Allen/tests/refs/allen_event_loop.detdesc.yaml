@@ -16,7 +16,7 @@ stdout: |-
   HLTControlFlowMgr                      INFO Will measure time between events 0 and 0 (stop might be some events later)
   HLTControlFlowMgr                      INFO Starting loop on events
   HLTControlFlowMgr                   SUCCESS Processing event 0 in slot 0
-  DeviceFTGeometry                       INFO Conditions DB is compatible with FT bank version 7 and 8.
+  AAAAProvideConstants                   INFO Conditions DB is compatible with FT bank version 7 and 8.
   Loading magfield grid, nbins x,y,z : (81, 81, 146)
   dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
   dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
@@ -26,7 +26,6 @@ stdout: |-
   Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_hist_counts.json
   Hlt1D2KK                               INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1D2KPi                              INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-  Hlt1D2KPiAlignment                     INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1D2PiPi                             INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1DetJpsiToMuMuNegTagLine            INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1DiElectronLowMass_NoIP             INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -41,6 +40,10 @@ stdout: |-
   Hlt1KsLLDetachedTrack                  INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1KsToPiPi                           INFO Booked 4 Histogram(s) : 1D=4 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1LambdaLLDetachedTrack              INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGamma                     INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGammaMiddleInnerMixed     INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGammaMiddleOuterMixed     INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  Hlt1Pi02GammaGammaOuter                INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1TrackMVA                           INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   Hlt1TwoTrackMVA                        INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   calo_find_clusters                     INFO Booked 6 Histogram(s) : 1D=6 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
@@ -55,26 +58,16 @@ stdout: |-
   is_muon                                INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   make_long_track_particles              INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   matching_consolidate_tracks_matc...    INFO Booked 9 Histogram(s) : 1D=9 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-  momentum_brem_correction_2d722be7      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
-  pv_beamline_cleanup                    INFO Booked 7 Histogram(s) : 1D=7 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  momentum_brem_correction_2804c99b      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  pv_beamline_cleanup                    INFO Booked 9 Histogram(s) : 1D=7 2D=2 3D=0 1DProf=0 2DProf=0 3DProf=0
   scifi_consolidate_seeds_matching       INFO Booked 5 Histogram(s) : 1D=5 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   velo_consolidate_tracks                INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   velo_kalman_filter                     INFO Booked 9 Histogram(s) : 1D=9 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   ApplicationMgr                         INFO Application Manager Stopped successfully
   HLTControlFlowMgr                      INFO
   HLTControlFlowMgr                      INFO StateTree: CFNode   #executed  #passed
-  NONLAZY_OR: allen_non_event_data                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   AllenODINProducer/AllenODINProducer_e608fece           #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpBeamline/DeviceBeamline                            #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpVPGeometry/DeviceVPGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpUTGeometry/DeviceUTGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpUTLookupTables/DeviceUTLookupTables                #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpCaloGeometry/DeviceCaloGeometry                    #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMagneticField/DeviceMagneticField                  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMagneticFieldPolarity/DeviceMagneticFieldPolarity  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpFTGeometry/DeviceFTGeometry                        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMuonGeometry/DeviceMuonGeometry                    #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
-   DumpMuonTable/DeviceMuonTable                          #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+  NONLAZY_OR: allen_non_event_data        #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+   ProvideConstants/AAAAProvideConstants  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
   HLTControlFlowMgr                      INFO Histograms converted successfully according to request.
   ApplicationMgr                         INFO Application Manager Finalized successfully
   ApplicationMgr                         INFO Application Manager Terminated successfully
@@ -129,43 +122,6 @@ histos:
       sum: 15
       meanX: -0.09
       stdDevX: 0.368565
-  Hlt1D2KPiAlignment:
-    d0_mass:
-      nEntries: 7.0
-      title: m(D0)
-      sum: 7
-      meanX: 1868.857143
-      stdDevX: 40.551303
-    d0_pt:
-      nEntries: 4.0
-      title: pT(D0)
-      sum: 4
-      meanX: 5653.0
-      stdDevX: 1184.220841
-    p0_ipx:
-      nEntries: 4.0
-      title: IP_{x}(p0)
-      sum: 4
-      meanX: 0.12
-      stdDevX: 0.130767
-    p0_ipy:
-      nEntries: 4.0
-      title: IP_{y}(p0)
-      sum: 4
-      meanX: -0.21
-      stdDevX: 0.250998
-    p1_ipx:
-      nEntries: 4.0
-      title: IP_{x}(p1)
-      sum: 4
-      meanX: -0.045
-      stdDevX: 0.107121
-    p1_ipy:
-      nEntries: 4.0
-      title: IP_{y}(p1)
-      sum: 4
-      meanX: 0.165
-      stdDevX: 0.181865
   Hlt1D2PiPi:
     d02pipi_mass:
       nEntries: 5.0
@@ -348,6 +304,58 @@ histos:
       sum: 1
       meanX: 1118.75
       stdDevX: 0.0
+  Hlt1Pi02GammaGamma:
+    diphoton_mass:
+      nEntries: 5.0
+      title: m(diphoton)
+      sum: 5
+      meanX: 433.5
+      stdDevX: 48.311489
+    diphoton_pt:
+      nEntries: 5.0
+      title: pT(diphoton)
+      sum: 5
+      meanX: 1698.0
+      stdDevX: 141.194901
+  Hlt1Pi02GammaGammaMiddleInnerMixed:
+    diphoton_mass:
+      nEntries: 1.0
+      title: m(diphoton)
+      sum: 1
+      meanX: 497.5
+      stdDevX: 0.0
+    diphoton_pt:
+      nEntries: 1.0
+      title: pT(diphoton)
+      sum: 1
+      meanX: 1450.0
+      stdDevX: 0.0
+  Hlt1Pi02GammaGammaMiddleOuterMixed:
+    diphoton_mass:
+      nEntries: 1.0
+      title: m(diphoton)
+      sum: 1
+      meanX: 367.5
+      stdDevX: 0.0
+    diphoton_pt:
+      nEntries: 1.0
+      title: pT(diphoton)
+      sum: 1
+      meanX: 1510.0
+      stdDevX: 0.0
+  Hlt1Pi02GammaGammaOuter:
+    diphoton_mass:
+      nEntries: 2.0
+      title: m(diphoton)
+      sum: 2
+      meanX: 310.0
+      stdDevX: 52.5
+    diphoton_pt:
+      nEntries: 2.0
+      title: pT(diphoton)
+      sum: 2
+      meanX: 1750.0
+      stdDevX: 220.0
   Hlt1TrackMVA:
     ghost_prob:
       nEntries: 112.0
@@ -546,17 +554,17 @@ histos:
       stdDevX: 1.895994
   gather_selections:
     line_passes:
-      nEntries: 17474.0
+      nEntries: 17476.0
       title: line passes
-      sum: 17474
-      meanX: 82.500858
-      stdDevX: 20.361867
+      sum: 17476
+      meanX: 86.08566
+      stdDevX: 23.131847
     line_rates:
       nEntries: 694.0
       title: line rates
       sum: 694
-      meanX: 75.783862
-      stdDevX: 30.767256
+      meanX: 79.752161
+      stdDevX: 32.568856
   is_muon:
     n_muons:
       nEntries: 461097.0
@@ -674,7 +682,7 @@ histos:
       sum: 10000
       meanX: 46.1097
       stdDevX: 26.711418
-  momentum_brem_correction_2d722be7:
+  momentum_brem_correction_2804c99b:
     BremEoverP:
       nEntries: 187522.0
       title: BremE/ ( BremE + P (track) )
@@ -712,12 +720,28 @@ histos:
       sum: 51646
       meanX: -0.000118
       stdDevX: 0.030515
+    pv_x_vs_z:
+      nEntries: 51678.0
+      title: pv_x_vs_z
+      sum: 51678
+      meanX: 1.012268
+      stdDevX: 63.476828
+      meanY: -0.000129
+      stdDevY: 0.032644
     pv_y:
       nEntries: 51646.0
       title: pv_y
       sum: 51646
       meanX: 3.6e-05
       stdDevX: 0.030206
+    pv_y_vs_z:
+      nEntries: 51678.0
+      title: pv_y_vs_z
+      sum: 51678
+      meanX: 1.012268
+      stdDevX: 63.476828
+      meanY: 2.5e-05
+      stdDevY: 0.032342
     pv_z:
       nEntries: 51678.0
       title: pv_z
@@ -839,6 +863,11 @@ counters:
       mean: 49.4739
       nEntries: 10000.0
       sum: 494739.0
+  filter_sv_track_40f8ecbc:
+    n_events_reaching_cutoff:
+      mean: 1.0
+      nEntries: 16.0
+      sum: 16.0
   gather_selections:
     Hlt1ConeJet100GeVPass:
       nEntries: 1.0
@@ -848,10 +877,6 @@ counters:
       nEntries: 15.0
     Hlt1D2KKRate:
       nEntries: 15.0
-    Hlt1D2KPiAlignmentPass:
-      nEntries: 4.0
-    Hlt1D2KPiAlignmentRate:
-      nEntries: 4.0
     Hlt1D2KPiPass:
       nEntries: 16.0
     Hlt1D2KPiRate:
@@ -956,6 +981,20 @@ counters:
       nEntries: 1.0
     Hlt1OneMuonTrackLinePass:
       nEntries: 5726.0
+    Hlt1Pi02GammaGammaMiddleInnerMixedPass:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaMiddleInnerMixedRate:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaMiddleOuterMixedPass:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaMiddleOuterMixedRate:
+      nEntries: 1.0
+    Hlt1Pi02GammaGammaOuterPass:
+      nEntries: 2.0
+    Hlt1Pi02GammaGammaOuterRate:
+      nEntries: 2.0
+    Hlt1Pi02GammaGammaPass:
+      nEntries: 2.0
     Hlt1QuirksPass:
       nEntries: 2.0
     Hlt1QuirksRate:

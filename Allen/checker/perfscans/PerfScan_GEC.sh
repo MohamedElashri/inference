@@ -29,7 +29,7 @@ do
   cd build
   make -j 8 >& /tmp/WTF
   ./Allen -f /data/gligorov/minbias -n 1000 -c 1 -m 3000 >& $outloc\/GEC-${vals_low[$entry]}-${vals_hi[$entry]}-scanmb.stdout
-  ./Allen -f /data/gligorov/minbias -c 0 -n 10000 -t 3 -r 10 -m 4000 >& $outloc\/GEC-${vals_low[$entry]}-${vals_hi[$entry]}-tptscan.stdout    
+  ./Allen -f /data/gligorov/minbias -c 0 -n 10000 -t 3 -r 10 -m 4000 >& $outloc\/GEC-${vals_low[$entry]}-${vals_hi[$entry]}-tptscan.stdout
   cd ..
   cp bkpfile.bkp cuda/global_event_cut/include/GlobalEventCutConfiguration.cuh
 done

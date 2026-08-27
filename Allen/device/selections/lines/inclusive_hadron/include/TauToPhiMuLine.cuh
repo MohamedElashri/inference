@@ -199,14 +199,16 @@ namespace tautophimu_line {
     Allen::Property<float> m_minZ {this, "minZ", -200.f * Allen::Units::mm, "Minimum z"};
     Allen::Property<float> m_minInvMass {this, "minInvMass", 1620.0f * Allen::Units::MeV, "Minimum tau invariant mass"};
     Allen::Property<float> m_maxInvMass {this, "maxInvMass", 2050.0f * Allen::Units::MeV, "Maximum tau invariant mass"};
-    Allen::Property<float> m_minThirdTrackP {this,
-                                             "minThirdTrackP",
-                                             3.0f * Allen::Units::GeV,
-                                             "Minimum third track momentum"};
-    Allen::Property<float> m_minThirdTrackPt {this,
-                                              "minThirdTrackPt",
-                                              350.0f * Allen::Units::MeV,
-                                              "Minimum third track pT"};
+    Allen::Property<float> m_minThirdTrackP {
+      this,
+      "minThirdTrackP",
+      3.0f * Allen::Units::GeV,
+      "Minimum third track momentum"};
+    Allen::Property<float> m_minThirdTrackPt {
+      this,
+      "minThirdTrackPt",
+      350.0f * Allen::Units::MeV,
+      "Minimum third track pT"};
     Allen::Property<float> m_minThirdTrackIPChi2 {this, "minThirdTrackIPChi2", 9.0f, "Minimum third track IP chi2"};
     Allen::Property<float> m_minThirdTrackEta {this, "minThirdTrackEta", 2.0f, "Minimum third track eta"};
     Allen::Property<float> m_maxThirdTrackEta {this, "maxThirdTrackEta", 5.0f, "Maximum third track eta"};

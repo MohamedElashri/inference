@@ -84,10 +84,11 @@ namespace SMOG2_displaced_di_muon_line {
 
   private:
     // Dimuon track pt.
-    Allen::Property<float> m_minDispTrackPt {this,
-                                             "minDispTrackPt",
-                                             250.f * Allen::Units::MeV,
-                                             "minDispTrackPt description"};
+    Allen::Property<float> m_minDispTrackPt {
+      this,
+      "minDispTrackPt",
+      250.f * Allen::Units::MeV,
+      "minDispTrackPt description"};
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 30.f, "maxVertexChi2 description"};
     Allen::Property<float> m_minComboPt {this, "minComboPt", 1.f * Allen::Units::GeV, "minComboPt description"};
     // Displaced dimuon selections.
@@ -99,11 +100,12 @@ namespace SMOG2_displaced_di_muon_line {
     Allen::Property<float> m_minFDCHI2 {this, "minFDCHI2", 15.f, "chi2 of pv and endvertex"};
     Allen::Property<float> m_maxIP {this, "maxIP", 1.f * Allen::Units::mm, "mother IP"};
     Allen::Property<float> m_minMuonNN {this, "minMuonNN", 0.1, "min NN evaluation"};
-    Allen::Property<float> m_useNN {this, "useNN", true, "useNN"};
+    Allen::Property<bool> m_useNN {this, "useNN", true, "useNN"};
 
-    Allen::Monitoring::Histogram<> m_histogram_displaced_dimuon_mass {this,
-                                                                      "displaced_dimuon_mass",
-                                                                      "m(displ)",
-                                                                      {295u, 215.f, 7000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_displaced_dimuon_mass {
+      this,
+      "displaced_dimuon_mass",
+      "m(displ)",
+      {295u, 215.f, 7000.f}};
   };
 } // namespace SMOG2_displaced_di_muon_line

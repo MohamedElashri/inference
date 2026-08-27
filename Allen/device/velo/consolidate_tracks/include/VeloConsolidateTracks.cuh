@@ -93,9 +93,10 @@ namespace velo_consolidate_tracks {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 
     Allen::Monitoring::AveragingCounter<> m_velo_tracks {this, "n_velo_tracks"};
-    Allen::Monitoring::Histogram<> m_histogram_n_velo_tracks {this,
-                                                              "n_velo_tracks_event",
-                                                              "n_velo_tracks_event",
-                                                              {1001u, -0.5f, 1000.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_n_velo_tracks {
+      this,
+      "n_velo_tracks_event",
+      "n_velo_tracks_event",
+      {1001u, -0.5f, 1000.5f}};
   };
 } // namespace velo_consolidate_tracks

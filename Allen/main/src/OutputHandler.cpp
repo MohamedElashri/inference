@@ -484,23 +484,26 @@ size_t OutputHandler::add_banks(
     output_bank {
       LHCb::RawBank::BankType::HltDecReports, dec_reports.version(), dec_reports.source_id(), dec_reports.bank_data()},
     // HltRoutingBits
-    output_bank {LHCb::RawBank::BankType::HltRoutingBits,
-                 0u,
-                 Hlt1::Constants::sourceID,
-                 {reinterpret_cast<char const*>(outputs.routing_bits.data()) + routing_bits_size * event_number,
-                  static_cast<events_size>(routing_bits_size)}},
+    output_bank {
+      LHCb::RawBank::BankType::HltRoutingBits,
+      0u,
+      Hlt1::Constants::sourceID,
+      {reinterpret_cast<char const*>(outputs.routing_bits.data()) + routing_bits_size * event_number,
+       static_cast<events_size>(routing_bits_size)}},
     // HltSelReports
-    output_bank {LHCb::RawBank::BankType::HltSelReports,
-                 Hlt1::Constants::version_sel_reports,
-                 Hlt1::Constants::sourceID_sel_reports,
-                 {reinterpret_cast<char const*>(outputs.sel_reports.data()) + sel_report_offset * sizeof(uint32_t),
-                  static_cast<events_size>(sel_report_size)}},
+    output_bank {
+      LHCb::RawBank::BankType::HltSelReports,
+      Hlt1::Constants::version_sel_reports,
+      Hlt1::Constants::sourceID_sel_reports,
+      {reinterpret_cast<char const*>(outputs.sel_reports.data()) + sel_report_offset * sizeof(uint32_t),
+       static_cast<events_size>(sel_report_size)}},
     // HltLumiSummary
-    output_bank {LHCb::RawBank::BankType::HltLumiSummary,
-                 2u,
-                 Hlt1::Constants::sourceID,
-                 {reinterpret_cast<char const*>(outputs.lumi_summaries.data()) + lumi_summary_offset * sizeof(uint32_t),
-                  static_cast<events_size>(lumi_summary_size)}});
+    output_bank {
+      LHCb::RawBank::BankType::HltLumiSummary,
+      2u,
+      Hlt1::Constants::sourceID,
+      {reinterpret_cast<char const*>(outputs.lumi_summaries.data()) + lumi_summary_offset * sizeof(uint32_t),
+       static_cast<events_size>(lumi_summary_size)}});
 
   // Lambda to add an HLT output bank to the output event
   auto add_hlt_bank = [](

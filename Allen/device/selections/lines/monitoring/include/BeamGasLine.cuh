@@ -75,13 +75,15 @@ namespace beam_gas_line {
     Allen::Property<unsigned> m_min_velo_tracks {this, "min_velo_tracks", 1, "Minimum number of VELO tracks"};
     Allen::Property<unsigned> m_beam_crossing_type {this, "beam_crossing_type", 1, "ODIN beam crossing type [0-3]"};
     Allen::Property<unsigned> m_minNHits {this, "minNHits", 12, "min number of hits of velo track"};
-    Allen::Property<float> m_minZ {this,
-                                   "minZ",
-                                   -550.f * Allen::Units::mm,
-                                   "min z coordinate for accepted velo track POCA"};
-    Allen::Property<float> m_maxZ {this,
-                                   "maxZ",
-                                   -300.f * Allen::Units::mm,
-                                   "max z coordinate for accepted velo track POCA"};
+    Allen::Property<float> m_minZ {
+      this,
+      "minZ",
+      -550.f * Allen::Units::mm,
+      "min z coordinate for accepted velo track POCA"};
+    Allen::Property<float> m_maxZ {
+      this,
+      "maxZ",
+      -300.f * Allen::Units::mm,
+      "max z coordinate for accepted velo track POCA"};
   };
 } // namespace beam_gas_line

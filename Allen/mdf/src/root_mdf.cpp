@@ -49,10 +49,11 @@ namespace MDF {
         f = TFile::Open(spec);
       }
       if (f && !f->IsZombie()) {
-        return {true,
-                [f](char* ptr, size_t size) { return ROOT::read(f, ptr, size); },
-                [f](char const* ptr, size_t size) { return ROOT::write(f, ptr, size); },
-                [f] { return ROOT::close(f); }};
+        return {
+          true,
+          [f](char* ptr, size_t size) { return ROOT::read(f, ptr, size); },
+          [f](char const* ptr, size_t size) { return ROOT::write(f, ptr, size); },
+          [f] { return ROOT::close(f); }};
       }
       else {
         return {};

@@ -11,5 +11,4 @@
 from PyConf.application import ApplicationOptions
 
 options = ApplicationOptions(_enabled=False)
-options.set_input_and_conds_from_testfiledb(
-    "upgrade_Sept2022_minbias_0fb_md_xdigi")
+options.set_input_and_conds_from_testfiledb("upgrade_Sept2022_minbias_0fb_md_xdigi")

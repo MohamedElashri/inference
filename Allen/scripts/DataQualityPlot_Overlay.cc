@@ -125,12 +125,13 @@ void DataQualityPlot_Overlay(FILENAMES... files)
 
     canvas = canvases["PVcanvas"];
 
-    std::vector<Var> PVcanvasVars = {Var("n_pvs", "data_quality_validation_pv/PV_event", 0, 12),
-                                     Var("pv_nTracks", "data_quality_validation_pv/PVs", 0, 20),
-                                     Var("pv_y:pv_x", "data_quality_validation_pv/PVs", 0.8, 1.5, -0.1, 0.5),
-                                     Var("pv_x", "data_quality_validation_pv/PVs", 0.8, 1.5),
-                                     Var("pv_y", "data_quality_validation_pv/PVs", -0.1, 0.5),
-                                     Var("pv_z", "data_quality_validation_pv/PVs", -100, 100)};
+    std::vector<Var> PVcanvasVars = {
+      Var("n_pvs", "data_quality_validation_pv/PV_event", 0, 12),
+      Var("pv_nTracks", "data_quality_validation_pv/PVs", 0, 20),
+      Var("pv_y:pv_x", "data_quality_validation_pv/PVs", 0.8, 1.5, -0.1, 0.5),
+      Var("pv_x", "data_quality_validation_pv/PVs", 0.8, 1.5),
+      Var("pv_y", "data_quality_validation_pv/PVs", -0.1, 0.5),
+      Var("pv_z", "data_quality_validation_pv/PVs", -100, 100)};
 
     for (size_t i = 0; i < PVcanvasVars.size(); ++i) {
       TVirtualPad* pad = canvas->cd(i + 1);
@@ -166,12 +167,13 @@ void DataQualityPlot_Overlay(FILENAMES... files)
     std::cout << " complete!" << std::endl;
     std::cout << "Generating PV covariance canvas ...";
 
-    std::vector<Var> PVcovVars = {Var("cov00", "data_quality_validation_pv/PVs", 0., 0.004),
-                                  Var("cov10", "data_quality_validation_pv/PVs", -0.0005, 0.0005),
-                                  Var("cov11", "data_quality_validation_pv/PVs", 0., 0.0005),
-                                  Var("cov20", "data_quality_validation_pv/PVs", -0.01, 0.01),
-                                  Var("cov21", "data_quality_validation_pv/PVs", -0.01, 0.01),
-                                  Var("cov22", "data_quality_validation_pv/PVs", 0., 0.3)};
+    std::vector<Var> PVcovVars = {
+      Var("cov00", "data_quality_validation_pv/PVs", 0., 0.004),
+      Var("cov10", "data_quality_validation_pv/PVs", -0.0005, 0.0005),
+      Var("cov11", "data_quality_validation_pv/PVs", 0., 0.0005),
+      Var("cov20", "data_quality_validation_pv/PVs", -0.01, 0.01),
+      Var("cov21", "data_quality_validation_pv/PVs", -0.01, 0.01),
+      Var("cov22", "data_quality_validation_pv/PVs", 0., 0.3)};
     std::vector<Int_t> canvasOrder = {1, 4, 5, 7, 8, 9};
 
     canvas = canvases["PVcovCanvas"];
@@ -189,10 +191,11 @@ void DataQualityPlot_Overlay(FILENAMES... files)
 
     canvas = canvases["PVdistCanvas"];
 
-    std::vector<Var> PVdistCanvasVars = {Var("PVdistance_min", "data_quality_validation_pv/PV_event", 0, 200),
-                                         Var("PVdistance_max", "data_quality_validation_pv/PV_event", 0, 300),
-                                         Var("PVdistance_mean", "data_quality_validation_pv/PV_event", 0, 200),
-                                         Var("PVdelta_z", "data_quality_validation_pv/PV_pairs", -6, 6)};
+    std::vector<Var> PVdistCanvasVars = {
+      Var("PVdistance_min", "data_quality_validation_pv/PV_event", 0, 200),
+      Var("PVdistance_max", "data_quality_validation_pv/PV_event", 0, 300),
+      Var("PVdistance_mean", "data_quality_validation_pv/PV_event", 0, 200),
+      Var("PVdelta_z", "data_quality_validation_pv/PV_pairs", -6, 6)};
 
     for (size_t i = 0; i < PVdistCanvasVars.size(); ++i) {
       TVirtualPad* pad = canvas->cd(i + 1);
@@ -288,12 +291,13 @@ void DataQualityPlot_Overlay(FILENAMES... files)
     std::cout << " complete!" << std::endl;
     std::cout << "Generating Kalman covariance canvas ...";
 
-    std::vector<Var> kalmanCovVars = {Var("cov00", "data_quality_validation_matching/long_track_particles", 0., 0.05),
-                                      Var("cov11", "data_quality_validation_matching/long_track_particles", 0., 0.05),
-                                      Var("cov20", "data_quality_validation_matching/long_track_particles", -1e-4, 0.),
-                                      Var("cov22", "data_quality_validation_matching/long_track_particles", 0., 6e-7),
-                                      Var("cov31", "data_quality_validation_matching/long_track_particles", -1e-4, 0.),
-                                      Var("cov33", "data_quality_validation_matching/long_track_particles", 0., 6e-7)};
+    std::vector<Var> kalmanCovVars = {
+      Var("cov00", "data_quality_validation_matching/long_track_particles", 0., 0.05),
+      Var("cov11", "data_quality_validation_matching/long_track_particles", 0., 0.05),
+      Var("cov20", "data_quality_validation_matching/long_track_particles", -1e-4, 0.),
+      Var("cov22", "data_quality_validation_matching/long_track_particles", 0., 6e-7),
+      Var("cov31", "data_quality_validation_matching/long_track_particles", -1e-4, 0.),
+      Var("cov33", "data_quality_validation_matching/long_track_particles", 0., 6e-7)};
 
     canvas = canvases["kalmanCovCanvas"];
     canvasOrder = {1, 6, 9, 11, 14, 16};
@@ -309,15 +313,16 @@ void DataQualityPlot_Overlay(FILENAMES... files)
     std::cout << " complete!" << std::endl;
     std::cout << "Generating velo canvas ...";
 
-    std::vector<Var> veloVars = {Var("n_velo_hits", "data_quality_validation_occupancy/occupancy", 0, 3000),
-                                 Var("n_velo_tracks", "data_quality_validation_occupancy/occupancy", -0.5, 1000),
-                                 Var("n_hits_per_track", "data_quality_validation_velo/velo_states", 0, 16),
-                                 Var("tx", "data_quality_validation_velo/velo_states", -0.3, 0.3),
-                                 Var("ty", "data_quality_validation_velo/velo_states", -0.3, 0.3),
-                                 Var("ty:tx", "data_quality_validation_velo/velo_states", -0.3, 0.3, -0.3, 0.3),
-                                 Var("eta", "data_quality_validation_velo/velo_states", 1.0, 5.2),
-                                 Var("phi", "data_quality_validation_velo/velo_states", -M_PI, M_PI),
-                                 Var("eta:phi", "data_quality_validation_velo/velo_states", -M_PI, M_PI, 1.0, 5.2)};
+    std::vector<Var> veloVars = {
+      Var("n_velo_hits", "data_quality_validation_occupancy/occupancy", 0, 3000),
+      Var("n_velo_tracks", "data_quality_validation_occupancy/occupancy", -0.5, 1000),
+      Var("n_hits_per_track", "data_quality_validation_velo/velo_states", 0, 16),
+      Var("tx", "data_quality_validation_velo/velo_states", -0.3, 0.3),
+      Var("ty", "data_quality_validation_velo/velo_states", -0.3, 0.3),
+      Var("ty:tx", "data_quality_validation_velo/velo_states", -0.3, 0.3, -0.3, 0.3),
+      Var("eta", "data_quality_validation_velo/velo_states", 1.0, 5.2),
+      Var("phi", "data_quality_validation_velo/velo_states", -M_PI, M_PI),
+      Var("eta:phi", "data_quality_validation_velo/velo_states", -M_PI, M_PI, 1.0, 5.2)};
 
     canvas = canvases["veloCanvas"];
 
@@ -421,14 +426,15 @@ void DataQualityPlot_Overlay(FILENAMES... files)
     std::cout << " complete!" << std::endl;
     std::cout << "Generating PID kinematic canvas ...";
 
-    std::vector<Var> PIDkinVars = {Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
-                                   Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000),
-                                   Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
-                                   Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000),
-                                   Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
-                                   Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000),
-                                   Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
-                                   Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000)};
+    std::vector<Var> PIDkinVars = {
+      Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
+      Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000),
+      Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
+      Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000),
+      Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
+      Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000),
+      Var("qop", "data_quality_validation_matching/long_track_particles", -4e-4, 4e-4),
+      Var("pt", "data_quality_validation_matching/long_track_particles", 0, 2000)};
 
     canvas = canvases["PIDkinCanvas"];
 
@@ -463,10 +469,11 @@ void DataQualityPlot_Overlay(FILENAMES... files)
     std::cout << " complete!" << std::endl;
     std::cout << "Generating IP canvas (matching)...";
 
-    std::vector<Var> IPVars = {Var("ip_x", "data_quality_validation_matching/long_track_particles", -0.5, 0.5),
-                               Var("ip_y", "data_quality_validation_matching/long_track_particles", -0.5, 0.5),
-                               Var("ip_chi2", "data_quality_validation_matching/long_track_particles", -1, 1000),
-                               Var("chi2", "data_quality_validation_matching/long_track_particles", 0, 100)};
+    std::vector<Var> IPVars = {
+      Var("ip_x", "data_quality_validation_matching/long_track_particles", -0.5, 0.5),
+      Var("ip_y", "data_quality_validation_matching/long_track_particles", -0.5, 0.5),
+      Var("ip_chi2", "data_quality_validation_matching/long_track_particles", -1, 1000),
+      Var("chi2", "data_quality_validation_matching/long_track_particles", 0, 100)};
     IPVars[2].logy = true;
 
     canvas = canvases["IPmatchingCanvas"];
@@ -522,10 +529,11 @@ void DataQualityPlot_Overlay(FILENAMES... files)
     std::cout << "Generating IP resolution canvas ...";
 
     std::vector<TString> IPresoVars = {"ip_x", "ip_x", "ip_y", "ip_y"};
-    std::vector<TString> Trees = {"data_quality_validation_matching/long_track_particles",
-                                  "data_quality_validation_forward/long_track_particles",
-                                  "data_quality_validation_matching/long_track_particles",
-                                  "data_quality_validation_forward/long_track_particles"};
+    std::vector<TString> Trees = {
+      "data_quality_validation_matching/long_track_particles",
+      "data_quality_validation_forward/long_track_particles",
+      "data_quality_validation_matching/long_track_particles",
+      "data_quality_validation_forward/long_track_particles"};
 
     canvas = canvases["IPresolutionCanvas"];
 
@@ -763,18 +771,19 @@ std::pair<TColor*, Int_t> GetColorAndLineStyle(Int_t index)
   // Generated from https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=12 (with the yellow colour removed and
   // black added) If you have enough colours as to go off the end of the palette, it will loop with different line
   // styles
-  const std::vector<std::array<Int_t, 3>> colourPalette = {{0, 0, 0},
-                                                           {166, 206, 227},
-                                                           {31, 120, 180},
-                                                           {178, 223, 138},
-                                                           {51, 160, 44},
-                                                           {251, 154, 153},
-                                                           {227, 26, 28},
-                                                           {253, 191, 111},
-                                                           {255, 127, 0},
-                                                           {202, 178, 214},
-                                                           {106, 61, 154},
-                                                           {177, 89, 40}};
+  const std::vector<std::array<Int_t, 3>> colourPalette = {
+    {0, 0, 0},
+    {166, 206, 227},
+    {31, 120, 180},
+    {178, 223, 138},
+    {51, 160, 44},
+    {251, 154, 153},
+    {227, 26, 28},
+    {253, 191, 111},
+    {255, 127, 0},
+    {202, 178, 214},
+    {106, 61, 154},
+    {177, 89, 40}};
 
   const Int_t lineStyle = (index / colourPalette.size()) + 1;
   const Int_t trueIndex = index % colourPalette.size();

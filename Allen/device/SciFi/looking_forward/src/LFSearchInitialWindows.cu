@@ -20,11 +20,10 @@ void lf_search_initial_windows::lf_search_initial_windows_t::set_arguments_size(
   const RuntimeOptions&,
   const Constants&) const
 {
-  const bool with_ut = first<host_track_type_id_t>(arguments) == Allen::TypeIDs::VeloUTTracks;
   set_size<dev_scifi_lf_initial_windows_t>(
     arguments,
-    (with_ut ? LookingForward::InputUT::number_of_elements_initial_window :
-               LookingForward::InputVelo::number_of_elements_initial_window) *
+    (m_with_ut.value() ? LookingForward::InputUT::number_of_elements_initial_window :
+                         LookingForward::InputVelo::number_of_elements_initial_window) *
       first<host_number_of_reconstructed_input_tracks_t>(arguments) * LookingForward::number_of_x_layers);
   set_size<dev_input_states_t>(arguments, first<host_number_of_reconstructed_input_tracks_t>(arguments));
   set_size<dev_scifi_lf_number_of_tracks_t>(arguments, 2 * first<host_number_of_events_t>(arguments));
@@ -69,7 +68,7 @@ void lf_search_initial_windows::lf_search_initial_windows_t::operator()(
   global_function(lf_search_initial_windows)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
     constants.dev_looking_forward_constants,
-    constants.dev_magnet_polarity.data(),
+    constants.magnet_polarity,
     m_input_pt,
     m_input_momentum,
     m_hit_window_size,
@@ -82,7 +81,7 @@ template<bool with_ut, typename T>
 __device__ void search_windows(
   const lf_search_initial_windows::Parameters& parameters,
   const LookingForward::Constants* dev_looking_forward_constants,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const T* tracks,
   const float input_pt,
   const float input_momentum,
@@ -205,14 +204,14 @@ __device__ void search_windows(
           qop,
           dev_looking_forward_constants->x_layers[i],
           dev_looking_forward_constants,
-          dev_magnet_polarity,
+          magnet_polarity,
           geom::dev_average_z_x_layers[i]);
         const float xInZone = stateInZone.x();
 
         const float xTol =
           LookingForward::initial_window_offset_xtol + LookingForward::initial_window_factor_qop * fabsf(qop);
         float xMin, xMax;
-        if (*dev_magnet_polarity > 0.f) { // MU
+        if (magnet_polarity > 0.f) { // MU
           xMin = xInZone - xTol - LookingForward::initial_window_factor_assymmetric_opening * (signbit(qop) ^ 0x01);
           xMax = xInZone + xTol + LookingForward::initial_window_factor_assymmetric_opening * signbit(qop);
         }
@@ -440,7 +439,7 @@ __device__ void search_windows(
 __global__ void lf_search_initial_windows::lf_search_initial_windows(
   lf_search_initial_windows::Parameters parameters,
   const LookingForward::Constants* dev_looking_forward_constants,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const float input_pt,
   const float input_momentum,
   const int hit_window_size,
@@ -454,7 +453,7 @@ __global__ void lf_search_initial_windows::lf_search_initial_windows(
     search_windows<true>(
       parameters,
       dev_looking_forward_constants,
-      dev_magnet_polarity,
+      magnet_polarity,
       ut_tracks,
       input_pt,
       input_momentum,
@@ -469,7 +468,7 @@ __global__ void lf_search_initial_windows::lf_search_initial_windows(
     search_windows<false>(
       parameters,
       dev_looking_forward_constants,
-      dev_magnet_polarity,
+      magnet_polarity,
       velo_tracks,
       input_pt,
       input_momentum,

@@ -31,39 +31,34 @@
 #include <string>
 
 namespace logger {
-  static std::unique_ptr<Logger> ll;
-  static std::unique_ptr<boost::iostreams::stream<boost::iostreams::null_sink>> nullOstream;
+  namespace {
+    // Function-local statics use C++11 "magic statics" initialization, which is
+    // thread-safe; this replaces a prior namespace-scope-pointer, unsynchronized
+    // check-then-act lazy-init pattern that raced under concurrent first calls.
+    Logger& instance()
+    {
+      static Logger ll;
+      return ll;
+    }
+
+    boost::iostreams::stream<boost::iostreams::null_sink>& null_ostream()
+    {
+      static boost::iostreams::stream<boost::iostreams::null_sink> os {boost::iostreams::null_sink()};
+      return os;
+    }
+  } // namespace
 } // namespace logger
 
-void logger::setVerbosity(int level)
-{
-  if (!logger::ll) {
-    logger::ll.reset(new logger::Logger {});
-  }
-  logger::ll->verbosityLevel = level;
-}
+void logger::setVerbosity(int level) { instance().verbosityLevel = level; }
 
-int logger::verbosity()
-{
-  if (!logger::ll) {
-    logger::ll.reset(new logger::Logger {});
-  }
-  return logger::ll->verbosityLevel;
-}
+int logger::verbosity() { return instance().verbosityLevel; }
 
 std::ostream& logger::logger(int requestedLogLevel)
 {
-  if (!logger::ll) {
-    logger::ll.reset(new logger::Logger {});
-  }
-  if (!logger::nullOstream) {
-    logger::nullOstream.reset(
-      new boost::iostreams::stream<boost::iostreams::null_sink> {boost::iostreams::null_sink()});
-  }
-  if (logger::ll->verbosityLevel >= requestedLogLevel) {
+  if (instance().verbosityLevel >= requestedLogLevel) {
     return std::cout;
   }
   else {
-    return *logger::nullOstream;
+    return null_ostream();
   }
 }

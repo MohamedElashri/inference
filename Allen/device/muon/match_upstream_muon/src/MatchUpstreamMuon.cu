@@ -30,7 +30,7 @@ void MatchUpstreamMuon::match_upstream_muon_t::operator()(
 
   global_function(match_upstream_muon)(dim3(first<host_selected_events_mf_t>(arguments)), m_block_dim, context)(
     arguments,
-    constants.dev_magnet_polarity.data(),
+    constants.magnet_polarity,
     constants.dev_muonmatch_search_muon_chambers,
     constants.dev_muonmatch_search_windows,
     first<host_number_of_events_t>(arguments));
@@ -38,7 +38,7 @@ void MatchUpstreamMuon::match_upstream_muon_t::operator()(
 
 __global__ void MatchUpstreamMuon::match_upstream_muon(
   MatchUpstreamMuon::Parameters parameters,
-  const float* magnet_polarity,
+  const float magnet_polarity,
   const MatchUpstreamMuon::MuonChambers* dev_muonmatch_search_muon_chambers,
   const MatchUpstreamMuon::SearchWindows* dev_muonmatch_search_windows,
   const unsigned number_of_events)
@@ -50,12 +50,13 @@ __global__ void MatchUpstreamMuon::match_upstream_muon(
 
   Velo::Consolidated::ConstStates velo_states {parameters.dev_kalmanvelo_states, velo_tracks.total_number_of_tracks()};
 
-  UT::Consolidated::ConstExtendedTracks ut_tracks {parameters.dev_atomics_ut,
-                                                   parameters.dev_ut_track_hit_number,
-                                                   parameters.dev_ut_qop,
-                                                   parameters.dev_ut_track_velo_indices,
-                                                   i_event,
-                                                   number_of_events};
+  UT::Consolidated::ConstExtendedTracks ut_tracks {
+    parameters.dev_atomics_ut,
+    parameters.dev_ut_track_hit_number,
+    parameters.dev_ut_qop,
+    parameters.dev_ut_track_velo_indices,
+    i_event,
+    number_of_events};
 
   const auto muon_total_number_of_hits =
     parameters.dev_station_ocurrences_offset[number_of_events * Muon::Constants::n_stations];

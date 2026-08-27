@@ -52,7 +52,8 @@ __global__ void flatten_svs::create_flat_views(flatten_svs::Parameters parameter
     const auto* composite_substr = static_cast<const Allen::Views::Physics::CompositeParticle*>(sv.child(0));
     const unsigned n_subsubstr = composite_substr->number_of_children();
     for (unsigned i_subsubstr = 0; i_subsubstr < n_subsubstr; i_subsubstr++) {
-      const auto* subsubstr = composite_substr->child(i_subsubstr);
+      const auto* subsubstr =
+        static_cast<const Allen::Views::Physics::BasicParticle*>(composite_substr->child(i_subsubstr));
       children[i_flat_child] = subsubstr;
       i_flat_child++;
     }
@@ -65,9 +66,9 @@ __global__ void flatten_svs::create_flat_views(flatten_svs::Parameters parameter
     fill_sv_info(
       parameters.dev_sv_info,
       i + offset,
-      composite_substr->vertex().x(),
-      composite_substr->vertex().y(),
-      composite_substr->vertex().z(),
+      sv.vertex().x(),
+      sv.vertex().y(),
+      sv.vertex().z(),
       composite_substr->vertex().px() + basic_substr->state().px(),
       composite_substr->vertex().py() + basic_substr->state().py(),
       composite_substr->vertex().pz() + basic_substr->state().pz());

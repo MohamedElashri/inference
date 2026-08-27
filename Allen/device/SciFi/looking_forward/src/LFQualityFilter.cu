@@ -74,11 +74,12 @@ namespace {
   __device__ inline MiniState get_scifi_state(float x0, float tx, float curvature, float d_ratio, float y0, float ty)
   {
     const auto dz = SciFi::Constants::ZEndT - LookingForward::z_mid_t;
-    return MiniState {x0 + tx * dz + curvature * dz * dz * (1.f + d_ratio * dz),
-                      y0 + ty * SciFi::Constants::ZEndT,
-                      SciFi::Constants::ZEndT,
-                      tx + 2.f * dz * curvature + 3.f * dz * dz * curvature * d_ratio,
-                      ty};
+    return MiniState {
+      x0 + tx * dz + curvature * dz * dz * (1.f + d_ratio * dz),
+      y0 + ty * SciFi::Constants::ZEndT,
+      SciFi::Constants::ZEndT,
+      tx + 2.f * dz * curvature + 3.f * dz * dz * curvature * d_ratio,
+      ty};
   }
 
 } // namespace

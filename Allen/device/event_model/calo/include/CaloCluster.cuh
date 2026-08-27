@@ -54,9 +54,8 @@ struct CaloCluster {
 
   // Construct a CALO cluster from jet data.
   __device__ __host__ CaloCluster(const Jets::Jet& jet) :
-    e {jet.pt * coshf(jet.eta)}, et {jet.pt}, x {jet.pt > 0.f ? (jet.pt * sinf(jet.phi)) / (jet.pt * sinhf(jet.eta)) *
-                                                                  Calo::Constants::z :
-                                                                0.f},
+    e {jet.pt * coshf(jet.eta)}, et {jet.pt},
+    x {jet.pt > 0.f ? (jet.pt * sinf(jet.phi)) / (jet.pt * sinhf(jet.eta)) * Calo::Constants::z : 0.f},
     y {jet.pt > 0.f ? (jet.pt * cosf(jet.phi)) / (jet.pt * sinhf(jet.eta)) * Calo::Constants::z : 0.f}
   {}
 
@@ -69,6 +68,15 @@ struct CaloCluster {
     float sintheta = (this->x * this->x + this->y * this->y) / (this->x * this->x + this->y * this->y + z * z);
     sintheta = sqrtf(sintheta);
     this->et = this->e * sintheta;
+  }
+
+  __device__ __host__ constexpr int area() const
+  {
+    constexpr int middle_offset = 2688;
+    constexpr int inner_offset = 4480;
+    constexpr int pin_offset = 6016;
+
+    return (center_id < middle_offset) ? 0 : (center_id < inner_offset) ? 1 : (center_id < pin_offset) ? 2 : -1;
   }
 };
 

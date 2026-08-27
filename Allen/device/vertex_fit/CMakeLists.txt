@@ -12,7 +12,7 @@ file(GLOB vertex_fitter_src "vertex_fitter/src/*cu")
 file(GLOB two_track_mva_src "two_track_mva/src/*cu")
 file(GLOB prompt_vertex_src "prompt_vertex/src/*cu")
 
-allen_add_device_library(VertexFitter STATIC
+allen_add_device_library(VertexFitter OBJECT
   ${vertex_fitter_src}
   ${two_track_catboost_src}
   ${two_track_mva_src}

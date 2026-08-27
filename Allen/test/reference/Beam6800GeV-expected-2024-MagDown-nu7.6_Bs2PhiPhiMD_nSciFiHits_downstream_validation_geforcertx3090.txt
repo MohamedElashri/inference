@@ -166,4 +166,3 @@ for P>3GeV,Pt>0.5GeV                              :         0/        0   -nan% 
 39_TTrack_fromSignal                              :        70/      428  16.36% ( 17.44%),         2 (  2.78%) clones, pur  97.46%, hit eff  91.88%
 40_TTrack_fromSignal_P>3GeV                       :        69/      174  39.66% ( 38.09%),         2 (  2.82%) clones, pur  97.42%, hit eff  91.76%
 41_TTrack_fromSignal_P>5GeV                       :        53/      101  52.48% ( 51.80%),         1 (  1.85%) clones, pur  97.86%, hit eff  92.01%
-

@@ -8,16 +8,18 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenCore.cftree_ops import get_execution_list_for, BoolNode
-from AllenCore.event_list_utils import add_event_list_combiners
-from AllenCore.AllenSequenceGenerator import generate_json_configuration
-from AllenCore.allen_benchmarks import benchmark_weights, benchmark_efficiencies
-from AllenCore.algorithms import host_init_event_list_t
+import random
+from json import dump
+
 from PyConf.components import Algorithm
 from PyConf.filecontent_metadata import flush_key_registry
 from PyConf.tonic import configurable
-from json import dump
-import random
+
+from AllenCore.algorithms import host_init_event_list_t
+from AllenCore.allen_benchmarks import benchmark_efficiencies, benchmark_weights
+from AllenCore.AllenSequenceGenerator import generate_json_configuration
+from AllenCore.cftree_ops import get_execution_list_for
+from AllenCore.event_list_utils import add_event_list_combiners
 
 
 def make_algorithm(alg_type, name, **kwargs):
@@ -33,17 +35,19 @@ def make_algorithm(alg_type, name, **kwargs):
     * Else: A weight of 100.0 is set. A message is shown identifying the algorithm with no weight.
     """
     if "average_eff" in kwargs:
-        eff = kwargs['average_eff']
+        eff = kwargs["average_eff"]
     elif name in benchmark_efficiencies:
         eff = benchmark_efficiencies[name]
     else:
-        eff = .99  # TODO we could also just do 1, but then they wont be considered in masks
+        eff = 0.99  # TODO we could also just do 1, but then they wont be considered in masks
 
     if "weight" in kwargs:
         weight = kwargs["weight"]
     elif name in benchmark_weights:
         weight = benchmark_weights[name]
-    elif "prefix_sum" in name:  # hard coded heuristic for now, TODO might want to change
+    elif (
+        "prefix_sum" in name
+    ):  # hard coded heuristic for now, TODO might want to change
         weight = 1000.0
     elif alg_type.category() == "SelectionAlgorithm":
         weight = 10.0
@@ -55,24 +59,24 @@ def make_algorithm(alg_type, name, **kwargs):
     random.seed(name)
     weight += random.random()
 
-    return Algorithm(
-        alg_type, name=name, weight=weight, average_eff=eff, **kwargs)
+    return Algorithm(alg_type, name=name, weight=weight, average_eff=eff, **kwargs)
 
 
 def initialize_event_lists(**kwargs):
     initialize_lists = make_algorithm(
-        host_init_event_list_t, name="initialize_event_lists")
+        host_init_event_list_t, name="initialize_event_lists"
+    )
     return initialize_lists
 
 
 def build_sequence(root, verbose=True):
     if type(root) == dict:
-        root = root['control_flow_node']
+        root = root["control_flow_node"]
 
     with flush_key_registry():
         best_order, score = get_execution_list_for(root)
         final_seq = add_event_list_combiners(best_order)
-
+    """
     if verbose:
         print(
             "Generated sequence represented as algorithms with execution masks:"
@@ -85,15 +89,15 @@ def build_sequence(root, verbose=True):
             elif isinstance(mask_in, BoolNode):
                 mask_in_str = f" in:{mask_in}"
             print(f"  {alg}{mask_in_str}")
+    """
 
     return [alg for (alg, _) in final_seq]
 
 
 @configurable
-def generate(root,
-             json_configuration_filename="Sequence.json",
-             noop=False,
-             verbose=True):
+def generate(
+    root, json_configuration_filename="Sequence.json", noop=False, verbose=True
+):
     """Generates an Allen sequence out of a root node."""
     if noop:
         return
@@ -101,5 +105,5 @@ def generate(root,
     algorithms = build_sequence(root, verbose=verbose)
 
     sequence_json = generate_json_configuration(algorithms)
-    with open(json_configuration_filename, 'w') as outfile:
+    with open(json_configuration_filename, "w") as outfile:
         dump(sequence_json, outfile, indent=4, sort_keys=True)

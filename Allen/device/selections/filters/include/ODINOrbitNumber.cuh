@@ -37,9 +37,10 @@ namespace odin_orbitnumber {
   private:
     Allen::Property<unsigned> m_block_dim_x {this, "block_dim_x", 256, "block dimension x"};
     Allen::Property<unsigned> m_odin_orbit_modulo {this, "odin_orbit_modulo", 30u, "Modulo for ODIN orbit number test"};
-    Allen::Property<unsigned> m_odin_orbit_remainder {this,
-                                                      "odin_orbit_remainder",
-                                                      1u,
-                                                      "Remainder for ODIN orbit number test"};
+    Allen::Property<unsigned> m_odin_orbit_remainder {
+      this,
+      "odin_orbit_remainder",
+      1u,
+      "Remainder for ODIN orbit number test"};
   }; // odin_orbitnumber_t
 } // namespace odin_orbitnumber

@@ -56,8 +56,8 @@ zmq::socket_t make_control(size_t thread_id, IZeroMQSvc* zmqSvc, std::string suf
 {
 
   auto make_socket = [thread_id, &suffix, zmqSvc] {
-    zmq::socket_t control = zmqSvc->socket(zmq::PAIR);
-    zmq::setsockopt(control, zmq::LINGER, 0);
+    zmq::socket_t control = zmqSvc->socket(zmq::socket_type::pair);
+    control.set(zmq::sockopt::linger, 0);
     auto con = connection(thread_id, suffix);
     try {
       control.connect(con.c_str());

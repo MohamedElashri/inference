@@ -27,26 +27,27 @@ def checkSizes(reference_file, causes, result):
             if size != s:
                 bad_size.append((f, size, s))
 
-    result_str = ''
+    result_str = ""
     if not missing and not bad_size:
-        result_str += 'Files and sizes match\n'
+        result_str += "Files and sizes match\n"
     if missing:
         causes.append("missing files")
-        result_str += 'Missing:\n\t' + '\n\t'.join(missing) + '\n'
+        result_str += "Missing:\n\t" + "\n\t".join(missing) + "\n"
     if bad_size:
         pat = "%s is %d bytes instead of %d"
         causes.append("file size mismatch(es)")
         result_str += (
-            'Wrong size:\n\t' + '\n\t'.join([pat % e
-                                             for e in bad_size]) + '\n')
+            "Wrong size:\n\t" + "\n\t".join([pat % e for e in bad_size]) + "\n"
+        )
 
     result["validator.output"] = result.Quote(result_str)
 
 
 def check_large_event_histograms(filename):
-    from ROOT import TFile
-    from AllenConf import persistency
     import re
+
+    from AllenConf import persistency
+    from ROOT import TFile
 
     rbs = {b: re.compile(k) for k, b in persistency.rb_map.items()}
 
@@ -72,8 +73,9 @@ def check_large_event_histograms(filename):
 
 
 def check_PV_efficiency(reference_file, causes, category):
-    import re
     import os
+    import re
+
     # Regular expression to find the line with the required category
     pattern = rf"\b{category}\s+:.*?\[\s*(\d+\.\d+)\s*%\],\s*false\s*(\d+)\s*from\s*reco\.\s*(\d+)\s*\(.*?\[\s*(\d+\.\d+)\s*%\]"
     with open(os.path.expandvars(reference_file)) as ref:
@@ -85,12 +87,16 @@ def check_PV_efficiency(reference_file, causes, category):
         fake_pv_percentage = float(match.group(4))
         if efficiency < 90:
             causes.append(
-                "WARNING : The all tracks PV reconstruction efficiency = {}% is lower than 90% "
-                .format(efficiency))
+                "WARNING : The all tracks PV reconstruction efficiency = {}% is lower than 90% ".format(
+                    efficiency
+                )
+            )
         if fake_pv_percentage > 3:
             causes.append(
-                "WARNING : The all tracks number of fake PVs = {}% is higher than 3% "
-                .format(fake_pv_percentage))
+                "WARNING : The all tracks number of fake PVs = {}% is higher than 3% ".format(
+                    fake_pv_percentage
+                )
+            )
 
         return efficiency, fake_pv_percentage
     else:

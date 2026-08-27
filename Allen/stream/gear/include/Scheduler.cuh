@@ -15,7 +15,7 @@
 #include "Logger.h"
 #include <utility>
 #include <type_traits>
-#include <AlgorithmDB.h>
+#include <Algorithm.cuh>
 #include "nlohmann/json.hpp"
 
 // use constexpr flag to enable/disable contracts
@@ -68,7 +68,7 @@ namespace Allen {
       std::vector<Allen::TypeErasedAlgorithm> sequence;
       sequence.reserve(configured_algorithms.size());
       for (const auto& alg : configured_algorithms) {
-        sequence.emplace_back(instantiate_allen_algorithm(alg));
+        sequence.emplace_back(AlgorithmDB::get()->instantiate_algorithm(alg.id, alg.name));
       }
       return sequence;
     }
