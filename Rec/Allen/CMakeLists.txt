@@ -42,6 +42,7 @@ gaudi_add_module(AllenWrapper
                    LHCb::MCEvent
                    LHCb::RecEvent
                    LHCb::RichFutureUtils
+                   Rec::RichFutureRecEvent
                    Rec::PrKernel)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)

@@ -18,6 +18,9 @@ target_include_directories(Gear INTERFACE
   $<INSTALL_INTERFACE:include/Gear/store>
   $<INSTALL_INTERFACE:include/Gear/sequence>)
 target_link_libraries(Gear INTERFACE Boost::boost)
+if(NOT STANDALONE)
+  target_link_libraries(Gear INTERFACE LHCb::DetDescLib)
+endif()
 install(TARGETS Gear EXPORT Allen)
 
 install(DIRECTORY gear/include/ DESTINATION include/Gear/gear)

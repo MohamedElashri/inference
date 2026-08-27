@@ -50,13 +50,19 @@ if (NOT STANDALONE)
   target_link_libraries(default_properties PRIVATE LHCb::DetDescLib)
 endif()
 
-set(PARSER_ENV PYTHONPATH=$ENV{PYTHONPATH} LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH})
+if(STANDALONE)
+  set(PARSER_ENV PYTHONPATH=$ENV{PYTHONPATH} LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH})
+  set(PARSER_COMMAND ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE})
+else()
+  set(PARSER_ENV PYTHONPATH=$ENV{PYTHONPATH})
+  set(PARSER_COMMAND ${CMAKE_BINARY_DIR}/run env ${PARSER_ENV} ${Python_EXECUTABLE})
+endif()
 
 # Generate allen standalone algorithms file
 add_custom_command(
   OUTPUT "${ALGORITHMS_OUTPUTFILE}"
   COMMAND
-    ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate views --filename "${ALGORITHMS_OUTPUTFILE}" --default_properties $<TARGET_FILE:default_properties> --prefix_project_folder "${PROJECT_SOURCE_DIR}" &&
+    ${PARSER_COMMAND} ${ALGORITHMS_GENERATION_SCRIPT} --generate views --filename "${ALGORITHMS_OUTPUTFILE}" --default_properties $<TARGET_FILE:default_properties> --prefix_project_folder "${PROJECT_SOURCE_DIR}" &&
     ${CMAKE_COMMAND} -E touch ${ALLEN_ALGORITHMS_DIR}/__init__.py
   WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
   DEPENDS generate_conf_core default_properties)
@@ -71,13 +77,13 @@ if(SEPARABLE_COMPILATION)
   add_custom_command(
     OUTPUT "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh"
     COMMAND
-      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
+      ${PARSER_COMMAND} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
     WORKING_DIRECTORY ${ALLEN_PARSER_DIR})
 else()
   add_custom_command(
     OUTPUT "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh"
     COMMAND
-      ${CMAKE_COMMAND} -E env ${PARSER_ENV} ${Python_EXECUTABLE} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines_nosepcomp --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
+      ${PARSER_COMMAND} ${ALGORITHMS_GENERATION_SCRIPT} --generate extern_lines_nosepcomp --filename "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh" --prefix_project_folder "${PROJECT_SOURCE_DIR}"
     WORKING_DIRECTORY ${ALLEN_PARSER_DIR})
 endif()
 add_custom_target(extern_lines_generation DEPENDS "${ALLEN_GENERATED_INCLUDE_FILES_DIR}/ExternLines.cuh")
