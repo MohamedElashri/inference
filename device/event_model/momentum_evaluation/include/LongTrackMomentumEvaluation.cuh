@@ -31,10 +31,15 @@ namespace LongTrack {
     const float* params = momentum_parameters.data() + (magSign < 0 ? 0 : 8);
 
     const auto dslope = txT - txV;
+    // Protect the parametrization from a vanishing slope difference, which would
+    // make the momentum estimate singular (0/0 or x/0). For a straight track the
+    // momentum is essentially undetermined; clamp to a small value so the result
+    // stays finite.
+    const auto abs_dslope = fmaxf(fabsf(dslope), 1.e-6f);
     const auto abs_p =
       params[0] + (params[1] + params[2] * (txT * txT) + params[3] * (txT * txT * txT * txT) + params[4] * (txT * txV) +
                    params[5] * (tyV * tyV) + params[6] * (tyV * tyV * tyV * tyV) + params[7] * (txV * txV)) /
-                    fabsf(dslope);
+                    abs_dslope;
 
     const auto charge = ((dslope > 0) ? 1.f : -1.f) * magSign;
     return charge / abs_p;
