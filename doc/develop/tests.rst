@@ -16,7 +16,7 @@ Be sure to check out this presentation |presentation_contracts| which covers wha
 
 .. |presentation_contracts| raw:: html
 
-   <a href="<https://indico.cern.ch/event/978570/contributions/4136202/attachments/2157046/3638389/main.pdf" target="_blank">this presentation</a>
+   <a href="https://indico.cern.ch/event/978570/contributions/4136202/attachments/2157046/3638389/main.pdf" target="_blank">this presentation</a>
 
 How to add contracts
 --------------------
