@@ -34,3 +34,12 @@ repos:
     hooks:
       - id: lb-add-copyright
         exclude: "^lhcbproject.yml$"
+-   repo: local
+    hooks:
+    -   id: test-inputs-use-testfiledb
+        name: test inputs use TestFileDB
+        description: make sure all inputs to test options files are going through FileTestDB
+        language: pygrep
+        types_or: [python, yaml]
+        exclude: ".pre-commit-config.yaml"
+        entry: 'eoslhcb.cern.ch//eos/lhcb/'
