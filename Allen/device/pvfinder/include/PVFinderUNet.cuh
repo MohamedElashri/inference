@@ -14,7 +14,7 @@
 // Output: dev_pvfinder_kde_output  [n_events, 40, 100]  (flat: n_events*4000)
 //
 // cuDNN integration design:
-//   - All tensor shapes are compile-time constants — descriptors created once globally.
+//   - Tensor shapes are fixed per process (N = unet_batch_events * 40) — descriptors created once globally.
 //   - One thread_local cudnnHandle_t per OS thread, created lazily via
 //     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
 //   - IMPLICIT_GEMM algorithm pinned everywhere → zero workspace.
@@ -50,7 +50,7 @@ struct Parameters {
     // Interval features from aggregation: [n_events, 40, C=8, W=100]
     DEVICE_INPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
 
-    // Scratch intermediate buffers (Allen pool, fixed size for ONE event reused each iteration)
+    // Scratch intermediate buffers (Allen pool, sized for one unet_batch_events batch, reused per batch)
     DEVICE_OUTPUT(dev_unet_x1_t,      float) dev_unet_x1;    // [N, 64, 100]
     DEVICE_OUTPUT(dev_unet_x2_t,      float) dev_unet_x2;    // [N, 64, 50]
     DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, 64, 100] (also logits)
@@ -101,6 +101,17 @@ private:
     Allen::Property<unsigned> m_dump_repetition {
         this, "dump_repetition", 0u,
         "0-indexed operator() call to dump on, when dump_validation is set"};
+
+    // Events per cuDNN batch: each UNet pass sees N = unet_batch_events * 40
+    // (event, interval) samples. Every descriptor, scratch buffer and graph
+    // pool is sized from it once per process. Set it equal to the slice size
+    // (-n) to run the whole slice in one pass. Must match
+    // pvfinder_fc_aggregation.unet_batch_events, which pads the interval
+    // features to a multiple of it.
+    Allen::Property<unsigned> m_unet_batch_events {
+        this, "unet_batch_events", 20u,
+        "events per cuDNN batch (N = this * 40); must match "
+        "pvfinder_fc_aggregation.unet_batch_events"};
 
     Allen::Property<bool> m_use_fp16 {
         this, "use_fp16", false,
@@ -163,6 +174,16 @@ private:
         this, "use_fused_rcbn3", false,
         "rcbn3 only, eager FP32 path only: use a hand-written shared-memory "
         "fused Conv+Bias+ReLU kernel instead of cuDNN + separate bias/ReLU kernel"};
+
+    // Fuse the bias+ReLU epilogue into the following max-pool, so the
+    // full-resolution activation is read once instead of being rewritten in
+    // place and then read again. Arithmetically identical: both pooled inputs
+    // are biased and rectified independently before the max, exactly as the
+    // unfused pair does.
+    Allen::Property<bool> m_use_fused_bias_relu_pool {
+        this, "use_fused_bias_relu_pool", false,
+        "eager FP32 path only: fuse each bias+ReLU epilogue into the max-pool "
+        "that consumes it (rcbn2 and rcbn3), removing two DRAM round trips"};
 
     // Merge out_intermediate+outc into a single Conv1d(k=9) per branch,
     // exact everywhere (interior via the merged kernel, boundary via the

@@ -6,7 +6,7 @@ Produces two files:
   cnn_weights.bin — UNet CNN layers     (used by PVFinderUNet)
 
 Usage:
-  python convert_weights.py --model <path/to/model.pyt> \\
+  python tools/convert_weights.py --model <path/to/model.pyt> \\
       [--fc-out fc_weights.bin] [--cnn-out cnn_weights.bin]
 
 The script auto-detects the UNet feature count (N_FEAT) from the state dict.

@@ -3,7 +3,7 @@
 validate_unet.py — Numerical validation of the Allen UNet inference against PyTorch.
 
 Usage:
-    python3 validate_unet.py [--dump-dir DUMP_DIR] [--weights WEIGHTS_PATH]
+    python3 tools/validate_unet.py [--dump-dir DUMP_DIR] [--weights WEIGHTS_PATH]
                               [--device cpu|cuda] [--plot]
 
 Reads:
@@ -79,7 +79,8 @@ print(f"  n_events={n_events}  ncw={ncw_tensor.shape}  allen_kde={allen_kde.shap
 # ---------------------------------------------------------------------------
 # Load PyTorch model
 # ---------------------------------------------------------------------------
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "pvfinder_pytorch"))
+# tools/ -> repository root, where pvfinder_pytorch lives
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pvfinder_pytorch"))
 import torch
 
 # utils.py imports awkward which may not be installed; stub it out since

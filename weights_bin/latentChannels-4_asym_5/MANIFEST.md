@@ -4,7 +4,7 @@ Converted from the training team's (mpeters) real trained weights at:
 ```
 /share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4/asym_5/weights/
 ```
-using `convert_weights.py` (repo root; fixed here to handle bf16 source
+using `tools/convert_weights.py` (fixed here to handle bf16 source
 tensors — numpy has no native bfloat16 dtype, so `.numpy()` on a bf16
 tensor failed before the existing `.astype(np.float32)` ever ran; now
 casts via `.float()` in torch first). Every `.bin` file below is FP32 —
@@ -49,7 +49,7 @@ re-check against our path before trusting for an Allen default flip.
 
 ## Known gap
 
-`benchmark_pvfinder_batch.sh` only exposes `--cnn-weights` (overrides
+`benchmarks/benchmark_pvfinder_batch.sh` only exposes `--cnn-weights` (overrides
 `pvfinder_unet.weight_file`) — there is no equivalent flag for
 `fc_weights.bin`'s path today, so swapping in one of these `fc_weights.bin`
 files for a benchmark run needs a manual sequence-config edit until that

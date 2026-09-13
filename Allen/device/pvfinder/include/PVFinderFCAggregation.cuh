@@ -138,7 +138,7 @@ private:
     // O(n_local) atomics, this combine step happens once per warp, not once
     // per track).
     Allen::Property<bool> m_use_warp_parallel_reduce {
-        this, "use_warp_parallel_reduce", false,
+        this, "use_warp_parallel_reduce", true,
         "Split pvfinder_reduce_l6a_kernel's per-track accumulation across the "
         "block's warps (round-robin over tracks) instead of processing tracks "
         "serially with the whole block -- candidate fix for track-heavy "
@@ -151,11 +151,19 @@ private:
     // this value in set_arguments_size); combines well with
     // use_warp_parallel_reduce above.
     Allen::Property<unsigned> m_fc_chunk_size {
-        this, "fc_chunk_size", 20u,
+        this, "fc_chunk_size", 130u,
         "Number of events processed per L1-L5/GEMM/bias-relu/reduce chunk "
-        "(default 20 = current baseline); raising this widens "
+        "(default 130); raising this widens "
         "pvfinder_reduce_l6a_kernel's grid at the cost of larger intermediate "
         "buffers"};
+
+    // dev_pvfinder_interval_features is padded to a multiple of the UNet's
+    // cuDNN batch size so the UNet can always read whole batches. Must match
+    // pvfinder_unet.unet_batch_events.
+    Allen::Property<unsigned> m_unet_batch_events {
+        this, "unet_batch_events", 20u,
+        "pad interval features to a multiple of this many events; must match "
+        "pvfinder_unet.unet_batch_events"};
 
     // Nothing else reads dev_pvfinder_l6a_output between
     // pvfinder_l6a_bias_relu_kernel's in-place write and
@@ -166,7 +174,7 @@ private:
     // already wrote back. Same math, one fewer kernel launch, one fewer
     // full DRAM read-modify-write pass over the L6A output buffer.
     Allen::Property<bool> m_use_fused_bias_relu_reduce {
-        this, "use_fused_bias_relu_reduce", false,
+        this, "use_fused_bias_relu_reduce", true,
         "Apply L6A bias+LeakyReLU inline inside pvfinder_reduce_l6a_kernel's "
         "read of the raw GEMM output instead of running "
         "pvfinder_l6a_bias_relu_kernel as a separate pass -- candidate fix "
@@ -196,7 +204,7 @@ private:
     // once per chunk. A measured, real win under production-scale
     // multi-thread contention, though invisible in single-thread profiling.
     Allen::Property<bool> m_use_precomputed_csr_offset {
-        this, "use_precomputed_csr_offset", false,
+        this, "use_precomputed_csr_offset", true,
         "Replace pvfinder_reduce_l6a_kernel's O(events-in-chunk) ev_col_offset "
         "walk with an O(1) lookup into a per-chunk offset array, precomputed "
         "on the host (piggybacking on the existing T_chunk host walk) and "
@@ -211,9 +219,9 @@ private:
     // than a compile-time constant) so a candidate value can be tested and
     // dialed back without recompiling.
     Allen::Property<unsigned> m_safe_avg_entries_per_event {
-        this, "safe_avg_entries_per_event", 600u,
+        this, "safe_avg_entries_per_event", 450u,
         "Per-event CSR-entry safety margin used to size T_chunk_max = "
-        "this * fc_chunk_size (default 600; smaller values reclaim memory "
+        "this * fc_chunk_size (default 450; smaller values reclaim memory "
         "for a larger fc_chunk_size at real crash risk if set too low)"};
 
     // Throughput-ceiling probe: use only the first N of L1-L5's 20 real
@@ -269,7 +277,7 @@ private:
     // padding tail (padded_events > n_events, for UNet's batch alignment --
     // never written by any FC kernel), just not the full buffer.
     Allen::Property<bool> m_skip_redundant_memset {
-        this, "skip_redundant_memset", false,
+        this, "skip_redundant_memset", true,
         "Skip pvfinder_output_histogram's full memset and shrink "
         "pvfinder_interval_features's memset to just its padding tail, "
         "relying on pvfinder_reduce_l6a_kernel's own explicit zero-writes "
@@ -288,7 +296,7 @@ private:
     // self-zero exactly as in the static-grid path). Only combined with
     // warp_parallel_reduce + fused_bias_relu_reduce above.
     Allen::Property<bool> m_use_grid_stride_reduce {
-        this, "use_grid_stride_reduce", false,
+        this, "use_grid_stride_reduce", true,
         "Launch pvfinder_reduce_l6a_kernel as a fixed, occupancy-sized grid "
         "that work-steals over all (event, interval) slots via an atomic "
         "counter, instead of one block per slot -- candidate fix for "

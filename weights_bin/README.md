@@ -1,8 +1,8 @@
 # Converted PVFinder weight bins
 
 All source `.pyt` files come from the training team (mpeters) at
-`/share/lazy/mpeters/output/`. Converted with `convert_weights.py` (repo
-root) into `fc_weights.bin` + `cnn_weights.bin` pairs, all FP32 on disk
+`/share/lazy/mpeters/output/`. Converted with `tools/convert_weights.py`
+into `fc_weights.bin` + `cnn_weights.bin` pairs, all FP32 on disk
 regardless of source precision (see each subfolder's notes on that).
 Every architecture below is `latentChannels=4`, `n_unet_channels=16`
 (`N_FEAT=16`, requires the `buildgpu16chgpu` Allen build),
@@ -56,7 +56,7 @@ ablation flag).
 
 ## Known gaps (same as `latentChannels-4_asym_5/`)
 
-- No `--fc-weights` override in `benchmark_pvfinder_batch.sh` today —
+- No `--fc-weights` override in `benchmarks/benchmark_pvfinder_batch.sh` today —
   swapping `fc_weights.bin` needs a manual sequence-config edit.
 - None of the `sc_add`/`sc_none` sources have fp16/bf16 quantized
   variants upstream — only `concat`/`asym_5` got that treatment so far.

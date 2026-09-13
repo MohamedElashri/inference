@@ -47,6 +47,49 @@ __global__ void maxpool1d_2_kernel(
 }
 
 // ---------------------------------------------------------------------------
+// Fused bias + ReLU + max-pool.
+//
+// The unfused sequence is: conv writes its raw output, bias_relu reads and
+// rewrites it in place, then max-pool reads it again and writes the halved
+// tensor. The full-resolution activation therefore crosses DRAM three times
+// after the convolution. Here it crosses once: each thread owns one output
+// element, reads the two inputs that feed it, applies bias and ReLU to both,
+// and writes only the pooled result. The raw conv output is never rewritten.
+//
+// Arithmetically identical to bias_relu followed by maxpool1d_2, because
+// max(relu(a+b), relu(c+b)) == relu(max(a,c)+b) is not assumed -- both inputs
+// are biased and rectified independently before the max, exactly as before.
+// ---------------------------------------------------------------------------
+__global__ void bias_relu_maxpool_kernel(
+    const float* __restrict__ src,
+    float* __restrict__ dst,
+    const float* __restrict__ bias,
+    int N, int C, int W_in)
+{
+    const int W_out = W_in / 2;
+    const int total = N * C * W_out;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= total) return;
+    const int w_out = i % W_out;
+    const int c     = (i / W_out) % C;
+    const int n     = i / (C * W_out);
+    const int base  = (n * C + c) * W_in + w_out * 2;
+    const float b   = bias[c];
+    float a0 = src[base]     + b; a0 = a0 > 0.f ? a0 : 0.f;
+    float a1 = src[base + 1] + b; a1 = a1 > 0.f ? a1 : 0.f;
+    dst[i] = fmaxf(a0, a1);
+}
+
+inline void launch_bias_relu_maxpool(
+    const float* src, float* dst, const float* bias,
+    int N, int C, int W_in, dim3 block, const Allen::Context& ctx)
+{
+    const int total = N * C * (W_in / 2);
+    const dim3 grid((unsigned(total) + block.x - 1) / block.x);
+    bias_relu_maxpool_kernel<<<grid, block, 0, ctx.stream()>>>(src, dst, bias, N, C, W_in);
+}
+
+// ---------------------------------------------------------------------------
 // Concat along channel dim: [N, C1, W] cat [N, C2, W] -> [N, C1+C2, W]
 // Fills the dst buffer: first C1 channels from a, then C2 from b.
 // ---------------------------------------------------------------------------
@@ -626,7 +669,7 @@ __global__ void fused_conv_bias_relu_same_width_kernel(
 
 // rcbn3-shaped instantiation: Conv(N_FEAT->N_FEAT, k=5, pad=2) at W_HALF,
 // same width in and out. N is the number of slices in this chunk
-// (N_CHUNK_INTERVALS); one block per slice.
+// (unet_batch_events * N_INTERVALS); one block per slice.
 inline void launch_fused_rcbn3(
     const float* src, float* dst,
     const float* weight, const float* bias,

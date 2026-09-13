@@ -13,8 +13,9 @@ INSTANTIATE_ALGORITHM(pvfinder_unet::pvfinder_unet_t)
 
 namespace pvfinder_unet {
 
-static constexpr int B_EVENTS_MAX = 20;
-static constexpr int N_CHUNK_INTERVALS = B_EVENTS_MAX * N_INTERVALS;
+// Events per cuDNN batch come from the unet_batch_events property. Every
+// shape-dependent resource below (descriptors, scratch pools, CUDA graphs)
+// takes N = unet_batch_events * N_INTERVALS, fixed for the process lifetime.
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 // ---------------------------------------------------------------------------
@@ -170,11 +171,10 @@ struct ConvTransposeTensorDescs {
     cudnnTensorDescriptor_t td_up2_in_slim = nullptr;
 };
 
-static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs()
+static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(int N)
 {
     thread_local ConvTransposeTensorDescs descs;
     if (descs.td_up1_in == nullptr) {
-        constexpr int N = N_CHUNK_INTERVALS;
         ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up1_in));
         ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up1_out));
         ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up2_in));
@@ -227,11 +227,10 @@ struct GraphScratchPool {
     float* kde_out = nullptr;  // [N, W_IN]
 };
 
-static const GraphScratchPool& get_thread_local_graph_scratch_pool()
+static const GraphScratchPool& get_thread_local_graph_scratch_pool(int N)
 {
     thread_local GraphScratchPool pool;
     if (pool.ncw_in == nullptr) {
-        constexpr int N = N_CHUNK_INTERVALS;
         const size_t sz_ncw_in  = (size_t)N * N_BATCH_CHANNELS * W_IN;
         const size_t sz_x1      = (size_t)N * N_FEAT * W_IN;
         const size_t sz_x2      = (size_t)N * N_FEAT * W_HALF;
@@ -275,11 +274,10 @@ struct GraphScratchPoolFP16 {
     __half* up2  = nullptr;  // [N, N_FEAT, W_IN]      -- reused as general scratch
 };
 
-static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16()
+static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16(int N)
 {
     thread_local GraphScratchPoolFP16 pool;
     if (pool.ncw == nullptr) {
-        constexpr int N = N_CHUNK_INTERVALS;
         const size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
         const size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
         const size_t sz_x2   = (size_t)N * N_FEAT * W_HALF;
@@ -321,11 +319,10 @@ struct GraphScratchPoolBF16 {
     __nv_bfloat16* up2  = nullptr;  // [N, N_FEAT, W_IN]      -- reused as general scratch
 };
 
-static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16()
+static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16(int N)
 {
     thread_local GraphScratchPoolBF16 pool;
     if (pool.ncw == nullptr) {
-        constexpr int N = N_CHUNK_INTERVALS;
         const size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
         const size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
         const size_t sz_x2   = (size_t)N * N_FEAT * W_HALF;
@@ -385,9 +382,8 @@ struct WeightBlob {
 static WeightBlob s_wb {};
 static bool s_wb_loaded = false;
 
-static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, size_t fwd_ws_budget_bytes)
+static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, size_t fwd_ws_budget_bytes, int N)
 {
-    constexpr int N = N_CHUNK_INTERVALS;
 
     // Helper: allocate device buffer for fused weights/bias and launch the
     // BN-folding kernel.
@@ -554,28 +550,9 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     s_desc.up2c_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
-    // Allocate dedicated FP16 activation pool.
-    // Layout: ncw | x1 | x2 | x3 | up1 | cat2 | up2
-    // cat2 slot is also reused as up2_c output (same element count).
-    {
-        size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
-        size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
-        size_t sz_x2   = (size_t)N * N_FEAT * W_HALF;
-        size_t sz_x3   = (size_t)N * N_FEAT * W_QTR;
-        size_t sz_up1  = (size_t)N * N_FEAT * W_HALF;
-        size_t sz_cat2 = (size_t)N * N_FEAT * 2 * W_HALF;
-        size_t sz_up2  = (size_t)N * N_FEAT * W_IN;
-        size_t total   = sz_ncw + sz_x1 + sz_x2 + sz_x3 + sz_up1 + sz_cat2 + sz_up2;
-        cudaMalloc(&s_desc.fp16_pool, total * sizeof(__half));
-        __half* p = s_desc.fp16_pool;
-        s_desc.fp16_ncw  = p; p += sz_ncw;
-        s_desc.fp16_x1   = p; p += sz_x1;
-        s_desc.fp16_x2   = p; p += sz_x2;
-        s_desc.fp16_x3   = p; p += sz_x3;
-        s_desc.fp16_up1  = p; p += sz_up1;
-        s_desc.fp16_cat2 = p; p += sz_cat2;
-        s_desc.fp16_up2  = p;
-    }
+    // No global FP16 activation pool: the eager and graph FP16 paths both use
+    // thread_local pools (GraphScratchPoolFP16), and a global one sized by N
+    // would only waste memory outside Allen's -m budget at large batch sizes.
 
     // Non-CBR paths: plain conv, same pinned-IMPLICIT_GEMM-by-default ConvDescriptors.
     s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
@@ -618,6 +595,7 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // from ALLEN_CUDNN_CHECK) any unflushed printf content -- including this
     // diagnostic -- is silently lost, leaving no evidence of which
     // algorithm/workspace size was actually selected for a crashing run.
+    fprintf(stderr, "[pvfinder_unet] cuDNN batch N=%d samples (%d events)\n", N, N / N_INTERVALS);
     fprintf(stderr, "[pvfinder_unet] fwd_algo_ws_budget_bytes=%zu\n", fwd_ws_budget_bytes);
     fprintf(stderr, "[pvfinder_unet] ConvDescriptors workspace bytes: rcbn1=%zu rcbn2=%zu rcbn3=%zu "
            "up1_c=%zu up2_c=%zu oint_half=%zu outc=%zu | algo ids: rcbn1=%d rcbn2=%d rcbn3=%d "
@@ -760,6 +738,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
         cudnnDestroyTensorDescriptor(dy_desc);
         cudnnDestroyTensorDescriptor(dx_desc);
     }
+    // The ConvTranspose workspaces are shared by all threads, so a nonzero
+    // size here would be a cross-thread race; log it so it is never silent.
+    fprintf(stderr, "[pvfinder_unet] ConvTranspose workspace bytes: up1=%zu up2=%zu up2_slim=%zu | algo ids: "
+            "up1=%d up2=%d up2_slim=%d\n",
+            s_desc.ws_up1_bytes, s_desc.ws_up2_bytes, s_desc.ws_up2_bytes_slim,
+            (int)s_desc.algo_up1_t, (int)s_desc.algo_up2_t, (int)s_desc.algo_up2_t_slim);
+    fflush(stderr);
 }
 
 // ---------------------------------------------------------------------------
@@ -974,8 +959,12 @@ void pvfinder_unet_t::set_arguments_size(
     const Constants&) const
 {
     const unsigned n_events = first<host_number_of_events_t>(arguments);
-    const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
-    constexpr unsigned N_batch = N_CHUNK_INTERVALS;
+    const unsigned batch_events = m_unet_batch_events.value();
+    if (batch_events == 0) {
+        throw std::runtime_error("pvfinder_unet: unet_batch_events must be >= 1");
+    }
+    const unsigned padded_events = ((n_events + batch_events - 1) / batch_events) * batch_events;
+    const unsigned N_batch = batch_events * N_INTERVALS;
 
     set_size<dev_unet_x1_t>   (arguments, N_batch * N_FEAT * W_IN);       
     set_size<dev_unet_x2_t>   (arguments, N_batch * N_FEAT * W_HALF);     
@@ -1110,9 +1099,9 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
         // capture across threads. Only this thread's own tl_exec is set inside;
         // once set, this thread never re-enters this block or takes the lock again.
         std::lock_guard<std::mutex> capture_lock(s_graph_capture_mutex);
-        constexpr int N = N_CHUNK_INTERVALS;
-        const GraphScratchPool& pool = get_thread_local_graph_scratch_pool();
-        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs();
+        const int N = (int)m_unet_batch_events.value() * N_INTERVALS;
+        const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(N);
+        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(N);
         cudaStream_t stream = ctx.stream();
 
         // Aliases within the pool, mirroring the eager path's proven-safe
@@ -1239,10 +1228,10 @@ void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
         // See s_graph_capture_mutex's declaration comment (shared with the FP32
         // capture function above -- one global mutex, both capture paths).
         std::lock_guard<std::mutex> capture_lock(s_graph_capture_mutex);
-        constexpr int N = N_CHUNK_INTERVALS;
-        const GraphScratchPool& pool32 = get_thread_local_graph_scratch_pool();
-        const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16();
-        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs();
+        const int N = (int)m_unet_batch_events.value() * N_INTERVALS;
+        const GraphScratchPool& pool32 = get_thread_local_graph_scratch_pool(N);
+        const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16(N);
+        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(N);
         cudaStream_t stream = ctx.stream();
 
         // FP32-side aliases (reusing the existing FP32 pool -- same proven-safe
@@ -1382,13 +1371,14 @@ void pvfinder_unet_t::operator()(
     // read from whichever call happens to win the call_once race -- fine here since
     // it's a benchmark-only property set once at process/config level, not expected
     // to vary between concurrent operator() calls.
+    const unsigned batch_events = m_unet_batch_events.value();
+    const int N = (int)batch_events * N_INTERVALS;  // samples per cuDNN batch
     const size_t fwd_ws_budget_bytes = m_fwd_algo_ws_budget_bytes.value();
-    std::call_once(s_desc_init_flag, [handle, fwd_ws_budget_bytes]() {
-        init_global_descriptors(handle, s_wb, fwd_ws_budget_bytes);
+    std::call_once(s_desc_init_flag, [handle, fwd_ws_budget_bytes, N]() {
+        init_global_descriptors(handle, s_wb, fwd_ws_budget_bytes, N);
     });
 
     const dim3 block = m_block_dim;
-    constexpr int N = N_CHUNK_INTERVALS;  // batch size = 20 * 40 = 800
 
     // Scratch buffers (fixed size, reused each event iteration)
     float* x1   = data<dev_unet_x1_t>(arguments);
@@ -1408,7 +1398,7 @@ void pvfinder_unet_t::operator()(
     // ConvTranspose tensor descriptors — thread_local, created once per OS thread
     // and reused for its lifetime (shapes are compile-time constants). See
     // get_thread_local_conv_transpose_descs() for the lazy-init idiom.
-    const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs();
+    const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(N);
     cudnnTensorDescriptor_t td_up1_in      = td.td_up1_in;
     cudnnTensorDescriptor_t td_up1_out     = td.td_up1_out;
     cudnnTensorDescriptor_t td_up2_in      = td.td_up2_in;
@@ -1418,7 +1408,14 @@ void pvfinder_unet_t::operator()(
     const float* ncw_base = data<dev_pvfinder_interval_features_t>(arguments);
     float*       kde_base = data<dev_pvfinder_kde_output_t>(arguments);
 
-    const unsigned padded_events = ((n_events + B_EVENTS_MAX - 1) / B_EVENTS_MAX) * B_EVENTS_MAX;
+    const unsigned padded_events = ((n_events + batch_events - 1) / batch_events) * batch_events;
+    // FC pads the interval features to its own unet_batch_events; if the two
+    // disagree the last batch would read past that buffer.
+    if (size<dev_pvfinder_interval_features_t>(arguments) < (size_t)padded_events * ncw_stride) {
+        throw std::runtime_error(
+            "pvfinder_unet: interval features are not padded to unet_batch_events; "
+            "set pvfinder_fc_aggregation.unet_batch_events to the same value");
+    }
 
     // BF16 takes precedence over
     // FP16 if both are somehow set (not a supported configuration, just a
@@ -1447,6 +1444,7 @@ void pvfinder_unet_t::operator()(
     const bool use_fused_cbr = m_use_fused_cbr.value() && s_desc.rcbn1_fused_available;
     // Hand-written fused rcbn3, eager FP32 path only.
     const bool use_fused_rcbn3 = m_use_fused_rcbn3.value();
+    const bool fuse_pool       = m_use_fused_bias_relu_pool.value();
     // Merged out_intermediate+outc, eager FP32 path, skip_mode=="concat" only.
     const bool use_merged_oint_outc = m_use_merged_oint_outc.value();
     // Merged up1, eager FP32 path only.
@@ -1466,6 +1464,8 @@ void pvfinder_unet_t::operator()(
     {
         thread_local bool tl_warmed = false;
         if (!tl_warmed) {
+            // Only the active precision's descriptors: workspace sizes grow
+            // with N and these allocations sit outside Allen's -m pool.
             s_desc.rcbn1.ensure_thread_local_workspace();
             s_desc.rcbn2.ensure_thread_local_workspace();
             s_desc.rcbn3.ensure_thread_local_workspace();
@@ -1473,17 +1473,21 @@ void pvfinder_unet_t::operator()(
             s_desc.up2_c.ensure_thread_local_workspace();
             s_desc.oint_half.ensure_thread_local_workspace();
             s_desc.outc.ensure_thread_local_workspace();
-            s_desc.rcbn1_h.ensure_thread_local_workspace();
-            s_desc.rcbn2_h.ensure_thread_local_workspace();
-            s_desc.rcbn3_h.ensure_thread_local_workspace();
-            s_desc.up1c_h.ensure_thread_local_workspace();
-            s_desc.up2c_h.ensure_thread_local_workspace();
-            s_desc.rcbn1_bf.ensure_thread_local_workspace();
-            s_desc.rcbn2_bf.ensure_thread_local_workspace();
-            s_desc.rcbn3_bf.ensure_thread_local_workspace();
-            s_desc.up1c_bf.ensure_thread_local_workspace();
-            s_desc.up2c_bf.ensure_thread_local_workspace();
-            if (s_desc.rcbn1_fused_available) s_desc.rcbn1_fused.ensure_thread_local_workspace();
+            if (use_fp16) {
+                s_desc.rcbn1_h.ensure_thread_local_workspace();
+                s_desc.rcbn2_h.ensure_thread_local_workspace();
+                s_desc.rcbn3_h.ensure_thread_local_workspace();
+                s_desc.up1c_h.ensure_thread_local_workspace();
+                s_desc.up2c_h.ensure_thread_local_workspace();
+            }
+            if (use_bf16) {
+                s_desc.rcbn1_bf.ensure_thread_local_workspace();
+                s_desc.rcbn2_bf.ensure_thread_local_workspace();
+                s_desc.rcbn3_bf.ensure_thread_local_workspace();
+                s_desc.up1c_bf.ensure_thread_local_workspace();
+                s_desc.up2c_bf.ensure_thread_local_workspace();
+            }
+            if (use_fused_cbr) s_desc.rcbn1_fused.ensure_thread_local_workspace();
             tl_warmed = true;
         }
     }
@@ -1502,7 +1506,7 @@ void pvfinder_unet_t::operator()(
     // used its own thread_local pool instead and has run crash-free). Reusing
     // that same thread_local GraphScratchPoolFP16 here for the eager path
     // fixes it the same way, using infrastructure already built and validated.
-    const GraphScratchPoolFP16* fp16_pool_tl = use_fp16 ? &get_thread_local_graph_scratch_pool_fp16() : nullptr;
+    const GraphScratchPoolFP16* fp16_pool_tl = use_fp16 ? &get_thread_local_graph_scratch_pool_fp16(N) : nullptr;
     __half* fp16_ncw  = use_fp16 ? fp16_pool_tl->ncw  : nullptr;
     __half* fp16_x1   = use_fp16 ? fp16_pool_tl->x1   : nullptr;
     __half* fp16_x2   = use_fp16 ? fp16_pool_tl->x2   : nullptr;
@@ -1513,7 +1517,7 @@ void pvfinder_unet_t::operator()(
 
     // BF16 pool pointers (only used when use_bf16 is true) -- same
     // thread_local-per-OS-thread rationale as the FP16 pool above.
-    const GraphScratchPoolBF16* bf16_pool_tl = use_bf16 ? &get_thread_local_graph_scratch_pool_bf16() : nullptr;
+    const GraphScratchPoolBF16* bf16_pool_tl = use_bf16 ? &get_thread_local_graph_scratch_pool_bf16(N) : nullptr;
     __nv_bfloat16* bf16_ncw  = use_bf16 ? bf16_pool_tl->ncw  : nullptr;
     __nv_bfloat16* bf16_x1   = use_bf16 ? bf16_pool_tl->x1   : nullptr;
     __nv_bfloat16* bf16_x2   = use_bf16 ? bf16_pool_tl->x2   : nullptr;
@@ -1522,7 +1526,7 @@ void pvfinder_unet_t::operator()(
     __nv_bfloat16* bf16_cat2 = use_bf16 ? bf16_pool_tl->cat2 : nullptr;
     __nv_bfloat16* bf16_up2  = use_bf16 ? bf16_pool_tl->up2  : nullptr;
 
-    for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += B_EVENTS_MAX) {
+    for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += batch_events) {
         const float* ncw = ncw_base + chunk_start * ncw_stride;
         float*       kde = kde_base + chunk_start * kde_stride;
 
@@ -1533,10 +1537,10 @@ void pvfinder_unet_t::operator()(
             cudaGraphExec_t graphExec  = nullptr;
             cudaGraphNode_t copyInNode = nullptr, copyOutNode = nullptr;
             get_or_capture_cuda_graph(handle, block, context, ncw, kde, graphExec, copyInNode, copyOutNode);
-            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool();
+            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(N);
 
-            const int total_in  = (int)(N_CHUNK_INTERVALS * N_BATCH_CHANNELS * W_IN);
-            const int total_out = (int)(N_CHUNK_INTERVALS * W_IN);
+            const int total_in  = (int)(N * N_BATCH_CHANNELS * W_IN);
+            const int total_out = (int)(N * W_IN);
             const dim3 grid_in ((unsigned(total_in)  + block.x - 1) / block.x);
             const dim3 grid_out((unsigned(total_out) + block.x - 1) / block.x);
 
@@ -1576,11 +1580,11 @@ void pvfinder_unet_t::operator()(
             cudaGraphExec_t graphExec  = nullptr;
             cudaGraphNode_t copyInNode = nullptr, copyOutNode = nullptr;
             get_or_capture_cuda_graph_fp16(handle, block, context, ncw, kde, graphExec, copyInNode, copyOutNode);
-            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool();
-            const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16();
+            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(N);
+            const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16(N);
 
-            const int total_in  = (int)(N_CHUNK_INTERVALS * N_BATCH_CHANNELS * W_IN);
-            const int total_out = (int)(N_CHUNK_INTERVALS * W_IN);
+            const int total_in  = (int)(N * N_BATCH_CHANNELS * W_IN);
+            const int total_out = (int)(N * W_IN);
             const dim3 grid_out((unsigned(total_out) + block.x - 1) / block.x);
 
             // f32_to_f16_kernel(__half* dst, const float* src, int n) — dst fixed
@@ -1687,17 +1691,32 @@ void pvfinder_unet_t::operator()(
             } else {
                 run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
             }
-            run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
-            launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
+            if (fuse_pool) {
+                // conv writes raw output; bias, ReLU and pooling happen in one
+                // pass, so the full-resolution activation is read once and
+                // never rewritten.
+                run_conv(s_desc.rcbn2, x1, up2, s_desc.rcbn2_w_f, nullptr,
+                         N, N_FEAT, W_IN, block, context, handle, 0.f);
+                launch_bias_relu_maxpool(up2, x2, s_desc.rcbn2_b_f, N, N_FEAT, W_IN, block, context);
+            } else {
+                run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
+                launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
+            }
 
             if (use_fused_rcbn3) {
                 // Single kernel: conv + bias + ReLU with the activation slice
                 // kept in shared memory, no DRAM round trip on the raw conv output.
                 launch_fused_rcbn3(x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N, block, context);
+            } else if (fuse_pool) {
+                run_conv(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, nullptr,
+                         N, N_FEAT, W_HALF, block, context, handle, 0.f);
+                launch_bias_relu_maxpool(up2, x3, s_desc.rcbn3_b_f, N, N_FEAT, W_HALF, block, context);
             } else {
                 run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
             }
-            launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
+            if (!fuse_pool || use_fused_rcbn3) {
+                launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
+            }
 
             // Merged up1 ConvTranspose+Conv+BiasReLU -- writes x3 -> up1 directly,
             // skipping the intermediate `up2` scratch write entirely

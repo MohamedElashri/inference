@@ -8,7 +8,7 @@
 #   Run 3: HLT1 + PVFinder FC+UNet   — hlt1_pp_pvfinder_unet_benchmark
 #
 # Usage:
-#   ./run_benchmarks.sh [--device0 N] [--threads T]
+#   benchmarks/run_benchmarks.sh [--device0 N] [--threads T]
 #                          [--events N] [--slices M] [--repetitions R]
 #
 # Defaults:
@@ -56,12 +56,13 @@ done
 # Paths  (all relative to repo root; script can be run from anywhere)
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/Allen/${BUILD_NAME}"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+BUILD_DIR="${REPO_ROOT}/Allen/${BUILD_NAME}"
 ALLEN="${BUILD_DIR}/toolchain/wrapper ${BUILD_DIR}/Allen"
-MDF="${SCRIPT_DIR}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
-GEO="${SCRIPT_DIR}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
-WEIGHT_FILE="${SCRIPT_DIR}/cnn_weights.bin"
-CNN_WEIGHTS_BACKUP="${SCRIPT_DIR}/cnn_weights.bin.bak_$$"
+MDF="${REPO_ROOT}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
+GEO="${REPO_ROOT}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
+WEIGHT_FILE="${REPO_ROOT}/cnn_weights.bin"
+CNN_WEIGHTS_BACKUP="${REPO_ROOT}/cnn_weights.bin.bak_$$"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_BASE="${BUILD_DIR}/bench_baseline.log"

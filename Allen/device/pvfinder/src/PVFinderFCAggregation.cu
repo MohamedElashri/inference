@@ -758,7 +758,11 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     const Constants&) const
 {
     const unsigned total_events = first<host_number_of_events_t>(arguments);
-    const unsigned padded_events = ((total_events + 19) / 20) * 20;
+    const unsigned unet_batch_events = m_unet_batch_events.value();
+    if (unet_batch_events == 0) {
+        throw std::runtime_error("pvfinder_fc_aggregation: unet_batch_events must be >= 1");
+    }
+    const unsigned padded_events = ((total_events + unet_batch_events - 1) / unet_batch_events) * unet_batch_events;
     const unsigned total_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
     set_size<dev_pvfinder_output_histogram_t>  (arguments, total_events * 4000);
     set_size<dev_pvfinder_interval_features_t> (arguments, padded_events * INTERVAL_FEATURES_STRIDE);
@@ -898,7 +902,8 @@ void pvfinder_fc_aggregation_t::operator()(
     // (Same in both cuBLAS and non-cuBLAS paths — correctness guarantee for
     // empty intervals, free on-stream cost.)
     // -----------------------------------------------------------------------
-    const unsigned padded_events = ((n_events + 19) / 20) * 20;
+    const unsigned unet_batch_events = m_unet_batch_events.value();
+    const unsigned padded_events = ((n_events + unet_batch_events - 1) / unet_batch_events) * unet_batch_events;
 #ifdef ALLEN_WITH_CUBLAS
     const bool skip_redundant_memset = m_skip_redundant_memset.value();
 #else
