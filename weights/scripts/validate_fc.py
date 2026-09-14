@@ -18,6 +18,17 @@ A wrong FC weight file (e.g. a transposed layer6A) shows up as a large
 mismatch here; the UNet validator (validate_unet.py) cannot see it because it
 starts from Allen's FC output.
 
+Comparison metric: float32 rounding error scales with the magnitude of the
+terms being added, not with the (possibly cancelled) result. Some checkpoints
+have intermediate sums of order 1e6, so a correct float32 implementation can
+differ from the float64 reference by O(0.1) on O(1) outputs. Each difference is
+therefore measured in float32 ulps of a magnitude envelope propagated through
+the network (sum_j |W_ij| * envelope_j + |b_i| per layer, averaged per interval
+like the features). The envelope over-estimates the true term magnitudes, so
+the limit is one ulp: on the 16-channel models correct runs measure at most
+~1e-3 ulps, while a transposed layer 6A measures ~700 (histogram) to ~5000
+(interval features).
+
 Dump: make -C weights dump MODEL=<name>, or run Allen with
 pvfinder_fc_aggregation.dump_validation=<dir>. Files carry
 a header uint32 {0xFC01, n_events, n_tracks, n_latent_channels}.
@@ -45,8 +56,9 @@ parser.add_argument("--weights",
                     help="checkpoint (.pyt) the Allen run is supposed to implement")
 parser.add_argument("--fc-bin", default="",
                     help="optional: the fc_weights .bin Allen loaded; checked against the checkpoint")
-parser.add_argument("--threshold", type=float, default=1e-3,
-                    help="max relative difference for PASS (default 1e-3)")
+parser.add_argument("--max-f32-ulps", type=float, default=1.0,
+                    help="PASS limit on |Allen - reference|, in float32 rounding steps (ulps) of the "
+                         "magnitude envelope feeding each output (default 1)")
 args = parser.parse_args()
 
 MAGIC = 0xFC01
@@ -125,12 +137,17 @@ def leaky(x):
 
 
 h = feats
+envelope = np.abs(feats)                                # magnitude of the terms float32 adds
 for k in ("1", "2", "3", "4", "5"):
     h = leaky(h @ W[k].T + B[k])
+    envelope = envelope @ np.abs(W[k]).T + np.abs(B[k])
 z = leaky(h @ W["6A"].T + B["6A"])                      # [n_tracks, L6A]
+envelope = envelope @ np.abs(W["6A"]).T + np.abs(B["6A"])
 
 ref_feat = np.zeros((n_events, 40, L6A))
 ref_hist = np.zeros((n_events, 40, 100))
+env_feat = np.zeros((n_events, 40, L6A))
+env_hist = np.zeros((n_events, 40, 100))
 for e in range(n_events):
     off = int(offsets[e])
     n_entries = int(csr[e, 41])
@@ -145,25 +162,34 @@ for e in range(n_events):
         chan = s.reshape(n_latent, 100).sum(axis=0)
         sp = np.where(chan > 0, chan, np.log1p(np.exp(np.minimum(chan, 0))))
         ref_hist[e, iv] = sp / n_local
+        env = envelope[gidx[a:b]].sum(axis=0)
+        env_feat[e, iv] = env / n_local
+        env_hist[e, iv] = env.reshape(n_latent, 100).sum(axis=0) / n_local
 
 
-def compare(name, allen, ref):
+F32_EPS = float(np.finfo(np.float32).eps)
+
+
+def compare(name, allen, ref, env):
     global ok
-    finite_slot = np.isfinite(ref).all(axis=-1) & np.isfinite(allen).all(axis=-1)
+    finite_slot = np.isfinite(ref).all(axis=-1) & np.isfinite(allen).all(axis=-1) & np.isfinite(env).all(axis=-1)
     n_bad = int((~finite_slot).sum())
     a = allen[finite_slot].astype(np.float64)
     r = ref[finite_slot]
     abs_d = np.abs(a - r)
     rel_d = abs_d / np.maximum(np.abs(r), 1.0)
-    worst = float(rel_d.max()) if rel_d.size else 0.0
-    status = "PASS" if worst < args.threshold else "FAIL"
+    ulps = abs_d / (F32_EPS * np.maximum(env[finite_slot], 1.0))
+    worst = float(ulps.max()) if ulps.size else 0.0
+    status = "PASS" if worst < args.max_f32_ulps else "FAIL"
     print(f"{name}: slots compared {int(finite_slot.sum())}, non-finite slots skipped {n_bad}; "
-          f"max|diff| {abs_d.max():.3e}, max rel diff {worst:.3e}  -> {status}")
+          f"max|diff| {abs_d.max():.3e}, max rel diff {rel_d.max():.3e}, "
+          f"max error {worst:.3g} float32 ulps (limit {args.max_f32_ulps:g}; "
+          f"largest term magnitude {env[finite_slot].max():.3e})  -> {status}")
     if status == "FAIL":
         ok = False
 
 
-compare("interval features", ifeat, ref_feat)
-compare("histogram        ", hist, ref_hist)
+compare("interval features", ifeat, ref_feat, env_feat)
+compare("histogram        ", hist, ref_hist, env_hist)
 print("PASS" if ok else "FAIL")
 sys.exit(0 if ok else 1)
