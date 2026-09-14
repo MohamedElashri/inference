@@ -69,3 +69,23 @@ BOOST_AUTO_TEST_CASE(non_root_input_rejects_manifest_requests)
     return std::string_view {error.what()} == "This input provider does not support ROOT input-file manifests";
   });
 }
+
+BOOST_AUTO_TEST_CASE(input_type_property_conversion)
+{
+  Gaudi::Property<Allen::InputFileType> type {"InputType", Allen::InputFileType::MDF};
+  for (auto input : {"ROOT", "'ROOT'", "\"ROOT\""}) {
+    BOOST_REQUIRE(type.fromString(input).isSuccess());
+    BOOST_CHECK(type.value() == Allen::InputFileType::ROOT);
+    BOOST_CHECK_EQUAL(type.toString(), "ROOT");
+  }
+  for (auto input : {"MDF", "'MDF'", "\"MDF\"", "RAW", "'RAW'", "\"RAW\""}) {
+    BOOST_REQUIRE(type.fromString(input).isSuccess());
+    BOOST_CHECK(type.value() == Allen::InputFileType::MDF);
+    BOOST_CHECK_EQUAL(type.toString(), "MDF");
+  }
+  for (auto input : {"MEP", "root", "", "'unknown'"}) {
+    BOOST_CHECK_THROW(type.fromString(input).ignore(), GaudiException);
+    BOOST_CHECK(type.value() == Allen::InputFileType::MDF);
+  }
+  BOOST_CHECK_EQUAL(Allen::toString(Allen::InputFileType::ROOT), "ROOT");
+}
