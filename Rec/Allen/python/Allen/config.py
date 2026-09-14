@@ -361,7 +361,7 @@ def run_allen(
 
         def make_stream_writer(persistency_algorithms):
             from Moore.LbExec import ProcessTypes
-            from Moore.stream_writers import stream_writer
+            from Moore.stream_writers import RootOutputLocation, stream_writer
             from Moore.streams import Stream
 
             srw = call_allen_raw_reports(persistency_algorithms)
@@ -378,18 +378,21 @@ def run_allen(
 
             # Give stream a name: 'default'
             stream = Stream(name="default", lines=[])
-            return stream_writer(
-                options=options,
-                stream=stream,
-                process=ProcessTypes.Hlt1,
-                propagate_mc=options.simulation and options.input_type == "ROOT",
-                analytics=False,
-                hlt_raw_banks=new_raw_banks,
-                routing_bits={"default": []},
-                dst_data=[],
-                dec_reports=None,
-                write_all_input_leaves=write_all_input_leaves,
-            )
+            return [
+                stream_writer(
+                    options=options,
+                    stream=stream,
+                    process=ProcessTypes.Hlt1,
+                    propagate_mc=options.simulation and options.input_type == "ROOT",
+                    analytics=False,
+                    hlt_raw_banks=new_raw_banks,
+                    routing_bits={"default": []},
+                    dst_data=[],
+                    dec_reports=None,
+                    output_location=RootOutputLocation("/Event/DAQ/RawEvent"),
+                    write_all_input_leaves=write_all_input_leaves,
+                )
+            ]
 
         make_persistency.global_bind(output_handler_maker=make_stream_writer)
 
