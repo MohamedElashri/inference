@@ -5,8 +5,8 @@ Produces two files:
   fc_weights.bin  — FC MLP layers 1-6A (used by pvfinder_fc_aggregation)
   cnn_weights.bin — UNet CNN layers     (used by pvfinder_unet)
 
-Usage:
-  python tools/convert_weights.py --model <path/to/model.pyt> \\
+Usage (normally through the pipeline: make -C weights convert MODEL=<name>):
+  python weights/scripts/convert.py --model <path/to/model.pyt> \\
       [--fc-out fc_weights.bin] [--cnn-out cnn_weights.bin]
 
 The script detects the UNet feature count (N_FEAT) and latentChannels from the

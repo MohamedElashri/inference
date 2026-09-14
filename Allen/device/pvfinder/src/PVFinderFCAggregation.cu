@@ -824,6 +824,12 @@ void pvfinder_fc_aggregation_t::operator()(
 {
     static std::once_flag flag;
     const std::string weight_file_path = m_weight_file.value();
+    if (weight_file_path.empty()) {
+        throw std::runtime_error(
+            "pvfinder_fc_aggregation: weight_file is not set. Produce weights with the repository's "
+            "weights/ pipeline (make -C weights verify MODEL=<name>) and generate the sequence "
+            "configuration with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
+    }
     std::call_once(flag, [&weight_file_path]() {
         if (!PVFinder::WeightRegistry::instance().contains("fc_weights")) {
             std::string path = weight_file_path;
@@ -836,7 +842,8 @@ void pvfinder_fc_aggregation_t::operator()(
             std::vector<char> host_buf(bytes);
             f.read(host_buf.data(), bytes);
 
-            // Transpose L6A weights from [l6a_rows][20] to [20][l6a_rows].
+            // Validate the file size, then (non-cuBLAS builds only, see below)
+            // transpose L6A weights from [l6a_rows][20] to [20][l6a_rows].
             // Offset to w6A is: 180+20 + 400+20 + 400+20 + 400+20 + 400+20 = 1880 floats
             // (layer1: 9*20+20=200; layer2-5: (20*20+20)*4=1680; fixed regardless
             // of latentChannels, only layer6A's own size varies with it).
@@ -875,6 +882,14 @@ void pvfinder_fc_aggregation_t::operator()(
                     "PVFINDER_UNET_N_BATCH_CHANNELS (--unet-batch-channels) -- rebuild to "
                     "match the weight file, or use a weight file matching this build.");
             }
+#ifndef ALLEN_WITH_CUBLAS
+            // The file stores W6A row-major [L6A_WIDTH x 20] (PyTorch's own
+            // layout, as written by weights/scripts/convert.py). Only the
+            // non-cuBLAS fallback kernel wants it transposed: it indexes
+            // w6A[m * L6A_WIDTH + neuron]. The cuBLAS SGEMM below
+            // (CUBLAS_OP_T, lda=20) reads the row-major file layout directly;
+            // transposing for it as well scrambles layer 6A without any size
+            // error (weights/scripts/validate_fc.py detects this).
             const size_t l6a_rows = kExpectedL6ARows;
             const size_t l6a_weight_floats = l6a_rows * 20;
 
@@ -886,6 +901,7 @@ void pvfinder_fc_aggregation_t::operator()(
                 }
             }
             std::memcpy(floats + kFixedFloats, w6A_transposed.data(), l6a_weight_floats * sizeof(float));
+#endif
 
             PVFinder::WeightRegistry::instance().load_from_buffer(
                 "fc_weights", host_buf.data(), bytes);
@@ -1067,7 +1083,9 @@ void pvfinder_fc_aggregation_t::operator()(
             fc_single_hidden_layer, l1_l5_hidden_width);
 
         // --- cuBLAS SGEMM: L6A ---
-        // W6A [20×L6A_WIDTH] row-major = [L6A_WIDTH×20] col-major → CUBLAS_OP_T gives [L6A_WIDTH×20].
+        // W6A is stored row-major [L6A_WIDTH×20] (no load-time transpose in
+        // cuBLAS builds), i.e. column-major [20×L6A_WIDTH] with lda=20, so
+        // CUBLAS_OP_T gives the [L6A_WIDTH×20] matrix PyTorch uses.
         // X [T_chunk×20] row-major = [20×T_chunk] col-major, op=N.
         // Y = W6A^T × X → [l6a_m×T_chunk] col-major → dev_l6a_output.
         // The M argument (rows computed) is overridable via m_l6a_m, and
@@ -1174,7 +1192,7 @@ void pvfinder_fc_aggregation_t::operator()(
 
     // -----------------------------------------------------------------------
     // Validation dump (first call only, when dump_validation is set). Raw
-    // buffers, so tools/validate_fc.py can recompute this stage from the
+    // buffers, so weights/scripts/validate_fc.py can recompute this stage from the
     // checkpoint using exactly Allen's own track-to-interval assignment.
     // Every file: uint32 magic 0xFC01, n_events, n_tracks, N_LATENT_CHANNELS,
     // then the array.

@@ -749,7 +749,7 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
 
 // ---------------------------------------------------------------------------
 // Binary weight file parser
-// Layout (written by write_cnn_weights in tools/convert_weights.py):
+// Layout (written by write_cnn_weights in weights/scripts/convert.py):
 //   uint32  magic = 0xCAFE0001
 //   conv(8→64,k=25):  int32 in,out,k | float[out*in*k] weights | float[out] bias
 //   bn(64):           int32 features | float eps | float[f] gamma,beta,mean,var
@@ -940,6 +940,12 @@ void pvfinder_unet_t::init()
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     if (m_init_done) return;
+    if (m_weight_file.value().empty()) {
+        throw std::runtime_error(
+            "pvfinder_unet: weight_file is not set. Produce weights with the repository's weights/ "
+            "pipeline (make -C weights verify MODEL=<name>) and generate the sequence configuration "
+            "with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
+    }
     std::call_once(s_init_flag, [this]() {
         s_wb = load_weights(m_weight_file.value());
         s_wb_loaded = true;

@@ -25,6 +25,13 @@ Sequence.json
 /rta_roofline_study/
 /model_comparison/
 
+# weights/ pipeline: fetched checkpoints, generated weight files, dumps and
+# reports are all reproducible from weights/models.tsv, so only the pipeline
+# itself is tracked. legacy/ holds files with no surviving source checkpoint.
+/weights/checkpoints/
+/weights/out/
+/weights/legacy/
+
 # One-off benchmark campaign drivers and their analysis: kept on disk, not tracked
 /benchmarks/campaigns/
 /benchmarks/analysis/

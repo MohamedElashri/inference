@@ -3,7 +3,8 @@
 validate_unet.py — Numerical validation of the Allen UNet inference against PyTorch.
 
 Usage:
-    python3 tools/validate_unet.py --dump-dir DUMP_DIR [--weights WEIGHTS_PATH]
+    make -C weights validate MODEL=<name>        (normal use, after make dump)
+    python3 weights/scripts/validate_unet.py --dump-dir DUMP_DIR [--weights WEIGHTS_PATH]
                                    [--device cpu|cuda] [--plot]
 
 Reads:
@@ -28,7 +29,9 @@ import struct
 import sys
 import numpy as np
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# weights/scripts/ -> weights/ -> repository root
+WEIGHTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(WEIGHTS_DIR)
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -37,10 +40,8 @@ parser = argparse.ArgumentParser(description="Validate Allen UNet against PyTorc
 parser.add_argument("--dump-dir",  default="validation_dump",
                     help="Directory containing allen_ncw_input.bin and allen_kde_output.bin")
 parser.add_argument("--weights",
-                    default=os.path.join(
-                        REPO_ROOT, "pvfinder_pytorch", "weights", "16-channel",
-                        "FCN-20-channels_UNet-16-channels_nBinsPerSlice-100_latentChannels-8_iter9_final.pyt"),
-                    help="PyTorch weight file (.pyt); default: the 16-channel latentChannels-8 model")
+                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc8_iter9.pyt"),
+                    help="PyTorch weight file (.pyt); default: the unet16_lc8_iter9 checkpoint fetched by the pipeline")
 parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
 parser.add_argument("--plot",      action="store_true",
@@ -73,6 +74,10 @@ if hasattr(state_dict, "state_dict"):
 
 # rcbn1 is Conv1d(latentChannels -> N_FEAT); layerK is Linear(in -> nOutK).
 nUNetChannels, latentChannels = state_dict["rcbn1.0.weight"].shape[:2]
+if state_dict["out_intermediate.weight"].shape[1] != 2 * nUNetChannels:
+    print("ERROR: this checkpoint does not use concatenated skip connections; Allen's UNet "
+          "loader (and this validator) only supports sc_mode=concat")
+    sys.exit(2)
 nOut1, nOut2, nOut3, nOut4, nOut5 = (state_dict[f"layer{k}.weight"].shape[0] for k in range(1, 6))
 print(f"  checkpoint: N_FEAT={nUNetChannels}  latentChannels={latentChannels}  "
       f"FC hidden={nOut1},{nOut2},{nOut3},{nOut4},{nOut5}")
@@ -249,3 +254,4 @@ if args.plot:
     print(f"  Saved scatter: {scatter_path}")
 
 print("\nDone.")
+sys.exit(0 if status == "PASS" else 1)

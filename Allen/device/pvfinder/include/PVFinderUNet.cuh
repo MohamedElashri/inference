@@ -80,9 +80,14 @@ struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
     ~pvfinder_unet_t() = default;
 
 private:
+    // Required, no default: Allen does not assume where weights live. The
+    // repository's weights/ pipeline produces cnn_weights.bin
+    // (make -C weights convert MODEL=<name>), and AllenConf fills this in from
+    // PVFINDER_WEIGHTS_DIR when the sequence configuration is generated.
     Allen::Property<std::string> m_weight_file {
-        this, "weight_file", "/data/home/melashri/iris/inference/cnn_weights.bin",
-        "path to cnn_weights.bin produced by tools/convert_weights.py"};
+        this, "weight_file", "",
+        "path to cnn_weights.bin (required; produced by the weights/ pipeline, "
+        "set by AllenConf from PVFINDER_WEIGHTS_DIR)"};
 
     Allen::Property<dim3> m_block_dim {
         this, "block_dim", {256, 1, 1}, "CUDA block dim for element-wise kernels"};

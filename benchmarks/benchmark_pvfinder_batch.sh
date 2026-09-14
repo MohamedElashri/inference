@@ -21,8 +21,11 @@ Options:
   -m, --memory MB            Device memory per thread / stream (default: 300)
   -r, --repetitions N        Repetitions per thread / stream (default: 500)
   --repeats N                Number of repeated benchmark runs (default: 3)
-  --cnn-weights PATH         Override pvfinder_unet weight_file
-  --fc-weights PATH          Override pvfinder_fc_aggregation weight_file
+  --model NAME               Weights from the weights/ pipeline:
+                             weights/out/NAME/{cnn,fc}_weights.bin
+                             (default: unet16_lc8_iter9; see make -C weights list)
+  --cnn-weights PATH         Override pvfinder_unet weight_file (default: from --model)
+  --fc-weights PATH          Override pvfinder_fc_aggregation weight_file (default: from --model)
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
   --use-bf16 BOOL            Set pvfinder_unet.use_bf16 true/false (default: false)
                              eager path only, takes precedence over use_fp16
@@ -118,7 +121,7 @@ Options:
 Example:
   benchmarks/benchmark_pvfinder_batch.sh \
     --label reference_A_fp32_head_d1874d8 \
-    -B buildgpu16chgpu --cnn-weights cnn_weights_16ch.bin \
+    -B buildgpu16chgpu --model unet16_lc8_iter9 \
     -d 2 -t 16 -n 100 -m 300 -r 500 --repeats 3 --use-fp16 false
 USAGE
 }
@@ -137,6 +140,7 @@ EVENTS=100
 MEMORY=300
 REPS=500
 REPEATS=3
+MODEL=unet16_lc8_iter9
 CNN_WEIGHTS_OVERRIDE=""
 FC_WEIGHTS_OVERRIDE=""
 USE_FP16=false
@@ -175,6 +179,7 @@ while [[ $# -gt 0 ]]; do
         --memory|-m) MEMORY="$2"; shift 2 ;;
         --repetitions|-r) REPS="$2"; shift 2 ;;
         --repeats) REPEATS="$2"; shift 2 ;;
+        --model) MODEL="$2"; shift 2 ;;
         --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --use-fp16) USE_FP16="$2"; shift 2 ;;
@@ -337,6 +342,18 @@ if [[ ! -x "${ALLEN_WRAPPER}" || ! -x "${ALLEN_BIN}" ]]; then
     exit 1
 fi
 
+# Model weights come from the weights/ pipeline. Sequence generation needs
+# PVFINDER_WEIGHTS_DIR (AllenConf has no default weight location); explicit
+# --cnn-weights / --fc-weights still override the generated configuration.
+MODEL_DIR="${REPO_ROOT}/weights/out/${MODEL}"
+for f in cnn_weights.bin fc_weights.bin; do
+    if [[ ! -f "${MODEL_DIR}/${f}" ]]; then
+        echo "ERROR: ${MODEL_DIR}/${f} not found; run: make -C weights verify MODEL=${MODEL}" >&2
+        exit 1
+    fi
+done
+export PVFINDER_WEIGHTS_DIR="${MODEL_DIR}"
+
 if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
     if [[ "${CNN_WEIGHTS_OVERRIDE}" = /* ]]; then
         CNN_WEIGHTS_ABS="${CNN_WEIGHTS_OVERRIDE}"
@@ -348,7 +365,7 @@ if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
         exit 1
     fi
 else
-    CNN_WEIGHTS_ABS="${REPO_ROOT}/cnn_weights.bin"
+    CNN_WEIGHTS_ABS="${MODEL_DIR}/cnn_weights.bin"
 fi
 
 if [[ -n "${FC_WEIGHTS_OVERRIDE}" ]]; then
@@ -362,7 +379,7 @@ if [[ -n "${FC_WEIGHTS_OVERRIDE}" ]]; then
         exit 1
     fi
 else
-    FC_WEIGHTS_ABS="${REPO_ROOT}/fc_weights.bin"
+    FC_WEIGHTS_ABS="${MODEL_DIR}/fc_weights.bin"
 fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -609,6 +626,7 @@ run_sequence() {
     echo "repetitions=${REPS}"
     echo "repeats=${REPEATS}"
     echo "profile=${PROFILE}"
+    echo "model=${MODEL}"
     echo "cnn_weights=${CNN_WEIGHTS_ABS}"
     echo "fc_weights=${FC_WEIGHTS_ABS}"
     echo "use_fp16=${USE_FP16}"

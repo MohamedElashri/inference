@@ -18,11 +18,13 @@ A wrong FC weight file (e.g. a transposed layer6A) shows up as a large
 mismatch here; the UNet validator (validate_unet.py) cannot see it because it
 starts from Allen's FC output.
 
-Dump: run Allen with pvfinder_fc_aggregation.dump_validation=<dir>. Files carry
+Dump: make -C weights dump MODEL=<name>, or run Allen with
+pvfinder_fc_aggregation.dump_validation=<dir>. Files carry
 a header uint32 {0xFC01, n_events, n_tracks, n_latent_channels}.
 
 Usage:
-    python3 tools/validate_fc.py --dump-dir DIR [--weights MODEL.pyt] [--fc-bin fc_weights.bin]
+    make -C weights validate MODEL=<name>        (normal use, after make dump)
+    python3 weights/scripts/validate_fc.py --dump-dir DIR [--weights MODEL.pyt] [--fc-bin fc_weights.bin]
 """
 
 import argparse
@@ -31,15 +33,15 @@ import sys
 
 import numpy as np
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# weights/scripts/ -> weights/ -> repository root
+WEIGHTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(WEIGHTS_DIR)
 
 parser = argparse.ArgumentParser(description="Validate Allen FC aggregation against a checkpoint")
 parser.add_argument("--dump-dir", required=True,
                     help="directory written by pvfinder_fc_aggregation.dump_validation")
 parser.add_argument("--weights",
-                    default=os.path.join(
-                        REPO_ROOT, "pvfinder_pytorch", "weights", "16-channel",
-                        "FCN-20-channels_UNet-16-channels_nBinsPerSlice-100_latentChannels-8_iter9_final.pyt"),
+                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc8_iter9.pyt"),
                     help="checkpoint (.pyt) the Allen run is supposed to implement")
 parser.add_argument("--fc-bin", default="",
                     help="optional: the fc_weights .bin Allen loaded; checked against the checkpoint")
@@ -107,7 +109,7 @@ if args.fc_bin:
         w6a = blob[1880:1880 + L6A * 20]
         head_same = np.array_equal(blob[:1880], expected[:1880])
         if head_same and np.array_equal(w6a, W["6A"].T.astype(np.float32).ravel()):
-            why = "layer6A is transposed (Allen transposes again on load)"
+            why = "layer6A is stored transposed; Allen expects PyTorch's own [latent*100 x 20] row-major layout"
         elif not head_same:
             why = "layers 1-5 differ: this file is from a different checkpoint"
         else:

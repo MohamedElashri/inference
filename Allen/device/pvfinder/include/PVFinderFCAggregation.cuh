@@ -79,11 +79,14 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
 private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 
-    // Path to the FC-stage weight file, mirroring PVFinderUNet.cuh's
-    // m_weight_file / --cnn-weights on the CNN side.
+    // Required, no default, like pvfinder_unet's weight_file: the
+    // repository's weights/ pipeline produces fc_weights.bin
+    // (make -C weights convert MODEL=<name>), and AllenConf fills this in from
+    // PVFINDER_WEIGHTS_DIR when the sequence configuration is generated.
     Allen::Property<std::string> m_weight_file {
-        this, "weight_file", "/data/home/melashri/iris/inference/fc_weights.bin",
-        "path to fc_weights.bin produced by convert_weights.py"};
+        this, "weight_file", "",
+        "path to fc_weights.bin (required; produced by the weights/ pipeline, "
+        "set by AllenConf from PVFINDER_WEIGHTS_DIR)"};
 
     // Throughput-only override of how many of L6A's L6A_WIDTH neurons
     // actually get computed and reduced. Default L6A_WIDTH (800 for the
@@ -168,11 +171,11 @@ private:
     // Validation dump: when non-empty, the first operator() call writes the
     // raw FC inputs and outputs (track-to-interval CSR, per-event track
     // offsets, track features, interval features, histogram) to this
-    // directory, for tools/validate_fc.py to recompute from the checkpoint.
+    // directory, for weights/scripts/validate_fc.py to recompute from the checkpoint.
     Allen::Property<std::string> m_dump_dir {
         this, "dump_validation", "",
         "if non-empty, dump FC inputs/outputs of the first slice to this "
-        "directory (read by tools/validate_fc.py)"};
+        "directory (read by weights/scripts/validate_fc.py)"};
     mutable bool m_dump_done = false;
 
     // Nothing else reads dev_pvfinder_l6a_output between
