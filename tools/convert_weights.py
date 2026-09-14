@@ -51,8 +51,10 @@ FC_LAYOUT = [
 def write_fc_weights(f, state_dict):
     """Write FC weight binary (flat floats, no header).
 
-    Layout per layer: W (out×in) then b (out), row-major.
-    layer6A W is transposed to [in×out] for coalesced GEMM access in Allen.
+    Layout per layer: W (out×in) then b (out), row-major -- layer6A included.
+    Allen's FC loader (PVFinderFCAggregation.cu) transposes layer6A itself for
+    cuBLAS, so it must NOT be transposed here: doing both scrambles layer6A
+    without any size error.
     """
     layer_names = ["layer1", "layer2", "layer3", "layer4", "layer5", "layer6A"]
     for name in layer_names:
@@ -60,9 +62,6 @@ def write_fc_weights(f, state_dict):
         b = state_dict[f"{name}.bias"].float().cpu().numpy()
         out_c, in_c = w.shape
         print(f"  FC {name}: [{in_c} → {out_c}]")
-        if name == "layer6A":
-            # Transpose: Allen kernel expects [in_c, out_c] for coalesced access
-            w = w.T.copy()
         f.write(w.tobytes())
         f.write(b.tobytes())
 

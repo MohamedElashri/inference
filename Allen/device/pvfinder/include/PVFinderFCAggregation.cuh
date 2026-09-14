@@ -165,6 +165,16 @@ private:
         "pad interval features to a multiple of this many events; must match "
         "pvfinder_unet.unet_batch_events"};
 
+    // Validation dump: when non-empty, the first operator() call writes the
+    // raw FC inputs and outputs (track-to-interval CSR, per-event track
+    // offsets, track features, interval features, histogram) to this
+    // directory, for tools/validate_fc.py to recompute from the checkpoint.
+    Allen::Property<std::string> m_dump_dir {
+        this, "dump_validation", "",
+        "if non-empty, dump FC inputs/outputs of the first slice to this "
+        "directory (read by tools/validate_fc.py)"};
+    mutable bool m_dump_done = false;
+
     // Nothing else reads dev_pvfinder_l6a_output between
     // pvfinder_l6a_bias_relu_kernel's in-place write and
     // pvfinder_reduce_l6a_kernel's read -- they're two full passes (one

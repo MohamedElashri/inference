@@ -1,5 +1,10 @@
 #include "PVFinderFCAggregation.cuh"
 #include "PVFinderWeightRegistry.h"
+
+#include <cstdio>
+#include <fstream>
+#include <string>
+#include <vector>
 #include <mutex>
 #include <fstream>
 #include <vector>
@@ -1166,6 +1171,57 @@ void pvfinder_fc_aggregation_t::operator()(
         arguments, dev_weights);
 
 #endif  // ALLEN_WITH_CUBLAS
+
+    // -----------------------------------------------------------------------
+    // Validation dump (first call only, when dump_validation is set). Raw
+    // buffers, so tools/validate_fc.py can recompute this stage from the
+    // checkpoint using exactly Allen's own track-to-interval assignment.
+    // Every file: uint32 magic 0xFC01, n_events, n_tracks, N_LATENT_CHANNELS,
+    // then the array.
+    // -----------------------------------------------------------------------
+    const std::string& dump_dir = m_dump_dir.value();
+    if (!dump_dir.empty() && !m_dump_done) {
+        cudaStreamSynchronize(context.stream());
+        const unsigned n_ev  = first<host_number_of_events_t>(arguments);
+        const unsigned n_trk = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
+
+        std::vector<int>      h_csr(n_ev * 42u);
+        std::vector<int>      h_idx(n_trk * 2u);
+        std::vector<float>    h_feat(n_trk * 9u);
+        std::vector<float>    h_ifeat((size_t)n_ev * INTERVAL_FEATURES_STRIDE);
+        std::vector<float>    h_hist(n_ev * 4000u);
+        std::vector<Allen::Views::Velo::Consolidated::Tracks> h_views(n_ev);
+        cudaMemcpy(h_csr.data(), data<dev_pvfinder_interval_start_t>(arguments),
+                   h_csr.size() * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_idx.data(), data<dev_pvfinder_track_idx_t>(arguments),
+                   h_idx.size() * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_feat.data(), data<dev_pvfinder_track_features_t>(arguments),
+                   h_feat.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_ifeat.data(), data<dev_pvfinder_interval_features_t>(arguments),
+                   h_ifeat.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_hist.data(), data<dev_pvfinder_output_histogram_t>(arguments),
+                   h_hist.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_views.data(), data<dev_velo_tracks_view_t>(arguments),
+                   h_views.size() * sizeof(Allen::Views::Velo::Consolidated::Tracks), cudaMemcpyDeviceToHost);
+        std::vector<unsigned> h_offsets(n_ev);
+        for (unsigned e = 0; e < n_ev; ++e) h_offsets[e] = h_views[e].offset();
+
+        const uint32_t header[4] = {0xFC01u, n_ev, n_trk, N_LATENT_CHANNELS};
+        auto write_dump = [&](const char* name, const void* d, size_t bytes) {
+            std::ofstream out(dump_dir + "/" + name, std::ios::binary);
+            out.write(reinterpret_cast<const char*>(header), sizeof(header));
+            out.write(reinterpret_cast<const char*>(d), bytes);
+        };
+        write_dump("allen_fc_csr.bin", h_csr.data(), h_csr.size() * sizeof(int));
+        write_dump("allen_fc_track_idx.bin", h_idx.data(), h_idx.size() * sizeof(int));
+        write_dump("allen_fc_track_offsets.bin", h_offsets.data(), h_offsets.size() * sizeof(unsigned));
+        write_dump("allen_fc_track_features.bin", h_feat.data(), h_feat.size() * sizeof(float));
+        write_dump("allen_fc_interval_features.bin", h_ifeat.data(), h_ifeat.size() * sizeof(float));
+        write_dump("allen_fc_histogram.bin", h_hist.data(), h_hist.size() * sizeof(float));
+        printf("[pvfinder_fc_aggregation] validation dump written to %s (%u events, %u tracks)\n",
+               dump_dir.c_str(), n_ev, n_trk);
+        m_dump_done = true;
+    }
 }
 
 } // namespace pvfinder_fc_aggregation
