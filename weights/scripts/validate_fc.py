@@ -11,8 +11,8 @@ track-to-interval assignment, then compares with Allen's outputs:
   per interval:    s = sum of z_t over the interval's tracks (CSR, boundary
                        tracks counted in both intervals)
                    interval_features = s / n_local
-                   histogram[k]      = softplus_allen(sum_c s[c*100+k]) / n_local
-                   with softplus_allen(x) = x if x > 0 else log(1 + exp(x))
+                   histogram[k]      = softplus(sum_c s[c*100+k]) / n_local
+                   with softplus(x) = log(1 + exp(x))
 
 A wrong FC weight file (e.g. a transposed layer6A) shows up as a large
 mismatch here; the UNet validator (validate_unet.py) cannot see it because it
@@ -160,7 +160,7 @@ for e in range(n_events):
         s = z[gidx[a:b]].sum(axis=0)
         ref_feat[e, iv] = s / n_local
         chan = s.reshape(n_latent, 100).sum(axis=0)
-        sp = np.where(chan > 0, chan, np.log1p(np.exp(np.minimum(chan, 0))))
+        sp = np.logaddexp(0.0, chan)                      # exact softplus
         ref_hist[e, iv] = sp / n_local
         env = envelope[gidx[a:b]].sum(axis=0)
         env_feat[e, iv] = env / n_local

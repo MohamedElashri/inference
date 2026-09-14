@@ -42,8 +42,11 @@ __device__ void assign_intervals(float z_poca, int* intervals, int* num_interval
     intervals[1] = base_interval + (2 * at_lo_edge - 1);
 }
 
+// Exact softplus log(1 + exp(x)), branchless and overflow-safe. It used to
+// return x for x > 0, dropping log(1 + exp(-x)) (up to log 2 near 0), so the
+// FC-only histogram did not match PyTorch's softplus.
 __device__ float pvfinder_softplus(float x) {
-    return x > 0.0f ? x : logf(1.0f + expf(x));
+    return fmaxf(x, 0.0f) + logf(1.0f + expf(-fabsf(x)));
 }
 
 // Inline LeakyReLU and linear layer — runs in registers, no global writes.
