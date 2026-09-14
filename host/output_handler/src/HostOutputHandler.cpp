@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration           *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -8,100 +8,72 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include <iostream>
-
-#include <cstdio>
-#include <cstring>
-#include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-#include <read_mdf.hpp>
-#include <write_mdf.hpp>
-#include <mdf_header.hpp>
-#include <raw_helpers.hpp>
-
-#include <Event/RawBank.h>
-
-#include <HltDecReport.cuh>
-#include <InputProvider.h>
-#include <OutputHandler.h>
-#include <RoutingBitsDefinition.h>
-#include <HltConstants.cuh>
-#include <TAE.h>
-#include <Store.cuh>
+#include "HostOutputHandler.h"
 
 namespace {
   // Size of the MDF header
   auto const header_size = LHCb::MDFHeader::sizeOf(Allen::mdf_header_version);
   // size of the RoutingBits RawBank
-  const unsigned routing_bits_size = RoutingBitsDefinition::n_words * sizeof(uint32_t);
+  constexpr unsigned routing_bits_size = RoutingBitsDefinition::n_words * sizeof(uint32_t);
 } // namespace
 
-struct HLT1Outputs {
+INSTANTIATE_ALGORITHM(host_output_handler::host_output_handler_t)
 
-  HLT1Outputs(Allen::Store::PersistentStore const& store);
-
-  std::span<bool const> selected_events;
-  std::span<unsigned const> dec_reports;
-  std::span<unsigned const> lumi_summaries;
-  std::span<unsigned const> lumi_summary_offsets;
-  std::span<unsigned const> routing_bits;
-  std::span<unsigned const> sel_reports;
-  std::span<unsigned const> sel_reports_offsets;
-  std::span<TAE::TAEEvent const> tae_events;
-};
-
-HLT1Outputs::HLT1Outputs(Allen::Store::PersistentStore const& store)
+void host_output_handler::host_output_handler_t::init()
 {
-  selected_events = store.try_at<bool>("global_decision__host_global_decision_t").value_or(std::span<bool const> {});
-  dec_reports = store.try_at<unsigned>("dec_reporter__host_dec_reports_t").value_or(std::span<unsigned const> {});
-  lumi_summaries =
-    store.try_at<unsigned>("make_lumi_summary__host_lumi_summaries_t").value_or(std::span<unsigned const> {});
-  lumi_summary_offsets =
-    store.try_at<unsigned>("make_lumi_summary__host_lumi_summary_offsets_t").value_or(std::span<unsigned const> {});
-  routing_bits =
-    store.try_at<unsigned>("host_routingbits_writer__host_routingbits_t").value_or(std::span<unsigned const> {});
-  sel_reports = store.try_at<unsigned>("make_selreps__host_sel_reports_t").value_or(std::span<unsigned const> {});
-  sel_reports_offsets =
-    store.try_at<unsigned>("make_selreps__host_selrep_offsets_t").value_or(std::span<unsigned const> {});
-  tae_events = store.try_at<TAE::TAEEvent>("tae_filter__host_tae_events_t").value_or(std::span<TAE::TAEEvent const> {});
-
-  if (selected_events.empty())
-    throw StrException {
-      "Cannot output events without selected events. Ensure the global decision algorithm is part of the sequence."};
-  if (dec_reports.empty())
-    throw StrException {
-      "Cannot output events without dec reports. Ensure the dec reports writer is part of the sequence."};
-  if (routing_bits.empty())
-    throw StrException {
-      "Cannot output events without routing bits. Ensure the routing bits writer is part of the sequence."};
+#ifndef ALLEN_STANDALONE
+  m_nprocessed = std::make_unique<Gaudi::Accumulators::Counter<>>(this, "NProcessed");
+  m_noutput = std::make_unique<Gaudi::Accumulators::Counter<>>(this, "NOutput");
+  m_ntae = std::make_unique<Gaudi::Accumulators::Counter<>>(this, "NTAEOutput");
+  m_nbatches = std::make_unique<Gaudi::Accumulators::AveragingCounter<>>(this, "NBatches");
+  m_batch_size = std::make_unique<Gaudi::Accumulators::AveragingCounter<>>(this, "BatchSize");
+#endif
 }
 
-std::tuple<bool, size_t> OutputHandler::output_selected_events(
-  size_t const thread_id,
-  size_t const slice_index,
-  size_t const start_event,
-  Allen::Store::PersistentStore const& store)
+void host_output_handler::host_output_handler_t::operator()(
+  const ArgumentReferences<Parameters>& arguments,
+  const RuntimeOptions& runtime_options,
+  const Constants&,
+  const Allen::Context& ctx) const
 {
-  auto [success, n_output] = output_single_events(thread_id, slice_index, start_event, store);
-  if (!success) return {success, n_output};
+  HLT1Outputs outputs {
+    get<host_global_decision_t>(arguments),
+    get<host_dec_reports_t>(arguments),
+    get<host_routingbits_t>(arguments),
+    get<host_sel_reports_t>(arguments),
+    get<host_selrep_offsets_t>(arguments),
+    get<host_lumi_summaries_t>(arguments),
+    get<host_lumi_summary_offsets_t>(arguments),
+    get<host_tae_events_t>(arguments)};
+
+  const unsigned start_event = std::get<0>(runtime_options.event_interval);
+
+  auto [success, n_output] =
+    output_single_events(runtime_options.slice_index, start_event, outputs, runtime_options.input_provider.get(), ctx);
+  if (!success) return;
 
   size_t n_tae = 0;
-  std::tie(success, n_tae) = output_tae_events(thread_id, slice_index, start_event, store);
-  return {success, n_output + n_tae};
+  std::tie(success, n_tae) =
+    output_tae_events(runtime_options.slice_index, start_event, outputs, runtime_options.input_provider.get(), ctx);
 }
 
-std::tuple<bool, size_t> OutputHandler::output_single_events(
-  size_t const thread_id,
+std::span<char> host_output_handler::host_output_handler_t::buffer(const Allen::Context& ctx, size_t size) const
+{
+  return OutputManager::get()->reserve_write(ctx.stream_id, size);
+}
+
+void host_output_handler::host_output_handler_t::write_buffer(const Allen::Context& ctx) const
+{
+  OutputManager::get()->commit(ctx.stream_id);
+}
+
+std::tuple<bool, size_t> host_output_handler::host_output_handler_t::output_single_events(
   size_t const slice_index,
   size_t const start_event,
-  Allen::Store::PersistentStore const& store)
+  HLT1Outputs const& outputs,
+  IInputProvider const* input_provider,
+  const Allen::Context& ctx) const
 {
-  HLT1Outputs outputs {store};
-
   // If TAE events should to be output as batches, that's done
   // separately in output_tae_event, so skip them here
   std::span<TAE::TAEEvent const> tae_events;
@@ -109,6 +81,7 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
   if (output_tae) {
     tae_events = outputs.tae_events;
   }
+
   std::vector<unsigned> selected_events;
   selected_events.reserve(outputs.selected_events.size());
   size_t tae_index = 0;
@@ -129,8 +102,10 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
   if (n_events == 0) return {true, 0};
 
   // sizes will contain the total size of all input banks in the event
-  auto const& sizes = event_sizes(thread_id, slice_index, store, selected_events, start_event);
-  auto event_ids = m_input_provider->event_ids(slice_index);
+
+  OutputSizes sizes {input_provider->events_per_slice()};
+  event_sizes(sizes, slice_index, outputs, input_provider, selected_events, start_event);
+  auto event_ids = input_provider->event_ids(slice_index);
 
   bool output_success = true;
 
@@ -138,7 +113,7 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
   size_t n_output = 0;
   size_t n_batches = n_events / m_output_batch_size + (n_events % m_output_batch_size != 0);
 
-#ifndef STANDALONE
+#ifndef ALLEN_STANDALONE
   if (m_nbatches) (*m_nbatches) += n_batches;
   if (m_nprocessed) (*m_nprocessed) += outputs.selected_events.size();
 #endif
@@ -147,9 +122,9 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
 
     size_t batch_buffer_size = 0;
     size_t output_event_offset = 0;
-    size_t batch_size = std::min(m_output_batch_size, n_events - n_output);
+    size_t batch_size = std::min(m_output_batch_size.value(), n_events - n_output);
 
-#ifndef STANDALONE
+#ifndef ALLEN_STANDALONE
     if (m_noutput) (*m_noutput) += batch_size;
     if (m_batch_size) (*m_batch_size) += batch_size;
 #endif
@@ -158,7 +133,7 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
       batch_buffer_size += sizes.input[i] + sizes.hlt[i] + header_size;
     }
 
-    auto batch_span = buffer(thread_id, batch_buffer_size, batch_size);
+    std::span<char> batch_span = buffer(ctx, batch_buffer_size);
 
     // In case output was cancelled
     if (batch_span.empty()) return {false, 0};
@@ -182,14 +157,15 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
       // for all of the ones we assume are present.
 
       // Add the MDF header
-      auto* header = add_mdf_header(
+      auto* header = Allen::add_mdf_header(
         event_span,
         static_cast<unsigned int>(std::get<0>(event_ids[event_number + start_event])),
         outputs.routing_bits.subspan(RoutingBitsDefinition::n_words * event_number, RoutingBitsDefinition::n_words));
 
       // Add the input banks and HLT1 banks to the event
       add_banks(
-        store,
+        outputs,
+        input_provider,
         slice_index,
         start_event,
         event_number,
@@ -201,24 +177,21 @@ std::tuple<bool, size_t> OutputHandler::output_single_events(
       output_event_offset += output_event_size;
     }
 
-    // FIXME do something if output failed
-    auto output_success = write_buffer(thread_id);
-
-    n_output += output_success ? batch_size : 0;
+    write_buffer(ctx);
+    n_output += batch_size;
   }
   assert(n_events - n_output == 0);
 
   return {output_success, n_output};
 }
 
-std::tuple<bool, size_t> OutputHandler::output_tae_events(
-  size_t const thread_id,
+std::tuple<bool, size_t> host_output_handler::host_output_handler_t::output_tae_events(
   size_t const slice_index,
   size_t const start_event,
-  Allen::Store::PersistentStore const& store)
+  HLT1Outputs const& outputs,
+  IInputProvider const* input_provider,
+  const Allen::Context& ctx) const
 {
-  HLT1Outputs outputs {store};
-
   // Main approach to adding TAE banks:
   // a) Output TAE events into a separate buffer
   // b) try to measure effect on throughout with buffer manager
@@ -266,13 +239,14 @@ std::tuple<bool, size_t> OutputHandler::output_tae_events(
   tae_offsets.resize(n_selected_tae_events);
   selected_tae_events.resize(n_selected_tae_events);
 
-#ifndef STANDALONE
+#ifndef ALLEN_STANDALONE
   if (m_ntae) (*m_ntae) += n_selected_tae_events;
 #endif
 
-  auto event_ids = m_input_provider->event_ids(slice_index);
+  auto event_ids = input_provider->event_ids(slice_index);
 
-  auto& sizes = event_sizes(thread_id, slice_index, store, selected_events, start_event);
+  OutputSizes sizes {input_provider->events_per_slice()};
+  event_sizes(sizes, slice_index, outputs, input_provider, selected_events, start_event);
 
   auto tae_bank_size = [](unsigned half_window) { return (2 * half_window + 1) * 3 * sizeof(int); };
 
@@ -288,7 +262,7 @@ std::tuple<bool, size_t> OutputHandler::output_tae_events(
     sizes.tae[tae_event.central] = tae_size;
   }
 
-  auto tae_buffer = buffer(thread_id, tae_buffer_size, n_selected_tae_events);
+  std::span<char> tae_buffer = buffer(ctx, tae_buffer_size);
 
   size_t tae_output_offset = 0;
   for (size_t tae_index = 0; tae_index < n_selected_tae_events; ++tae_index) {
@@ -297,7 +271,7 @@ std::tuple<bool, size_t> OutputHandler::output_tae_events(
     auto const tae_size = sizes.tae[tae_event.central];
     auto tae_span = tae_buffer.subspan(tae_output_offset, tae_size);
 
-    auto header = add_mdf_header(
+    auto header = Allen::add_mdf_header(
       tae_span,
       static_cast<unsigned int>(std::get<0>(event_ids[tae_event.central + start_event])),
       outputs.routing_bits.subspan(RoutingBitsDefinition::n_words * tae_event.central, RoutingBitsDefinition::n_words));
@@ -324,7 +298,8 @@ std::tuple<bool, size_t> OutputHandler::output_tae_events(
       unsigned const size_index = offset + i;
       // Add banks of this TAE sub event
       auto const sub_size = static_cast<int>(add_banks(
-        store,
+        outputs,
+        input_provider,
         slice_index,
         start_event,
         event_number,
@@ -346,22 +321,19 @@ std::tuple<bool, size_t> OutputHandler::output_tae_events(
     tae_output_offset += tae_size;
   }
 
-  auto output_success = write_buffer(thread_id);
-  return {output_success, n_selected_tae_events};
+  write_buffer(ctx);
+  return {true, n_selected_tae_events};
 }
 
-OutputSizes& OutputHandler::event_sizes(
-  size_t const thread_id,
+void host_output_handler::host_output_handler_t::event_sizes(
+  OutputSizes& sizes,
   size_t const slice_index,
-  Allen::Store::PersistentStore const& store,
-  std::vector<unsigned> const& selected_events,
-  unsigned const start_event)
+  HLT1Outputs const& outputs,
+  IInputProvider const* input_provider,
+  std::span<unsigned> const& selected_events,
+  unsigned const start_event) const
 {
-  auto& sizes = m_sizes[thread_id];
-  sizes.fill_zero();
-  m_input_provider->event_sizes(slice_index, selected_events, sizes.input);
-
-  HLT1Outputs outputs {store};
+  input_provider->event_sizes(slice_index, selected_events, sizes.input);
 
   // Add the HLT bank sizes to event sizes
   for (size_t i = 0; i < selected_events.size(); ++i) {
@@ -388,47 +360,11 @@ OutputSizes& OutputHandler::event_sizes(
       }
     }
   }
-
-  return sizes;
 }
 
-LHCb::MDFHeader* OutputHandler::add_mdf_header(
-  std::span<char> event_span,
-  unsigned const run_number,
-  std::span<unsigned const> routing_bits)
+void host_output_handler::host_output_handler_t::add_checksum(LHCb::MDFHeader* header, std::span<char> event_span) const
 {
-
-  auto const header_size = LHCb::MDFHeader::sizeOf(Allen::mdf_header_version);
-
-  // Add the header
-  auto* header = reinterpret_cast<LHCb::MDFHeader*>(event_span.data());
-  // Set header version first so the subsequent call to setSize can
-  // use it
-  header->setHeaderVersion(Allen::mdf_header_version);
-  // MDFHeader::setSize adds the header size internally, so pass
-  // only the payload size here
-  header->setSize(event_span.size() - header_size);
-
-  // No compression here, handled at write time
-  header->setCompression(0);
-  header->setSubheaderLength(header_size - sizeof(LHCb::MDFHeader));
-  header->setDataType(LHCb::MDFHeader::BODY_TYPE_BANKS);
-  header->setSpare(0);
-
-  // Put the routing bits into the trigger mask
-  std::memcpy(&m_trigger_mask[0], routing_bits.data(), routing_bits.size_bytes());
-  header->subHeader().H1->setTriggerMask(m_trigger_mask.data());
-  // Set run number
-  // FIXME: get orbit and bunch number from ODIN
-  // The batch is offset by start_event with respect to the slice, so we add start_event
-  header->subHeader().H1->setRunNumber(run_number);
-
-  return header;
-}
-
-void OutputHandler::add_checksum(LHCb::MDFHeader* header, std::span<char> event_span)
-{
-  if (m_checksum) {
+  if (m_checksum.value()) {
     auto const skip = 4 * sizeof(int);
     auto c = LHCb::hash32Checksum(event_span.data() + skip, event_span.size() - skip);
     header->setChecksum(c);
@@ -439,19 +375,17 @@ void OutputHandler::add_checksum(LHCb::MDFHeader* header, std::span<char> event_
 }
 
 // WORKING: Fix this function
-size_t OutputHandler::add_banks(
-  Allen::Store::PersistentStore const& store,
+size_t host_output_handler::host_output_handler_t::add_banks(
+  HLT1Outputs const& outputs,
+  IInputProvider const* input_provider,
   unsigned const slice_index,
   unsigned const start_event,
   unsigned const event_number,
   unsigned const input_size,
-  std::span<char> event_span)
+  std::span<char> event_span) const
 {
-
-  HLT1Outputs outputs {store};
-
   // The batch is offset by start_event with respect to the slice, so we add start_event
-  m_input_provider->copy_banks(
+  input_provider->copy_banks(
     slice_index, event_number + start_event, {event_span.data(), static_cast<events_size>(input_size)});
 
   // Starting point of HLT banks
@@ -512,7 +446,6 @@ size_t OutputHandler::add_banks(
                         unsigned source_id,
                         std::span<char const> data,
                         char* output) -> size_t {
-    // add the dec report
     return data.empty() ? 0u : Allen::add_raw_bank((uint8_t) bank_type, version, source_id, data, output);
   };
 

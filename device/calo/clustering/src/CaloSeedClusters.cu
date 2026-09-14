@@ -102,7 +102,8 @@ void calo_seed_clusters::calo_seed_clusters_t::operator()(
   const Constants& constants,
   Allen::Context const& context) const
 {
-  Allen::memset_async<dev_ecal_digit_is_seed_t>(arguments, 0, context);
+  // Sentinel value for "not a seed": UINT_MAX (0 is a valid seed index)
+  Allen::memset_async<dev_ecal_digit_is_seed_t>(arguments, 0xffffffff, context);
   Allen::memset_async<dev_ecal_cluster_offsets_t>(arguments, 0, context);
 
   // Find local maxima.

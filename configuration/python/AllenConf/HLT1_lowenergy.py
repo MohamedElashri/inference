@@ -13,6 +13,7 @@ import itertools
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
+from AllenConf.calo_reconstruction import decode_calo
 from AllenConf.enum_types import TrackingType, includes_matching
 from AllenConf.filters import *
 from AllenConf.get_thresholds import get_thresholds
@@ -39,9 +40,14 @@ from AllenConf.odin import (
     odin_error_filter,
     tae_filter,
 )
-from AllenConf.persistency import make_persistency
+from AllenConf.persistency import (
+    make_gather_selections,
+    make_output_handler,
+    make_persistency,
+)
 from AllenConf.utils import line_maker, make_invert_event_list
 from AllenConf.validators import rate_validation
+from AllenConf.velo_reconstruction import decode_velo
 
 
 def default_physics_lines(
@@ -60,13 +66,7 @@ def default_physics_lines(
     dihadrons = reconstructed_objects["dihadron_secondary_vertices"]
     dileptons = reconstructed_objects["dilepton_secondary_vertices"]
     v0s = reconstructed_objects["v0_secondary_vertices"]
-    lambda_track_from_c = reconstructed_objects["lambda_track_from_c"]  # noqa: F841
     ks_track_from_c = reconstructed_objects["ks_track_from_c"]
-    v0_twotrack_pairs = reconstructed_objects["v0_sv_twotrack_pairs"]  # noqa: F841
-    dstars = reconstructed_objects["dstars"]  # noqa: F841
-    v0_pairs = reconstructed_objects["v0_pairs"]  # noqa: F841
-    v0_hh_pairs = reconstructed_objects["v0_hh_pairs"]  # noqa: F841
-    muon_stubs = reconstructed_objects["muon_stubs"]  # noqa: F841
 
     lines = [
         make_track_mva_line(
@@ -667,7 +667,6 @@ def default_SMOG2_lines(
     max_z=-337.5,
     enable_tupling=False,
 ):
-    velo_tracks = reconstructed_objects["velo_tracks"]  # noqa: F841
     long_tracks = reconstructed_objects["long_tracks"]
     long_track_particles = reconstructed_objects["long_track_particles"]
     dihadrons = reconstructed_objects["dihadron_secondary_vertices"]
@@ -1190,6 +1189,8 @@ def setup_hlt1_node(
         else:
             tae_filters = tae_filter()
 
+        make_output_handler.global_bind(tae_filter=tae_filters)
+
         with line_maker.bind(prefilter=odin_err_filter + [tae_filters]):
             technical_lines += [
                 line_maker(
@@ -1377,19 +1378,9 @@ def setup_hlt1_node(
         "SetupAllLines", line_nodes, NodeLogic.NONLAZY_OR, force_order=False
     )
 
-    persistency_node, persistency_algorithms = make_persistency(line_algorithms)
-
-    hlt1_node = CompositeNode(
-        "Allen", [lines, persistency_node], NodeLogic.NONLAZY_AND, force_order=True
-    )
-
-    hlt1_config["line_nodes"] = line_nodes
-    hlt1_config["line_algorithms"] = line_algorithms
-    hlt1_config.update(persistency_algorithms)
-
     if with_lumi:
         lumi_reco = lumi_reconstruction(
-            gather_selections=hlt1_config["gather_selections"],
+            gather_selections=make_gather_selections(line_algorithms),
             lumiline_name=lumiline_name,
             lumilinefull_name=lumilinefull_name,
             with_muon=with_muon,
@@ -1413,12 +1404,17 @@ def setup_hlt1_node(
         hlt1_config["lumi_reconstruction"] = lumi_reco
         hlt1_config["lumi_node"] = lumi_with_prefilter
 
-        hlt1_node = CompositeNode(
-            "AllenWithLumi",
-            [hlt1_node, lumi_with_prefilter],
-            NodeLogic.NONLAZY_AND,
-            force_order=False,
-        )
+        make_output_handler.global_bind(lumi_reco=lumi_reco)
+
+    persistency_node, persistency_algorithms = make_persistency(line_algorithms)
+
+    hlt1_node = CompositeNode(
+        "Allen", [lines, persistency_node], NodeLogic.NONLAZY_AND, force_order=True
+    )
+
+    hlt1_config["line_nodes"] = line_nodes
+    hlt1_config["line_algorithms"] = line_algorithms
+    hlt1_config.update(persistency_algorithms)
 
     if enableRateValidator:
         hlt1_node = CompositeNode(

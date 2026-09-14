@@ -28,20 +28,6 @@
 #include <Kernel/EventLocalAllocator.h>
 
 namespace Allen {
-  // Shortcut for type used in input / outputs of Allen - Gaudi wrappers
-  template<typename T>
-  using param_vector_alloc = LHCb::Allocators::EventLocal<bool_as_char_t<std::remove_const_t<T>>>;
-
-  template<typename T>
-  using parameter_vector = std::vector<bool_as_char_t<std::remove_const_t<T>>, param_vector_alloc<T>>;
-
-  // Trait to check if a handle contains mask_t
-  template<typename Handle>
-  struct is_mask_handle : std::false_type {};
-
-  template<typename T>
-  struct is_mask_handle<DataObjectWriteHandle<T>> : std::is_same<typename T::value_type, mask_t> {};
-
   // Helper to extract the type contained in a DataObjectHandle
   template<typename Handle>
   struct handle_type_extractor {};
@@ -72,7 +58,7 @@ namespace Allen {
 
   template<typename... Params, template<typename> class Handle>
   struct make_handles<std::tuple<Params...>, Handle> {
-    using type = std::tuple<Handle<parameter_vector<typename Params::type>>...>;
+    using type = std::tuple<Handle<shared_buffer<Params::scope, std::remove_const_t<typename Params::type>>>...>;
 
     template<typename Algorithm>
     static type create([[maybe_unused]] Algorithm* algo)
@@ -86,7 +72,7 @@ namespace Allen {
 
   template<typename... Params, template<typename> class Handle>
   struct make_aggregate_handles<std::tuple<Params...>, Handle> {
-    using type = std::tuple<Handle<parameter_vector<typename Params::type::type>>...>;
+    using type = std::tuple<Handle<shared_buffer<Params::scope, std::remove_const_t<typename Params::type::type>>>...>;
 
     template<typename Algorithm>
     static type create([[maybe_unused]] Algorithm* algo)
@@ -119,15 +105,14 @@ namespace Allen {
       return I; // Not found
     }
     else {
-      using HandleType = std::tuple_element_t<I, Tuple>;
-      if constexpr (is_mask_handle<HandleType>::value) {
+      using T = std::tuple_element_t<I, Tuple>;
+      if constexpr (std::is_same_v<typename T::type, mask_t>) {
         // Check for duplicates at this level
         static_assert(
           []<std::size_t... J>(std::index_sequence<J...>) {
-            return ((J == I || !is_mask_handle<std::tuple_element_t<J, Tuple>>::value) && ...);
+            return ((J == I || !std::is_same_v<typename std::tuple_element_t<J, Tuple>::type, mask_t>) &&...);
           }(std::make_index_sequence<std::tuple_size_v<Tuple>> {}),
           "Multiple mask_t parameters found - only one allowed");
-
         return I;
       }
       else {
@@ -161,10 +146,10 @@ namespace Allen {
   * @brief A TES wrapper. Allen TES objects are stored as std::vectors (of non-boolean types),
             and TES wrappers provide the Allen syntax on top of these.
   */
-  template<Store::Kind K, typename T>
+  template<Store::Kind K, Store::Scope S, typename T>
   struct TESWrapperArgument : public Store::BaseArgument {
   private:
-    using vector_t = std::conditional_t<K == Store::Kind::Input, const parameter_vector<T>, parameter_vector<T>>;
+    using vector_t = std::conditional_t<K == Store::Kind::Input, const shared_buffer<S, T>, shared_buffer<S, T>>;
     vector_t& m_data;
 
   protected:
@@ -177,8 +162,10 @@ namespace Allen {
 
   public:
     TESWrapperArgument(vector_t& data, const std::string& name) :
-      Store::BaseArgument {std::in_place_type<T>, name, Store::Scope::Host}, m_data(data)
+      Store::BaseArgument {std::in_place_type<T>, name, S}, m_data(data)
     {}
+
+    const auto& get_shared_buffer() const { return m_data; }
 
     // set_pointer should never used, since vectors are allocated directly with set_size
     void set_pointer(void*) override final { throw; }
@@ -198,11 +185,17 @@ namespace Allen {
   };
 
   // Shortcuts for input / output wrappers
-  template<typename T>
-  using TESWrapperInput = TESWrapperArgument<Store::Kind::Input, T>;
+  template<typename Param>
+  using TESWrapperInput =
+    TESWrapperArgument<Store::Kind::Input, Param::scope, std::remove_const_t<typename Param::type>>;
 
-  template<typename T>
-  using TESWrapperOutput = TESWrapperArgument<Store::Kind::Output, T>;
+  template<typename Param>
+  using TESWrapperInputAggregate =
+    TESWrapperArgument<Store::Kind::Input, Param::scope, std::remove_const_t<typename Param::type::type>>;
+
+  template<typename Param>
+  using TESWrapperOutput =
+    TESWrapperArgument<Store::Kind::Output, Param::scope, std::remove_const_t<typename Param::type>>;
 } // namespace Allen
 
 #endif // ndef ALLEN_STANDALONE

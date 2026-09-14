@@ -7,7 +7,15 @@ Allen centers around the idea of running a *sequence of algorithms* on input eve
 
 The sequence can be configured with python. Existing configurations can be browsed under `configuration/sequences`. The sequence name is the name of each individual file, without the `.py` extension, in that folder. For instance, some sequence names are `velo`, `veloUT`, or `hlt1_pp_default`.
 
-The sequence can be chosen at runtime with the option `--sequence`. For instance::
+.. note::
+
+   The standalone ``./Allen --sequence …`` syntax shown below is **deprecated**
+   and will be removed in a subsequent set of merge requests.  Within the LHCb
+   stack the sequence is passed to ``Allen.config.run_allen`` through the
+   ``sequence`` argument of a ``main(options)`` function (see
+   :ref:`run_allen_in_stack`).
+
+The sequence can be chosen at runtime with the option ``--sequence``. For instance::
 
     # Configure the VELO sequence
     ./Allen --sequence velo

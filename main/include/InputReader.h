@@ -68,6 +68,7 @@ struct ConfigurationReader {
 
   using Params = std::map<std::string, std::map<std::string, nlohmann::json>>;
 
+  ConfigurationReader() = default;
   ConfigurationReader(std::string_view configuration);
   ConfigurationReader(const Params& params) : m_params(params) {}
 

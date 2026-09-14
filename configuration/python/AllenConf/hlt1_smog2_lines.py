@@ -22,6 +22,7 @@ from AllenCore.configuration_options import is_allen_standalone
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
+from AllenConf.odin import decode_odin
 from AllenConf.utils import initialize_number_of_events
 
 

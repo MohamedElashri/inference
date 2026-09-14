@@ -21,7 +21,6 @@
 // Allen
 #include "LHCbID.cuh"
 #include "UTEventModel.cuh"
-#include "Logger.h"
 #include "Constants.cuh"
 
 using simd = SIMDWrapper::best::types;

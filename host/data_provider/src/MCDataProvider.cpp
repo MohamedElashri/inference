@@ -32,7 +32,6 @@ void mc_data_provider::mc_data_provider_t::operator()(
              << start_event << "\n";
 
   MCEvents* mc_events = const_cast<MCEvents*>(&runtime_options.mc_events);
-  // MCEvents* mc_events = &m_mc_events;
 
   uint32_t bankVersion = *(uint32_t*) (data<host_bank_version_t>(arguments));
   for (unsigned event_number = 0; event_number < first<host_number_of_events_t>(arguments); ++event_number) {

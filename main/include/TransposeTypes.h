@@ -31,11 +31,11 @@ namespace LHCb {
 } // namespace LHCb
 
 namespace Allen {
-
   // Read buffer containing the number of events, offsets to the start
   // of the event and the event data
-  using ReadBuffer = std::tuple<size_t, std::vector<unsigned int>, std::vector<char>, size_t>;
-  using ReadBuffers = std::vector<ReadBuffer>;
+  struct ReadBuffer {
+    std::vector<char> event_buffer {};
+  };
 
   struct Slice {
     std::vector<std::span<char>> fragments;

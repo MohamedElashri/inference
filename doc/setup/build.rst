@@ -1,14 +1,84 @@
 Build Allen
-================
+============
 
-There are two options for building Allen: Either as standalone project or as part of the LHCb software stack. The first option is recommended for algorithm developments within Allen, whereas the second is more suitable for integration developments and HLT1 line development and studies.
+Allen can be built either as part of the LHCb software stack (recommended) or
+as a standalone project.  **Standalone builds are deprecated** and will be
+removed in a subsequent set of merge requests; the standalone instructions are
+kept for reference at the end of this page.
 
+As a Gaudi/LHCb project
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _stack_setup:
+
+Using the stack setup
+---------------------
+Follow the instructions in the |stack_setup| to set up the software stack.
+
+.. |stack_setup| raw:: html
+
+   <a href="https://gitlab.cern.ch/lhcb-core/dev-tools/lb-stack-setup" target="_blank">stack setup</a>
+
+When you edit the config, you'll need to set::
+
+    "binaryTag": "x86_64_v3-el9-gcc15+cuda13_3-opt",
+    "lcgVersion": "108c",
+
+To compile Allen and its depending projects call::
+
+  make Allen
+
+By default, all configured sequences available in `configuration/python/AllenSequences <https://gitlab.cern.ch/lhcb/Allen/-/tree/master/configuration/python/AllenSequences>`_ are built and the json configuration files are stored inside the ``Allen/InstallArea/${ARCHITECTURE}/constants/`` directory.
+
+As a Gaudi/LHCb cmake project
+-----------------------------
+To build Allen like this, is the same as building
+any other Gaudi/LHCb project. Allen depends on Rec and all projects that Rec depends on. So either clone them locally or add the path to a valid nightly build to ``CMAKE_PREFIX_PATH`` (check the |nightly_builds| to).
+To build e.g. on ``lxplus`` machines, the below script may be used (again using the |nightly_builds| to inform the choice of Binary tag and LCG version, in this example ``x86_64_v3-el9-gcc15-opt+g`` and ``108c``)::
+
+    git clone ssh://git@gitlab.cern.ch:7999/lhcb/Allen.git
+    cd Allen
+    lb-set-platform x86_64_v3-el9-gcc15-opt+g
+    export LCG_VERSION="108c"
+    export BINARY_TAG="x86_64_v3-el9-gcc15-opt+g"
+    lb-project-init
+    make configure
+    make -j16 install
+
+By default all sequences are built, Allen is built as a CPU
+build. If a binary tag is chosen including the ``+cuda`` tag,
+a CUDA build shall be performed. These
+defaults (and other cmake variables) can be changed by adding the same
+flags that you would pass to a standalone build to the ``CMAKEFLAGS``
+environment variable before calling ``make configure``.
+
+For example, to specify another CUDA stack to be used set::
+
+  export CMAKEFLAGS="-DCMAKE_CUDA_COMPILER=/path/to/alternative/nvcc"
+
+Runtime environment
+-------------------
+To setup the runtime environment for Allen, the same tools as for
+other Gaudi/LHCb projects can be used::
+
+  cd Allen
+  ./build.${BINARY_TAG}/run Allen ...
+
+.. |nightly_builds| raw:: html
+
+   <a href="https://lhcb-nightlies.web.cern.ch/nightly/" target="_blank">nightly builds</a>
 
 
 .. _Allen standalone build:
 
-As standalone project
-^^^^^^^^^^^^^^^^^^^^^^^^
+As standalone project (deprecated)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+
+   Standalone Allen builds are **deprecated** and will be removed in a
+   subsequent set of merge requests.  Build Allen as a Gaudi/LHCb project
+   instead (see above).
 
 .. _requisites:
 
@@ -60,7 +130,7 @@ First source the LHCb environment::
 
     source /cvmfs/lhcb.cern.ch/lib/LbEnv
 
-The build process is the standard cmake procedure. You should specify a `CMAKE_TOOLCHAIN_FILE` according to the architecture you want to compile.
+The build process is the standard cmake procedure. You should specify a ``CMAKE_TOOLCHAIN_FILE`` according to the architecture you want to compile.
 
 * CPU target::
 
@@ -83,17 +153,17 @@ The build process is the standard cmake procedure. You should specify a `CMAKE_T
     cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_101/x86_64-centos7-clang12+hip5-opt.cmake ..
     make
 
-Note: CUDA builds with CVMFS outside CERN network still require a local CUDA installation. If `cmake` reports that "No CMAKE_CUDA_COMPILER could be found", it is unable to find the local installation of `nvcc` CUDA compiler. You can do either one of the following three:
+Note: CUDA builds with CVMFS outside CERN network still require a local CUDA installation. If ``cmake`` reports that "No CMAKE_CUDA_COMPILER could be found", it is unable to find the local installation of ``nvcc`` CUDA compiler. You can do either one of the following three:
 
-* Specify `CMAKE_CUDA_COMPILER` when invoking `cmake`::
+* Specify ``CMAKE_CUDA_COMPILER`` when invoking ``cmake``::
 
     cmake -DSTANDALONE=ON -DCMAKE_CUDA_COMPILER=</path/to/nvcc> -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc15+cuda13_3-opt+g.cmake ..
 
-* Add `nvcc` directory to `PATH` (typically `/usr/local/cuda-X.Y/bin`)::
+* Add ``nvcc`` directory to ``PATH`` (typically ``/usr/local/cuda-X.Y/bin``)::
 
     export PATH=$PATH:</directory/containing/nvcc>
 
-* Set the environment variable `CUDACXX`::
+* Set the environment variable ``CUDACXX``::
 
     export CUDACXX=</path/to/nvcc>
 
@@ -127,7 +197,7 @@ To run Allen, simply invoke the generated binary::
 Building on macOS
 -----------------
 
-Allen supports macOS, including Apple Silicon, on a best-effort basis. The installation requires the following packages, which can be installed through `brew`::
+Allen supports macOS, including Apple Silicon, on a best-effort basis. The installation requires the following packages, which can be installed through ``brew``::
 
     brew install llvm cpp-gsl catch2 zeromq nlohmann-json python3 boost
     pip3 install --user wrapt cachetools pydot sympy
@@ -137,7 +207,7 @@ It also requires the aforementioned umesimd package::
     git clone https://github.com/edanor/umesimd.git <some_dir>/umesimd
     export UMESIMD_ROOT_DIR=<some_dir>
 
-Due to the recent security features of macOS ignoring `DYLD_LIBRARY_PATH` settings not playing nicely with `cindex.py`'s requirement of `libclang`, it is necessary to provide a symlink in `/usr/local/lib` as follows::
+Due to the recent security features of macOS ignoring ``DYLD_LIBRARY_PATH`` settings not playing nicely with ``cindex.py``'s requirement of ``libclang``, it is necessary to provide a symlink in ``/usr/local/lib`` as follows::
 
     ln -s /Library/Developer/CommandLineTools/usr/lib/libclang.dylib /usr/local/lib/libclang.dylib
 
@@ -152,27 +222,27 @@ Finally, Allen can be built and run as on any other platform::
 Purging / rebuilding
 --------------------
 
-In few cases a `purge` command followed by a rebuild may be required. The cases where this is necessary are described here :ref:`building_newly_defined_algorithm`.
+In few cases a ``purge`` command followed by a rebuild may be required. The cases where this is necessary are described here :ref:`building_newly_defined_algorithm`.
 
 Compilation options
 -------------------
 
-The build process can be configured with cmake options. For a complete list of options and for editing them we suggest using the `ccmake` tool::
+The build process can be configured with cmake options. For a complete list of options and for editing them we suggest using the ``ccmake`` tool::
 
     ccmake .
 
-Alternatively, cmake options can be passed with `-D` when invoking the cmake command (eg. `cmake -D<option>=<value> ..`). Here is a brief explanation of some options:
+Alternatively, cmake options can be passed with ``-D`` when invoking the cmake command (eg. ``cmake -D<option>=<value> ..``). Here is a brief explanation of some options:
 
-* `STANDALONE` - Selects whether to build Allen standalone or as part of the Gaudi stack. Defaults to `OFF`.
-* `TARGET_DEVICE` - Selects the target device architecture. Options are `CPU`, `CUDA` and `HIP`.
-* `SEQUENCES` - Either a regex or `all`, if a regex is passed and the pattern is found in a sequence name, it will be built. For a complete list of sequences available, check `configuration/sequences/`. The name of a sequence is given by its filename without the `.py` extension. Note that sequences are by default generated during runtime, when specified through --sequence. Requesting sequences here causes them to be pregenerated into a json file (in the build directory).
-* `CMAKE_BUILD_TYPE` - Build type, which is either of `RelWithDebInfo`, `Release` or `Debug`.
-* `CUDA_ARCH` - Selects the architecture to target for `CUDA` compilation.
-* `HIP_ARCH` - Selects the architecture to target with `HIP` compilation.
+* ``STANDALONE`` - Selects whether to build Allen standalone or as part of the Gaudi stack. Defaults to ``OFF``.
+* ``TARGET_DEVICE`` - Selects the target device architecture. Options are ``CPU``, ``CUDA`` and ``HIP``.
+* ``SEQUENCES`` - Either a regex or ``all``, if a regex is passed and the pattern is found in a sequence name, it will be built. For a complete list of sequences available, check ``configuration/sequences/``. The name of a sequence is given by its filename without the ``.py`` extension. Note that sequences are by default generated during runtime, when specified through ``--sequence``. Requesting sequences here causes them to be pregenerated into a json file (in the build directory).
+* ``CMAKE_BUILD_TYPE`` - Build type, which is either of ``RelWithDebInfo``, ``Release`` or ``Debug``.
+* ``CUDA_ARCH`` - Selects the architecture to target for ``CUDA`` compilation.
+* ``HIP_ARCH`` - Selects the architecture to target with ``HIP`` compilation.
 
 Docker
 --------
-The following lines will build the code base from any computer with NVidia-Docker, assuming you are in the directory with the code checkout and want to build in `build`:
+The following lines will build the code base from any computer with NVidia-Docker, assuming you are in the directory with the code checkout and want to build in ``build``:
 
 To run allen builder container from a repo container::
 
@@ -185,64 +255,6 @@ This container would stay attached to this folder as a volume. You will be able 
   ninja
   ./Allen
 
-By default, this docker image would compile the code and run it with the input from the "/input" folder. In the command below we mount `input` inside this repository and mount the build folder, so that it caches built files.
+By default, this docker image would compile the code and run it with the input from the "/input" folder. In the command below we mount ``input`` inside this repository and mount the build folder, so that it caches built files.
 
 Note: Files inside the build folder would belong to the root user.
-
-
-As a Gaudi/LHCb project
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. _stack_setup:
-
-Using the stack setup
----------------------
-Follow the instructions in the |stack_setup| to set up the software stack.
-
-.. |stack_setup| raw:: html
-
-   <a href="https://gitlab.cern.ch/rmatev/lb-stack-setup" target="_blank">stack setup</a>
-
-To compile Allen and its depending projects call
-
-  make Allen
-
-By default, all configured sequences available in `configuration/python/AllenSequences <https://gitlab.cern.ch/lhcb/Allen/-/tree/master/configuration/python/AllenSequences` are built and the json configuration files are stored inside the `Allen/InstallArea/${ARCHITECTURE}/constants/` directory.
-
-As a Gaudi/LHCb cmake project
--------------------------------
-To build Allen like this, is the same as building
-any other Gaudi/LHCb project. Allen depends on Rec and all projects that Rec depends on. So either clone them locally or add the path to a valid nightly build to `CMAKE_PREFIX_PATH` (check the |nightly_builds| to).
-To build e.g. on `lxplus` machines, the below script may be used (again using the |nightly_builds| to inform the choice of Binary tag and LCG version, in this example `x86_64_v3-el9-gcc15-opt+g` and `108c`)::
-
-    git clone ssh://git@gitlab.cern.ch:7999/lhcb/Allen.git
-    cd Allen
-    lb-set-platform x86_64_v3-el9-gcc15-opt+g
-    export LCG_VERSION="108c"
-    export BINARY_TAG="x86_64_v3-el9-gcc15-opt+g"
-    lb-project-init
-    make configure
-    make -j16 install
-
-By default all sequences are built, Allen is built as a CPU
-build. If a binary tag is chosen including the `+cuda` tag,
-a CUDA build shall be performed. These
-defaults (and other cmake variables) can be changed by adding the same
-flags that you would pass to a standalone build to the `CMAKEFLAGS`
-environment variable before calling `make configure`.
-
-For example, to specify another CUDA stack to be used set::
-
-  export CMAKEFLAGS="-DCMAKE_CUDA_COMPILER=/path/to/alternative/nvcc"
-
-Runtime environment:
----------------------
-To setup the runtime environment for Allen, the same tools as for
-other Gaudi/LHCb projects can be used::
-
-  cd Allen
-  ./build.${BINARY_TAG}/run Allen ...
-
-.. |nightly_builds| raw:: html
-
-   <a href="https://lhcb-nightlies.web.cern.ch/nightly/" target="_blank">nightly builds</a>

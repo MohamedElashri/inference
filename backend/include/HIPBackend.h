@@ -197,6 +197,10 @@ namespace Allen {
     hipCheck(hipHostRegister(ptr, size, convert_allen_to_hip_host_register_kind(flags)));
   }
 
+  // HIP has no equivalent of cudaHostRegisterReadOnly, so read-only mappings
+  // cannot be registered
+  bool inline host_register_read_only_supported() { return false; }
+
   namespace device {
     template<class To, class From>
     __host__ __device__ std::enable_if_t<
@@ -208,4 +212,7 @@ namespace Allen {
       return *reinterpret_cast<const To*>(&src);
     }
   } // namespace device
+
+  void inline rangePush(const char*) {}
+  void inline rangePop() {}
 } // namespace Allen

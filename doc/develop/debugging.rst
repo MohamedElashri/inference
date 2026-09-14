@@ -3,6 +3,12 @@
 Debugging
 =========
 
+.. note::
+
+   The standalone ``./Allen`` debugging examples below are **deprecated** and
+   will be removed in a subsequent set of merge requests.  To debug Allen in
+   the stack, run it through Moore with ``lbexec`` (see :ref:`run_allen_in_stack`).
+
 In order to debug you should use a debug build for the target architecture you are interested in. If CVMFS is available, you should use a `dbg` tag such as::
 
     cmake -DSTANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc15+cuda13_3-dbg.cmake ..
@@ -32,7 +38,7 @@ First, make sure to include the correct cmake flags in the build by putting::
 
 in the `utils/config.json` file in your stack before you `make Allen`. Once it is compiled with the flag,  the profile can be created using::
 
-    MooreOnline/build.{tag}/run valgrind --tool=callgrind --instr-atstart=no python Allen/Dumpers/BinaryDumpers/options/allen.py
+    MooreOnline/build.{tag}/run valgrind --tool=callgrind --instr-atstart=no lbexec /path/to/option/module.py:main /path/to/options.yaml
 
 with the tags, data, and other flags following as normal. This will create a file in the directory that you ran Allen from named `callgrind.out.xxxxxx` where xxxxxx is a seemingly random 6 digit number. You may need to copy this to another machine where you have installed `qcachegrind` or another program capable of reading callgrind files. On that machine, run::
 

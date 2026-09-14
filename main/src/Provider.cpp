@@ -181,10 +181,10 @@ Allen::IOConf Allen::io_configuration(
 }
 
 std::unique_ptr<IInputProvider> Allen::make_provider(
-  std::map<std::string, std::string> const& options,
-  std::string_view configuration)
+  [[maybe_unused]] std::map<std::string, std::string> const& options,
+  [[maybe_unused]] std::string_view configuration)
 {
-
+#ifdef ALLEN_STANDALONE
   unsigned number_of_slices = 0;
   unsigned events_per_slice = 0;
   std::optional<size_t> n_events;
@@ -304,22 +304,25 @@ std::unique_ptr<IInputProvider> Allen::make_provider(
       }
     }
 
-    MDFProviderConfig config {
-      false,                     // verify MDF checksums
-      2,                         // number of transpose threads
-      events_per_slice * 10 + 1, // maximum number event of offsets in read buffer
-      events_per_slice,          // number of events per read buffer
-      io_conf.n_io_reps,         // number of loops over the input files
-      !disable_run_changes,      // Whether to split slices by run number
-      skip_banks};
+    InputProviderConfig config {
+      .check_checksum = false, // verify MDF checksums
+      .n_slices = io_conf.number_of_slices,
+      .n_events = n_events,
+      .events_per_slice = events_per_slice,
+      .n_transpose_threads = 2,              // number of transpose threads
+      .events_per_buffer = events_per_slice, // number of events per read buffer
+      .n_loops = io_conf.n_io_reps,          // number of loops over the input files
+      .split_by_run = !disable_run_changes,  // Whether to split slices by run number
+      .skip_banks = skip_banks,              // Set of banks to skip copying to the device
+      .use_retina = !veloSP};
     return std::make_unique<MDFProvider>(
       io_conf.number_of_slices, events_per_slice, n_events, connections, bank_types, config);
   }
+#endif
   return {};
 }
 
 std::unique_ptr<OutputHandler> Allen::output_handler(
-  IInputProvider* input_provider,
   IZeroMQSvc* zmq_svc,
   std::map<std::string, std::string> const& options)
 {
@@ -345,10 +348,10 @@ std::unique_ptr<OutputHandler> Allen::output_handler(
   if (!output_file.empty()) {
     try {
       if (output_file.substr(0, 6) == "tcp://") {
-        output_handler = std::make_unique<ZMQOutputSender>(input_provider, output_file, output_batch_size, zmq_svc);
+        output_handler = std::make_unique<ZMQOutputSender>(output_file, zmq_svc);
       }
       else {
-        output_handler = std::make_unique<FileWriter>(input_provider, output_file, output_batch_size);
+        output_handler = std::make_unique<FileWriter>(output_file);
       }
     } catch (std::runtime_error const& e) {
       error_cout << e.what() << "\n";

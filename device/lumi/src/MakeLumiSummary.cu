@@ -95,6 +95,7 @@ void make_lumi_summary::make_lumi_summary_t::operator()(
 
   Allen::copy_async<host_lumi_summaries_t, dev_lumi_summaries_t>(arguments, context);
   Allen::copy_async<host_lumi_summary_offsets_t, dev_lumi_summary_offsets_t>(arguments, context);
+  Allen::synchronize(context);
 }
 
 __device__ void

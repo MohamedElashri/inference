@@ -1,5 +1,5 @@
 ###############################################################################
-# (c) Copyright 2025 CERN for the benefit of the LHCb Collaboration           #
+# (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           #
 #                                                                             #
 # This software is distributed under the terms of the GNU General Public      #
 # Licence version 3 (GPL Version 3), copied verbatim in the file "COPYING".   #
@@ -14,24 +14,9 @@ from LHCbTesting import LHCbExeTest
 
 class Test(LHCbExeTest):
     command = [
-        "python",
-        "../../../../Dumpers/BinaryDumpers/options/allen.py",
-        "--monitoring-filename",
-        "mdf_input_hists.root",
-        "--test-file-db-key",
-        "upgrade_Sept2022_minbias_0fb_md_mdf",
-        "--sequence",
-        "${ALLEN_INSTALL_DIR}/constants/hlt1_pp_matching.json",
-        "--events-per-slice",
-        "500",
-        "-m",
-        "600",
-        "-s",
-        "3",
-        "-t",
-        "2",
-        "-n",
-        "10000",
+        "lbexec",
+        "../options/run_hlt1_pp_matching.py:main",
+        "../options/mdf_input.yaml",
     ]
     reference = "../refs/allen_event_loop.yaml"
     timeout = 600

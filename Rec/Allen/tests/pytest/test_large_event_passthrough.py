@@ -20,24 +20,9 @@ large_event_dataset = TEST_DATASETS["allen.large_event_passthrough"]
 @pytest.mark.shared_cwd("Allen")
 class Test(LHCbExeTest):
     command = [
-        "python",
-        "../../../../Dumpers/BinaryDumpers/options/allen.py",
-        "--test-file-db-key",
-        large_event_dataset.test_file_db_key,
-        "--sequence",
-        "${ALLEN_INSTALL_DIR}/constants/hlt1_pp_matching.json",
-        "--events-per-slice",
-        "500",
-        "-m",
-        "0",
-        "-s",
-        "1",
-        "-t",
-        "1",
-        "-n",
-        "2",
-        "--output-file",
-        large_event_dataset.file_name,
+        "lbexec",
+        "../options/run_hlt1_pp_matching.py:main",
+        "../options/large_event_passthrough.yaml",
     ]
     reference = "../refs/allen_large_event_passthrough.yaml"
     timeout = 600

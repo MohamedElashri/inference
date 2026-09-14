@@ -14,6 +14,8 @@ from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.filecontent_metadata import register_encoding_dictionary
 from PyConf.tonic import configurable
 
+from AllenConf.utils import make_dummy
+
 
 def build_decision_ids(line_names, offset=1, append=True):
     """Return a dict of decision names to integer IDs.
@@ -281,7 +283,6 @@ def make_global_decision(lines):
 
     from AllenConf.utils import initialize_number_of_events
 
-    gather_selections = make_gather_selections(lines)  # noqa: F841
     dec_reporter = make_dec_reporter(lines)
     number_of_events = initialize_number_of_events()
 
@@ -291,6 +292,16 @@ def make_global_decision(lines):
         host_number_of_events_t=number_of_events["host_number_of_events"],
         dev_number_of_events_t=number_of_events["dev_number_of_events"],
         dev_dec_reports_t=dec_reporter.dev_dec_reports_t,
+    )
+
+
+def make_global_decision_event_list(global_decision):
+    from AllenCore.algorithms import global_decision_event_list_t
+
+    return make_algorithm(
+        global_decision_event_list_t,
+        name="global_decision_event_list",
+        host_global_decision_t=global_decision.host_global_decision_t,
     )
 
 
@@ -383,7 +394,49 @@ def make_sel_report_writer(lines):
 
 
 @configurable
-def make_persistency(line_algorithms):
+def make_output_handler(persistency_algorithms, lumi_reco=None, tae_filter=None):
+    from AllenCore.algorithms import host_output_handler_t
+
+    if lumi_reco is not None:
+        host_lumi_summaries = lumi_reco["host_lumi_summaries"]
+        host_lumi_summary_offsets = lumi_reco["host_lumi_summary_offsets"]
+    else:
+        host_lumi_summaries = make_dummy().host_unsigned_dummy_t
+        host_lumi_summary_offsets = make_dummy().host_unsigned_dummy_t
+
+    if tae_filter is not None:
+        tae_events = tae_filter.host_tae_events_t
+    else:
+        tae_events = make_dummy().host_tae_dummy_t
+
+    return [
+        make_algorithm(
+            host_output_handler_t,
+            name="output_handler",
+            host_global_decision_t=persistency_algorithms[
+                "global_decision"
+            ].host_global_decision_t,
+            host_dec_reports_t=persistency_algorithms[
+                "dec_reporter"
+            ].host_dec_reports_t,
+            host_routingbits_t=persistency_algorithms[
+                "routing_bits"
+            ].host_routingbits_t,
+            host_sel_reports_t=persistency_algorithms["sel_reports"]["algorithms"][
+                -1
+            ].host_sel_reports_t,
+            host_selrep_offsets_t=persistency_algorithms["sel_reports"]["algorithms"][
+                -1
+            ].host_selrep_offsets_t,
+            host_lumi_summaries_t=host_lumi_summaries,
+            host_lumi_summary_offsets_t=host_lumi_summary_offsets,
+            host_tae_events_t=tae_events,
+        )
+    ]
+
+
+@configurable
+def make_persistency(line_algorithms, output_handler_maker=make_output_handler):
     gather_selections = make_gather_selections(line_algorithms)
     global_decision = make_global_decision(line_algorithms)
     dec_reporter = make_dec_reporter(line_algorithms)
@@ -405,8 +458,30 @@ def make_persistency(line_algorithms):
             global_decision,
             rb_writer,
             *sel_reports["algorithms"],
+            *output_handler_maker(persistency_algorithms),
         ],
         NodeLogic.NONLAZY_AND,
         force_order=True,
     )
     return persistency_node, persistency_algorithms
+
+
+def call_allen_raw_reports(persistency_algorithms):
+    """
+    Configures GaudiAllenReportsToRawEvent transformer to Convert output of
+    Allen dec_reporter and sel_report_writer to LHCb::RawBank::View objects.
+    """
+    from PyConf.Algorithms import GaudiAllenReportsToRawEvent
+
+    # Find the algorithms for the input required
+    dec_reporter = persistency_algorithms["dec_reporter"]
+    selreps = persistency_algorithms["sel_reports"]["dev_sel_reports"]
+    selrep_offsets = persistency_algorithms["sel_reports"]["dev_selrep_offsets"]
+    routing_bits_writer = persistency_algorithms["routing_bits"]
+
+    return GaudiAllenReportsToRawEvent(
+        allen_dec_reports=dec_reporter.dev_dec_reports_t,
+        allen_selrep_offsets=selrep_offsets,
+        allen_sel_reports=selreps,
+        allen_routing_bits=routing_bits_writer.host_routingbits_t,
+    )

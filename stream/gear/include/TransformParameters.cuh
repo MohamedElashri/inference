@@ -14,6 +14,7 @@
 #include "ArgumentOps.cuh"
 #include "BackendCommon.h"
 #include "BaseTypes.cuh"
+#include "Property.cuh"
 #include <functional>
 #include <utility>
 #include <tuple>
@@ -81,6 +82,19 @@ struct TransformParametersImpl<ArgMan, std::tuple<T...>> {
 template<typename T>
 struct TransformParameters {
   constexpr static auto transform(T&& t, const Allen::KernelInvocationConfiguration&) { return std::forward<T>(t); }
+};
+
+/**
+ * @brief Specialization for Allen::Property passed by const reference.
+ *        Properties are converted to their underlying value before being passed to a
+ *        kernel, avoiding copying the (Gaudi-backed) property object.
+ */
+template<typename V>
+struct TransformParameters<const Allen::Property<V>&> {
+  constexpr static auto transform(const Allen::Property<V>& t, const Allen::KernelInvocationConfiguration&)
+  {
+    return t.value();
+  }
 };
 
 /**

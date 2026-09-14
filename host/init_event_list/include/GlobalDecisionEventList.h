@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2020 CERN for the benefit of the LHCb Collaboration           *
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -10,32 +10,22 @@
 \*****************************************************************************/
 #pragma once
 
-#include "Common.h"
 #include "AlgorithmTypes.cuh"
-#include "InputProvider.h"
-#include <span>
 
-namespace layout_provider {
+namespace global_decision_event_list {
   struct Parameters {
-    HOST_OUTPUT(host_mep_layout_t, unsigned) host_mep_layout;
-    DEVICE_OUTPUT(dev_mep_layout_t, unsigned) dev_mep_layout;
+    HOST_INPUT(host_global_decision_t, bool) host_global_decision;
+    HOST_OUTPUT(host_event_list_output_t, unsigned) host_event_list;
+    MASK_OUTPUT(dev_event_list_output_t) dev_event_list;
   };
 
-  /**
-   * @brief Provides layout information as
-   *        parameters that can be reused in any algorithm.
-   *        Currently available layouts are MEP or Allen layout.
-   */
-  struct layout_provider_t : public HostAlgorithm, Parameters {
-    void set_arguments_size(
-      ArgumentReferences<Parameters> arguments,
-      const RuntimeOptions& runtime_options,
-      const Constants&) const;
+  struct global_decision_event_list_t : public HostAlgorithm, Parameters {
+    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 
     void operator()(
       const ArgumentReferences<Parameters>& arguments,
       const RuntimeOptions& runtime_options,
-      const Constants&,
+      const Constants& constants,
       const Allen::Context& context) const;
   };
-} // namespace layout_provider
+} // namespace global_decision_event_list

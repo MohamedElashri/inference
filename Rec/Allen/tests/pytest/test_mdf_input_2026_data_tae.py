@@ -13,18 +13,9 @@ from LHCbTesting import LHCbExeTest
 
 class Test(LHCbExeTest):
     command = [
-        "python",
-        "../../../../Dumpers/BinaryDumpers/options/allen.py",
-        "--test-file-db-key",
-        "2026-hlt1-mdf",
-        "--monitoring-filename",
-        "mdf_2026_data_tae_hists.root",
-        "--sequence",
-        "${ALLEN_INSTALL_DIR}/constants//hlt1_pp_forward_then_matching_no_ut.json",
-        "-n",
-        "2000",
-        "--register-monitoring-counters",
-        "1",
+        "lbexec",
+        "../options/run_hlt1_pp_forward_then_matching_no_ut.py:main",
+        "../options/mdf_input_2026_data_tae.yaml",
     ]
     timeout = 300
 

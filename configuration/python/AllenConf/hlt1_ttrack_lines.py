@@ -13,6 +13,7 @@ from AllenCore.algorithms import (
     ttrack_ks2pipi_t,
     ttrack_lambda2ppi_t,
 )
+from AllenCore.configuration_options import is_allen_standalone
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 

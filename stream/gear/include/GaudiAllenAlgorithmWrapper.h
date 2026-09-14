@@ -22,6 +22,7 @@
 #include "AggregateHandle.h"
 #include "AllenMonitoring.h"
 #include "MVAModelsManager.h"
+#include "MultiEventContextExt.h"
 
 namespace Allen::Conditions::ConstantsCondition {
 #ifdef USE_DD4HEP
@@ -35,6 +36,8 @@ using namespace Gaudi::Functional;
 using namespace LHCb::DetDesc;
 
 struct Dummy {};
+
+struct SelectionAlgorithm;
 
 template<typename AllenAlgorithm>
 class GaudiAllenAlgorithmWrapper final : public AlgorithmWithCondition<> {
@@ -58,10 +61,11 @@ public:
 
   StatusCode initialize() override
   {
+    m_algorithm.set_name(this->name());
+    Allen::initialize_algorithm(m_algorithm);
+
     const StatusCode sc = Algorithm::initialize();
     if (sc.isFailure()) return sc;
-    Allen::initialize_algorithm(m_algorithm);
-    m_algorithm.set_name(this->name());
 
 #ifdef USE_DD4HEP
     std::string key = std::string {"/world:AlgorithmSpecific-"} + this->name() + "-update";
@@ -83,14 +87,12 @@ public:
   {
     const StatusCode sc = Algorithm::start();
     if (sc.isFailure()) return sc;
-    Allen::Monitoring::AccumulatorManager::get()->initAccumulators(1);
     Allen::MVAModels::MVAModelsManager::get()->loadData((m_cached_root + "/data").c_str());
     return sc;
   }
 
   StatusCode stop() override
   {
-    Allen::Monitoring::AccumulatorManager::get()->mergeAndReset(true);
     const StatusCode sc = Algorithm::stop();
     if (sc.isFailure()) return sc;
     return sc;
@@ -131,15 +133,19 @@ public:
   {
     auto const& runtime_options = *m_runtime_options.get();
     auto const& constants = m_constants.get(getConditionContext(evtCtx));
-    Allen::Context context {};
+
+    // Get multi-event scheduler extension if available, otherwise create default context
+    // and memory managers or single event execution
+    const auto* ctxExt = Allen::Scheduler::getSchedulerExtension(evtCtx);
+    Allen::Context context = ctxExt ? ctxExt->allen_context : Allen::Context {};
+    const auto memory_managers = ctxExt ? ctxExt->memory_managers : Allen::Store::memory_managers_t {};
 
     // Output container
     auto output_container = std::apply(
       [&](const auto&... handles) {
         [[maybe_unused]] auto create_vector = [&]<typename Handle>(const Handle&) {
-          using vector_t = typename Allen::handle_type_extractor<Handle>::type;
-          using data_t = typename vector_t::value_type;
-          return Allen::parameter_vector<data_t> {LHCb::getMemResource(evtCtx)};
+          using shared_buffer_t = typename Allen::handle_type_extractor<Handle>::type;
+          return shared_buffer_t {memory_managers};
         };
         return std::make_tuple(create_vector(handles)...);
       },
@@ -147,8 +153,7 @@ public:
 
     // Aggregates TES wrappers
     auto input_aggregates_wrappers = [&]<std::size_t... I>(std::index_sequence<I...>) {
-      std::tuple<Allen::parameter_vector<
-        Allen::TESWrapperInput<typename std::tuple_element_t<I, aggregates_tuple_t>::type::type>>...>
+      std::tuple<std::vector<Allen::TESWrapperInputAggregate<std::tuple_element_t<I, aggregates_tuple_t>>>...>
         wrappers_vecs {};
       // Fill wrappers for each aggregate:
       (
@@ -156,7 +161,7 @@ public:
           using Param = std::tuple_element_t<I, aggregates_tuple_t>;
           using Aggregate = typename Param::type;
 
-          Allen::parameter_vector<typename Aggregate::type> empty_vector {LHCb::getMemResource(evtCtx)};
+          Allen::shared_buffer<Param::scope, typename Aggregate::type> empty_vector {memory_managers};
           const auto& handles = std::get<I>(m_aggregates).handles;
 
           auto& wrappers_vec = std::get<I>(wrappers_vecs);
@@ -188,11 +193,11 @@ public:
       [[maybe_unused]] auto make_wrapper = [&]<std::size_t J>() -> auto {
         using Param = std::tuple_element_t<J, parameters_tuple_t>;
         if constexpr (Allen::Store::is_input<Param>::value) {
-          return Allen::TESWrapperInput<typename Param::type> {
+          return Allen::TESWrapperInput<Param> {
             *std::get<Allen::tuple_index_of<inputs_tuple_t, Param>()>(m_inputs).get(), Param::name.data()};
         }
         else {
-          return Allen::TESWrapperOutput<typename Param::type> {
+          return Allen::TESWrapperOutput<Param> {
             std::get<Allen::tuple_index_of<outputs_tuple_t, Param>()>(output_container), Param::name.data()};
         }
       };
@@ -205,7 +210,8 @@ public:
       },
       tes_wrappers);
 
-    const auto argument_references = ArgumentReferences<Parameters> {tes_wrappers_references, input_aggregates_tuple};
+    const auto argument_references =
+      ArgumentReferences<Parameters> {tes_wrappers_references, input_aggregates_tuple, memory_managers};
 
     // set arguments size invocation
     m_algorithm.set_arguments_size(argument_references, runtime_options, constants);
@@ -213,10 +219,24 @@ public:
     // algorithm operator() invocation
     m_algorithm(argument_references, runtime_options, constants, context);
 
+    // Record data dependencies between arguments, if any (after operator() to allow resizes)
+    [&]<std::size_t... I>(std::index_sequence<I...>) {
+      (apply_dependencies_for_output<I>(output_container, tes_wrappers, input_aggregates_wrappers), ...);
+    }(std::make_index_sequence<std::tuple_size_v<outputs_tuple_t>> {});
+
+    // Record additional dependencies for lines (this should be in the line implementations):
+    if constexpr (std::is_base_of_v<SelectionAlgorithm, AllenAlgorithm>) {
+      constexpr size_t out_idx = Allen::tuple_index_of<outputs_tuple_t, typename Parameters::host_fn_parameters_t>();
+      auto& output_buffer = std::get<out_idx>(output_container);
+      [&]<typename... Args>(std::tuple<Args...>) {
+        (apply_dependency_for_output<Args>(output_buffer, tes_wrappers, input_aggregates_wrappers), ...);
+      }(std::tuple_cat(inputs_tuple_t {}, aggregates_tuple_t {}));
+    }
+
     // Get filter decision
-    const auto filter_decision = [&]<std::size_t I = Allen::find_mask_index<decltype(m_outputs)>()>()
+    const auto filter_decision = [&]<std::size_t I = Allen::find_mask_index<outputs_tuple_t>()>()
     {
-      if constexpr (I < std::tuple_size_v<decltype(m_outputs)>) {
+      if constexpr (I < std::tuple_size_v<outputs_tuple_t>) {
         // mask_t exists - check size at runtime
         return std::get<I>(output_container).size() ? FilterDecision::PASSED : FilterDecision::FAILED;
       }
@@ -236,6 +256,42 @@ public:
       m_outputs);
 
     return filter_decision;
+  }
+
+private:
+  template<typename DepType, typename OutputBuffer, typename TESWrappers, typename AggWrappers>
+  void apply_dependency_for_output(
+    OutputBuffer& output_buffer,
+    TESWrappers& tes_wrappers,
+    AggWrappers& aggregate_wrappers) const
+  {
+    if constexpr (Allen::Store::is_aggregate<DepType>::value) {
+      constexpr size_t I = Allen::tuple_index_of<aggregates_tuple_t, DepType>();
+      for (const auto& dep : std::get<I>(aggregate_wrappers)) {
+        output_buffer.depends_on(dep.get_shared_buffer());
+      }
+    }
+    else {
+      constexpr size_t I = Allen::tuple_index_of<parameters_tuple_t, DepType>();
+      const auto& dep = std::get<I>(tes_wrappers);
+      output_buffer.depends_on(dep.get_shared_buffer());
+    }
+  }
+
+  template<size_t OutputIdx, typename OutputContainer, typename TESWrappers, typename AggWrappers>
+  void apply_dependencies_for_output(
+    OutputContainer& output_container,
+    TESWrappers& tes_wrappers,
+    AggWrappers& aggregate_wrappers) const
+  {
+    using OutputParam = std::tuple_element_t<OutputIdx, outputs_tuple_t>;
+    using DepsTuple = typename OutputParam::dependencies_type;
+    if constexpr (!std::is_same_v<DepsTuple, Allen::Store::dependencies<>>) {
+      auto& output_buffer = std::get<OutputIdx>(output_container);
+      [&]<typename... Args>(Allen::Store::dependencies<Args...>) {
+        (apply_dependency_for_output<Args>(output_buffer, tes_wrappers, aggregate_wrappers), ...);
+      }(DepsTuple {});
+    }
   }
 };
 

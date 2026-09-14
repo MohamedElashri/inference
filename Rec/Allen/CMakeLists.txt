@@ -18,7 +18,15 @@ application
 
 include(GenerateConfiguration)
 
-file(GLOB ALLEN_WRAPPER_SOURCES "src/*.cpp")
+file(GLOB ALLEN_WRAPPER_SOURCES "src/*.cpp" "src/*.cu")
+
+if(TARGET_DEVICE STREQUAL "CPU")
+  foreach(arg IN LISTS ALLEN_WRAPPER_SOURCES)
+  if(${arg} MATCHES "\\.cu$")
+      set_source_files_properties(${arg} PROPERTIES LANGUAGE CXX)
+  endif()
+  endforeach()
+endif()
 
 gaudi_add_module(AllenWrapper
                  SOURCES
@@ -29,6 +37,8 @@ gaudi_add_module(AllenWrapper
                    EventModel
                    HostEventModel
                    Stream
+                   mdf
+                   Configuration
 
                    Gaudi::GaudiAlgLib
                    LHCb::DAQEventLib
@@ -42,6 +52,8 @@ gaudi_add_module(AllenWrapper
                    LHCb::MCEvent
                    LHCb::RecEvent
                    LHCb::RichFutureUtils
+                   LHCb::HLTSchedulerLib
+                   LHCb::IOAlgorithmsLib
                    Rec::RichFutureRecEvent
                    Rec::PrKernel)
 
@@ -68,6 +80,7 @@ gaudi_add_module(AllenAlgorithms
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MCEvent
+                   Rec::RichFutureRecEvent
                    Rec::PrKernel)
 
 add_custom_target(gaudi_wrappers_of_allen_algorithms DEPENDS ${ALLEN_ALGORITHM_LIB})

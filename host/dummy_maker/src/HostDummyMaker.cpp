@@ -23,6 +23,7 @@ void host_dummy_maker::host_dummy_maker_t::set_arguments_size(
   set_size<dev_char_dummy_t>(arguments, 0);
   set_size<dev_lumi_dummy_t>(arguments, 0);
   set_size<host_sum_dummy_t>(arguments, 1);
+  set_size<host_tae_dummy_t>(arguments, 0);
 }
 
 void host_dummy_maker::host_dummy_maker_t::operator()(

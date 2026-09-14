@@ -586,7 +586,6 @@ The HLT1DiMuonLowMass line is defined in `hlt1_muon_lines.py` as follows:
                              name="Hlt1DiMuonHighMass"):
       number_of_events = initialize_number_of_events()
       odin = decode_odin()
-      layout = mep_layout()
 
       return make_algorithm(
           di_muon_mass_line_t,
@@ -639,7 +638,6 @@ First define the line algorithm, for example within `hlt1_inclusive_hadron_lines
                                   name="Hlt1OneTrackExample"):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
-    layout = mep_layout()
 
     return make_algorithm(
         example_one_track_line_t,
@@ -804,7 +802,6 @@ Taking the HLT1DiMuonLowMass line as an example, compared to above, we add the `
                             enable_tupling=False):
       number_of_events = initialize_number_of_events()
       odin = decode_odin()
-      layout = mep_layout()
 
       return make_algorithm(
           di_muon_mass_line_t,

@@ -50,7 +50,7 @@ void odin_provider::odin_provider_t::operator()(
   auto const* sizes = bno.sizes.data();
   auto const* offsets = bno.offsets.data();
   auto const version = bno.version;
-  auto const mep_layout = first<host_mep_layout_t>(arguments);
+  auto const mep_layout = runtime_options.mep_layout;
 
   if (version < 6 || version > 7) {
     throw StrException {"Unsupported ODIN version: "s + std::to_string(version)};

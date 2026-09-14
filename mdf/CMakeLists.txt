@@ -15,7 +15,7 @@ set(mdf_sources
     src/write_mdf.cpp
     src/root_mdf.cpp)
 
-allen_add_host_library(mdf STATIC ${mdf_sources})
+allen_add_host_library(mdf OBJECT ${mdf_sources})
 target_include_directories (mdf PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/main/include>)
@@ -93,12 +93,4 @@ endfunction()
 
 if (BUILD_TESTING)
   test_program(NAME mdf_test_read SOURCE test/test_read.cpp)
-  test_program(NAME mdf_bench_read SOURCE test/bench_read.cpp)
-  test_program(NAME mdf_bench_provider SOURCE test/bench_provider.cpp)
-  test_program(NAME mdf_bench_transpose SOURCE test/bench_transpose.cpp)
-
-  if (NOT STANDALONE)
-    test_program(NAME mep_test_banks SOURCE test/test_mep_banks.cpp)
-    target_link_libraries(allen_mep_test_banks PRIVATE Gaudi::GaudiKernel)
-  endif()
 endif()

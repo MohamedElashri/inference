@@ -1,5 +1,29 @@
 Allen CI configuration
-==========================
+======================
+
+.. warning::
+
+   This page is **deprecated**.  The Allen CI configuration described below is
+   being phased out; use the ``/ci-test`` GitLab command described in the next
+   section to launch cross-project tests on a merge request.
+
+Triggering a full cross-project test with ``/ci-test``
+------------------------------------------------------
+
+To run the full Allen CI on a merge request together with the interdependent
+changes in other projects, post a comment on the merge request with::
+
+  /ci-test LHCb!5683 Allen!2414 DaVinci!1564 Moore!6224 Panoptes!652 LHCbIntegrationTests!137 Online!1248
+
+The ``/ci-test`` command launches a test of all the listed merge requests
+together (for example ``LHCb!5683`` is LHCb merge request 5683,
+``Allen!2414`` is Allen merge request 2414, and so on).  Only list the merge
+requests that are actually interdependent; the CI then builds and tests the
+resulting stack combination, including Allen's physics-performance and
+throughput tests.
+
+Deprecated CI configuration
+---------------------------
 
 The scripts to configure Allen's CI pipeline are located in `scripts/ci/config <https://gitlab.cern.ch/lhcb/Allen/-/tree/master/scripts/ci/config>`_
 Two pipelines are defined and used as follows: Every commit to a merge request triggers the "minimal" pipeline. Before merging a merge request, the "full pipeline" with a larger varietey of build options and data sets is triggered manually from the merge request page.

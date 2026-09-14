@@ -16,33 +16,32 @@
 // LHCb
 #include "Event/RawEvent.h"
 #include "Kernel/STLExtensions.h"
-#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "SelectionsEventModel.cuh"
+#include "AllenBuffer.cuh"
 
 // Standard
 #include <vector>
 #include <deque>
 #include <algorithm>
 
-struct GaudiAllenCountAndDumpLineDecisions final
-  : public Gaudi::Functional::Consumer<void(
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-      const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&)> {
+struct GaudiAllenCountAndDumpLineDecisions final : public Gaudi::Functional::Consumer<void(
+                                                     const Allen::host_buffer<unsigned>&,
+                                                     const Allen::host_buffer<char>&,
+                                                     const Allen::device_buffer<unsigned>&,
+                                                     const Allen::device_buffer<unsigned>&)> {
   // Standard constructor
   GaudiAllenCountAndDumpLineDecisions(const std::string& name, ISvcLocator* pSvcLocator);
 
   void operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_number_of_active_lines,
-    const std::vector<char, LHCb::Allocators::EventLocal<char>>& allen_names_of_active_lines,
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_selections,
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_selections_offsets) const override;
+    const Allen::host_buffer<unsigned>& allen_number_of_active_lines,
+    const Allen::host_buffer<char>& allen_names_of_active_lines,
+    const Allen::device_buffer<unsigned>& allen_selections,
+    const Allen::device_buffer<unsigned>& allen_selections_offsets) const override;
 
 private:
-  bool check_line_names(const std::vector<char, LHCb::Allocators::EventLocal<char>>&) const;
+  bool check_line_names(const Allen::host_buffer<char>&) const;
 
   // Counters for HLT1 selection rates
   mutable std::deque<Gaudi::Accumulators::BinomialCounter<uint32_t>> m_hlt1_line_rates {};
@@ -67,6 +66,8 @@ private:
       }
     },
     "Ordered list of Allen line names"};
+
+  Gaudi::Property<bool> m_isMultiEvent {this, "IsMultiEvent", true, ""};
 };
 
 DECLARE_COMPONENT(GaudiAllenCountAndDumpLineDecisions)
@@ -85,10 +86,10 @@ GaudiAllenCountAndDumpLineDecisions::GaudiAllenCountAndDumpLineDecisions(
 {}
 
 void GaudiAllenCountAndDumpLineDecisions::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_number_of_active_lines,
-  const std::vector<char, LHCb::Allocators::EventLocal<char>>& allen_names_of_active_lines,
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_selections,
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_selections_offsets) const
+  const Allen::host_buffer<unsigned>& allen_number_of_active_lines,
+  const Allen::host_buffer<char>& allen_names_of_active_lines,
+  const Allen::device_buffer<unsigned>& allen_selections,
+  const Allen::device_buffer<unsigned>& allen_selections_offsets) const
 {
   assert(allen_number_of_active_lines[0] == m_hlt1_line_rates.size());
 
@@ -97,27 +98,30 @@ void GaudiAllenCountAndDumpLineDecisions::operator()(
             << endmsg;
   }
 
-  const unsigned i_event = 0;
-  const unsigned number_of_events = 1;
+  auto allen_selections_host = allen_selections.to_host();
+  auto allen_selections_offsets_host = allen_selections_offsets.to_host();
+
+  const unsigned number_of_events = (allen_selections_offsets_host.size() - 1) / allen_number_of_active_lines[0];
 
   // Selections view
   const Selections::ConstSelections selections {
-    allen_selections.data(), allen_selections_offsets.data(), number_of_events};
+    allen_selections_host.data(), allen_selections_offsets_host.data(), number_of_events};
 
   // Increment counters
-  bool global_dec = false;
-  for (unsigned line_index = 0; line_index < allen_number_of_active_lines[0]; line_index++) {
-    bool line_dec = !selections.is_span_empty(line_index, i_event);
-    m_hlt1_line_rates[line_index] += line_dec;
-    global_dec |= line_dec;
+  for (unsigned i_event = 0; i_event < number_of_events; i_event++) {
+    bool global_dec = false;
+    for (unsigned line_index = 0; line_index < allen_number_of_active_lines[0]; line_index++) {
+      bool line_dec = !selections.is_span_empty(line_index, i_event);
+      m_hlt1_line_rates[line_index] += line_dec;
+      global_dec |= line_dec;
+    }
+    m_hlt1_global_rate += global_dec;
   }
-  m_hlt1_global_rate += global_dec;
 }
 
 // Check that the line names in the property m_line_names match the Allen
 // internal list of line names.
-bool GaudiAllenCountAndDumpLineDecisions::check_line_names(
-  const std::vector<char, LHCb::Allocators::EventLocal<char>>& allen_names) const
+bool GaudiAllenCountAndDumpLineDecisions::check_line_names(const Allen::host_buffer<char>& allen_names) const
 {
   if (msgLevel(MSG::DEBUG)) {
     debug() << "Checking line names" << endmsg;

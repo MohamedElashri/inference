@@ -206,6 +206,7 @@ void error_bank_filter::error_bank_filter_t::operator()(
       runtime_options.input_provider.get(),
       runtime_options.slice_index,
       number_of_events,
+      runtime_options.mep_layout,
       std::get<0>(runtime_options.event_interval));
   })(arguments, runtime_options, size<host_event_list_t>(arguments));
 
@@ -225,6 +226,7 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
   [[maybe_unused]] IInputProvider const* input_provider,
   [[maybe_unused]] unsigned const slice_index,
   unsigned const number_of_events,
+  [[maybe_unused]] bool const mep_layout,
   [[maybe_unused]] unsigned const event_start) const
 {
   boost::dynamic_bitset<> selected_events {number_of_events};
@@ -264,7 +266,6 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
     auto const* types = bno.types.data();
     auto const* sizes = bno.sizes.data();
     auto const* offsets = bno.offsets.data();
-    auto const mep_layout = parameters.mep_layout[0];
 
     auto count_bank = [this,
                        sd_counts,

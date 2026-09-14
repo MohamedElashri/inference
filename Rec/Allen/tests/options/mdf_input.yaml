@@ -1,0 +1,11 @@
+testfiledb_key: "upgrade_Sept2022_minbias_0fb_md_mdf"
+evt_max: 10000
+
+n_threads: 2
+events_per_slice: 500
+device_memory_pool: 600
+repetitions: 1
+
+histo_file: 'mdf_input_hists.root'
+output_file: 'mdf_input_output.mdf'
+output_type: "RAW"

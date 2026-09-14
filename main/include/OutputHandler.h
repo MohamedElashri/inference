@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -8,73 +8,30 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+
+// ----------------------------------------------------------------------------
+// Abstract interface for output handlers that consume selected events from a
+// producer ring buffer and write them to a destination (file, network, ...).
+// ----------------------------------------------------------------------------
 #pragma once
 
 #include <span>
 #include <vector>
-
+#include <tuple>
 #include <zmq.hpp>
-
-#include "InputProvider.h"
-#include "BankTypes.h"
-#include "Timer.h"
-
-#ifndef STANDALONE
-#include <GaudiKernel/Service.h>
-#include <Gaudi/Accumulators.h>
-#endif
-
-namespace Allen::Store {
-  class PersistentStore;
-}
-
-namespace LHCb {
-  class MDFHeader;
-}
-
-struct OutputSizes {
-  std::vector<size_t> input;
-  std::vector<size_t> hlt;
-  std::vector<size_t> tae;
-
-  void resize(size_t s)
-  {
-    for (auto* sizes : {&input, &hlt, &tae}) {
-      sizes->resize(s);
-    }
-  }
-
-  void fill_zero()
-  {
-    for (auto* sizes : {&input, &hlt, &tae}) {
-      std::fill_n(sizes->begin(), sizes->size(), 0);
-    }
-  }
-};
+#include <SPSCRingBuffer.h>
 
 class OutputHandler {
 public:
   OutputHandler() {}
 
-  OutputHandler(
-    IInputProvider const* input_provider,
-    std::string const connection,
-    size_t const n_threads,
-    size_t const output_batch_size,
-    bool const checksum)
-  {
-    init(input_provider, std::move(connection), n_threads, output_batch_size, checksum);
-  }
+  OutputHandler(std::string const connection) : m_connection {connection} {}
 
   virtual ~OutputHandler() {}
 
   std::string const& connection() const { return m_connection; }
 
-  std::tuple<bool, size_t> output_selected_events(
-    size_t const thread_id,
-    size_t const slice_index,
-    size_t const event_offset,
-    Allen::Store::PersistentStore const& store);
+  virtual std::tuple<bool, size_t> output_selected_events(SPSCRingBuffer*) = 0;
 
   virtual zmq::socket_t* client_socket() const { return nullptr; }
 
@@ -84,91 +41,20 @@ public:
 
   virtual void output_done() {}
 
-  bool do_checksum() const { return m_checksum; }
-
-  size_t n_threads() const { return m_nthreads; }
-
 protected:
-  void init(
-    IInputProvider const* input_provider,
-    std::string const connection,
-    size_t const n_threads,
-    size_t const output_batch_size,
-    bool const checksum)
-  {
-    m_input_provider = input_provider;
-    m_connection = std::move(connection);
-    m_sizes.resize(n_threads);
-    for (auto& sizes : m_sizes) {
-      sizes.resize(input_provider->events_per_slice());
-    }
-    m_output_batch_size = output_batch_size;
-    m_checksum = checksum;
-    m_nthreads = n_threads;
+  void init(std::string const& connection) { m_connection = connection; }
 
-#ifndef STANDALONE
-    auto* svc = dynamic_cast<Service*>(this);
-    if (svc != nullptr) {
-      m_nprocessed = std::make_unique<Gaudi::Accumulators::Counter<>>(svc, "NProcessed");
-      m_noutput = std::make_unique<Gaudi::Accumulators::Counter<>>(svc, "NOutput");
-      m_ntae = std::make_unique<Gaudi::Accumulators::Counter<>>(svc, "NTAEOutput");
-      m_nbatches = std::make_unique<Gaudi::Accumulators::AveragingCounter<>>(svc, "NBatches");
-      m_batch_size = std::make_unique<Gaudi::Accumulators::AveragingCounter<>>(svc, "BatchSize");
+  size_t count_events(std::span<char> const& buffer)
+  {
+    size_t count = 0;
+    size_t i = 0;
+    while (i < buffer.size()) {
+      i += *reinterpret_cast<unsigned*>(buffer.data() + i); // size of the record is the first unsigned
+      count++;
     }
-#endif
+    return count;
   }
 
-  virtual std::span<char> buffer(size_t thread_id, size_t buffer_size, size_t n_events) = 0;
-
-  virtual bool write_buffer(size_t thread_id) = 0;
-
 private:
-  OutputSizes& event_sizes(
-    size_t const thread_id,
-    size_t const slice_index,
-    Allen::Store::PersistentStore const& store,
-    std::vector<unsigned> const& selected_events,
-    unsigned const start_event);
-
-  LHCb::MDFHeader*
-  add_mdf_header(std::span<char> event_span, unsigned const run_number, std::span<unsigned const> routing_bits);
-
-  size_t add_banks(
-    Allen::Store::PersistentStore const& store,
-    unsigned const slice_index,
-    unsigned const start_event,
-    unsigned const event_number,
-    unsigned const input_size,
-    std::span<char> event_span);
-
-  void add_checksum(LHCb::MDFHeader* header, std::span<char> event_span);
-
-  std::tuple<bool, size_t> output_single_events(
-    size_t const thread_id,
-    size_t const slice_index,
-    size_t const event_offset,
-    Allen::Store::PersistentStore const& store);
-
-  std::tuple<bool, size_t> output_tae_events(
-    size_t const thread_id,
-    size_t const slice_index,
-    size_t const event_offset,
-    Allen::Store::PersistentStore const& store);
-
-  IInputProvider const* m_input_provider = nullptr;
   std::string m_connection;
-
-  std::vector<OutputSizes> m_sizes;
-  std::array<uint32_t, 4> m_trigger_mask = {~0u, ~0u, ~0u, ~0u};
-  size_t m_output_batch_size = 10;
-  bool m_checksum = false;
-  size_t m_nthreads = 1;
-
-#ifndef STANDALONE
-  std::unique_ptr<Gaudi::Accumulators::Counter<>> m_nprocessed;
-  std::unique_ptr<Gaudi::Accumulators::Counter<>> m_noutput;
-  std::unique_ptr<Gaudi::Accumulators::AveragingCounter<>> m_batch_size;
-  std::unique_ptr<Gaudi::Accumulators::AveragingCounter<>> m_nbatches;
-  std::unique_ptr<Gaudi::Accumulators::Counter<>> m_ntae;
-#endif
 };
