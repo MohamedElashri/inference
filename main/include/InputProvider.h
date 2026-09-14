@@ -247,10 +247,13 @@ protected:
 #ifndef ALLEN_STANDALONE
 #include "GaudiKernel/IInterface.h"
 #include "Event/RawEvent.h"
+namespace LHCb::IO {
+  struct InputFileManifest;
+}
 class GAUDI_API IInputProviderSvc : public extend_interfaces<IInterface>, public InputProvider {
 public:
   // Return the interface ID
-  DeclareInterfaceID(IInputProviderSvc, 0, 0);
+  DeclareInterfaceID(IInputProviderSvc, 0, 1);
   virtual ~IInputProviderSvc() = default;
 
   virtual std::vector<DataObject*> getEventBranches(size_t const, unsigned const) const { return {}; }
@@ -261,6 +264,10 @@ public:
   virtual LHCb::RawEvent getRawEvent(size_t const slice_index, unsigned int const event) const = 0;
 
   virtual LHCb::ODIN getODIN(size_t const slice_index) const = 0;
+
+  /// Manifest of the file backing this event; valid until the slice is released.
+  /// Providers without ROOT input reject this request.
+  virtual LHCb::IO::InputFileManifest getInputFileManifest(size_t const, unsigned const) const;
 };
 #else
 using IInputProviderSvc = InputProvider;

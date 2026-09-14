@@ -212,6 +212,12 @@ public:
     return raw_event;
   }
 
+  LHCb::IO::InputFileManifest getInputFileManifest(size_t const slice_index, unsigned const event) const override
+  {
+    if (m_input_type != "ROOT") return IInputProviderSvc::getInputFileManifest(slice_index, event);
+    return m_transpose_workers->slice(slice_index).batch.input_file_manifests.at(event);
+  }
+
   LHCb::ODIN getODIN(size_t const slice_index) const override
   {
     return m_transpose_workers->slice(slice_index).batch.odin_data[0];

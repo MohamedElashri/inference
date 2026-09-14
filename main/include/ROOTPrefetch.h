@@ -98,6 +98,9 @@ struct ROOTPrefetcher : Allen::FilePrefetcher {
           batch.event_mask.push_back(true);
         }
         batch.buffers.push_back(buffer); // TODO: deduplicate shared pointers
+        // Slices may span files. These views borrow from the corresponding buffer,
+        // retained above until the slice is released after event processing.
+        batch.input_file_manifests.push_back(buffer->inputFileManifest());
 
         batch.branches.push_back(eventData.first);
 

@@ -10,6 +10,14 @@
 \*****************************************************************************/
 
 #include <MDFProvider.h>
+#include <stdexcept>
+
+#ifndef ALLEN_STANDALONE
+LHCb::IO::InputFileManifest IInputProviderSvc::getInputFileManifest(size_t const, unsigned const) const
+{
+  throw std::logic_error {"This input provider does not support ROOT input-file manifests"};
+}
+#endif
 
 void MDFProvider::init()
 {

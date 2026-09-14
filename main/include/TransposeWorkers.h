@@ -33,6 +33,9 @@
 #include <Event/ODIN.h>
 
 #include "PinnedVector.h"
+#ifndef ALLEN_STANDALONE
+#include "IOAlgorithms/InputFileManifest.h"
+#endif
 
 namespace {
   bool check_top5(BankTypes bt, LHCb::RawBank const* bank)
@@ -75,6 +78,7 @@ namespace Allen {
       std::vector<char> event_mask; // ODIN error bits
 #ifndef ALLEN_STANDALONE
       std::vector<std::vector<DataObject*>> branches;
+      std::vector<LHCb::IO::InputFileManifest> input_file_manifests;
 #endif
       void reset()
       {
@@ -85,6 +89,7 @@ namespace Allen {
         event_mask.clear();
 #ifndef ALLEN_STANDALONE
         branches.clear();
+        input_file_manifests.clear();
 #endif
       }
       size_t size() const { return events.size(); }

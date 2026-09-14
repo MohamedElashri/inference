@@ -94,6 +94,12 @@ gaudi_install(PYTHON)
 
 gaudi_add_pytest(tests/pytest)
 
+gaudi_add_executable(test_input_file_manifest
+    SOURCES tests/src/test_input_file_manifest.cpp
+    LINK Boost::unit_test_framework Boost::thread AllenLib mdf Backend EventModel LHCb::IOAlgorithmsLib
+    TEST
+)
+
 gaudi_add_executable(test_mass_definitions
     SOURCES
         tests/src/test_mass_definitions.cpp
