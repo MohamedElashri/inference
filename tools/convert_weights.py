@@ -2,18 +2,19 @@
 Convert PVFinder .pyt weights to binary format for the Allen C++ implementation.
 
 Produces two files:
-  fc_weights.bin  — FC MLP layers 1-6A (used by PVFinderTrackAggregation)
-  cnn_weights.bin — UNet CNN layers     (used by PVFinderUNet)
+  fc_weights.bin  — FC MLP layers 1-6A (used by pvfinder_fc_aggregation)
+  cnn_weights.bin — UNet CNN layers     (used by pvfinder_unet)
 
 Usage:
   python tools/convert_weights.py --model <path/to/model.pyt> \\
       [--fc-out fc_weights.bin] [--cnn-out cnn_weights.bin]
 
-The script auto-detects the UNet feature count (N_FEAT) from the state dict.
-The FC architecture (9→20→20→20→20→20→800) is the same across all variants.
+The script detects the UNet feature count (N_FEAT) and latentChannels from the
+state dict. The FC architecture is 9→20→20→20→20→20→(latentChannels*100).
 
-NOTE: When using a 16-channel model, Allen must be rebuilt with N_FEAT=16 in
-PVFinderUNet.cuh before the produced cnn_weights.bin will work.
+Allen must be built to match the model, e.g. for the 16-channel model:
+  ./ballen -a gpu --cudnn --cublas --unet-feat 16 --unet-batch-channels 8
+(ballen defaults when the flags are omitted: N_FEAT=64, latentChannels=8).
 """
 
 import argparse
@@ -161,10 +162,8 @@ def main():
     n_latent = state_dict["layer6A.bias"].shape[0] // 100  # latentChannels
     print(f"Detected: N_FEAT={n_feat}, latentChannels={n_latent}")
 
-    if n_feat != 64:
-        print(f"\nWARNING: N_FEAT={n_feat} detected. Allen must be rebuilt with")
-        print(f"  N_FEAT = {n_feat}  in Allen/device/pvfinder/include/PVFinderUNet.cuh")
-        print(f"  before cnn_weights.bin will work correctly.\n")
+    print(f"\nAllen must be built to match this model:")
+    print(f"  ./ballen -a gpu --cudnn --cublas --unet-feat {n_feat} --unet-batch-channels {n_latent}\n")
 
     if not args.cnn_only:
         print(f"\nWriting FC weights → {args.fc_out}")

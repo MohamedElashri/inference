@@ -82,7 +82,7 @@ struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
 private:
     Allen::Property<std::string> m_weight_file {
         this, "weight_file", "/data/home/melashri/iris/inference/cnn_weights.bin",
-        "path to cnn_weights.bin produced by convert_cnn_weights.py"};
+        "path to cnn_weights.bin produced by tools/convert_weights.py"};
 
     Allen::Property<dim3> m_block_dim {
         this, "block_dim", {256, 1, 1}, "CUDA block dim for element-wise kernels"};

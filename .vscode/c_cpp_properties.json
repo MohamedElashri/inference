@@ -11,7 +11,7 @@
             "cppStandard": "gnu++17",
             "intelliSenseMode": "linux-gcc-x64",
             "compileCommands": [
-                "${workspaceFolder}/Allen/buildgpu/compile_commands.json"
+                "${workspaceFolder}/Allen/buildgpu16chgpu/compile_commands.json"
             ]
         }
     ],

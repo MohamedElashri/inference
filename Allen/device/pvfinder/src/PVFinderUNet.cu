@@ -749,7 +749,7 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
 
 // ---------------------------------------------------------------------------
 // Binary weight file parser
-// Layout (from convert_cnn_weights.py):
+// Layout (written by write_cnn_weights in tools/convert_weights.py):
 //   uint32  magic = 0xCAFE0001
 //   conv(8→64,k=25):  int32 in,out,k | float[out*in*k] weights | float[out] bias
 //   bn(64):           int32 features | float eps | float[f] gamma,beta,mean,var

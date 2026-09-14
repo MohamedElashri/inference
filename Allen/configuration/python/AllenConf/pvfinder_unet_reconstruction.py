@@ -26,7 +26,7 @@ def make_pvfinder_unet(fc_output,
           - "dev_pvfinder_interval_features"
           - "host_number_of_events"
     weight_file : str
-        Path to cnn_weights.bin produced by convert_cnn_weights.py.
+        Path to cnn_weights.bin produced by tools/convert_weights.py.
 
     Returns
     -------
