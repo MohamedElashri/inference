@@ -46,6 +46,8 @@ parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
 parser.add_argument("--plot",      action="store_true",
                     help="Save comparison plots to <dump_dir>/plots/")
+parser.add_argument("--report",    default="",
+                    help="Write a machine-readable JSON report to this path")
 args = parser.parse_args()
 
 # ---------------------------------------------------------------------------
@@ -196,11 +198,67 @@ per_event_max = abs_diff.reshape(n_events, N_INTERVALS * W_IN).max(axis=1)
 print(f"\n  Per-event max abs diff (first 10): "
       f"{[f'{v:.3e}' for v in per_event_max[:10]]}")
 
+# Distribution, correlation and region statistics (finite-input intervals only)
+fin_al = allen_kde[finite_input].astype(np.float64)
+fin_pt = pt_kde[finite_input].astype(np.float64)
+fin_abs = np.abs(fin_al - fin_pt)
+fin_rel = fin_abs / (np.abs(fin_pt) + 1e-9)
+PCT_LABELS = ["P50", "P90", "P95", "P99", "P99.9", "Pmax"]
+abs_pcts = np.percentile(fin_abs, [50, 90, 95, 99, 99.9, 100])
+rel_pcts = np.percentile(fin_rel, [50, 90, 95, 99, 99.9, 100])
+print(f"\n  {'Percentile':10s}  {'Abs diff':>14s}  {'Rel diff':>14s}")
+for lbl, av, rv in zip(PCT_LABELS, abs_pcts, rel_pcts):
+    print(f"  {lbl:10s}  {av:14.6e}  {rv:14.6e}")
+
+flat_pt, flat_al = fin_pt.ravel(), fin_al.ravel()
+pearson_r = float(np.corrcoef(flat_pt, flat_al)[0, 1])
+ss_tot = np.sum((flat_al - flat_al.mean()) ** 2)
+r_squared = float(1.0 - np.sum((flat_al - flat_pt) ** 2) / ss_tot) if ss_tot > 0 else float("nan")
+print(f"\n  Pearson r: {pearson_r:.10f}   R^2: {r_squared:.10f}")
+
+sig_mask = fin_pt > 1e-3
+bg_mask = fin_pt < 1e-4
+sig_worst = float(fin_abs[sig_mask].max()) if sig_mask.any() else 0.0
+bg_worst = float(fin_abs[bg_mask].max()) if bg_mask.any() else 0.0
+print(f"  Signal bins (PyTorch KDE > 1e-3): {int(sig_mask.sum())}, worst abs diff {sig_worst:.3e}")
+print(f"  Background bins (PyTorch KDE < 1e-4): {int(bg_mask.sum())}, worst abs diff {bg_worst:.3e}")
+
+worst_ev = int(np.argmax(per_event_max))
+ev_diff = abs_diff.reshape(n_events, N_INTERVALS, W_IN)[worst_ev]
+worst_iv = int(np.argmax(ev_diff.max(axis=1)))
+print(f"  Worst event {worst_ev}, interval {worst_iv}: max abs diff {ev_diff[worst_iv].max():.3e}, "
+      f"PyTorch peak {pt_kde.reshape(n_events, N_INTERVALS, W_IN)[worst_ev, worst_iv].max():.4e}, "
+      f"Allen peak {allen_kde.reshape(n_events, N_INTERVALS, W_IN)[worst_ev, worst_iv].max():.4e}")
+
 # Pass/fail threshold — expect cuDNN fp32 vs PyTorch fp32 differences < 1e-3
 threshold = 1e-3
 worst = abs_diff.max()
 status = "PASS" if (worst < threshold and nonfinite_out == 0) else "FAIL"
 print(f"\n  Threshold: {threshold:.0e}  →  {status}  (worst={worst:.3e})")
+
+if args.report:
+    import json
+    report = {
+        "dump_dir": args.dump_dir,
+        "weights": args.weights,
+        "n_events": int(n_events),
+        "n_intervals": int(finite_input.size),
+        "non_finite_input_intervals": n_nan_input,
+        "max_abs_diff": float(worst),
+        "abs_percentiles": {l: float(v) for l, v in zip(PCT_LABELS, abs_pcts)},
+        "rel_percentiles": {l: float(v) for l, v in zip(PCT_LABELS, rel_pcts)},
+        "pearson_r": pearson_r,
+        "r_squared": r_squared,
+        "signal_region": {"n_bins": int(sig_mask.sum()), "max_abs_diff": sig_worst},
+        "background_region": {"n_bins": int(bg_mask.sum()), "max_abs_diff": bg_worst},
+        "worst_event": {"event": worst_ev, "interval": worst_iv},
+        "per_event_max_abs_diff": per_event_max.tolist(),
+        "threshold": threshold,
+        "status": status,
+    }
+    with open(args.report, "w") as fp:
+        json.dump(report, fp, indent=2)
+    print(f"  JSON report written to {args.report}")
 
 # ---------------------------------------------------------------------------
 # Plots (optional)
