@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
+#include <memory>
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
 #include <cuda_fp16.h>
@@ -18,7 +19,8 @@
 //   - One thread_local cudnnHandle_t per OS thread, created lazily via
 //     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
 //   - IMPLICIT_GEMM algorithm pinned everywhere → zero workspace.
-//   - Weight tensors loaded once into WeightRegistry via std::call_once.
+//   - Weights and descriptors are owned per algorithm instance (UNetState in the .cu), so
+//     several pvfinder_unet algorithms with different weight files can share a sequence.
 // ---------------------------------------------------------------------------
 
 namespace pvfinder_unet {
@@ -240,13 +242,18 @@ private:
         "capture+replay the concat-mode UNet pipeline (FP32 or FP16) as a CUDA graph "
         "(only active when skip_mode=concat)"};
 
-    // m_init_done: set to true after init() completes. Guards call_once.
-    mutable bool m_init_done = false;
+    // Per-instance state: BN-folded weights, cuDNN descriptors and their
+    // once-flag, defined in PVFinderUNet.cu so the cuDNN types stay out of this
+    // header. Created in init(). Owning it per instance (rather than in
+    // file-level statics) lets several pvfinder_unet algorithms with different
+    // weights run in one sequence; shared_ptr keeps the algorithm copyable.
+    struct UNetState;
+    std::shared_ptr<UNetState> m_state;
     mutable bool m_dump_done = false;
     mutable unsigned m_call_count = 0;
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    // Per-layer helpers — use global descriptor set + thread_local handle
+    // Per-layer helpers — use this instance's descriptor set + the stream's cuDNN handle
     void run_convbnrelu(
         const Allen::CuDNN::ConvDescriptors& desc,
         const float* input, float* output,

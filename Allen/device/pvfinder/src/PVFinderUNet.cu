@@ -7,6 +7,8 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <memory>
+#include <unordered_map>
 #include <vector>
 
 INSTANTIATE_ALGORITHM(pvfinder_unet::pvfinder_unet_t)
@@ -19,9 +21,9 @@ namespace pvfinder_unet {
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 // ---------------------------------------------------------------------------
-// Process-level global descriptor set.
-// Created exactly once via s_init_flag — shared read-only across all threads.
-// Shapes are compile-time constants so no synchronisation is needed after init.
+// Descriptor set of one pvfinder_unet instance (held in UNetState below).
+// Created once per instance on its first operator() call, then shared
+// read-only by all threads. Shapes are fixed for the process lifetime.
 // ---------------------------------------------------------------------------
 struct GlobalDescriptors {
     // CBR layers: cuDNN conv followed by a fused bias+ReLU elementwise pass
@@ -76,7 +78,7 @@ struct GlobalDescriptors {
     // already-validated FP16 path is untouched by this addition. No shared
     // bf16_pool activation buffer here, deliberately -- this phase's BF16
     // support is eager-path-only (no CUDA graph capture), and the eager
-    // FP16 path itself does not use s_desc.fp16_pool either; it uses a
+    // FP16 path itself does not use the (unused) fp16_pool either; it uses a
     // thread_local pool instead (GraphScratchPoolBF16 below), for the same
     // reason the FP16 one does (see that struct's comment).
     Allen::CuDNN::ConvDescriptors rcbn1_bf, rcbn2_bf, rcbn3_bf, up1c_bf, up2c_bf;
@@ -131,10 +133,6 @@ struct GlobalDescriptors {
     float* up1_merge_bias   = nullptr;
 };
 
-static GlobalDescriptors s_desc;
-static std::once_flag    s_init_flag;
-static std::once_flag    s_desc_init_flag;
-
 // Serializes the one-time (per-thread) CUDA graph capture sequence in
 // get_or_capture_cuda_graph / get_or_capture_cuda_graph_fp16 across ALL
 // threads. Each thread's captured graph/exec/scratch-pool is still fully
@@ -171,9 +169,11 @@ struct ConvTransposeTensorDescs {
     cudnnTensorDescriptor_t td_up2_in_slim = nullptr;
 };
 
-static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(int N)
+static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(const void* owner, int N)
 {
-    thread_local ConvTransposeTensorDescs descs;
+    // One per (thread, algorithm instance): shapes and contents belong to one instance.
+    thread_local std::unordered_map<const void*, ConvTransposeTensorDescs> cache;
+    ConvTransposeTensorDescs& descs = cache[owner];
     if (descs.td_up1_in == nullptr) {
         ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up1_in));
         ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up1_out));
@@ -210,7 +210,7 @@ static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(int
 // Allen-managed pointers, and their arguments are patched per replay via
 // cudaGraphExecKernelNodeSetParams.
 //
-// MUST be thread_local, not a shared global like s_desc.fp16_pool: many OS
+// MUST be thread_local, not one shared pool like the unused fp16_pool field: many OS
 // threads (one per Allen Stream, per -t N) call operator() on this same
 // shared algorithm instance concurrently, each on its own stream. A shared
 // pool would let concurrent threads' chunk pipelines corrupt each other's
@@ -227,9 +227,11 @@ struct GraphScratchPool {
     float* kde_out = nullptr;  // [N, W_IN]
 };
 
-static const GraphScratchPool& get_thread_local_graph_scratch_pool(int N)
+static const GraphScratchPool& get_thread_local_graph_scratch_pool(const void* owner, int N)
 {
-    thread_local GraphScratchPool pool;
+    // One per (thread, algorithm instance): shapes and contents belong to one instance.
+    thread_local std::unordered_map<const void*, GraphScratchPool> cache;
+    GraphScratchPool& pool = cache[owner];
     if (pool.ncw_in == nullptr) {
         const size_t sz_ncw_in  = (size_t)N * N_BATCH_CHANNELS * W_IN;
         const size_t sz_x1      = (size_t)N * N_FEAT * W_IN;
@@ -257,9 +259,9 @@ static const GraphScratchPool& get_thread_local_graph_scratch_pool(int N)
 // ---------------------------------------------------------------------------
 // CUDA graph scratch pool -- FP16 counterpart of GraphScratchPool, same
 // thread_local/never-freed rules apply (see comment above GraphScratchPool).
-// Mirrors s_desc.fp16_pool's layout/sizes exactly, but is NOT that shared
+// Mirrors the fp16_pool field's layout/sizes exactly, but is NOT that shared
 // global -- each thread gets its own copy, avoiding the same class of
-// multi-thread race s_desc.fp16_pool has in the eager FP16 path (not fixed
+// multi-thread race a shared fp16_pool has in the eager FP16 path (not fixed
 // here; out of scope, flagged separately). FP32-side buffers needed at the
 // FP16 path's boundaries (x1, x3/logits, up2/cat2, kde_out shuttle) reuse the
 // existing GraphScratchPool rather than duplicating them.
@@ -274,9 +276,11 @@ struct GraphScratchPoolFP16 {
     __half* up2  = nullptr;  // [N, N_FEAT, W_IN]      -- reused as general scratch
 };
 
-static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16(int N)
+static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16(const void* owner, int N)
 {
-    thread_local GraphScratchPoolFP16 pool;
+    // One per (thread, algorithm instance): shapes and contents belong to one instance.
+    thread_local std::unordered_map<const void*, GraphScratchPoolFP16> cache;
+    GraphScratchPoolFP16& pool = cache[owner];
     if (pool.ncw == nullptr) {
         const size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
         const size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
@@ -319,9 +323,11 @@ struct GraphScratchPoolBF16 {
     __nv_bfloat16* up2  = nullptr;  // [N, N_FEAT, W_IN]      -- reused as general scratch
 };
 
-static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16(int N)
+static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16(const void* owner, int N)
 {
-    thread_local GraphScratchPoolBF16 pool;
+    // One per (thread, algorithm instance): shapes and contents belong to one instance.
+    thread_local std::unordered_map<const void*, GraphScratchPoolBF16> cache;
+    GraphScratchPoolBF16& pool = cache[owner];
     if (pool.ncw == nullptr) {
         const size_t sz_ncw  = (size_t)N * N_BATCH_CHANNELS * W_IN;
         const size_t sz_x1   = (size_t)N * N_FEAT * W_IN;
@@ -344,6 +350,17 @@ static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16(int 
     }
     return pool;
 }
+
+// A captured CUDA graph plus its patchable shuttle nodes; the template graph
+// must outlive the exec (see get_or_capture_cuda_graph). One per (thread,
+// algorithm instance): a graph bakes in that instance's descriptors, weights
+// and scratch pool, so replaying another instance's graph would be wrong.
+struct CapturedGraph {
+    cudaGraphExec_t exec           = nullptr;
+    cudaGraphNode_t copy_in        = nullptr;
+    cudaGraphNode_t copy_out       = nullptr;
+    cudaGraph_t     template_graph = nullptr;
+};
 
 // Weight blob: device pointers per layer (filled in init(), used in operator()).
 struct WeightBlob {
@@ -379,10 +396,17 @@ struct WeightBlob {
     const float* w_oint_b;
     const float* w_outc_w;   const float* w_outc_b;
 };
-static WeightBlob s_wb {};
-static bool s_wb_loaded = false;
 
-static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, size_t fwd_ws_budget_bytes, int N)
+// Everything one pvfinder_unet instance owns: its weights (loaded in init()),
+// its descriptors (created on its first operator() call, since algorithm
+// selection needs a live cuDNN handle) and the once-flag guarding them.
+struct pvfinder_unet_t::UNetState {
+    WeightBlob        wb {};
+    GlobalDescriptors desc;
+    std::once_flag    desc_init_flag;
+};
+
+static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, const WeightBlob& wb, size_t fwd_ws_budget_bytes, int N)
 {
 
     // Helper: allocate device buffer for fused weights/bias and launch the
@@ -431,19 +455,19 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
             wb.w_rcbn1_gamma, wb.w_rcbn1_beta,
             wb.w_rcbn1_mean,  wb.w_rcbn1_var, wb.rcbn1_eps,
             N_FEAT, N_BATCH_CHANNELS * 25,
-            s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, 0);
+            desc.rcbn1_w_f, desc.rcbn1_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
+    desc.rcbn1.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
                         {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
-    to_half(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
-            s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, 0);
+    to_half(desc.rcbn1_w_f, desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
+            desc.rcbn1_w_h, desc.rcbn1_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn1_h.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
+    desc.rcbn1_h.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
                           {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
-    to_bf16(s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
-            s_desc.rcbn1_w_bf, s_desc.rcbn1_b_bf, 0);
+    to_bf16(desc.rcbn1_w_f, desc.rcbn1_b_f, N_FEAT, N_BATCH_CHANNELS * 25,
+            desc.rcbn1_w_bf, desc.rcbn1_b_bf, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn1_bf.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
+    desc.rcbn1_bf.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0,12},
                           {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     // Optional true single-pass Conv+Bias+ReLU for rcbn1. Uses the same
@@ -452,10 +476,10 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // the current GPU/cuDNN version -- caught here so the process still
     // starts and use_fused_cbr silently falls back to the two-pass path.
     try {
-        s_desc.rcbn1_fused.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0, 12});
-        s_desc.rcbn1_fused_available = true;
+        desc.rcbn1_fused.create(handle, {N, N_BATCH_CHANNELS, 1, W_IN}, {N_FEAT, N_BATCH_CHANNELS, 1, 25}, {0, 12});
+        desc.rcbn1_fused_available = true;
     } catch (const std::exception& e) {
-        s_desc.rcbn1_fused_available = false;
+        desc.rcbn1_fused_available = false;
         fprintf(stderr, "[pvfinder_unet] ConvBiasReluGraph unavailable for rcbn1 (%s); "
                 "use_fused_cbr will fall back to the two-pass conv+bias/ReLU path.\n", e.what());
     }
@@ -464,69 +488,69 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
             wb.w_rcbn2_gamma, wb.w_rcbn2_beta,
             wb.w_rcbn2_mean,  wb.w_rcbn2_var, wb.rcbn2_eps,
             N_FEAT, N_FEAT * 7,
-            s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, 0);
+            desc.rcbn2_w_f, desc.rcbn2_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3},
+    desc.rcbn2.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1,  7}, {0, 3},
                         {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
-    to_half(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
-            s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, 0);
+    to_half(desc.rcbn2_w_f, desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
+            desc.rcbn2_w_h, desc.rcbn2_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn2_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
+    desc.rcbn2_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
                           {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
-    to_bf16(s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
-            s_desc.rcbn2_w_bf, s_desc.rcbn2_b_bf, 0);
+    to_bf16(desc.rcbn2_w_f, desc.rcbn2_b_f, N_FEAT, N_FEAT * 7,
+            desc.rcbn2_w_bf, desc.rcbn2_b_bf, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn2_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
+    desc.rcbn2_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 7}, {0,3},
                           {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_rcbn3_w, wb.w_rcbn3_b,
             wb.w_rcbn3_gamma, wb.w_rcbn3_beta,
             wb.w_rcbn3_mean,  wb.w_rcbn3_var, wb.rcbn3_eps,
             N_FEAT, N_FEAT * 5,
-            s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, 0);
+            desc.rcbn3_w_f, desc.rcbn3_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+    desc.rcbn3.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2},
                         {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
-    to_half(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
-            s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, 0);
+    to_half(desc.rcbn3_w_f, desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
+            desc.rcbn3_w_h, desc.rcbn3_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn3_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+    desc.rcbn3_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                           {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
-    to_bf16(s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
-            s_desc.rcbn3_w_bf, s_desc.rcbn3_b_bf, 0);
+    to_bf16(desc.rcbn3_w_f, desc.rcbn3_b_f, N_FEAT, N_FEAT * 5,
+            desc.rcbn3_w_bf, desc.rcbn3_b_bf, 0);
     cudaDeviceSynchronize();
-    s_desc.rcbn3_bf.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+    desc.rcbn3_bf.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                           {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     fold_bn(wb.w_up1c_w, wb.w_up1c_b,
             wb.w_up1c_gamma, wb.w_up1c_beta,
             wb.w_up1c_mean,  wb.w_up1c_var, wb.up1c_eps,
             N_FEAT, N_FEAT * 5,
-            s_desc.up1c_w_f, s_desc.up1c_b_f, 0);
+            desc.up1c_w_f, desc.up1c_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+    desc.up1_c.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0, 2},
                         {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
-    to_half(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
-            s_desc.up1c_w_h, s_desc.up1c_b_h, 0);
+    to_half(desc.up1c_w_f, desc.up1c_b_f, N_FEAT, N_FEAT * 5,
+            desc.up1c_w_h, desc.up1c_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.up1c_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+    desc.up1c_h.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
-    to_bf16(s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, N_FEAT * 5,
-            s_desc.up1c_w_bf, s_desc.up1c_b_bf, 0);
+    to_bf16(desc.up1c_w_f, desc.up1c_b_f, N_FEAT, N_FEAT * 5,
+            desc.up1c_w_bf, desc.up1c_b_bf, 0);
     cudaDeviceSynchronize();
-    s_desc.up1c_bf.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+    desc.up1c_bf.create(handle, {N, N_FEAT, 1, W_HALF}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     // Fold up1's ConvTranspose+Conv into phase-dependent merged taps, from
     // the raw (unfused) ConvTranspose
     // weight/bias and the already-BN-folded up1c_w_f/b_f above.
     {
-        cudaMalloc(&s_desc.up1_merge_K_even, (size_t)N_FEAT * N_FEAT * 3 * sizeof(float));
-        cudaMalloc(&s_desc.up1_merge_K_odd,  (size_t)N_FEAT * N_FEAT * 3 * sizeof(float));
-        cudaMalloc(&s_desc.up1_merge_bias,   (size_t)N_FEAT * sizeof(float));
+        cudaMalloc(&desc.up1_merge_K_even, (size_t)N_FEAT * N_FEAT * 3 * sizeof(float));
+        cudaMalloc(&desc.up1_merge_K_odd,  (size_t)N_FEAT * N_FEAT * 3 * sizeof(float));
+        cudaMalloc(&desc.up1_merge_bias,   (size_t)N_FEAT * sizeof(float));
         launch_fold_up1_merge(
-            s_desc.up1_merge_K_even, s_desc.up1_merge_K_odd, s_desc.up1_merge_bias,
-            wb.w_up1t_w, wb.w_up1t_b, s_desc.up1c_w_f, s_desc.up1c_b_f,
+            desc.up1_merge_K_even, desc.up1_merge_K_odd, desc.up1_merge_bias,
+            wb.w_up1t_w, wb.w_up1t_b, desc.up1c_w_f, desc.up1c_b_f,
             N_FEAT, /*stream=*/0);
         cudaDeviceSynchronize();
     }
@@ -535,19 +559,19 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
             wb.w_up2c_gamma, wb.w_up2c_beta,
             wb.w_up2c_mean,  wb.w_up2c_var, wb.up2c_eps,
             N_FEAT, N_FEAT * 5,
-            s_desc.up2c_w_f, s_desc.up2c_b_f, 0);
+            desc.up2c_w_f, desc.up2c_b_f, 0);
     cudaDeviceSynchronize();
-    s_desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+    desc.up2_c.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
                         {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
-    to_half(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
-            s_desc.up2c_w_h, s_desc.up2c_b_h, 0);
+    to_half(desc.up2c_w_f, desc.up2c_b_f, N_FEAT, N_FEAT * 5,
+            desc.up2c_w_h, desc.up2c_b_h, 0);
     cudaDeviceSynchronize();
-    s_desc.up2c_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+    desc.up2c_h.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_HALF, fwd_ws_budget_bytes);
-    to_bf16(s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, N_FEAT * 5,
-            s_desc.up2c_w_bf, s_desc.up2c_b_bf, 0);
+    to_bf16(desc.up2c_w_f, desc.up2c_b_f, N_FEAT, N_FEAT * 5,
+            desc.up2c_w_bf, desc.up2c_b_bf, 0);
     cudaDeviceSynchronize();
-    s_desc.up2c_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
+    desc.up2c_bf.create(handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0,2},
                          {1,1}, {1,1}, CUDNN_DATA_BFLOAT16, fwd_ws_budget_bytes);
 
     // No global FP16 activation pool: the eager and graph FP16 paths both use
@@ -555,9 +579,9 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // would only waste memory outside Allen's -m budget at large batch sizes.
 
     // Non-CBR paths: plain conv, same pinned-IMPLICIT_GEMM-by-default ConvDescriptors.
-    s_desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
+    desc.oint_half.create(handle, {N, N_FEAT, 1, W_IN},  {N_FEAT, N_FEAT, 1, 5}, {0, 2},
                             {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
-    s_desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2},
+    desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2},
                             {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
 
     // Fold out_intermediate+outc into a single merged Conv1d(k=9) per
@@ -567,11 +591,11 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // trained out_intermediate weight). K_MERGED = K1+K2-1 = 5+5-1 = 9.
     {
         constexpr int K1 = 5, K2 = 5, K_MERGED = K1 + K2 - 1;
-        cudaMalloc(&s_desc.oint_outc_merged_a,    (size_t)N_FEAT * K_MERGED * sizeof(float));
-        cudaMalloc(&s_desc.oint_outc_merged_b,    (size_t)N_FEAT * K_MERGED * sizeof(float));
-        cudaMalloc(&s_desc.oint_outc_merged_bias, sizeof(float));
+        cudaMalloc(&desc.oint_outc_merged_a,    (size_t)N_FEAT * K_MERGED * sizeof(float));
+        cudaMalloc(&desc.oint_outc_merged_b,    (size_t)N_FEAT * K_MERGED * sizeof(float));
+        cudaMalloc(&desc.oint_outc_merged_bias, sizeof(float));
         launch_fold_oint_outc(
-            s_desc.oint_outc_merged_a, s_desc.oint_outc_merged_b, s_desc.oint_outc_merged_bias,
+            desc.oint_outc_merged_a, desc.oint_outc_merged_b, desc.oint_outc_merged_bias,
             wb.w_oint_a_w, wb.w_oint_b_w, wb.w_oint_b, wb.w_outc_w, wb.w_outc_b,
             N_FEAT, K1, K2, K_MERGED, /*stream=*/0);
         cudaDeviceSynchronize();
@@ -600,12 +624,12 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     fprintf(stderr, "[pvfinder_unet] ConvDescriptors workspace bytes: rcbn1=%zu rcbn2=%zu rcbn3=%zu "
            "up1_c=%zu up2_c=%zu oint_half=%zu outc=%zu | algo ids: rcbn1=%d rcbn2=%d rcbn3=%d "
            "up1_c=%d up2_c=%d oint_half=%d outc=%d\n",
-           s_desc.rcbn1.workspace_bytes(), s_desc.rcbn2.workspace_bytes(), s_desc.rcbn3.workspace_bytes(),
-           s_desc.up1_c.workspace_bytes(), s_desc.up2_c.workspace_bytes(),
-           s_desc.oint_half.workspace_bytes(), s_desc.outc.workspace_bytes(),
-           s_desc.rcbn1.algo_id(), s_desc.rcbn2.algo_id(), s_desc.rcbn3.algo_id(),
-           s_desc.up1_c.algo_id(), s_desc.up2_c.algo_id(),
-           s_desc.oint_half.algo_id(), s_desc.outc.algo_id());
+           desc.rcbn1.workspace_bytes(), desc.rcbn2.workspace_bytes(), desc.rcbn3.workspace_bytes(),
+           desc.up1_c.workspace_bytes(), desc.up2_c.workspace_bytes(),
+           desc.oint_half.workspace_bytes(), desc.outc.workspace_bytes(),
+           desc.rcbn1.algo_id(), desc.rcbn2.algo_id(), desc.rcbn3.algo_id(),
+           desc.up1_c.algo_id(), desc.up2_c.algo_id(),
+           desc.oint_half.algo_id(), desc.outc.algo_id());
     // Same diagnostic, FP16 descriptors: rcbn1_h in particular picks an algorithm
     // with a ~3.85MB workspace (vs ~1.6KB for every other descriptor here) --
     // large enough that lazily allocating it from inside the hot per-chunk loop,
@@ -619,35 +643,35 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     fprintf(stderr, "[pvfinder_unet] FP16 ConvDescriptors workspace bytes: rcbn1_h=%zu rcbn2_h=%zu "
            "rcbn3_h=%zu up1c_h=%zu up2c_h=%zu | algo ids: rcbn1_h=%d rcbn2_h=%d rcbn3_h=%d "
            "up1c_h=%d up2c_h=%d\n",
-           s_desc.rcbn1_h.workspace_bytes(), s_desc.rcbn2_h.workspace_bytes(), s_desc.rcbn3_h.workspace_bytes(),
-           s_desc.up1c_h.workspace_bytes(), s_desc.up2c_h.workspace_bytes(),
-           s_desc.rcbn1_h.algo_id(), s_desc.rcbn2_h.algo_id(), s_desc.rcbn3_h.algo_id(),
-           s_desc.up1c_h.algo_id(), s_desc.up2c_h.algo_id());
+           desc.rcbn1_h.workspace_bytes(), desc.rcbn2_h.workspace_bytes(), desc.rcbn3_h.workspace_bytes(),
+           desc.up1c_h.workspace_bytes(), desc.up2c_h.workspace_bytes(),
+           desc.rcbn1_h.algo_id(), desc.rcbn2_h.algo_id(), desc.rcbn3_h.algo_id(),
+           desc.up1c_h.algo_id(), desc.up2c_h.algo_id());
     // Whether the fused-graph rcbn1 path is
     // usable on this GPU/cuDNN version at all (see the try/catch around its
     // create() call above).
     fprintf(stderr, "[pvfinder_unet] rcbn1 ConvBiasReluGraph available: %s (workspace bytes: %zu)\n",
-           s_desc.rcbn1_fused_available ? "yes" : "no", s_desc.rcbn1_fused.workspace_bytes());
+           desc.rcbn1_fused_available ? "yes" : "no", desc.rcbn1_fused.workspace_bytes());
     fflush(stderr);
 
     // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
     // Tensor descriptors for in/out are thread_local (see
     // get_thread_local_conv_transpose_descs()), not created here.
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up1_t));
+    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&desc.filter_up1_t));
     ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up1_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up1_t));
+        desc.filter_up1_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
+    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&desc.conv_up1_t));
     ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up1_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up1_t, CUDNN_TENSOR_OP_MATH));
+        desc.conv_up1_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(desc.conv_up1_t, CUDNN_TENSOR_OP_MATH));
 
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up2_t));
+    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&desc.filter_up2_t));
     ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up2_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT*2, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t));
+        desc.filter_up2_t, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT*2, N_FEAT, 1, 2));
+    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&desc.conv_up2_t));
     ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up2_t, CUDNN_TENSOR_OP_MATH));
+        desc.conv_up2_t, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(desc.conv_up2_t, CUDNN_TENSOR_OP_MATH));
 
     // Algorithm sweep for ConvTranspose (cudnnConvolutionBackwardData)
     // Uses temporary tensor descriptors for the query — not stored, as operator()
@@ -665,13 +689,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
         int returned = 0;
         cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
         if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
-                handle, s_desc.filter_up1_t, dy_desc, s_desc.conv_up1_t, dx_desc,
+                handle, desc.filter_up1_t, dy_desc, desc.conv_up1_t, dx_desc,
                 kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
             for (int i = 0; i < returned; ++i) {
                 if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
-                    s_desc.algo_up1_t   = perf[i].algo;
-                    s_desc.ws_up1_bytes = perf[i].memory;
-                    if (s_desc.ws_up1_bytes > 0) cudaMalloc(&s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                    desc.algo_up1_t   = perf[i].algo;
+                    desc.ws_up1_bytes = perf[i].memory;
+                    if (desc.ws_up1_bytes > 0) cudaMalloc(&desc.ws_up1_t, desc.ws_up1_bytes);
                     break;
                 }
             }
@@ -690,13 +714,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
         int returned = 0;
         cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
         if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
-                handle, s_desc.filter_up2_t, dy_desc, s_desc.conv_up2_t, dx_desc,
+                handle, desc.filter_up2_t, dy_desc, desc.conv_up2_t, dx_desc,
                 kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
             for (int i = 0; i < returned; ++i) {
                 if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
-                    s_desc.algo_up2_t   = perf[i].algo;
-                    s_desc.ws_up2_bytes = perf[i].memory;
-                    if (s_desc.ws_up2_bytes > 0) cudaMalloc(&s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                    desc.algo_up2_t   = perf[i].algo;
+                    desc.ws_up2_bytes = perf[i].memory;
+                    if (desc.ws_up2_bytes > 0) cudaMalloc(&desc.ws_up2_t, desc.ws_up2_bytes);
                     break;
                 }
             }
@@ -708,13 +732,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // up2_t_slim: skip-ablation variant ("add"/"none" modes) with N_FEAT (not
     // 2*N_FEAT) input channels — dy=[N, N_FEAT, 1, W_HALF], dx=[N, N_FEAT, 1, W_IN].
     // Reuses w_up2t_w/w_up2t_b as-is (see field comment in GlobalDescriptors).
-    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&s_desc.filter_up2_t_slim));
+    ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&desc.filter_up2_t_slim));
     ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        s_desc.filter_up2_t_slim, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
-    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&s_desc.conv_up2_t_slim));
+        desc.filter_up2_t_slim, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
+    ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&desc.conv_up2_t_slim));
     ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        s_desc.conv_up2_t_slim, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(s_desc.conv_up2_t_slim, CUDNN_TENSOR_OP_MATH));
+        desc.conv_up2_t_slim, 0,0, 1,2, 1,1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+    ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(desc.conv_up2_t_slim, CUDNN_TENSOR_OP_MATH));
     {
         cudnnTensorDescriptor_t dy_desc, dx_desc;
         cudnnCreateTensorDescriptor(&dy_desc);
@@ -724,13 +748,13 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
         int returned = 0;
         cudnnConvolutionBwdDataAlgoPerf_t perf[kBwdMaxAlgo];
         if (cudnnGetConvolutionBackwardDataAlgorithm_v7(
-                handle, s_desc.filter_up2_t_slim, dy_desc, s_desc.conv_up2_t_slim, dx_desc,
+                handle, desc.filter_up2_t_slim, dy_desc, desc.conv_up2_t_slim, dx_desc,
                 kBwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
             for (int i = 0; i < returned; ++i) {
                 if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= kBwdBudget) {
-                    s_desc.algo_up2_t_slim   = perf[i].algo;
-                    s_desc.ws_up2_bytes_slim = perf[i].memory;
-                    if (s_desc.ws_up2_bytes_slim > 0) cudaMalloc(&s_desc.ws_up2_t_slim, s_desc.ws_up2_bytes_slim);
+                    desc.algo_up2_t_slim   = perf[i].algo;
+                    desc.ws_up2_bytes_slim = perf[i].memory;
+                    if (desc.ws_up2_bytes_slim > 0) cudaMalloc(&desc.ws_up2_t_slim, desc.ws_up2_bytes_slim);
                     break;
                 }
             }
@@ -742,8 +766,8 @@ static void init_global_descriptors(cudnnHandle_t handle, const WeightBlob& wb, 
     // size here would be a cross-thread race; log it so it is never silent.
     fprintf(stderr, "[pvfinder_unet] ConvTranspose workspace bytes: up1=%zu up2=%zu up2_slim=%zu | algo ids: "
             "up1=%d up2=%d up2_slim=%d\n",
-            s_desc.ws_up1_bytes, s_desc.ws_up2_bytes, s_desc.ws_up2_bytes_slim,
-            (int)s_desc.algo_up1_t, (int)s_desc.algo_up2_t, (int)s_desc.algo_up2_t_slim);
+            desc.ws_up1_bytes, desc.ws_up2_bytes, desc.ws_up2_bytes_slim,
+            (int)desc.algo_up1_t, (int)desc.algo_up2_t, (int)desc.algo_up2_t_slim);
     fflush(stderr);
 }
 
@@ -812,6 +836,9 @@ static WeightBlob load_weights(const std::string& path)
     }
 
     auto& reg = Allen::CuDNN::WeightRegistry::instance();
+    // Keys are namespaced by weight file: instances loading the same file share
+    // one device copy, instances with different files never collide.
+    const std::string ns = "pvfinder_unet:" + path + ":";
     WeightBlob wb {};
 
     // Helper lambdas
@@ -825,13 +852,13 @@ static WeightBlob load_weights(const std::string& path)
         // Load weight block
         std::vector<float> w_host(wcount);
         off = read_float_block(buf, off, w_host.data(), wcount);
-        if (!reg.contains(key_w)) reg.load_from_buffer(key_w, w_host.data(), wcount * sizeof(float));
-        out_w = reg.get<float>(key_w);
+        if (!reg.contains(ns + key_w)) reg.load_from_buffer(ns + key_w, w_host.data(), wcount * sizeof(float));
+        out_w = reg.get<float>(ns + key_w);
         // Load bias block
         std::vector<float> b_host(out_c);
         off = read_float_block(buf, off, b_host.data(), out_c);
-        if (!reg.contains(key_b)) reg.load_from_buffer(key_b, b_host.data(), out_c * sizeof(float));
-        out_b = reg.get<float>(key_b);
+        if (!reg.contains(ns + key_b)) reg.load_from_buffer(ns + key_b, b_host.data(), out_c * sizeof(float));
+        out_b = reg.get<float>(ns + key_b);
     };
 
     auto load_bn = [&](const std::string& prefix,
@@ -846,8 +873,8 @@ static WeightBlob load_weights(const std::string& path)
         off = read_float_block(buf, off, m.data(), features);
         off = read_float_block(buf, off, v.data(), features);
         auto ld = [&](const std::string& k, const std::vector<float>& d, const float*& ptr) {
-            if (!reg.contains(k)) reg.load_from_buffer(k, d.data(), d.size() * sizeof(float));
-            ptr = reg.get<float>(k);
+            if (!reg.contains(ns + k)) reg.load_from_buffer(ns + k, d.data(), d.size() * sizeof(float));
+            ptr = reg.get<float>(ns + k);
         };
         ld(prefix + ".gamma", g, gamma);
         ld(prefix + ".beta",  b, beta);
@@ -865,12 +892,12 @@ static WeightBlob load_weights(const std::string& path)
         size_t wcount = (size_t)in_c * out_c * k;
         std::vector<float> w_host(wcount);
         off = read_float_block(buf, off, w_host.data(), wcount);
-        if (!reg.contains(key_w)) reg.load_from_buffer(key_w, w_host.data(), wcount * sizeof(float));
-        out_w = reg.get<float>(key_w);
+        if (!reg.contains(ns + key_w)) reg.load_from_buffer(ns + key_w, w_host.data(), wcount * sizeof(float));
+        out_w = reg.get<float>(ns + key_w);
         std::vector<float> b_host(out_c);
         off = read_float_block(buf, off, b_host.data(), out_c);
-        if (!reg.contains(key_b)) reg.load_from_buffer(key_b, b_host.data(), out_c * sizeof(float));
-        out_b = reg.get<float>(key_b);
+        if (!reg.contains(ns + key_b)) reg.load_from_buffer(ns + key_b, b_host.data(), out_c * sizeof(float));
+        out_b = reg.get<float>(ns + key_b);
     };
 
     // rcbn1
@@ -915,15 +942,15 @@ static WeightBlob load_weights(const std::string& path)
                 }
             }
         }
-        if (!reg.contains("oint.a.w")) reg.load_from_buffer("oint.a.w", w_a.data(), half_elems * sizeof(float));
-        if (!reg.contains("oint.b.w")) reg.load_from_buffer("oint.b.w", w_b.data(), half_elems * sizeof(float));
-        wb.w_oint_a_w = reg.get<float>("oint.a.w");
-        wb.w_oint_b_w = reg.get<float>("oint.b.w");
+        if (!reg.contains(ns + "oint.a.w")) reg.load_from_buffer(ns + "oint.a.w", w_a.data(), half_elems * sizeof(float));
+        if (!reg.contains(ns + "oint.b.w")) reg.load_from_buffer(ns + "oint.b.w", w_b.data(), half_elems * sizeof(float));
+        wb.w_oint_a_w = reg.get<float>(ns + "oint.a.w");
+        wb.w_oint_b_w = reg.get<float>(ns + "oint.b.w");
         // Bias [out_c]
         std::vector<float> bias(out_c);
         off = read_float_block(buf, off, bias.data(), out_c);
-        if (!reg.contains("oint.b")) reg.load_from_buffer("oint.b", bias.data(), out_c * sizeof(float));
-        wb.w_oint_b = reg.get<float>("oint.b");
+        if (!reg.contains(ns + "oint.b")) reg.load_from_buffer(ns + "oint.b", bias.data(), out_c * sizeof(float));
+        wb.w_oint_b = reg.get<float>(ns + "oint.b");
     }
     // outc
     load_conv("outc.w", "outc.b", wb.w_outc_w, wb.w_outc_b);
@@ -934,23 +961,21 @@ static WeightBlob load_weights(const std::string& path)
 #endif // ALLEN_CUDNN_BACKEND_CUDA
 
 // ---------------------------------------------------------------------------
-// init(): load weights + init global descriptors — both done exactly once.
+// init(): load this instance's weights (descriptors follow on its first operator() call).
 // ---------------------------------------------------------------------------
 void pvfinder_unet_t::init()
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    if (m_init_done) return;
+    if (m_state) return;
     if (m_weight_file.value().empty()) {
         throw std::runtime_error(
             "pvfinder_unet: weight_file is not set. Produce weights with the repository's weights/ "
             "pipeline (make -C weights verify MODEL=<name>) and generate the sequence configuration "
             "with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
     }
-    std::call_once(s_init_flag, [this]() {
-        s_wb = load_weights(m_weight_file.value());
-        s_wb_loaded = true;
-    });
-    m_init_done = true;
+    auto state = std::make_shared<UNetState>();
+    state->wb = load_weights(m_weight_file.value());
+    m_state = std::move(state);
 #endif
 }
 
@@ -1090,15 +1115,20 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
     cudaGraphNode_t& out_copy_in_node,
     cudaGraphNode_t& out_copy_out_node) const
 {
-    thread_local cudaGraphExec_t tl_exec     = nullptr;
-    thread_local cudaGraphNode_t tl_copy_in  = nullptr;
-    thread_local cudaGraphNode_t tl_copy_out = nullptr;
+    // This instance's graph on this thread (see CapturedGraph).
+    thread_local std::unordered_map<const void*, CapturedGraph> tl_graphs;
+    CapturedGraph& tl_graph = tl_graphs[m_state.get()];
+    cudaGraphExec_t& tl_exec     = tl_graph.exec;
+    cudaGraphNode_t& tl_copy_in  = tl_graph.copy_in;
+    cudaGraphNode_t& tl_copy_out = tl_graph.copy_out;
+    const GlobalDescriptors& desc = m_state->desc;
+    const WeightBlob& wb = m_state->wb;
     // The template cudaGraph_t is intentionally kept alive (never destroyed) for
     // the thread's lifetime: cudaGraphExecKernelNodeSetParams patches tl_exec by
     // referencing node handles owned by THIS template graph, and destroying it
     // would invalidate those handles even though tl_exec itself would keep working
     // for plain (unpatched) relaunches. Must stay alive as long as tl_exec is used.
-    thread_local cudaGraph_t tl_template_graph = nullptr;
+    cudaGraph_t& tl_template_graph = tl_graph.template_graph;
 
     if (tl_exec == nullptr) {
         // See s_graph_capture_mutex's declaration comment: serializes first-time
@@ -1106,8 +1136,8 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
         // once set, this thread never re-enters this block or takes the lock again.
         std::lock_guard<std::mutex> capture_lock(s_graph_capture_mutex);
         const int N = (int)m_unet_batch_events.value() * N_INTERVALS;
-        const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(N);
-        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(N);
+        const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(m_state.get(), N);
+        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(m_state.get(), N);
         cudaStream_t stream = ctx.stream();
 
         // Aliases within the pool, mirroring the eager path's proven-safe
@@ -1125,13 +1155,13 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
         // BEFORE capture begins: growing a thread-local workspace (cudaMalloc) is
         // not something that can happen mid-capture, so every descriptor forward()
         // will touch during the captured sequence below must already be sized.
-        s_desc.rcbn1.ensure_thread_local_workspace();
-        s_desc.rcbn2.ensure_thread_local_workspace();
-        s_desc.rcbn3.ensure_thread_local_workspace();
-        s_desc.up1_c.ensure_thread_local_workspace();
-        s_desc.up2_c.ensure_thread_local_workspace();
-        s_desc.oint_half.ensure_thread_local_workspace();
-        s_desc.outc.ensure_thread_local_workspace();
+        desc.rcbn1.ensure_thread_local_workspace();
+        desc.rcbn2.ensure_thread_local_workspace();
+        desc.rcbn3.ensure_thread_local_workspace();
+        desc.up1_c.ensure_thread_local_workspace();
+        desc.up2_c.ensure_thread_local_workspace();
+        desc.oint_half.ensure_thread_local_workspace();
+        desc.outc.ensure_thread_local_workspace();
 
         cudaCheck(cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal));
 
@@ -1147,37 +1177,37 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
             tl_copy_in = deps[num_deps - 1];
         }
 
-        run_convbnrelu(s_desc.rcbn1, pool.ncw_in, g_x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, ctx);
-        run_convbnrelu(s_desc.rcbn2, g_x1,  g_up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, ctx);
+        run_convbnrelu(desc.rcbn1, pool.ncw_in, g_x1,  desc.rcbn1_w_f, desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, ctx);
+        run_convbnrelu(desc.rcbn2, g_x1,  g_up2, desc.rcbn2_w_f, desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, ctx);
         launch_maxpool(g_up2, g_x2, N, N_FEAT, W_IN, block, ctx);
 
-        run_convbnrelu(s_desc.rcbn3, g_x2, g_up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, ctx);
+        run_convbnrelu(desc.rcbn3, g_x2, g_up2, desc.rcbn3_w_f, desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, ctx);
         launch_maxpool(g_up2, g_x3, N, N_FEAT, W_HALF, block, ctx);
 
         run_conv_transpose(g_x3, g_up2,
-            s_desc.filter_up1_t, s_desc.conv_up1_t, td.td_up1_in, td.td_up1_out,
-            s_wb.w_up1t_w, s_wb.w_up1t_b,
+            desc.filter_up1_t, desc.conv_up1_t, td.td_up1_in, td.td_up1_out,
+            wb.w_up1t_w, wb.w_up1t_b,
             N, N_FEAT, W_HALF, block, ctx, handle,
-            s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
-        run_convbnrelu(s_desc.up1_c, g_up2, g_up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, ctx);
+            desc.algo_up1_t, desc.ws_up1_t, desc.ws_up1_bytes);
+        run_convbnrelu(desc.up1_c, g_up2, g_up1, desc.up1c_w_f, desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, ctx);
 
         launch_concat(g_up1, g_x2, g_cat2, N, N_FEAT, N_FEAT, W_HALF, block, ctx);
         run_conv_transpose(g_cat2, g_logits,
-            s_desc.filter_up2_t, s_desc.conv_up2_t, td.td_up2_in, td.td_up2_out,
-            s_wb.w_up2t_w, s_wb.w_up2t_b,
+            desc.filter_up2_t, desc.conv_up2_t, td.td_up2_in, td.td_up2_out,
+            wb.w_up2t_w, wb.w_up2t_b,
             N, N_FEAT, W_IN, block, ctx, handle,
-            s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
-        run_convbnrelu(s_desc.up2_c, g_logits, g_up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, ctx);
+            desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
+        run_convbnrelu(desc.up2_c, g_logits, g_up2, desc.up2c_w_f, desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, ctx);
 
-        run_conv(s_desc.oint_half, g_x1, g_logits,
-            s_wb.w_oint_b_w, nullptr,
+        run_conv(desc.oint_half, g_x1, g_logits,
+            wb.w_oint_b_w, nullptr,
             N, N_FEAT, W_IN, block, ctx, handle, 0.f);
-        run_conv(s_desc.oint_half, g_up2, g_logits,
-            s_wb.w_oint_a_w, nullptr,
+        run_conv(desc.oint_half, g_up2, g_logits,
+            wb.w_oint_a_w, nullptr,
             N, N_FEAT, W_IN, block, ctx, handle, 1.f);
-        launch_bias_add(g_logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, ctx);
-        run_conv(s_desc.outc, g_logits, g_oint,
-            s_wb.w_outc_w, s_wb.w_outc_b,
+        launch_bias_add(g_logits, wb.w_oint_b, N_FEAT, W_IN, N, block, ctx);
+        run_conv(desc.outc, g_logits, g_oint,
+            wb.w_outc_w, wb.w_outc_b,
             N, 1, W_IN, block, ctx, handle, 0.f);
 
         launch_softplus_scale(g_oint, KDE_SCALE, N * W_IN, block, ctx);
@@ -1225,19 +1255,24 @@ void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
     cudaGraphNode_t& out_copy_in_node,
     cudaGraphNode_t& out_copy_out_node) const
 {
-    thread_local cudaGraphExec_t tl_exec     = nullptr;
-    thread_local cudaGraphNode_t tl_copy_in  = nullptr;
-    thread_local cudaGraphNode_t tl_copy_out = nullptr;
-    thread_local cudaGraph_t tl_template_graph = nullptr;
+    // This instance's graph on this thread (see CapturedGraph).
+    thread_local std::unordered_map<const void*, CapturedGraph> tl_graphs;
+    CapturedGraph& tl_graph = tl_graphs[m_state.get()];
+    cudaGraphExec_t& tl_exec     = tl_graph.exec;
+    cudaGraphNode_t& tl_copy_in  = tl_graph.copy_in;
+    cudaGraphNode_t& tl_copy_out = tl_graph.copy_out;
+    const GlobalDescriptors& desc = m_state->desc;
+    const WeightBlob& wb = m_state->wb;
+    cudaGraph_t& tl_template_graph = tl_graph.template_graph;
 
     if (tl_exec == nullptr) {
         // See s_graph_capture_mutex's declaration comment (shared with the FP32
         // capture function above -- one global mutex, both capture paths).
         std::lock_guard<std::mutex> capture_lock(s_graph_capture_mutex);
         const int N = (int)m_unet_batch_events.value() * N_INTERVALS;
-        const GraphScratchPool& pool32 = get_thread_local_graph_scratch_pool(N);
-        const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16(N);
-        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(N);
+        const GraphScratchPool& pool32 = get_thread_local_graph_scratch_pool(m_state.get(), N);
+        const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16(m_state.get(), N);
+        const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(m_state.get(), N);
         cudaStream_t stream = ctx.stream();
 
         // FP32-side aliases (reusing the existing FP32 pool -- same proven-safe
@@ -1253,13 +1288,13 @@ void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
         // touches, BEFORE capture begins (see get_or_capture_cuda_graph's
         // comment for why). Cheap no-op if already warmed (e.g. by the FP32
         // graph on this thread).
-        s_desc.rcbn1_h.ensure_thread_local_workspace();
-        s_desc.rcbn2_h.ensure_thread_local_workspace();
-        s_desc.rcbn3_h.ensure_thread_local_workspace();
-        s_desc.up1c_h.ensure_thread_local_workspace();
-        s_desc.up2c_h.ensure_thread_local_workspace();
-        s_desc.oint_half.ensure_thread_local_workspace();
-        s_desc.outc.ensure_thread_local_workspace();
+        desc.rcbn1_h.ensure_thread_local_workspace();
+        desc.rcbn2_h.ensure_thread_local_workspace();
+        desc.rcbn3_h.ensure_thread_local_workspace();
+        desc.up1c_h.ensure_thread_local_workspace();
+        desc.up2c_h.ensure_thread_local_workspace();
+        desc.oint_half.ensure_thread_local_workspace();
+        desc.outc.ensure_thread_local_workspace();
 
         cudaCheck(cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal));
 
@@ -1275,57 +1310,57 @@ void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
             tl_copy_in = deps[num_deps - 1];
         }
 
-        run_convbnrelu_half(s_desc.rcbn1_h, pool16.ncw, pool16.x1,
-            s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, N_FEAT, W_IN, N, handle, block, ctx);
-        run_convbnrelu_half(s_desc.rcbn2_h, pool16.x1, pool16.up2,
-            s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, N_FEAT, W_IN, N, handle, block, ctx);
+        run_convbnrelu_half(desc.rcbn1_h, pool16.ncw, pool16.x1,
+            desc.rcbn1_w_h, desc.rcbn1_b_h, N_FEAT, W_IN, N, handle, block, ctx);
+        run_convbnrelu_half(desc.rcbn2_h, pool16.x1, pool16.up2,
+            desc.rcbn2_w_h, desc.rcbn2_b_h, N_FEAT, W_IN, N, handle, block, ctx);
         launch_maxpool_half(pool16.up2, pool16.x2, N, N_FEAT, W_IN, block, ctx);
 
-        run_convbnrelu_half(s_desc.rcbn3_h, pool16.x2, pool16.up2,
-            s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, N_FEAT, W_HALF, N, handle, block, ctx);
+        run_convbnrelu_half(desc.rcbn3_h, pool16.x2, pool16.up2,
+            desc.rcbn3_w_h, desc.rcbn3_b_h, N_FEAT, W_HALF, N, handle, block, ctx);
         launch_maxpool_half(pool16.up2, pool16.x3, N, N_FEAT, W_HALF, block, ctx);
 
         // ConvTranspose1: needs FP32. Convert fp16 x3 -> g_x3.
         launch_f16_to_f32(g_x3, pool16.x3, N * N_FEAT * W_QTR, block, ctx);
         run_conv_transpose(g_x3, g_up2,
-            s_desc.filter_up1_t, s_desc.conv_up1_t, td.td_up1_in, td.td_up1_out,
-            s_wb.w_up1t_w, s_wb.w_up1t_b,
+            desc.filter_up1_t, desc.conv_up1_t, td.td_up1_in, td.td_up1_out,
+            wb.w_up1t_w, wb.w_up1t_b,
             N, N_FEAT, W_HALF, block, ctx, handle,
-            s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+            desc.algo_up1_t, desc.ws_up1_t, desc.ws_up1_bytes);
 
         // up1_c FP16: convert FP32 g_up2 -> fp16 pool16.up2, then conv.
         launch_f32_to_f16(pool16.up2, g_up2, N * N_FEAT * W_HALF, block, ctx);
-        run_convbnrelu_half(s_desc.up1c_h, pool16.up2, pool16.up1,
-            s_desc.up1c_w_h, s_desc.up1c_b_h, N_FEAT, W_HALF, N, handle, block, ctx);
+        run_convbnrelu_half(desc.up1c_h, pool16.up2, pool16.up1,
+            desc.up1c_w_h, desc.up1c_b_h, N_FEAT, W_HALF, N, handle, block, ctx);
 
         launch_concat_half(pool16.up1, pool16.x2, pool16.cat2, N, N_FEAT, N_FEAT, W_HALF, block, ctx);
 
         // ConvTranspose2: needs FP32. Convert fp16 cat2 -> g_cat2.
         launch_f16_to_f32(g_cat2, pool16.cat2, N * N_FEAT * 2 * W_HALF, block, ctx);
         run_conv_transpose(g_cat2, g_logits,
-            s_desc.filter_up2_t, s_desc.conv_up2_t, td.td_up2_in, td.td_up2_out,
-            s_wb.w_up2t_w, s_wb.w_up2t_b,
+            desc.filter_up2_t, desc.conv_up2_t, td.td_up2_in, td.td_up2_out,
+            wb.w_up2t_w, wb.w_up2t_b,
             N, N_FEAT, W_IN, block, ctx, handle,
-            s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+            desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
 
         // up2_c FP16: convert FP32 g_logits -> fp16 pool16.up2, conv -> pool16.cat2 (reused).
         launch_f32_to_f16(pool16.up2, g_logits, N * N_FEAT * W_IN, block, ctx);
-        run_convbnrelu_half(s_desc.up2c_h, pool16.up2, pool16.cat2,
-            s_desc.up2c_w_h, s_desc.up2c_b_h, N_FEAT, W_IN, N, handle, block, ctx);
+        run_convbnrelu_half(desc.up2c_h, pool16.up2, pool16.cat2,
+            desc.up2c_w_h, desc.up2c_b_h, N_FEAT, W_IN, N, handle, block, ctx);
 
         // Output stage: FP32. Convert fp16 x1 (rcbn1 skip) -> g_x1, fp16 cat2 -> g_up2.
         launch_f16_to_f32(g_x1, pool16.x1, N * N_FEAT * W_IN, block, ctx);
         launch_f16_to_f32(g_up2, pool16.cat2, N * N_FEAT * W_IN, block, ctx);
 
-        run_conv(s_desc.oint_half, g_x1, g_logits,
-            s_wb.w_oint_b_w, nullptr,
+        run_conv(desc.oint_half, g_x1, g_logits,
+            wb.w_oint_b_w, nullptr,
             N, N_FEAT, W_IN, block, ctx, handle, 0.f);
-        run_conv(s_desc.oint_half, g_up2, g_logits,
-            s_wb.w_oint_a_w, nullptr,
+        run_conv(desc.oint_half, g_up2, g_logits,
+            wb.w_oint_a_w, nullptr,
             N, N_FEAT, W_IN, block, ctx, handle, 1.f);
-        launch_bias_add(g_logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, ctx);
-        run_conv(s_desc.outc, g_logits, g_oint,
-            s_wb.w_outc_w, s_wb.w_outc_b,
+        launch_bias_add(g_logits, wb.w_oint_b, N_FEAT, W_IN, N, block, ctx);
+        run_conv(desc.outc, g_logits, g_oint,
+            wb.w_outc_w, wb.w_outc_b,
             N, 1, W_IN, block, ctx, handle, 0.f);
 
         launch_softplus_scale(g_oint, KDE_SCALE, N * W_IN, block, ctx);
@@ -1365,7 +1400,10 @@ void pvfinder_unet_t::operator()(
     const Allen::Context& context) const
 {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    if (!m_init_done || !s_wb_loaded) return;
+    if (!m_state) return;
+    UNetState& state = *m_state;
+    GlobalDescriptors& desc = state.desc;
+    const WeightBlob& wb = state.wb;
 
     const unsigned n_events = first<host_number_of_events_t>(arguments);
 
@@ -1380,8 +1418,11 @@ void pvfinder_unet_t::operator()(
     const unsigned batch_events = m_unet_batch_events.value();
     const int N = (int)batch_events * N_INTERVALS;  // samples per cuDNN batch
     const size_t fwd_ws_budget_bytes = m_fwd_algo_ws_budget_bytes.value();
-    std::call_once(s_desc_init_flag, [handle, fwd_ws_budget_bytes, N]() {
-        init_global_descriptors(handle, s_wb, fwd_ws_budget_bytes, N);
+    std::call_once(state.desc_init_flag, [&state, handle, fwd_ws_budget_bytes, N]() {
+        init_descriptors(state.desc, handle, state.wb, fwd_ws_budget_bytes, N);
+        // Event processing has started, so every instance's init() (and its
+        // weight upload) is done: refuse any later registry allocation.
+        Allen::CuDNN::WeightRegistry::instance().lock_allocations();
     });
 
     const dim3 block = m_block_dim;
@@ -1404,7 +1445,7 @@ void pvfinder_unet_t::operator()(
     // ConvTranspose tensor descriptors — thread_local, created once per OS thread
     // and reused for its lifetime (shapes are compile-time constants). See
     // get_thread_local_conv_transpose_descs() for the lazy-init idiom.
-    const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(N);
+    const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(m_state.get(), N);
     cudnnTensorDescriptor_t td_up1_in      = td.td_up1_in;
     cudnnTensorDescriptor_t td_up1_out     = td.td_up1_out;
     cudnnTensorDescriptor_t td_up2_in      = td.td_up2_in;
@@ -1447,7 +1488,7 @@ void pvfinder_unet_t::operator()(
     // True single-pass Conv+Bias+ReLU for rcbn1, eager FP32 path only. FP16
     // has no fused-graph variant (see m_use_fused_cbr's doc comment), so
     // this is simply ignored whenever use_fp16=true.
-    const bool use_fused_cbr = m_use_fused_cbr.value() && s_desc.rcbn1_fused_available;
+    const bool use_fused_cbr = m_use_fused_cbr.value() && desc.rcbn1_fused_available;
     // Hand-written fused rcbn3, eager FP32 path only.
     const bool use_fused_rcbn3 = m_use_fused_rcbn3.value();
     const bool fuse_pool       = m_use_fused_bias_relu_pool.value();
@@ -1468,39 +1509,40 @@ void pvfinder_unet_t::operator()(
     // sustained -t16 load. Warming here decouples allocation from the hot
     // path and from other threads' concurrent first-touch timing entirely.
     {
-        thread_local bool tl_warmed = false;
+        thread_local std::unordered_map<const void*, bool> tl_warmed_by_instance;
+        bool& tl_warmed = tl_warmed_by_instance[m_state.get()];
         if (!tl_warmed) {
             // Only the active precision's descriptors: workspace sizes grow
             // with N and these allocations sit outside Allen's -m pool.
-            s_desc.rcbn1.ensure_thread_local_workspace();
-            s_desc.rcbn2.ensure_thread_local_workspace();
-            s_desc.rcbn3.ensure_thread_local_workspace();
-            s_desc.up1_c.ensure_thread_local_workspace();
-            s_desc.up2_c.ensure_thread_local_workspace();
-            s_desc.oint_half.ensure_thread_local_workspace();
-            s_desc.outc.ensure_thread_local_workspace();
+            desc.rcbn1.ensure_thread_local_workspace();
+            desc.rcbn2.ensure_thread_local_workspace();
+            desc.rcbn3.ensure_thread_local_workspace();
+            desc.up1_c.ensure_thread_local_workspace();
+            desc.up2_c.ensure_thread_local_workspace();
+            desc.oint_half.ensure_thread_local_workspace();
+            desc.outc.ensure_thread_local_workspace();
             if (use_fp16) {
-                s_desc.rcbn1_h.ensure_thread_local_workspace();
-                s_desc.rcbn2_h.ensure_thread_local_workspace();
-                s_desc.rcbn3_h.ensure_thread_local_workspace();
-                s_desc.up1c_h.ensure_thread_local_workspace();
-                s_desc.up2c_h.ensure_thread_local_workspace();
+                desc.rcbn1_h.ensure_thread_local_workspace();
+                desc.rcbn2_h.ensure_thread_local_workspace();
+                desc.rcbn3_h.ensure_thread_local_workspace();
+                desc.up1c_h.ensure_thread_local_workspace();
+                desc.up2c_h.ensure_thread_local_workspace();
             }
             if (use_bf16) {
-                s_desc.rcbn1_bf.ensure_thread_local_workspace();
-                s_desc.rcbn2_bf.ensure_thread_local_workspace();
-                s_desc.rcbn3_bf.ensure_thread_local_workspace();
-                s_desc.up1c_bf.ensure_thread_local_workspace();
-                s_desc.up2c_bf.ensure_thread_local_workspace();
+                desc.rcbn1_bf.ensure_thread_local_workspace();
+                desc.rcbn2_bf.ensure_thread_local_workspace();
+                desc.rcbn3_bf.ensure_thread_local_workspace();
+                desc.up1c_bf.ensure_thread_local_workspace();
+                desc.up2c_bf.ensure_thread_local_workspace();
             }
-            if (use_fused_cbr) s_desc.rcbn1_fused.ensure_thread_local_workspace();
+            if (use_fused_cbr) desc.rcbn1_fused.ensure_thread_local_workspace();
             tl_warmed = true;
         }
     }
 
     // FP16 pool pointers (only used when use_fp16 is true).
     //
-    // Deliberately NOT s_desc.fp16_* here: those are a single process-wide
+    // Deliberately NOT desc.fp16_* here: those are a single process-wide
     // shared allocation (see GlobalDescriptors::fp16_pool) -- with many OS
     // threads (one per Allen Stream, per -t N) all running the eager FP16
     // path concurrently, every thread would read/write the EXACT SAME
@@ -1512,7 +1554,7 @@ void pvfinder_unet_t::operator()(
     // used its own thread_local pool instead and has run crash-free). Reusing
     // that same thread_local GraphScratchPoolFP16 here for the eager path
     // fixes it the same way, using infrastructure already built and validated.
-    const GraphScratchPoolFP16* fp16_pool_tl = use_fp16 ? &get_thread_local_graph_scratch_pool_fp16(N) : nullptr;
+    const GraphScratchPoolFP16* fp16_pool_tl = use_fp16 ? &get_thread_local_graph_scratch_pool_fp16(m_state.get(), N) : nullptr;
     __half* fp16_ncw  = use_fp16 ? fp16_pool_tl->ncw  : nullptr;
     __half* fp16_x1   = use_fp16 ? fp16_pool_tl->x1   : nullptr;
     __half* fp16_x2   = use_fp16 ? fp16_pool_tl->x2   : nullptr;
@@ -1523,7 +1565,7 @@ void pvfinder_unet_t::operator()(
 
     // BF16 pool pointers (only used when use_bf16 is true) -- same
     // thread_local-per-OS-thread rationale as the FP16 pool above.
-    const GraphScratchPoolBF16* bf16_pool_tl = use_bf16 ? &get_thread_local_graph_scratch_pool_bf16(N) : nullptr;
+    const GraphScratchPoolBF16* bf16_pool_tl = use_bf16 ? &get_thread_local_graph_scratch_pool_bf16(m_state.get(), N) : nullptr;
     __nv_bfloat16* bf16_ncw  = use_bf16 ? bf16_pool_tl->ncw  : nullptr;
     __nv_bfloat16* bf16_x1   = use_bf16 ? bf16_pool_tl->x1   : nullptr;
     __nv_bfloat16* bf16_x2   = use_bf16 ? bf16_pool_tl->x2   : nullptr;
@@ -1543,7 +1585,7 @@ void pvfinder_unet_t::operator()(
             cudaGraphExec_t graphExec  = nullptr;
             cudaGraphNode_t copyInNode = nullptr, copyOutNode = nullptr;
             get_or_capture_cuda_graph(handle, block, context, ncw, kde, graphExec, copyInNode, copyOutNode);
-            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(N);
+            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(m_state.get(), N);
 
             const int total_in  = (int)(N * N_BATCH_CHANNELS * W_IN);
             const int total_out = (int)(N * W_IN);
@@ -1586,8 +1628,8 @@ void pvfinder_unet_t::operator()(
             cudaGraphExec_t graphExec  = nullptr;
             cudaGraphNode_t copyInNode = nullptr, copyOutNode = nullptr;
             get_or_capture_cuda_graph_fp16(handle, block, context, ncw, kde, graphExec, copyInNode, copyOutNode);
-            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(N);
-            const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16(N);
+            const GraphScratchPool& pool = get_thread_local_graph_scratch_pool(m_state.get(), N);
+            const GraphScratchPoolFP16& pool16 = get_thread_local_graph_scratch_pool_fp16(m_state.get(), N);
 
             const int total_in  = (int)(N * N_BATCH_CHANNELS * W_IN);
             const int total_out = (int)(N * W_IN);
@@ -1635,28 +1677,28 @@ void pvfinder_unet_t::operator()(
 
             // Encoder
             launch_f32_to_bf16(bf16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
-            run_convbnrelu_bf16(s_desc.rcbn1_bf, bf16_ncw, bf16_x1,
-                s_desc.rcbn1_w_bf, s_desc.rcbn1_b_bf, N_FEAT, W_IN, N, handle, block, context);
-            run_convbnrelu_bf16(s_desc.rcbn2_bf, bf16_x1, bf16_up2,
-                s_desc.rcbn2_w_bf, s_desc.rcbn2_b_bf, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_bf16(desc.rcbn1_bf, bf16_ncw, bf16_x1,
+                desc.rcbn1_w_bf, desc.rcbn1_b_bf, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_bf16(desc.rcbn2_bf, bf16_x1, bf16_up2,
+                desc.rcbn2_w_bf, desc.rcbn2_b_bf, N_FEAT, W_IN, N, handle, block, context);
             launch_maxpool_bf16(bf16_up2, bf16_x2, N, N_FEAT, W_IN, block, context);
 
-            run_convbnrelu_bf16(s_desc.rcbn3_bf, bf16_x2, bf16_up2,
-                s_desc.rcbn3_w_bf, s_desc.rcbn3_b_bf, N_FEAT, W_HALF, N, handle, block, context);
+            run_convbnrelu_bf16(desc.rcbn3_bf, bf16_x2, bf16_up2,
+                desc.rcbn3_w_bf, desc.rcbn3_b_bf, N_FEAT, W_HALF, N, handle, block, context);
             launch_maxpool_bf16(bf16_up2, bf16_x3, N, N_FEAT, W_HALF, block, context);
 
             // ConvTranspose1: needs FP32. Convert bf16_x3 → x3.
             launch_bf16_to_f32(x3, bf16_x3, N * N_FEAT * W_QTR, block, context);
             run_conv_transpose(x3, up2,
-                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
-                s_wb.w_up1t_w, s_wb.w_up1t_b,
+                desc.filter_up1_t, desc.conv_up1_t, td_up1_in, td_up1_out,
+                wb.w_up1t_w, wb.w_up1t_b,
                 N, N_FEAT, W_HALF, block, context, handle,
-                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                desc.algo_up1_t, desc.ws_up1_t, desc.ws_up1_bytes);
 
             // up1_c BF16: convert FP32 up2 → bf16_up2, then conv.
             launch_f32_to_bf16(bf16_up2, up2, N * N_FEAT * W_HALF, block, context);
-            run_convbnrelu_bf16(s_desc.up1c_bf, bf16_up2, bf16_up1,
-                s_desc.up1c_w_bf, s_desc.up1c_b_bf, N_FEAT, W_HALF, N, handle, block, context);
+            run_convbnrelu_bf16(desc.up1c_bf, bf16_up2, bf16_up1,
+                desc.up1c_w_bf, desc.up1c_b_bf, N_FEAT, W_HALF, N, handle, block, context);
 
             // Concat BF16: bf16_up1 + bf16_x2 → bf16_cat2.
             launch_concat_bf16(bf16_up1, bf16_x2, bf16_cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
@@ -1664,61 +1706,61 @@ void pvfinder_unet_t::operator()(
             // ConvTranspose2: needs FP32. Convert bf16_cat2 → cat2.
             launch_bf16_to_f32(cat2, bf16_cat2, N * N_FEAT * 2 * W_HALF, block, context);
             run_conv_transpose(cat2, logits,
-                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
-                s_wb.w_up2t_w, s_wb.w_up2t_b,
+                desc.filter_up2_t, desc.conv_up2_t, td_up2_in, td_up2_out,
+                wb.w_up2t_w, wb.w_up2t_b,
                 N, N_FEAT, W_IN, block, context, handle,
-                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
 
             // up2_c BF16: convert FP32 logits → bf16_up2, conv → bf16_cat2 (reused).
             launch_f32_to_bf16(bf16_up2, logits, N * N_FEAT * W_IN, block, context);
-            run_convbnrelu_bf16(s_desc.up2c_bf, bf16_up2, bf16_cat2,
-                s_desc.up2c_w_bf, s_desc.up2c_b_bf, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_bf16(desc.up2c_bf, bf16_up2, bf16_cat2,
+                desc.up2c_w_bf, desc.up2c_b_bf, N_FEAT, W_IN, N, handle, block, context);
 
             // Output stage: FP32. Convert bf16_x1 (rcbn1 skip) → x1, bf16_cat2 → up2.
             launch_bf16_to_f32(x1, bf16_x1, N * N_FEAT * W_IN, block, context);
             launch_bf16_to_f32(up2, bf16_cat2, N * N_FEAT * W_IN, block, context);
 
-            run_conv(s_desc.oint_half, x1, logits,
-                s_wb.w_oint_b_w, nullptr,
+            run_conv(desc.oint_half, x1, logits,
+                wb.w_oint_b_w, nullptr,
                 N, N_FEAT, W_IN, block, context, handle, 0.f);
-            run_conv(s_desc.oint_half, up2, logits,
-                s_wb.w_oint_a_w, nullptr,
+            run_conv(desc.oint_half, up2, logits,
+                wb.w_oint_a_w, nullptr,
                 N, N_FEAT, W_IN, block, context, handle, 1.f);
-            launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
-            run_conv(s_desc.outc, logits, oint,
-                s_wb.w_outc_w, s_wb.w_outc_b,
+            launch_bias_add(logits, wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+            run_conv(desc.outc, logits, oint,
+                wb.w_outc_w, wb.w_outc_b,
                 N, 1, W_IN, block, context, handle, 0.f);
         } else if (!use_fp16) {
             // ---- FP32 path (Phase L baseline) ----
             if (use_fused_cbr) {
                 // Single-pass Conv+Bias+ReLU: no separate bias_relu_kernel launch,
                 // no extra DRAM round trip on the conv output.
-                s_desc.rcbn1_fused.execute(handle, ncw, s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, x1);
+                desc.rcbn1_fused.execute(handle, ncw, desc.rcbn1_w_f, desc.rcbn1_b_f, x1);
             } else {
-                run_convbnrelu(s_desc.rcbn1, ncw, x1,  s_desc.rcbn1_w_f, s_desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
+                run_convbnrelu(desc.rcbn1, ncw, x1,  desc.rcbn1_w_f, desc.rcbn1_b_f, N_FEAT, W_IN,   N, handle, block, context);
             }
             if (fuse_pool) {
                 // conv writes raw output; bias, ReLU and pooling happen in one
                 // pass, so the full-resolution activation is read once and
                 // never rewritten.
-                run_conv(s_desc.rcbn2, x1, up2, s_desc.rcbn2_w_f, nullptr,
+                run_conv(desc.rcbn2, x1, up2, desc.rcbn2_w_f, nullptr,
                          N, N_FEAT, W_IN, block, context, handle, 0.f);
-                launch_bias_relu_maxpool(up2, x2, s_desc.rcbn2_b_f, N, N_FEAT, W_IN, block, context);
+                launch_bias_relu_maxpool(up2, x2, desc.rcbn2_b_f, N, N_FEAT, W_IN, block, context);
             } else {
-                run_convbnrelu(s_desc.rcbn2, x1,  up2, s_desc.rcbn2_w_f, s_desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
+                run_convbnrelu(desc.rcbn2, x1,  up2, desc.rcbn2_w_f, desc.rcbn2_b_f, N_FEAT, W_IN,   N, handle, block, context);
                 launch_maxpool(up2, x2, N, N_FEAT, W_IN, block, context);
             }
 
             if (use_fused_rcbn3) {
                 // Single kernel: conv + bias + ReLU with the activation slice
                 // kept in shared memory, no DRAM round trip on the raw conv output.
-                launch_fused_rcbn3(x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N, block, context);
+                launch_fused_rcbn3(x2, up2, desc.rcbn3_w_f, desc.rcbn3_b_f, N, block, context);
             } else if (fuse_pool) {
-                run_conv(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, nullptr,
+                run_conv(desc.rcbn3, x2, up2, desc.rcbn3_w_f, nullptr,
                          N, N_FEAT, W_HALF, block, context, handle, 0.f);
-                launch_bias_relu_maxpool(up2, x3, s_desc.rcbn3_b_f, N, N_FEAT, W_HALF, block, context);
+                launch_bias_relu_maxpool(up2, x3, desc.rcbn3_b_f, N, N_FEAT, W_HALF, block, context);
             } else {
-                run_convbnrelu(s_desc.rcbn3, x2, up2, s_desc.rcbn3_w_f, s_desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
+                run_convbnrelu(desc.rcbn3, x2, up2, desc.rcbn3_w_f, desc.rcbn3_b_f, N_FEAT, W_HALF, N, handle, block, context);
             }
             if (!fuse_pool || use_fused_rcbn3) {
                 launch_maxpool(up2, x3, N, N_FEAT, W_HALF, block, context);
@@ -1730,26 +1772,26 @@ void pvfinder_unet_t::operator()(
             // before anything reads it).
             if (use_merged_up1) {
                 launch_up1_merge(x3, up1,
-                    s_desc.up1_merge_K_even, s_desc.up1_merge_K_odd, s_desc.up1_merge_bias,
-                    s_wb.w_up1t_w, s_wb.w_up1t_b, s_desc.up1c_w_f, s_desc.up1c_b_f,
+                    desc.up1_merge_K_even, desc.up1_merge_K_odd, desc.up1_merge_bias,
+                    wb.w_up1t_w, wb.w_up1t_b, desc.up1c_w_f, desc.up1c_b_f,
                     N_FEAT, W_QTR, N, block, context);
             } else {
                 run_conv_transpose(x3, up2,
-                    s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
-                    s_wb.w_up1t_w, s_wb.w_up1t_b,
+                    desc.filter_up1_t, desc.conv_up1_t, td_up1_in, td_up1_out,
+                    wb.w_up1t_w, wb.w_up1t_b,
                     N, N_FEAT, W_HALF, block, context, handle,
-                    s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
-                run_convbnrelu(s_desc.up1_c, up2, up1, s_desc.up1c_w_f, s_desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
+                    desc.algo_up1_t, desc.ws_up1_t, desc.ws_up1_bytes);
+                run_convbnrelu(desc.up1_c, up2, up1, desc.up1c_w_f, desc.up1c_b_f, N_FEAT, W_HALF, N, handle, block, context);
             }
 
             // Skip 1: merge up1 (decoder) with x2 (encoder) ahead of ConvTranspose2.
             if (skip_mode == "concat") {
                 launch_concat(up1, x2, cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
                 run_conv_transpose(cat2, logits,
-                    s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
-                    s_wb.w_up2t_w, s_wb.w_up2t_b,
+                    desc.filter_up2_t, desc.conv_up2_t, td_up2_in, td_up2_out,
+                    wb.w_up2t_w, wb.w_up2t_b,
                     N, N_FEAT, W_IN, block, context, handle,
-                    s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                    desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
             } else {
                 // "add": up1 += x2 in place, then a slim N_FEAT-in ConvTranspose.
                 // "none": same slim ConvTranspose, x2 never touches up1.
@@ -1757,12 +1799,12 @@ void pvfinder_unet_t::operator()(
                     launch_accumulate(up1, x2, N * N_FEAT * W_HALF, block, context);
                 }
                 run_conv_transpose(up1, logits,
-                    s_desc.filter_up2_t_slim, s_desc.conv_up2_t_slim, td_up2_in_slim, td_up2_out,
-                    s_wb.w_up2t_w, s_wb.w_up2t_b,
+                    desc.filter_up2_t_slim, desc.conv_up2_t_slim, td_up2_in_slim, td_up2_out,
+                    wb.w_up2t_w, wb.w_up2t_b,
                     N, N_FEAT, W_IN, block, context, handle,
-                    s_desc.algo_up2_t_slim, s_desc.ws_up2_t_slim, s_desc.ws_up2_bytes_slim);
+                    desc.algo_up2_t_slim, desc.ws_up2_t_slim, desc.ws_up2_bytes_slim);
             }
-            run_convbnrelu(s_desc.up2_c, logits, up2, s_desc.up2c_w_f, s_desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu(desc.up2_c, logits, up2, desc.up2c_w_f, desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
 
             // Skip 2: merge up2 (decoder) with x1 (encoder) ahead of the output conv.
             // Merged out_intermediate+outc fast path, concat mode only.
@@ -1776,9 +1818,9 @@ void pvfinder_unet_t::operator()(
             // expects.
             if (skip_mode == "concat" && use_merged_oint_outc) {
                 launch_oint_outc_merged(up2, x1, logits,
-                    s_desc.oint_outc_merged_a, s_desc.oint_outc_merged_b, s_desc.oint_outc_merged_bias,
-                    s_wb.w_oint_a_w, s_wb.w_oint_b_w, s_wb.w_oint_b,
-                    s_wb.w_outc_w, s_wb.w_outc_b,
+                    desc.oint_outc_merged_a, desc.oint_outc_merged_b, desc.oint_outc_merged_bias,
+                    wb.w_oint_a_w, wb.w_oint_b_w, wb.w_oint_b,
+                    wb.w_outc_w, wb.w_outc_b,
                     N_FEAT, W_IN, N, /*K1=*/5, /*K2=*/5, /*P1=*/2, /*P2=*/2,
                     /*K_MERGED=*/9, /*P_MERGED=*/4,
                     block, context);
@@ -1787,23 +1829,23 @@ void pvfinder_unet_t::operator()(
                     0, context.stream()>>>(logits, oint, N * W_IN);
             } else {
                 if (skip_mode == "concat") {
-                    run_conv(s_desc.oint_half, x1, logits,
-                        s_wb.w_oint_b_w, nullptr,
+                    run_conv(desc.oint_half, x1, logits,
+                        wb.w_oint_b_w, nullptr,
                         N, N_FEAT, W_IN, block, context, handle, 0.f);
-                    run_conv(s_desc.oint_half, up2, logits,
-                        s_wb.w_oint_a_w, nullptr,
+                    run_conv(desc.oint_half, up2, logits,
+                        wb.w_oint_a_w, nullptr,
                         N, N_FEAT, W_IN, block, context, handle, 1.f);
                 } else {
                     if (skip_mode == "add") {
                         launch_accumulate(up2, x1, N * N_FEAT * W_IN, block, context);
                     }
-                    run_conv(s_desc.oint_half, up2, logits,
-                        s_wb.w_oint_a_w, nullptr,
+                    run_conv(desc.oint_half, up2, logits,
+                        wb.w_oint_a_w, nullptr,
                         N, N_FEAT, W_IN, block, context, handle, 0.f);
                 }
-                launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
-                run_conv(s_desc.outc, logits, oint,
-                    s_wb.w_outc_w, s_wb.w_outc_b,
+                launch_bias_add(logits, wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+                run_conv(desc.outc, logits, oint,
+                    wb.w_outc_w, wb.w_outc_b,
                     N, 1, W_IN, block, context, handle, 0.f);
             }
         } else {
@@ -1813,28 +1855,28 @@ void pvfinder_unet_t::operator()(
 
             // Encoder
             launch_f32_to_f16(fp16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
-            run_convbnrelu_half(s_desc.rcbn1_h, fp16_ncw, fp16_x1,
-                s_desc.rcbn1_w_h, s_desc.rcbn1_b_h, N_FEAT, W_IN, N, handle, block, context);
-            run_convbnrelu_half(s_desc.rcbn2_h, fp16_x1, fp16_up2,
-                s_desc.rcbn2_w_h, s_desc.rcbn2_b_h, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_half(desc.rcbn1_h, fp16_ncw, fp16_x1,
+                desc.rcbn1_w_h, desc.rcbn1_b_h, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_half(desc.rcbn2_h, fp16_x1, fp16_up2,
+                desc.rcbn2_w_h, desc.rcbn2_b_h, N_FEAT, W_IN, N, handle, block, context);
             launch_maxpool_half(fp16_up2, fp16_x2, N, N_FEAT, W_IN, block, context);
 
-            run_convbnrelu_half(s_desc.rcbn3_h, fp16_x2, fp16_up2,
-                s_desc.rcbn3_w_h, s_desc.rcbn3_b_h, N_FEAT, W_HALF, N, handle, block, context);
+            run_convbnrelu_half(desc.rcbn3_h, fp16_x2, fp16_up2,
+                desc.rcbn3_w_h, desc.rcbn3_b_h, N_FEAT, W_HALF, N, handle, block, context);
             launch_maxpool_half(fp16_up2, fp16_x3, N, N_FEAT, W_HALF, block, context);
 
             // ConvTranspose1: needs FP32. Convert fp16_x3 → x3.
             launch_f16_to_f32(x3, fp16_x3, N * N_FEAT * W_QTR, block, context);
             run_conv_transpose(x3, up2,
-                s_desc.filter_up1_t, s_desc.conv_up1_t, td_up1_in, td_up1_out,
-                s_wb.w_up1t_w, s_wb.w_up1t_b,
+                desc.filter_up1_t, desc.conv_up1_t, td_up1_in, td_up1_out,
+                wb.w_up1t_w, wb.w_up1t_b,
                 N, N_FEAT, W_HALF, block, context, handle,
-                s_desc.algo_up1_t, s_desc.ws_up1_t, s_desc.ws_up1_bytes);
+                desc.algo_up1_t, desc.ws_up1_t, desc.ws_up1_bytes);
 
             // up1_c FP16: convert FP32 up2 → fp16_up2, then conv.
             launch_f32_to_f16(fp16_up2, up2, N * N_FEAT * W_HALF, block, context);
-            run_convbnrelu_half(s_desc.up1c_h, fp16_up2, fp16_up1,
-                s_desc.up1c_w_h, s_desc.up1c_b_h, N_FEAT, W_HALF, N, handle, block, context);
+            run_convbnrelu_half(desc.up1c_h, fp16_up2, fp16_up1,
+                desc.up1c_w_h, desc.up1c_b_h, N_FEAT, W_HALF, N, handle, block, context);
 
             // Concat FP16: fp16_up1 + fp16_x2 → fp16_cat2.
             launch_concat_half(fp16_up1, fp16_x2, fp16_cat2, N, N_FEAT, N_FEAT, W_HALF, block, context);
@@ -1842,29 +1884,29 @@ void pvfinder_unet_t::operator()(
             // ConvTranspose2: needs FP32. Convert fp16_cat2 → cat2.
             launch_f16_to_f32(cat2, fp16_cat2, N * N_FEAT * 2 * W_HALF, block, context);
             run_conv_transpose(cat2, logits,
-                s_desc.filter_up2_t, s_desc.conv_up2_t, td_up2_in, td_up2_out,
-                s_wb.w_up2t_w, s_wb.w_up2t_b,
+                desc.filter_up2_t, desc.conv_up2_t, td_up2_in, td_up2_out,
+                wb.w_up2t_w, wb.w_up2t_b,
                 N, N_FEAT, W_IN, block, context, handle,
-                s_desc.algo_up2_t, s_desc.ws_up2_t, s_desc.ws_up2_bytes);
+                desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
 
             // up2_c FP16: convert FP32 logits → fp16_up2, conv → fp16_cat2 (reused).
             launch_f32_to_f16(fp16_up2, logits, N * N_FEAT * W_IN, block, context);
-            run_convbnrelu_half(s_desc.up2c_h, fp16_up2, fp16_cat2,
-                s_desc.up2c_w_h, s_desc.up2c_b_h, N_FEAT, W_IN, N, handle, block, context);
+            run_convbnrelu_half(desc.up2c_h, fp16_up2, fp16_cat2,
+                desc.up2c_w_h, desc.up2c_b_h, N_FEAT, W_IN, N, handle, block, context);
 
             // Output stage: FP32. Convert fp16_x1 (rcbn1 skip) → x1, fp16_cat2 → up2.
             launch_f16_to_f32(x1, fp16_x1, N * N_FEAT * W_IN, block, context);
             launch_f16_to_f32(up2, fp16_cat2, N * N_FEAT * W_IN, block, context);
 
-            run_conv(s_desc.oint_half, x1, logits,
-                s_wb.w_oint_b_w, nullptr,
+            run_conv(desc.oint_half, x1, logits,
+                wb.w_oint_b_w, nullptr,
                 N, N_FEAT, W_IN, block, context, handle, 0.f);
-            run_conv(s_desc.oint_half, up2, logits,
-                s_wb.w_oint_a_w, nullptr,
+            run_conv(desc.oint_half, up2, logits,
+                wb.w_oint_a_w, nullptr,
                 N, N_FEAT, W_IN, block, context, handle, 1.f);
-            launch_bias_add(logits, s_wb.w_oint_b, N_FEAT, W_IN, N, block, context);
-            run_conv(s_desc.outc, logits, oint,
-                s_wb.w_outc_w, s_wb.w_outc_b,
+            launch_bias_add(logits, wb.w_oint_b, N_FEAT, W_IN, N, block, context);
+            run_conv(desc.outc, logits, oint,
+                wb.w_outc_w, wb.w_outc_b,
                 N, 1, W_IN, block, context, handle, 0.f);
         }
 

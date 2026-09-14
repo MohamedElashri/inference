@@ -1,6 +1,8 @@
 #pragma once
 #include "CuDNNCheck.h"
 #include "CuDNNBackendShim.h"
+#include <mutex>
+#include <unordered_map>
 
 namespace Allen::CuDNN {
 
@@ -65,24 +67,52 @@ namespace Allen::CuDNN {
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   /**
-   * @brief Return a cudnnHandle_t bound to the given CUDA stream.
+   * @brief Process-wide map from Allen CUDA stream to its cudnnHandle_t.
    *
-   * One handle is created lazily per OS thread on first call, then reused.
-   * cudnnSetStream is called each time to route work to the correct stream.
+   * Handles follow Allen's streams (one per -t slot) rather than whatever OS
+   * thread happens to run them, and are shared by every cuDNN-using algorithm
+   * on that stream. Created lazily, never destroyed (process lifetime).
+   */
+  class HandleManager {
+  public:
+    static HandleManager& instance() {
+      static HandleManager s_instance;
+      return s_instance;
+    }
+
+    cudnnHandle_t handle_for(cudaStream_t stream) {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      auto [it, inserted] = m_handles.try_emplace(stream, nullptr);
+      if (inserted) ALLEN_CUDNN_CHECK(cudnnCreate(&it->second));
+      return it->second;
+    }
+
+    HandleManager(const HandleManager&) = delete;
+    HandleManager& operator=(const HandleManager&) = delete;
+
+  private:
+    HandleManager() = default;
+    std::mutex m_mutex;
+    std::unordered_map<cudaStream_t, cudnnHandle_t> m_handles;
+  };
+
+  /**
+   * @brief Return the cudnnHandle_t of the given CUDA stream, bound to it.
    *
-   * This replaces the pattern of storing mutable Handle m_handle in each
-   * algorithm instance (which caused one handle per Allen thread to be created
-   * at startup, spiking GPU memory). With thread_local the handles are created
-   * on demand and there is at most one per OS thread.
+   * The per-thread cache makes the steady state lock-free: an Allen stream is
+   * served by one thread, so the map is only consulted on a thread's first call
+   * (or if it is handed a different stream).
    *
    * Usage in operator() const:
    *   cudnnHandle_t h = Allen::CuDNN::get_thread_local_handle(context.stream());
    *   desc.forward(h, ...);
    */
   inline cudnnHandle_t get_thread_local_handle(cudaStream_t stream) {
+    thread_local cudaStream_t tl_stream = nullptr;
     thread_local cudnnHandle_t tl_handle = nullptr;
-    if (tl_handle == nullptr) {
-      ALLEN_CUDNN_CHECK(cudnnCreate(&tl_handle));
+    if (tl_handle == nullptr || tl_stream != stream) {
+      tl_handle = HandleManager::instance().handle_for(stream);
+      tl_stream = stream;
     }
     ALLEN_CUDNN_CHECK(cudnnSetStream(tl_handle, stream));
     return tl_handle;
