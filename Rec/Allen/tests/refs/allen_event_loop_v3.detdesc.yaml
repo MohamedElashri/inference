@@ -7,6 +7,7 @@ stdout: |-
   Configured sequence:
    + ProvideRuntimeOptions_513d8bfd in: true
    + FakeRunNumberProducer in: true
+   + reserveIOV in: true
    + AAAAProvideConstants in: true
    + initialize_number_of_events in: true
    + populate_odin_banks in: true
