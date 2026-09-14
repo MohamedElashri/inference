@@ -226,6 +226,7 @@ set(ALLEN_ALGORITHM_LIB
   HostGEC
   HostInitEventList
   HostRoutingBits
+  HostOutputHandler
   HostTAEFilter
   Kalman
   Lumi
@@ -705,8 +706,11 @@ foreach(header
     MEPTools.h
     InputProvider.h
     OutputHandler.h
+    OutputManager.h
+    IOutputWriter.h
     SliceUtils.h
     FileSystem.h
+    SPSCRingBuffer.h
     TransposeTypes.h
     InputReader.h
     Configuration.h)
@@ -757,12 +761,15 @@ target_link_libraries(AllenCommon INTERFACE
 target_link_libraries(HostCommon PRIVATE
   mdf EventModel Gear Backend mdf AllenCommon LHCbEvent Boost::iostreams Rangev3::rangev3)
 
+if (NOT STANDALONE)
+  target_link_libraries(HostCommon PRIVATE LHCb::IOAlgorithmsLib)
+endif()
+
 allen_add_host_library(AllenLib SHARED
   main/src/Allen.cpp
   main/src/AllenMonitoring.cpp
   main/src/MVAModelsManager.cpp
   main/src/AllenThreads.cpp
-  main/src/OutputHandler.cpp
   main/src/Provider.cpp
   main/src/ZMQOutputSender.cpp)
 

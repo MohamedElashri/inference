@@ -1,0 +1,9 @@
+testfiledb_key: "plume-raw-data-v4"
+evt_max: 10000
+
+n_threads: 2
+events_per_slice: 500
+device_memory_pool: 600
+repetitions: 1
+
+histo_file: 'mdf_input_hists_v4.root'

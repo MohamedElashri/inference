@@ -16,25 +16,37 @@
 #include <ZeroMQ/IZeroMQSvc.h>
 #include <OutputHandler.h>
 
+namespace {
+  void release_ringbuffer(void*, void* hint) { reinterpret_cast<SPSCRingBuffer*>(hint)->release(); }
+} // namespace
+
 class ZMQOutputSender final : public OutputHandler {
 public:
-  ZMQOutputSender(
-    IInputProvider const* input_provider,
-    std::string receiver_connection,
-    size_t const m_output_batch_size,
-    IZeroMQSvc* zmqSvc,
-    bool checksum = true);
+  ZMQOutputSender(std::string receiver_connection, IZeroMQSvc* zmqSvc);
+
+  std::tuple<bool, size_t> output_selected_events(SPSCRingBuffer* ring_buffer) override
+  {
+    std::span<char> buffer = ring_buffer->consume();
+    if (m_connected && !buffer.empty()) {
+      size_t count = count_events(buffer);
+      // Use zero copy to build the message, release_ringbuffer will be called when zmq is done with the message
+      zmq::message_t message_buffer {
+        buffer.data(), buffer.size(), &release_ringbuffer, reinterpret_cast<void*>(ring_buffer)};
+      m_zmq->send(*m_socket, "EVENT", zmq::send_flags::sndmore);
+      m_zmq->send(*m_socket, message_buffer);
+      return {true, count};
+    }
+    else {
+      ring_buffer->release();
+    }
+    return {true, 0};
+  }
 
   ~ZMQOutputSender();
 
   zmq::socket_t* client_socket() const override;
 
   void handle() override;
-
-protected:
-  std::span<char> buffer(size_t, size_t buffer_size, size_t) override;
-
-  virtual bool write_buffer(size_t) override;
 
 private:
   // ZeroMQSvc pointer for convenience.
@@ -51,7 +63,4 @@ private:
 
   // request socket
   std::optional<zmq::socket_t> m_request;
-
-  // Buffer message
-  zmq::message_t m_buffer;
 };

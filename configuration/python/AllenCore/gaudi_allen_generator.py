@@ -12,8 +12,8 @@ from functools import cache
 
 from GaudiKernel.DataHandle import DataHandle
 from PyConf import configurable
-from PyConf.Algorithms import ProvideRuntimeOptions, TransposeRawBanks
-from PyConf.application import default_raw_banks
+from PyConf.Algorithms import ProvideRuntimeOptions
+from PyConf.application import default_raw_banks, default_raw_event
 
 
 # Get the LHCb::RawBank::BankTypes that correspond to and HLT1/Allen
@@ -29,19 +29,10 @@ def lhcb_bank_types(allen_sd):
     return lhcb_bts
 
 
-# Additional algorithms required by every Gaudi-Allen sequence
 @configurable
-def make_transposed_raw_banks(subdetector, make_raw_banks=default_raw_banks):
-    bank_types = lhcb_bank_types(subdetector)
-
-    return TransposeRawBanks(
-        RawBankLocations=[make_raw_banks(k) for k in bank_types],
-        BankTypes=[subdetector] if subdetector is not None else [],
-    ).AllenRawInput
-
-
-@configurable
-def allen_runtime_options(subdetector, filename="allen_monitor.root"):
+def allen_runtime_options(
+    filename="allen_monitor.root", InputProvider="MDFProvider", enable_checker=False
+):
     from Configurables import AllenROOTService
 
     rootService = AllenROOTService()
@@ -55,7 +46,7 @@ def allen_runtime_options(subdetector, filename="allen_monitor.root"):
         rootService.MonitorFile = filename
 
     return ProvideRuntimeOptions(
-        AllenBanksLocation=make_transposed_raw_banks(subdetector=subdetector)
+        InputProvider=InputProvider, EnableChecker=enable_checker
     )
 
 
@@ -69,16 +60,9 @@ def initialize_event_lists(**kwargs):
 
 # Gaudi configuration wrapper
 def make_algorithm(algorithm, name, *args, **kwargs):
-    from PyConf.Algorithms import host_init_event_list_t, odin_provider_t
+    from PyConf.Algorithms import host_init_event_list_t
 
-    # Only ODIN has a dedicated provider that doesn't have the
-    # `bank_type` property
-    if algorithm.type is odin_provider_t.type:
-        subdetector = "ODIN"
-    else:
-        subdetector = kwargs.get("bank_type", None)
-
-    rto = allen_runtime_options(subdetector)
+    rto = allen_runtime_options()
 
     # Pass dev_event_list to inputs that are of type dev_event_list
     if algorithm is not host_init_event_list_t:

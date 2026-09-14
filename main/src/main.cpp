@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
   auto input_provider = Allen::make_provider(allen_options, config);
   if (!input_provider) return -1;
 
-  auto output_handler = Allen::output_handler(input_provider.get(), zmqSvc, allen_options);
+  auto output_handler = Allen::output_handler(zmqSvc, allen_options);
 
   return allen(
     std::move(allen_options), config, config_source, &updater, input_provider.get(), output_handler.get(), zmqSvc, "");

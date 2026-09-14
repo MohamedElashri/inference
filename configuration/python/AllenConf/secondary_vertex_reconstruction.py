@@ -11,6 +11,7 @@
 from AllenCore.algorithms import (
     calc_max_combos_t,
     combine_sv_track_t,
+    empty_lepton_id_t,
     extrapolate_states_t,
     filter_sv_track_t,
     filter_svs_t,
@@ -179,6 +180,7 @@ def make_basic_particles(
         dev_lepton_id_t=lepton_id,
     )
     return {
+        "long_tracks": long_tracks,
         "dev_basic_particle": make_long_track_particles.dev_long_track_particle_view_t,
         "dev_multi_event_basic_particles": make_long_track_particles.dev_multi_event_basic_particles_view_t,
         "dev_multi_event_container_basic_particles": make_long_track_particles.dev_multi_event_container_basic_particles_t,

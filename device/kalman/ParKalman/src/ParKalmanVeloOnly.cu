@@ -146,7 +146,6 @@ __device__ void simplified_fit(
     simplified_step(z, hit_z, hit_y, wy, y, ty, qop, cYY, cYTy, cTyTy, chi2, infoil);
     z = hit_z;
   }
-  __syncthreads();
 
   // Add info to the output track.
   track.chi2 = chi2;

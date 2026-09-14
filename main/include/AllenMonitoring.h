@@ -122,7 +122,7 @@ namespace Allen::Monitoring {
     void registerCounter(Counter<unsigned>* c) { m_counters.push_back(c); }
     void registerAveragingCounter(AveragingCounter<unsigned>* c) { m_av_counters.push_back(c); }
     void initAccumulators(unsigned number_of_streams);
-    void mergeAndReset(bool singlethreaded = false);
+    void mergeAndReset();
     char* bufferForStream(unsigned stream_id) const
     {
       return m_dev_buffer_ptr[m_stream_current_buffer[stream_id].load(std::memory_order_acquire)];

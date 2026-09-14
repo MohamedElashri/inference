@@ -14,6 +14,7 @@
 #include "AlgorithmTypes.cuh"
 
 #include <LumiDefinitions.cuh>
+#include <TAE.h>
 
 namespace host_dummy_maker {
   struct Parameters {
@@ -23,6 +24,7 @@ namespace host_dummy_maker {
     DEVICE_OUTPUT(dev_bool_dummy_t, bool) dev_bool_dummy;
     DEVICE_OUTPUT(dev_char_dummy_t, char) dev_char_dummy;
     DEVICE_OUTPUT(dev_lumi_dummy_t, Lumi::LumiInfo) dev_lumi_dummy;
+    HOST_OUTPUT(host_tae_dummy_t, TAE::TAEEvent) host_tae_dummy;
   };
 
   // Algorithm

@@ -10,37 +10,25 @@
 \*****************************************************************************/
 // Gaudi
 #include "GaudiAlg/Consumer.h"
-#include <Gaudi/Accumulators/Histogram.h>
+#include "Gaudi/Accumulators.h"
 
 // LHCb
-#include "Event/MCHit.h"
-#include "Kernel/LHCbID.h"
-#include "LHCbMath/SIMDWrapper.h"
 #include "Event/VPLightCluster.h"
-#include <Kernel/EventLocalAllocator.h>
 
-// Allen
-#include "VeloEventModel.cuh"
-#include "Logger.h"
-
-using simd = SIMDWrapper::best::types;
-
-class CompareRecAllenVPHits final : public Gaudi::Functional::Consumer<void(
-                                      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-                                      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-                                      const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-                                      const LHCb::VPLightClusters&)> {
+class CompareRecAllenVPHits final
+  : public Gaudi::Functional::Consumer<void(const LHCb::VPLightClusters&, const LHCb::VPLightClusters&)> {
 
 public:
   /// Standard constructor
   CompareRecAllenVPHits(const std::string& name, ISvcLocator* pSvcLocator);
 
   /// Algorithm execution
-  void operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-    const LHCb::VPLightClusters&) const override;
+  void operator()(const LHCb::VPLightClusters& clusters_allen, const LHCb::VPLightClusters& clusters_rec)
+    const override;
+
+private:
+  mutable Gaudi::Accumulators::Counter<> m_allen_n_clusters {this, "Allen VP clusters"};
+  mutable Gaudi::Accumulators::Counter<> m_rec_n_clusters {this, "Rec VP clusters"};
 };
 
 DECLARE_COMPONENT(CompareRecAllenVPHits)
@@ -49,53 +37,39 @@ CompareRecAllenVPHits::CompareRecAllenVPHits(const std::string& name, ISvcLocato
   Consumer(
     name,
     pSvcLocator,
-    {KeyValue {"vp_hits_num", ""},
-     KeyValue {"vp_hit_offsets", ""},
-     KeyValue {"vp_hits", ""},
-     KeyValue {"VPHitsLocation", LHCb::VPClusterLocation::Light}})
+    {KeyValue {"VPLightClustersAllen", ""}, KeyValue {"VPHitsLocation", LHCb::VPClusterLocation::Light}})
 {}
 
 void CompareRecAllenVPHits::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& vp_hits_num,
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& vp_hit_offsets,
-  const std::vector<char, LHCb::Allocators::EventLocal<char>>& vp_hits,
-  LHCb::VPLightClusters const& hit_handler) const
+  const LHCb::VPLightClusters& clusters_allen,
+  const LHCb::VPLightClusters& clusters_rec) const
 {
-
-  // the goal is to compare LHCbIDs of individual hits from data decoded with HLT1 and HLT2.
+  // The goal is to compare channel IDs of individual clusters from data
+  // decoded with HLT1 (Allen) and HLT2 (Rec).
   std::vector<uint32_t> vp_ids_allen, vp_ids_rec;
 
-  const auto n_hits_total_allen = vp_hit_offsets[Velo::Constants::n_module_pairs];
-  const auto n_hits_total_rec = hit_handler.size();
-  Velo::ConstClusters vp_hit_container_allen {vp_hits.data(), n_hits_total_allen};
+  const auto n_hits_total_allen = clusters_allen.size();
+  const auto n_hits_total_rec = clusters_rec.size();
 
-  debug() << "Number of VP hits (Allen) in this event " << n_hits_total_allen << endmsg;
-  debug() << "Number of VP hits (Rec) in this event   " << n_hits_total_rec << endmsg;
+  debug() << "Number of VP clusters (Allen) in this event " << n_hits_total_allen << endmsg;
+  debug() << "Number of VP clusters (Rec) in this event   " << n_hits_total_rec << endmsg;
 
-  // HLT1: loop module pairs and fill hit container
-  for (unsigned i = 0; i < Velo::Constants::n_module_pairs; ++i) {
-    const auto module_hit_start = vp_hit_offsets[i];
-    const auto module_hit_num = vp_hits_num[i];
-    // loop hits
-    for (unsigned hit_number = 0; hit_number < module_hit_num; ++hit_number) {
-      const auto hit_index = module_hit_start + hit_number;
-      const auto id = vp_hit_container_allen.id(hit_index);
-      vp_ids_allen.emplace_back(id & 0xFFFFFFF);
-    }
-  } // end loop sector groups
+  m_allen_n_clusters += n_hits_total_allen;
+  m_rec_n_clusters += n_hits_total_rec;
 
-  // HLT2: loop cluster hits and fill hit container
-  for (uint32_t i = 0; i < n_hits_total_rec; i++) {
-    vp_ids_rec.emplace_back(hit_handler[i].channelID().channelID());
+  // Allen side
+  for (const auto& cl : clusters_allen) {
+    vp_ids_allen.emplace_back(cl.channelID().channelID());
+  }
+
+  // Rec side
+  for (const auto& cl : clusters_rec) {
+    vp_ids_rec.emplace_back(cl.channelID().channelID());
   }
 
   for (const auto& vp_id_allen : vp_ids_allen) {
-    // where is std::erase_if https://en.cppreference.com/w/cpp/container/vector/erase2 ?
-    // compare by LHCbID and x position (we mostly care about x, and everything below 1 micon difference is not
-    // important for us)
-    auto tmp_iter = std::remove_if(vp_ids_rec.begin(), vp_ids_rec.end(), [&vp_id_allen](auto& vp_id_rec) {
-      return /*LHCbID*/ vp_id_rec == vp_id_allen;
-    });
+    auto tmp_iter = std::remove_if(
+      vp_ids_rec.begin(), vp_ids_rec.end(), [&vp_id_allen](auto& vp_id_rec) { return vp_id_rec == vp_id_allen; });
     const auto n_hits_found = std::distance(tmp_iter, vp_ids_rec.end());
     vp_ids_rec.erase(tmp_iter, vp_ids_rec.end());
     if (n_hits_found == 0) {

@@ -98,7 +98,6 @@ namespace error_bank_filter {
 
   struct Parameters {
     HOST_INPUT(host_event_list_t, unsigned) host_event_list;
-    HOST_INPUT(mep_layout_t, unsigned) mep_layout;
     MASK_OUTPUT(dev_output_event_list_t) dev_output_event_list;
     HOST_OUTPUT(host_output_event_list_t, unsigned) host_output_event_list;
     HOST_OUTPUT(host_number_of_selected_events_t, unsigned) host_number_of_selected_events;
@@ -125,6 +124,7 @@ namespace error_bank_filter {
       IInputProvider const* input_provider,
       unsigned const slice_index,
       unsigned const number_of_events,
+      bool const mep_layout,
       unsigned const event_start) const;
 
   private:

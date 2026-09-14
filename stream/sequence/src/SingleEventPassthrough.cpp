@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration           *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -8,99 +8,28 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
-#include <HostBuffersManager.cuh>
+#include <SingleEventPassthrough.cuh>
 #include <Logger.h>
 #include <HltSubBanks.cuh>
 #include <HltSelReport.cuh>
 #include <HltDecReport.cuh>
+#include <mdf_header.hpp>
+#include <raw_helpers.hpp>
+#include <read_mdf.hpp>
+#include <write_mdf.hpp>
 #include <regex>
 
-HostBuffersManager::HostBuffersManager(
-  size_t nBuffers,
-  size_t host_memory_size,
-  const ConfigurationReader::Params& configuration)
+namespace {
+  // Size of the MDF header
+  auto const header_size = LHCb::MDFHeader::sizeOf(Allen::mdf_header_version);
+} // namespace
+
+void SingleEventPassthrough::init()
 {
-  m_host_memory_size = host_memory_size;
-  m_persistent_stores.reserve(nBuffers);
-  for (size_t i = 0; i < nBuffers; ++i) {
-    m_persistent_stores.push_back(std::make_unique<Allen::Store::PersistentStore>(host_memory_size, 64));
-    buffer_statuses.push_back(BufferStatus::Empty);
-    empty_buffers.push(i);
-  }
+  // The following code builds banks that are common to all single event passthrough with the current
+  // configuration, it is then cached into the m_banks buffer.
 
-  // load configuration relevant to the large-event passthrough
-  if (configuration.find("dec_reporter") != configuration.end()) {
-    auto decrep_config = configuration.find("dec_reporter")->second;
-    for (auto& [key, m] : {std::tuple {"tck", std::ref(m_tck)}, std::tuple {"task_id", std::ref(m_task_id)}}) {
-      if (decrep_config.find(key) != decrep_config.end()) {
-        m.get() = decrep_config[key].template get<unsigned>();
-      }
-    }
-  }
-
-  if (configuration.find("host_routingbits_writer") != configuration.end()) {
-    auto rb_config = configuration.find("host_routingbits_writer")->second;
-    if (rb_config.find("routingbit_map") != rb_config.end()) {
-      for (auto [expr, bit] : rb_config["routingbit_map"].template get<std::map<std::string, unsigned>>()) {
-        std::smatch result;
-        if (std::regex_match(m_passthrough_line, result, std::regex {expr})) {
-          m_passthrough_rbs |= 1u << bit;
-        }
-      }
-    }
-  }
-}
-
-size_t HostBuffersManager::assignBufferToFill()
-{
-  if (empty_buffers.empty()) {
-    warning_cout << "No empty buffers available" << std::endl;
-    warning_cout << "Adding new buffers" << std::endl;
-    m_persistent_stores.push_back(std::make_unique<Allen::Store::PersistentStore>(m_host_memory_size, 64));
-    buffer_statuses.push_back(BufferStatus::Filling);
-    return m_persistent_stores.size() - 1;
-  }
-
-  auto b = empty_buffers.front();
-  empty_buffers.pop();
-
-  buffer_statuses[b] = BufferStatus::Filling;
-  return b;
-}
-
-void HostBuffersManager::returnBufferFilled(size_t b)
-{
-  buffer_statuses[b] = BufferStatus::Filled;
-  filled_buffers.push(b);
-}
-
-void HostBuffersManager::returnBufferUnfilled(size_t b)
-{
-  buffer_statuses[b] = BufferStatus::Empty;
-  empty_buffers.push(b);
-
-#ifndef ALLEN_STANDALONE
-  if (m_nsplit) ++(*m_nsplit);
-#endif
-}
-
-void HostBuffersManager::returnBufferWritten(size_t b)
-{
-  buffer_statuses[b] = BufferStatus::Empty;
-  empty_buffers.push(b);
-}
-
-void HostBuffersManager::writeSingleEventPassthrough(const size_t b)
-{
-  if (b >= m_persistent_stores.size()) {
-    error_cout << "Buffer index " << b
-               << " is larger than the number of available buffers: " << m_persistent_stores.size() << std::endl;
-    return;
-  }
-  auto* store = m_persistent_stores[b].get();
-
-  store->inject("host_init_number_of_events__host_number_of_events_t", std::vector<unsigned> {1});
-  store->inject("global_decision__host_global_decision_t", std::vector<bool> {true});
+  // Build banks
   std::vector<unsigned> dr_data(HltDecReports<false>::size(1u), 0u);
   HltDecReports<false> decrep({dr_data.data(), dr_data.size()}, 0u, 1u);
   decrep.set_number_of_lines(1u);
@@ -115,8 +44,8 @@ void HostBuffersManager::writeSingleEventPassthrough(const size_t b)
       std::byte {1},                    // number of candidates
       std::byte {1},                    // execution stage
       static_cast<unsigned short>(1)}); // decision ID
-  store->inject("dec_reporter__host_dec_reports_t", dr_data);
-  store->inject("host_routingbits_writer__host_routingbits_t", std::vector<unsigned> {m_passthrough_rbs, 0, 0});
+
+  std::array<unsigned, 3> routing_bits {m_passthrough_rbs, 0, 0};
 
   // Make the substructure bank.
   // Substructure bank size. First word for bank size info and the second for
@@ -218,27 +147,94 @@ void HostBuffersManager::writeSingleEventPassthrough(const size_t b)
     substr_bank_size,
     stdinfo_bank_size);
 
-  store->inject("make_selreps__host_selrep_offsets_t", std::vector<unsigned> {0, selrep_bank_size});
-  store->inject("make_selreps__host_sel_reports_t", sr_data);
+  // Compute size
+  const unsigned dec_report_size = decrep.bank_data().size_bytes();
+  const unsigned routing_bits_size = routing_bits.size() * sizeof(uint32_t);
+  const unsigned selrep_bank_size_bytes = selrep_bank_size * sizeof(uint32_t);
+  size_t hlt_size = 0;
+  for (auto hlt_bank_size : {dec_report_size, routing_bits_size, selrep_bank_size_bytes}) {
+    if (hlt_bank_size > 0) {
+      hlt_size += bank_header_size + hlt_bank_size;
+    }
+  }
+  m_banks.resize(hlt_size);
 
-  returnBufferFilled(b);
+  // Fill buffer
+  char* output = m_banks.data();
+
+  using output_bank = std::tuple<LHCb::RawBank::BankType, unsigned, unsigned, std::span<char const>>;
+  auto hlt_banks = std::make_tuple(
+    // HltDecReports
+    output_bank {LHCb::RawBank::BankType::HltDecReports, decrep.version(), decrep.source_id(), decrep.bank_data()},
+    // HltRoutingBits
+    output_bank {
+      LHCb::RawBank::BankType::HltRoutingBits,
+      0u,
+      Hlt1::Constants::sourceID,
+      {reinterpret_cast<char const*>(routing_bits.data()), static_cast<events_size>(routing_bits_size)}},
+    // HltSelReports
+    output_bank {
+      LHCb::RawBank::BankType::HltSelReports,
+      Hlt1::Constants::version_sel_reports,
+      Hlt1::Constants::sourceID_sel_reports,
+      {reinterpret_cast<char const*>(sr_data.data()), static_cast<events_size>(selrep_bank_size_bytes)}});
+
+  // Lambda to add an HLT output bank to the output event
+  auto add_hlt_bank = [](
+                        LHCb::RawBank::BankType bank_type,
+                        unsigned version,
+                        unsigned source_id,
+                        std::span<char const> data,
+                        char* output) -> size_t {
+    return data.empty() ? 0u : Allen::add_raw_bank((uint8_t) bank_type, version, source_id, data, output);
+  };
+
+  for_each(hlt_banks, [&output, &add_hlt_bank](auto b) {
+    auto t = std::tuple_cat(b, std::tuple {output});
+    output += std::apply(add_hlt_bank, t);
+  });
+}
+
+void SingleEventPassthrough::write(
+  size_t const slice_index,
+  unsigned const start_event,
+  IInputProvider const* input_provider,
+  int producer_id) const
+{
+  size_t input_size = 0;
+  input_provider->event_sizes(
+    slice_index, std::span<unsigned const> {&start_event, 1u}, std::span<size_t> {&input_size, 1u});
+  auto event_ids = input_provider->event_ids(slice_index);
+
+  std::span<char> event_span =
+    OutputManager::get()->reserve_write(producer_id, header_size + input_size + m_banks.size());
+
+  std::array<unsigned, 3> routing_bits {m_passthrough_rbs, 0, 0};
+  auto* header = Allen::add_mdf_header(event_span, static_cast<unsigned int>(std::get<0>(event_ids[0])), routing_bits);
+
+  input_provider->copy_banks(slice_index, start_event, event_span.subspan(header_size, input_size));
+  std::memcpy(event_span.data() + header_size + input_size, m_banks.data(), m_banks.size());
+
+  if (m_do_checksum) {
+    auto const skip = 4 * sizeof(int);
+    auto c = LHCb::hash32Checksum(event_span.data() + skip, event_span.size() - skip);
+    header->setChecksum(c);
+  }
+  else {
+    header->setChecksum(0);
+  }
+
+  OutputManager::get()->commit(producer_id);
 
 #ifndef ALLEN_STANDALONE
   if (m_npassthrough) ++(*m_npassthrough);
 #endif
 }
 
-void HostBuffersManager::printStatus() const
-{
-  info_cout << m_persistent_stores.size() << " stores; " << empty_buffers.size() << " empty; " << filled_buffers.size()
-            << " filled." << std::endl;
-}
-
 #ifndef ALLEN_STANDALONE
-void HostBuffersManager::activateMonitoring(Service* svc)
+void SingleEventPassthrough::activateMonitoring(Service* svc)
 {
   if (svc != nullptr) {
-    m_nsplit = std::make_unique<Gaudi::Accumulators::Counter<>>(svc, "NSplit");
     m_npassthrough = std::make_unique<Gaudi::Accumulators::Counter<>>(svc, "NPassthrough");
   }
 }

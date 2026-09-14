@@ -11,87 +11,207 @@
 
 // Gaudi
 #include "GaudiAlg/Consumer.h"
+#include "GaudiAlg/Transformer.h"
 #include "Gaudi/Accumulators.h"
-#include <Kernel/EventLocalAllocator.h>
 
 // Rec
 #include "RichFutureRecEvent/RichRecSIMDPixels.h"
 
 // Allen
 #include <RichSmartID.cuh>
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
 // std
+#include <cstdint>
 #include <iomanip>
 #include <limits>
+#include <unordered_map>
 
-enum ReturnState { IS_NULL, NOT_EXISTS, EXISTS };
+// ------------------------------------------------------------------
+//  Converted Allen Rich pixel  (host-side, per-event)
+// ------------------------------------------------------------------
 
-template<typename DetectorType, typename Side>
-void printPixelAttributes(
-  const std::string& label,
-  float gx,
-  float gy,
-  float gz,
-  float lx,
-  float ly,
-  uint32_t smartIDKey,
-  const DetectorType rich,
-  const Side side)
-{
-  std::cout << std::fixed << std::setprecision(std::numeric_limits<float>::max_digits10);
-  std::cout << label << ": ";
-  std::cout << "GP=(" << gx << "," << gy << "," << gz << "), ";
-  std::cout << "LP=(" << lx << "," << ly << "), ";
-  std::cout << "SID=" << smartIDKey << ", ";
-  std::cout << "R=" << static_cast<int>(rich) << ", ";
-  std::cout << "S=" << static_cast<int>(side) << "\n";
-}
+struct AllenRichPixel {
+  float3 gpos;
+  float2 lpos;
+  Allen::Rich::Decoding::SmartID smartID;
+};
 
-// This test verifies that all valid HLT2 pixels exist in Allen, and all valid Allen pixels exist in HLT2
-// Having the same number of m_allen_found_in_hlt2, and m_hlt2_found_in_allen means success.
-class CompareRecAllenRichPixels final
-  : public Gaudi::Functional::Consumer<void(
-      const std::vector<float3, LHCb::Allocators::EventLocal<float3>>&,
-      const std::vector<short2, LHCb::Allocators::EventLocal<short2>>&,
-      const std::vector<Allen::Rich::Decoding::SmartID, LHCb::Allocators::EventLocal<Allen::Rich::Decoding::SmartID>>&,
-      const std::vector<float3, LHCb::Allocators::EventLocal<float3>>&,
-      const std::vector<short2, LHCb::Allocators::EventLocal<short2>>&,
-      const std::vector<Allen::Rich::Decoding::SmartID, LHCb::Allocators::EventLocal<Allen::Rich::Decoding::SmartID>>&,
-      const Rich::Future::Rec::SIMDPixelSummaries&)> {
+using AllenRichPixels = std::vector<AllenRichPixel>;
+
+// ==================================================================
+//  Multi-event converter: raw device buffers → per-event AllenRichPixels
+// ==================================================================
+
+class ConvertAllenRichPixels final : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<AllenRichPixels>(
+                                       const Allen::device_buffer<float3>&,
+                                       const Allen::device_buffer<short2>&,
+                                       const Allen::device_buffer<Allen::Rich::Decoding::SmartID>&,
+                                       const Allen::device_buffer<float3>&,
+                                       const Allen::device_buffer<short2>&,
+                                       const Allen::device_buffer<Allen::Rich::Decoding::SmartID>&,
+                                       const Allen::device_buffer<unsigned>&,
+                                       const Allen::device_buffer<unsigned>&)> {
 
 public:
-  /// Standard constructor
+  ConvertAllenRichPixels(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"rich1_pixels_gpos", ""},
+       KeyValue {"rich1_pixels_lpos", ""},
+       KeyValue {"rich1_pixels_smartid", ""},
+       KeyValue {"rich2_pixels_gpos", ""},
+       KeyValue {"rich2_pixels_lpos", ""},
+       KeyValue {"rich2_pixels_smartid", ""},
+       KeyValue {"rich1_pixel_offsets", ""},
+       KeyValue {"rich2_pixel_offsets", ""}},
+      {KeyValue {"AllenRichPixels", ""}})
+  {}
+
+  std::tuple<std::vector<AllenRichPixels>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<float3>& dev_r1_gpos,
+    const Allen::device_buffer<short2>& dev_r1_lpos,
+    const Allen::device_buffer<Allen::Rich::Decoding::SmartID>& dev_r1_sid,
+    const Allen::device_buffer<float3>& dev_r2_gpos,
+    const Allen::device_buffer<short2>& dev_r2_lpos,
+    const Allen::device_buffer<Allen::Rich::Decoding::SmartID>& dev_r2_sid,
+    const Allen::device_buffer<unsigned>& dev_r1_offsets,
+    const Allen::device_buffer<unsigned>& dev_r2_offsets) const override
+  {
+    // Copy all to host
+    auto h_r1_gpos = dev_r1_gpos.to_host();
+    auto h_r1_lpos = dev_r1_lpos.to_host();
+    auto h_r1_sid = dev_r1_sid.to_host();
+    auto h_r2_gpos = dev_r2_gpos.to_host();
+    auto h_r2_lpos = dev_r2_lpos.to_host();
+    auto h_r2_sid = dev_r2_sid.to_host();
+    auto h_r1_off = dev_r1_offsets.to_host();
+    auto h_r2_off = dev_r2_offsets.to_host();
+
+    // Offsets layout: 2 panels per detector → (n_events * 2 + 1) entries.
+    // Panel 0: offs[0..n_events]; Panel 1: offs[n_events..2*n_events]
+    const unsigned n_events = (h_r1_off.size() - 1) / 2;
+
+    std::vector<AllenRichPixels> all_pixels;
+    all_pixels.reserve(n_events);
+
+    for (unsigned evt = 0; evt < n_events; ++evt) {
+
+      // Rich1 panel boundaries
+      const unsigned r1_p0_begin = h_r1_off[evt];
+      const unsigned r1_p0_end = h_r1_off[evt + 1];
+      const unsigned r1_p1_begin = h_r1_off[n_events + evt];
+      const unsigned r1_p1_end = h_r1_off[n_events + evt + 1];
+
+      // Rich2 panel boundaries
+      const unsigned r2_p0_begin = h_r2_off[evt];
+      const unsigned r2_p0_end = h_r2_off[evt + 1];
+      const unsigned r2_p1_begin = h_r2_off[n_events + evt];
+      const unsigned r2_p1_end = h_r2_off[n_events + evt + 1];
+
+      const unsigned n_r1 = (r1_p0_end - r1_p0_begin) + (r1_p1_end - r1_p1_begin);
+      const unsigned n_r2 = (r2_p0_end - r2_p0_begin) + (r2_p1_end - r2_p1_begin);
+
+      AllenRichPixels pixels;
+      pixels.reserve(n_r1 + n_r2);
+
+      // Helper to append pixels from a panel
+      auto append_panel =
+        [&](const auto& gpos_host, const auto& lpos_host, const auto& sid_host, unsigned begin, unsigned end) {
+          for (unsigned i = begin; i < end; ++i) {
+            pixels.push_back(
+              {gpos_host[i],
+               make_float2(
+                 static_cast<float>(lpos_host[i].x) * (750.f / (1 << 15)),
+                 static_cast<float>(lpos_host[i].y) * (750.f / (1 << 15))),
+               sid_host[i]});
+          }
+        };
+
+      // Rich1: panel 0 + panel 1
+      append_panel(h_r1_gpos, h_r1_lpos, h_r1_sid, r1_p0_begin, r1_p0_end);
+      append_panel(h_r1_gpos, h_r1_lpos, h_r1_sid, r1_p1_begin, r1_p1_end);
+
+      // Rich2: panel 0 + panel 1
+      append_panel(h_r2_gpos, h_r2_lpos, h_r2_sid, r2_p0_begin, r2_p0_end);
+      append_panel(h_r2_gpos, h_r2_lpos, h_r2_sid, r2_p1_begin, r2_p1_end);
+
+      all_pixels.emplace_back(std::move(pixels));
+    }
+
+    return std::make_tuple(std::move(all_pixels));
+  }
+};
+
+DECLARE_COMPONENT(ConvertAllenRichPixels)
+
+// ===================================================================
+//  Single-event comparison: AllenRichPixels vs Rec SIMDPixelSummaries
+// ===================================================================
+
+namespace {
+
+  enum ReturnState { IS_NULL, NOT_EXISTS, EXISTS };
+
+  // Reference to a single scalar pixel inside a SIMD-packed Rec pixel summary,
+  // used to index Rec pixels by SmartID key without flattening/copying them.
+  struct RecPixelRef {
+    unsigned summaryIdx {};
+    unsigned lane {};
+  };
+
+} // namespace
+
+class CompareRecAllenRichPixels final
+  : public Gaudi::Functional::Consumer<void(const AllenRichPixels&, const Rich::Future::Rec::SIMDPixelSummaries&)> {
+
+public:
   CompareRecAllenRichPixels(const std::string& name, ISvcLocator* pSvcLocator);
 
-  /// Algorithm execution
-  void operator()(
-    const std::vector<float3, LHCb::Allocators::EventLocal<float3>>&,
-    const std::vector<short2, LHCb::Allocators::EventLocal<short2>>&,
-    const std::vector<Allen::Rich::Decoding::SmartID, LHCb::Allocators::EventLocal<Allen::Rich::Decoding::SmartID>>&,
-    const std::vector<float3, LHCb::Allocators::EventLocal<float3>>&,
-    const std::vector<short2, LHCb::Allocators::EventLocal<short2>>&,
-    const std::vector<Allen::Rich::Decoding::SmartID, LHCb::Allocators::EventLocal<Allen::Rich::Decoding::SmartID>>&,
-    const Rich::Future::Rec::SIMDPixelSummaries&) const override;
-
-  /// Compare the attributes of an Allen Pixel and a Rec Pixel
-  bool matchPixels(
-    const float3& allenGpos,
-    [[maybe_unused]] const float2& allenLpos,
-    const Allen::Rich::Decoding::SmartID& allenID,
-    const Rich::Future::Rec::SIMDPixel& recPixelSummary,
-    size_t i) const
-  {
-    auto equal = [](float a, float b, float tol = 1e-3f) { return std::abs(a - b) < tol; };
-
-    return (
-      equal(allenGpos.x, recPixelSummary.gloPos().X()[i]) && equal(allenGpos.y, recPixelSummary.gloPos().Y()[i]) &&
-      equal(allenGpos.z, recPixelSummary.gloPos().Z()[i]) &&
-      equal(allenLpos.x, recPixelSummary.locPos().X()[i], 1e-1f) &&
-      equal(allenLpos.y, recPixelSummary.locPos().Y()[i], 1e-1f) &&
-      allenID.key() == recPixelSummary.smartID()[i].key());
-  }
+  void operator()(const AllenRichPixels& allenPixels, const Rich::Future::Rec::SIMDPixelSummaries& recPixelSummaries)
+    const override;
 
 private:
+  /// Compare the attributes of an Allen Pixel and a Rec Pixel
+  bool matchPixels(const AllenRichPixel& allen, const Rich::Future::Rec::SIMDPixel& recPixelSummary, size_t i) const
+  {
+    const auto equal = []<typename T>(T a, T b, T tol = T(1e-3)) { return std::abs(a - b) < tol; };
+
+    // Check the cheap, exact, maximally-discriminating SmartID key first: it is
+    // required for any real match anyway, and rejects almost all non-matching
+    // candidates without paying for five floating point tolerance checks.
+    return (
+      allen.smartID.key() == recPixelSummary.smartID()[i].key() &&
+      equal(allen.gpos.x, recPixelSummary.gloPos().X()[i]) && equal(allen.gpos.y, recPixelSummary.gloPos().Y()[i]) &&
+      equal(allen.gpos.z, recPixelSummary.gloPos().Z()[i]) &&
+      equal(allen.lpos.x, recPixelSummary.locPos().X()[i], 1e-1f) &&
+      equal(allen.lpos.y, recPixelSummary.locPos().Y()[i], 1e-1f));
+  }
+
+  /// Report the attributes of a pixel that failed to find a match, via a Gaudi info() message
+  template<typename DetectorType, typename Side>
+  void printPixelAttributes(
+    const std::string& label,
+    float gx,
+    float gy,
+    float gz,
+    float lx,
+    float ly,
+    uint32_t smartIDKey,
+    const DetectorType rich,
+    const Side side) const
+  {
+    info() << std::fixed << std::setprecision(std::numeric_limits<float>::max_digits10) << label << ": "
+           << "GP=(" << gx << "," << gy << "," << gz << "), "
+           << "LP=(" << lx << "," << ly << "), "
+           << "SID=" << smartIDKey << ", "
+           << "R=" << static_cast<int>(rich) << ", "
+           << "S=" << static_cast<int>(side) << endmsg;
+  }
+
   mutable Gaudi::Accumulators::Counter<> m_allen_in_rec {this, "Allen Pixels found in HLT2"};
   mutable Gaudi::Accumulators::Counter<> m_allen_not_in_rec {this, "Allen Pixels not found in HLT2"};
   mutable Gaudi::Accumulators::Counter<> m_rec_in_allen {this, "HLT2 Pixels found in Allen"};
@@ -105,29 +225,11 @@ private:
 DECLARE_COMPONENT(CompareRecAllenRichPixels)
 
 CompareRecAllenRichPixels::CompareRecAllenRichPixels(const std::string& name, ISvcLocator* pSvcLocator) :
-  Consumer(
-    name,
-    pSvcLocator,
-    {KeyValue {"rich1_pixels_gpos", ""},
-     KeyValue {"rich1_pixels_lpos", ""},
-     KeyValue {"rich1_pixels_smartid", ""},
-     KeyValue {"rich2_pixels_gpos", ""},
-     KeyValue {"rich2_pixels_lpos", ""},
-     KeyValue {"rich2_pixels_smartid", ""},
-     KeyValue {"SIMDPixelSummaries", ""}})
+  Consumer(name, pSvcLocator, {KeyValue {"AllenRichPixels", ""}, KeyValue {"SIMDPixelSummaries", ""}})
 {}
 
-// When reading this code, keep in mind that recPixelSummaries contain multiple pixels, while allenRichPixels contain
-// individual pixels
 void CompareRecAllenRichPixels::operator()(
-  const std::vector<float3, LHCb::Allocators::EventLocal<float3>>& allenRich1PixelsGpos,
-  const std::vector<short2, LHCb::Allocators::EventLocal<short2>>& allenRich1PixelsLpos,
-  const std::vector<Allen::Rich::Decoding::SmartID, LHCb::Allocators::EventLocal<Allen::Rich::Decoding::SmartID>>&
-    allenRich1PixelsSmartID,
-  const std::vector<float3, LHCb::Allocators::EventLocal<float3>>& allenRich2PixelsGpos,
-  const std::vector<short2, LHCb::Allocators::EventLocal<short2>>& allenRich2PixelsLpos,
-  const std::vector<Allen::Rich::Decoding::SmartID, LHCb::Allocators::EventLocal<Allen::Rich::Decoding::SmartID>>&
-    allenRich2PixelsSmartID,
+  const AllenRichPixels& allenPixels,
   const Rich::Future::Rec::SIMDPixelSummaries& recPixelSummaries) const
 {
   auto allen_in_rec = m_allen_in_rec.buffer();
@@ -139,123 +241,93 @@ void CompareRecAllenRichPixels::operator()(
   auto allen_reviewed = m_allen_reviewed.buffer();
   auto rec_reviewed = m_rec_reviewed.buffer();
 
-  // Concatenate Allen Pixel vectors
-  std::vector<float3> allenPixelsGpos;
-  std::vector<float2> allenPixelsLpos;
-  std::vector<Allen::Rich::Decoding::SmartID> allenPixelsSmartID;
-  allenPixelsGpos.reserve(allenRich1PixelsGpos.size() + allenRich2PixelsGpos.size());
-  allenPixelsGpos.insert(allenPixelsGpos.end(), allenRich1PixelsGpos.begin(), allenRich1PixelsGpos.end());
-  allenPixelsGpos.insert(allenPixelsGpos.end(), allenRich2PixelsGpos.begin(), allenRich2PixelsGpos.end());
-
-  allenPixelsLpos.reserve(allenRich1PixelsLpos.size() + allenRich2PixelsLpos.size());
-  for (short2 lpos16 : allenRich1PixelsLpos) {
-    allenPixelsLpos.emplace_back(make_float2(lpos16.x * (750.f / (1 << 15)), lpos16.y * (750.f / (1 << 15))));
-  }
-  for (short2 lpos16 : allenRich2PixelsLpos) {
-    allenPixelsLpos.emplace_back(make_float2(lpos16.x * (750.f / (1 << 15)), lpos16.y * (750.f / (1 << 15))));
+  // Index both pixel sets by SmartID key so the two match directions below can
+  // do O(1)-average lookups instead of linear scans. A vector of candidates
+  // preserves correct handling if more than one pixel shares a key.
+  std::unordered_map<std::uint64_t, std::vector<unsigned>> allenIndexByKey;
+  allenIndexByKey.reserve(allenPixels.size());
+  for (unsigned i = 0; i < allenPixels.size(); ++i) {
+    allenIndexByKey[allenPixels[i].smartID.key()].push_back(i);
   }
 
-  allenPixelsSmartID.reserve(allenRich1PixelsSmartID.size() + allenRich2PixelsSmartID.size());
-  allenPixelsSmartID.insert(allenPixelsSmartID.end(), allenRich1PixelsSmartID.begin(), allenRich1PixelsSmartID.end());
-  allenPixelsSmartID.insert(allenPixelsSmartID.end(), allenRich2PixelsSmartID.begin(), allenRich2PixelsSmartID.end());
+  std::unordered_map<std::uint64_t, std::vector<RecPixelRef>> recIndexByKey;
+  for (unsigned summaryIdx = 0; summaryIdx < recPixelSummaries.size(); ++summaryIdx) {
+    const auto& summary = recPixelSummaries[summaryIdx];
+    for (unsigned lane = 0; lane < summary.gloPos().X().size(); ++lane) {
+      if (summary.validMask()[lane]) {
+        recIndexByKey[summary.smartID()[lane].key()].push_back({summaryIdx, lane});
+      }
+    }
+  }
 
-  // functor to check if allen pixels exist in HLT2
-  auto allenPixelExistsInRec =
-    [&](
-      const float3& allenGpos, const float2& allenLpos, const Allen::Rich::Decoding::SmartID& allenID) -> ReturnState {
+  // ----- Allen pixels → check existence in Rec -----
+  const auto allenInRec = [&](const AllenRichPixel& a) -> ReturnState {
     ++allen_reviewed;
-
-    // iterate over all pixel summaries
-    for (const auto& recPixelSummary : recPixelSummaries) {
-      // arbitralilly use any of the vectors in a pixel summary to get the pixel count and iterate that many times.
-      for (size_t i = 0; i < recPixelSummary.gloPos().X().size(); i++) {
-        // ensure HLT2 pixel validity
-        if (recPixelSummary.validMask()[i]) {
-          // check for match
-          if (matchPixels(allenGpos, allenLpos, allenID, recPixelSummary, i)) {
-            ++allen_in_rec;
-            return ReturnState::EXISTS;
-          }
-        } // invalid HLT2 pix
-      }   // didn't find pix match
-    }     // covered all HLT2 pixels
+    const auto it = recIndexByKey.find(a.smartID.key());
+    if (it != recIndexByKey.end()) {
+      for (const auto& ref : it->second) {
+        if (matchPixels(a, recPixelSummaries[ref.summaryIdx], ref.lane)) {
+          ++allen_in_rec;
+          return ReturnState::EXISTS;
+        }
+      }
+    }
     ++allen_not_in_rec;
-    error() << "Allen pixel " << allenID.key() << " not found in HLT2" << endmsg;
+    error() << "Allen pixel " << a.smartID.key() << " not found in HLT2" << endmsg;
     return ReturnState::NOT_EXISTS;
   };
 
-  // functor to check if HLT2 pixels exist in Allen
-  auto recPixelExistsInAllen = [&](const Rich::Future::Rec::SIMDPixel& recPixelSummary) -> std::vector<ReturnState> {
-    std::vector<ReturnState> summaryStates;
-    bool found_current_pixel = true;
-
-    // arbitralilly use any of the vector in a pixel summary to get the pixel count and iterate that many times.
-    for (size_t i = 0; i < recPixelSummary.gloPos().X().size(); i++) {
-      ++rec_reviewed;
-      if (found_current_pixel) {
-        found_current_pixel = false;
-        // ensure HLT2 pixel validity
-        if (recPixelSummary.validMask()[i]) {
-          // iterate over Allen pixels
-          for (unsigned j = 0; j < allenPixelsGpos.size(); j++) {
-            // check for match
-            if (matchPixels(allenPixelsGpos[j], allenPixelsLpos[j], allenPixelsSmartID[j], recPixelSummary, i)) {
-              ++rec_in_allen;
-              found_current_pixel = true;
-              summaryStates.push_back(ReturnState::EXISTS);
-              continue;
-            } // found a match
-          }   // covered all Allen pixels
-        }
-        else {
-          ++rec_null;
-          found_current_pixel = true; // assume correctness on invalid pix to ignore it.
-
-          summaryStates.push_back(ReturnState::IS_NULL);
-        } // invalid HLT2 pix
-      }
-      else { // didn't find pix match
-        ++rec_not_in_allen;
-        summaryStates.push_back(ReturnState::NOT_EXISTS);
-        error() << "HLT2 pixel " << recPixelSummary.smartID()[i].key() << " not found in Allen" << endmsg;
-      }
-    }
-    return summaryStates;
-  };
-
-  // call allen in hlt2 functor
-  for (unsigned j = 0; j < allenPixelsGpos.size(); j++) {
-    ReturnState state = allenPixelExistsInRec(allenPixelsGpos[j], allenPixelsLpos[j], allenPixelsSmartID[j]);
+  for (const auto& a : allenPixels) {
+    const auto state = allenInRec(a);
     if (state == ReturnState::NOT_EXISTS) {
       printPixelAttributes(
         "Allen",
-        allenPixelsGpos[j].x,
-        allenPixelsGpos[j].y,
-        allenPixelsGpos[j].z,
-        allenPixelsLpos[j].x,
-        allenPixelsLpos[j].y,
-        allenPixelsSmartID[j].key(),
-        allenPixelsSmartID[j].rich(),
-        allenPixelsSmartID[j].side());
+        a.gpos.x,
+        a.gpos.y,
+        a.gpos.z,
+        a.lpos.x,
+        a.lpos.y,
+        a.smartID.key(),
+        static_cast<int>(a.smartID.rich()),
+        static_cast<int>(a.smartID.side()));
     }
   }
 
-  // call hlt2 in allen functor
+  // ----- Rec pixels → check existence in Allen -----
+  const auto recInAllen = [&](const Rich::Future::Rec::SIMDPixel& rec, size_t i) -> ReturnState {
+    ++rec_reviewed;
+    if (!rec.validMask()[i]) {
+      ++rec_null;
+      return ReturnState::IS_NULL;
+    }
+    const auto it = allenIndexByKey.find(rec.smartID()[i].key());
+    if (it != allenIndexByKey.end()) {
+      for (const auto allenIdx : it->second) {
+        if (matchPixels(allenPixels[allenIdx], rec, i)) {
+          ++rec_in_allen;
+          return ReturnState::EXISTS;
+        }
+      }
+    }
+    ++rec_not_in_allen;
+    error() << "HLT2 pixel " << rec.smartID()[i].key() << " not found in Allen" << endmsg;
+    return ReturnState::NOT_EXISTS;
+  };
 
-  for (auto& recPixelSummary : recPixelSummaries) {
-    std::vector<ReturnState> summaryStates = recPixelExistsInAllen(recPixelSummary);
-    for (size_t i = 0; i < summaryStates.size(); ++i) {
-      if (summaryStates[i] == ReturnState::NOT_EXISTS) {
+  for (const auto& rec : recPixelSummaries) {
+    for (size_t i = 0; i < rec.gloPos().X().size(); i++) {
+      const auto state = recInAllen(rec, i);
+      if (state == ReturnState::NOT_EXISTS) {
         printPixelAttributes(
           "Rec",
-          recPixelSummary.gloPos().X()[i],
-          recPixelSummary.gloPos().Y()[i],
-          recPixelSummary.gloPos().Z()[i],
-          recPixelSummary.locPos().X()[i],
-          recPixelSummary.locPos().Y()[i],
-          recPixelSummary.smartID()[i].key(),
-          recPixelSummary.rich(),
-          recPixelSummary.side());
+          rec.gloPos().X()[i],
+          rec.gloPos().Y()[i],
+          rec.gloPos().Z()[i],
+          rec.locPos().X()[i],
+          rec.locPos().Y()[i],
+          rec.smartID()[i].key(),
+          static_cast<int>(rec.rich()),
+          static_cast<int>(rec.side()));
       }
     }
   }

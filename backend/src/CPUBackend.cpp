@@ -10,6 +10,11 @@
 \*****************************************************************************/
 #include "BackendCommon.h"
 
+#ifdef __linux__
+#include <fstream>
+#include <regex>
+#endif
+
 thread_local GridDimensions gridDim;
 thread_local BlockIndices blockIdx;
 
@@ -17,19 +22,24 @@ namespace Allen {
   std::tuple<bool, std::string, unsigned, unsigned> set_device(int id, size_t)
   {
 #ifdef __linux__
-    // Try to get the CPU type on a linux system
-    FILE* cmd = popen("grep -m1 -hoE 'model name\\s+.*' /proc/cpuinfo | awk '{ print substr($0, index($0,$4)) }'", "r");
-    if (cmd == NULL) return {true, "CPU", 0, 0};
+    std::ifstream cpuinfo {"/proc/cpuinfo"};
+    std::string processor_name;
 
-    // Get a string that identifies the CPU
-    const int fd = fileno(cmd);
-    __gnu_cxx::stdio_filebuf<char> filebuf {fd, std::ios::in};
-    std::istream cmd_ifstream {&filebuf};
-    std::string processor_name {(std::istreambuf_iterator<char>(cmd_ifstream)), (std::istreambuf_iterator<char>())};
-    pclose(cmd);
+    for (std::string line; std::getline(cpuinfo, line);) {
+      if (!line.starts_with("model name")) continue;
+
+      const auto colon = line.find(':');
+      if (colon != std::string::npos) {
+        processor_name = line.substr(colon + 1);
+        processor_name.erase(0, processor_name.find_first_not_of(" \t"));
+      }
+      break;
+    }
+
+    if (processor_name.empty()) processor_name = "CPU";
 
     // Clean the string
-    const std::regex regex_to_remove {"(\\(R\\))|(CPU )|( @.*)|(\\(TM\\))|(\n)|( Processor)"};
+    const std::regex regex_to_remove {"(\\(R\\))|(CPU )|( @.*)|(\\(TM\\))|( Processor)"};
     processor_name = std::regex_replace(processor_name, regex_to_remove, std::string {});
 
     return {true, processor_name, cpu_alignment, id};

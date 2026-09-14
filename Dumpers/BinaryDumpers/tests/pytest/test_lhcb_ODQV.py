@@ -20,16 +20,9 @@ from LHCbTesting import LHCbExeTest
 @pytest.mark.shared_cwd("BinaryDumpers")
 class Test(LHCbExeTest):
     command = [
-        "python",
-        "../../options/allen.py",
-        "--sequence",
-        "$ALLEN_INSTALL_DIR/constants/hlt1_pp_odqv.json",
-        "--test-file-db-key",
-        "upgrade_Sept2022_minbias_0fb_md_mdf",
-        "-n",
-        "10000",
-        "--monitoring-filename",
-        "allen_odqv_pytest.root",
+        "lbexec",
+        "../options/run_hlt1_pp_odqv.py:main",
+        "../options/lhcb_geometry_allen_event_loop.yaml",
     ]
     timeout = 1200
 
@@ -41,11 +34,10 @@ class Test(LHCbExeTest):
     def test_modules(self, stdout: bytes):
         modules = ["occupancy", "velo", "forward", "matching", "pv"]
         algorithm_patterns = [
-            re.compile(rf"^  data_quality_validation_{m}$") for m in modules
+            re.compile(rf"^ \+ data_quality_validation_{m} ") for m in modules
         ]
-        time_pattern = re.compile(r"Ran test for (\d+\.\d+)\s+seconds")
+        time_pattern = re.compile(r"^.*Execution time: (\d+) ms.")
 
-        time = None  # noqa: F841
         algorithms = [None for m in modules]
 
         for line in stdout.decode().split("\n"):

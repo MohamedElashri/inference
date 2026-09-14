@@ -1,5 +1,5 @@
 /***************************************************************************** \
- * (c) Copyright 2000-2023 CERN for the benefit of the LHCb Collaboration      *
+ * (c) Copyright 2000-2026 CERN for the benefit of the LHCb Collaboration      *
 \*****************************************************************************/
 #include <string>
 #include <vector>
@@ -9,31 +9,52 @@
 // Gaudi
 #include "GaudiAlg/Consumer.h"
 #include "Gaudi/Accumulators.h"
-#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "Plume.cuh"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
 // PLUME
 #include <Event/PlumeAdc.h>
 
-class CompareRecAllenPlume final
-  : public Gaudi::Functional::Consumer<
-      void(std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const&, LHCb::PlumeAdcs const&)> {
+// ==================================================================
+//  Multi-event converter: device buffer → per-event Plume_ structs
+// ==================================================================
+
+class ConvertAllenPlume final
+  : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<Plume_>(const Allen::device_buffer<Plume_>&)> {
 
 public:
-  /// Standard constructor
+  ConvertAllenPlume(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(name, pSvcLocator, {KeyValue {"plume_digits_Allen", ""}}, {KeyValue {"PlumeDigit", ""}})
+  {}
+
+  std::tuple<std::vector<Plume_>> operator()(const EventContext& /*ctx*/, const Allen::device_buffer<Plume_>& dev_plume)
+    const override
+  {
+    auto h = dev_plume.to_host();
+    std::vector<Plume_> out(h.size());
+    for (unsigned i = 0; i < h.size(); ++i)
+      out[i] = h[i];
+    return std::make_tuple(std::move(out));
+  }
+};
+
+DECLARE_COMPONENT(ConvertAllenPlume)
+
+// ==================================================================
+//  Single-event comparison: Plume_  vs  Rec PlumeAdcs
+// ==================================================================
+
+class CompareRecAllenPlume final : public Gaudi::Functional::Consumer<void(const Plume_&, LHCb::PlumeAdcs const&)> {
+
+public:
   CompareRecAllenPlume(const std::string& name, ISvcLocator* pSvcLocator);
 
-  /// Algorithm execution
-  void operator()(std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const&, LHCb::PlumeAdcs const&)
-    const override;
+  void operator()(const Plume_& allenDigits, LHCb::PlumeAdcs const& lhcbDigits) const override;
 
 private:
-  void compare(
-    std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const& allenDigits,
-    LHCb::PlumeAdcs const& lhcbDigits) const;
-
   Gaudi::Property<int> m_pedestalOffset {this, "PedestalOffset", 256, "Offset to subtract from raw ADC counts."};
   std::map<unsigned int, unsigned int> m_map_reversed;
   std::map<std::pair<unsigned int, unsigned int>, unsigned int> m_map_reversed_time;
@@ -52,18 +73,14 @@ CompareRecAllenPlume::CompareRecAllenPlume(const std::string& name, ISvcLocator*
   Consumer(
     name,
     pSvcLocator,
-    // Inputs
-    {KeyValue {"plume_digits_Allen", ""}, KeyValue {"plume_digits_Moore", LHCb::PlumeAdcLocation::Default}})
+    {KeyValue {"PlumeDigit", ""}, KeyValue {"plume_digits_Moore", LHCb::PlumeAdcLocation::Default}})
 {
-
-  // reversed lumi pmts map
   std::transform(
     LHCb::Plume::lumiFebToLogicalChannel.begin(),
     LHCb::Plume::lumiFebToLogicalChannel.end(),
     std::inserter(m_map_reversed, m_map_reversed.end()),
     [](const auto& pair) { return std::make_pair(pair.second, pair.first); });
 
-  // reversed time pmts map
   std::for_each(
     LHCb::Plume::timingFebToLogicalChannel.begin(),
     LHCb::Plume::timingFebToLogicalChannel.end(),
@@ -76,27 +93,16 @@ CompareRecAllenPlume::CompareRecAllenPlume(const std::string& name, ISvcLocator*
     });
 }
 
-void CompareRecAllenPlume::operator()(
-  std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const& plume_digits_Allen,
-  LHCb::PlumeAdcs const& plume_digits_Moore) const
+void CompareRecAllenPlume::operator()(const Plume_& allenDigits, LHCb::PlumeAdcs const& lhcbDigits) const
 {
-  for (auto const& [allenDigits, lhcbDigits] : {std::forward_as_tuple(plume_digits_Allen, plume_digits_Moore)}) {
-    compare(allenDigits, lhcbDigits);
-  }
-}
-
-void CompareRecAllenPlume::compare(
-  std::vector<Plume_, LHCb::Allocators::EventLocal<Plume_>> const& allenDigits,
-  LHCb::PlumeAdcs const& lhcbDigits) const
-{
-
-  const auto n_lumi_PMTs_per_FEB = 22; // number of lumi channels per FEB
-  const auto n_channels_per_FEB = 32;  // total number of channels per FEB
-  const auto shift_all_lumi_PMTs = 44; // total number of lumi channels
+  const auto n_lumi_PMTs_per_FEB = 22;
+  const auto n_channels_per_FEB = 32;
+  const auto shift_all_lumi_PMTs = 44;
 
   for (auto lhcb_digit : lhcbDigits) {
     const auto ch_type = lhcb_digit->channelID().channelType();
-    if (ch_type == LHCb::Detector::Plume::ChannelID::ChannelType::LUMI) { // lumi PMTs
+
+    if (ch_type == LHCb::Detector::Plume::ChannelID::ChannelType::LUMI) {
       if (m_map_reversed.find(lhcb_digit->channelID().channelID()) == m_map_reversed.end()) {
         error() << "LHCb digit " << lhcb_digit->channelID().channelID() << " not found." << endmsg;
         ++m_error;
@@ -105,10 +111,10 @@ void CompareRecAllenPlume::compare(
       int idx_int = m_map_reversed.at(lhcb_digit->channelID().channelID());
       const auto feb = idx_int < n_lumi_PMTs_per_FEB ? 0 : 1;
       const auto n_ovt = idx_int - (feb * n_channels_per_FEB);
-      bool ovt = ((allenDigits[0].ovr_th[feb] & (1 << (n_ovt))) >> (n_ovt));
+      bool ovt = ((allenDigits.ovr_th[feb] & (1 << (n_ovt))) >> (n_ovt));
 
       if (feb == 1) idx_int -= n_channels_per_FEB - n_lumi_PMTs_per_FEB;
-      auto allen_adc = static_cast<int>(std::round(allenDigits[0].ADC_counts[idx_int])) - m_pedestalOffset;
+      auto allen_adc = static_cast<int>(std::round(allenDigits.ADC_counts[idx_int])) - m_pedestalOffset;
 
       if (lhcb_digit->adc() == allen_adc)
         ++m_matched;
@@ -126,9 +132,7 @@ void CompareRecAllenPlume::compare(
                 << ", Allen " << ovt << endmsg;
       }
     }
-
-    else if (ch_type == LHCb::Detector::Plume::ChannelID::ChannelType::TIME) { // timing PMTs
-
+    else if (ch_type == LHCb::Detector::Plume::ChannelID::ChannelType::TIME) {
       const auto chID = lhcb_digit->channelID().channelID();
       const auto chsubID = lhcb_digit->channelID().channelSubID();
       auto shift_ch = (chID == 11 || chID == 35) ? n_channels_per_FEB : 0;
@@ -136,10 +140,9 @@ void CompareRecAllenPlume::compare(
 
       if (m_map_reversed_time.find(query) != m_map_reversed_time.end()) {
         auto idx_int = m_map_reversed_time.at(query) + shift_ch + shift_all_lumi_PMTs;
-        auto allen_adc = static_cast<int>(std::round(allenDigits[0].ADC_counts[idx_int])) - m_pedestalOffset;
-        if (lhcb_digit->adc() == allen_adc) {
+        auto allen_adc = static_cast<int>(std::round(allenDigits.ADC_counts[idx_int])) - m_pedestalOffset;
+        if (lhcb_digit->adc() == allen_adc)
           ++m_matched_time;
-        }
         else {
           ++m_error_time;
           error() << "ADC " << idx_int << " different at: LHCb " << lhcb_digit->adc() << ", Allen " << allen_adc
@@ -151,6 +154,5 @@ void CompareRecAllenPlume::compare(
         ++m_error_time;
       }
     }
-
-  } // loop on  digits
+  }
 }

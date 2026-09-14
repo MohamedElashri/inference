@@ -13,8 +13,9 @@ This site documents various aspects of Allen.
    :maxdepth: 3
 
    setup/build
-   setup/input_files
    setup/run_allen
+   setup/multi_event_scheduler
+   setup/input_files
    setup/where_to_develop_for_GPUs
    setup/performance
    hlt1/reconstruction_algorithms
@@ -27,8 +28,8 @@ This site documents various aspects of Allen.
    develop/root_service
    develop/memory_layouts
    develop/debugging
-   integration/producers_consumers
-   integration/geometry
+   develop/event_transformers
+   integration/conditions
    monitoring/monitoring_allen
    ci/ci_configuration
    develop/documenting

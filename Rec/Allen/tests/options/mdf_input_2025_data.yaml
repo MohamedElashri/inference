@@ -1,0 +1,9 @@
+testfiledb_key: "2025-hlt1-mdf"
+evt_max: 2000
+
+n_threads: 2
+events_per_slice: 500
+device_memory_pool: 2000
+repetitions: 1
+
+histo_file: 'mdf_2025_data_hists.root'

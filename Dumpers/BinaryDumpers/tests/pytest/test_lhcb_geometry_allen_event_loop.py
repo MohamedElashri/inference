@@ -15,35 +15,26 @@ from LHCbTesting import LHCbExeTest
 
 class Test(LHCbExeTest):
     command = [
-        "python",
-        "../../options/allen.py",
-        "--test-file-db-key",
-        "upgrade_Sept2022_minbias_0fb_md_mdf",
-        "--sequence",
-        "$ALLEN_INSTALL_DIR/constants/hlt1_pp_default.json",
-        "--monitoring-filename",
-        "allen_event_loop.root",
-        "-n",
-        "10000",
+        "lbexec",
+        "../options/run_hlt1_pp_default.py:main",
+        "../options/lhcb_geometry_allen_event_loop.yaml",
     ]
     timeout = 600
 
     reference = {"messages_count": {"FATAL": 0, "ERROR": 0, "WARNING": 0}}
 
     def test_throughput_output(self, stdout: bytes):
-        throughput_pattern = re.compile(r"\s*(\d+\.\d+)\s+events/s")
-        time_pattern = re.compile(r"Ran test for (\d+\.\d+)\s+seconds")
+        pattern = re.compile(
+            r"^.*Execution time: (\d+) ms. Throughput: (\d+\.\d+) events/s"
+        )
 
         throughput = None
         runtime = None
 
         for line in stdout.decode().split("\n"):
-            m = throughput_pattern.match(line)
+            m = pattern.match(line)
             if m:
-                throughput = float(m.group(1))
-            n = time_pattern.match(line)
-            if n:
-                runtime = float(n.group(1))
-
+                runtime = float(m.group(1))
+                throughput = float(m.group(2))
         assert throughput is not None, "could not parse throughput from stdout"
         assert runtime is not None, "could not parse runtime from stdout"

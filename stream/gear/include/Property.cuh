@@ -13,6 +13,7 @@
 #include "BackendCommon.h"
 #include "BaseTypes.cuh"
 #include "BankTypes.h"
+#include "BankMapping.h"
 #include "Logger.h"
 #include "Common.h"
 #include <string>
@@ -32,18 +33,6 @@
 
 // Parsers are in namespace LHCb for ADL to work.
 namespace Gaudi::Parsers {
-  inline StatusCode parse(BankTypes& result, const std::string& in)
-  {
-    // This takes care of quoting
-    std::string input;
-    using Gaudi::Parsers::parse;
-    auto sc = parse(input, in);
-    if (!sc) return sc;
-
-    result = bank_type(input);
-    return StatusCode::SUCCESS;
-  }
-
   inline StatusCode parse(dim3& result, const std::string& in)
   {
     std::array<unsigned, 3> input;
@@ -55,12 +44,6 @@ namespace Gaudi::Parsers {
     return StatusCode::SUCCESS;
   }
 } // namespace Gaudi::Parsers
-
-inline std::ostream& toStream(const BankTypes& bt, std::ostream& s)
-{
-  auto bn = bank_name(bt);
-  return s << "'" << bn << "'";
-}
 
 inline std::ostream& toStream(const dim3& d, std::ostream& s)
 {

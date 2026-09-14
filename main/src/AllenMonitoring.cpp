@@ -94,7 +94,7 @@ namespace Allen::Monitoring {
     }
   }
 
-  void AccumulatorManager::mergeAndReset(bool singlethreaded)
+  void AccumulatorManager::mergeAndReset()
   {
     // This function is called by the monitoring thread
 
@@ -103,13 +103,11 @@ namespace Allen::Monitoring {
     m_current_buffer.store(!buf, std::memory_order_release);
 
     // * Wait acknowledge from the streams
-    if (!singlethreaded) {
-      auto const next_buf = !buf;
-      for (unsigned i = 0; i < m_stream_current_buffer.size(); i++) {
-        while (m_stream_current_buffer[i].load(std::memory_order_acquire) != next_buf &&
-               !m_stream_done[i].load(std::memory_order_acquire)) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+    auto const next_buf = !buf;
+    for (unsigned i = 0; i < m_stream_current_buffer.size(); i++) {
+      while (m_stream_current_buffer[i].load(std::memory_order_acquire) != next_buf &&
+             !m_stream_done[i].load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     }
 

@@ -13,6 +13,8 @@
 
 #if defined(TARGET_DEVICE_CUDA)
 
+#include <nvtx3/nvToolsExt.h>
+
 #if !defined(DEVICE_COMPILER)
 #include <cuda_runtime_api.h>
 #endif
@@ -129,7 +131,7 @@ namespace Allen {
 #else
   struct Context {
   private:
-    cudaStream_t m_stream;
+    cudaStream_t m_stream {};
 
   public:
     Context() {}
@@ -139,7 +141,7 @@ namespace Allen {
       stream_id = id;
       cudaCheck(cudaStreamCreate(&m_stream));
     }
-    unsigned stream_id;
+    unsigned stream_id {};
 
     cudaStream_t inline stream() const { return m_stream; }
   };
@@ -227,6 +229,16 @@ namespace Allen {
     cudaCheck(cudaHostRegister(ptr, size, convert_allen_to_cuda_host_register_kind(flags)));
   }
 
+  // Registering read-only mappings is not universally available, e.g. the
+  // NVIDIA open kernel modules do not support it when HMM is enabled
+  bool inline host_register_read_only_supported()
+  {
+    int device = 0, read_only_supported = 0;
+    cudaCheck(cudaGetDevice(&device));
+    cudaCheck(cudaDeviceGetAttribute(&read_only_supported, cudaDevAttrHostRegisterReadOnlySupported, device));
+    return read_only_supported == 1;
+  }
+
   namespace device {
     template<class To, class From>
     __host__ __device__ std::enable_if_t<
@@ -238,6 +250,9 @@ namespace Allen {
       return *reinterpret_cast<const To*>(&src);
     }
   } // namespace device
+
+  void inline rangePush(const char* name) { nvtxRangePushA(name); }
+  void inline rangePop() { nvtxRangePop(); }
 } // namespace Allen
 
 #endif

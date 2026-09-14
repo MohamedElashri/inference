@@ -36,6 +36,20 @@ const std::unordered_set<BankTypes> DataBankTypes = {
   BankTypes::Plume,
   BankTypes::HCal};
 
+const std::unordered_set<BankTypes> AllBankTypes = {
+  BankTypes::VP,
+  BankTypes::UT,
+  BankTypes::FT,
+  BankTypes::MUON,
+  BankTypes::ODIN,
+  BankTypes::MCTracks,
+  BankTypes::MCVertices,
+  BankTypes::Rich1,
+  BankTypes::Rich2,
+  BankTypes::ECal,
+  BankTypes::Plume,
+  BankTypes::HCal};
+
 // Average size of all raw banks of a given type per
 // subdetector, in kB, measured in simulated minbias events.
 // FIXME: make this configurable

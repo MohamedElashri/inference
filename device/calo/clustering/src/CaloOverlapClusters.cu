@@ -38,7 +38,7 @@ __device__ void overlap_clusters(
 
       for (unsigned m = 0; m < Calo::Constants::max_neighbours; m++) {
         if (second_nb[m] == USHRT_MAX) continue;
-        if (digit_is_seed[second_nb[m]] == 0) continue;
+        if (digit_is_seed[second_nb[m]] == UINT_MAX) continue;
         if (second_nb[m] == seed1.id) continue;
         seed2_e += seed_clusters[digit_is_seed[second_nb[m]]].e;
       }

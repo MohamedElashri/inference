@@ -1,19 +1,123 @@
 Run Allen
-============
+==========
+
+Allen is run natively on GPU through the Gaudi **Multi Event Scheduler**
+(:ref:`multi_event_scheduler`).  The recommended ways to run Allen are:
+
+* **within the LHCb stack, steered by Moore** (offline / integration), using
+  ``lbexec`` — described below;
+* **online / data-taking**, through the MooreOnline testbench and
+  ``AllenConfig.py`` — described in :ref:`run_allen_online`.
+
+.. _run_allen_in_stack:
+
+Running Allen within the stack (Gaudi/Moore)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Allen is configured as the HLT1 application inside Moore.  The option scripts
+follow the standard Moore ``lbexec`` pattern: a Python module defines a
+``main(options)`` function, and the run-time options are passed as a YAML
+file.
+
+From the top-level stack directory::
+
+  lbexec Moore/Hlt/Hlt1Conf/options/allen_hlt1_pp_default.py:main Moore/Hlt/Hlt1Conf/options/allen_hlt1_pp_default.yaml
+
+The option module
+(`allen_hlt1_pp_default.py <https://gitlab.cern.ch/lhcb/Moore/-/blob/master/Hlt/Hlt1Conf/options/allen_hlt1_pp_default.py>`_)
+is simply::
+
+  from Allen.config import AllenTestOptions, run_allen
+
+  def main(options: AllenTestOptions):
+      return run_allen(options, sequence="hlt1_pp_default")
+
+and the YAML file
+(`allen_hlt1_pp_default.yaml <https://gitlab.cern.ch/lhcb/Moore/-/blob/master/Hlt/Hlt1Conf/options/allen_hlt1_pp_default.yaml>`_)
+selects the input and number of events::
+
+  testfiledb_key: "upgrade_Sept2022_minbias_0fb_md_mdf"
+  dddb_tag: "upgrade/dddb-20231017-new-particle-table"
+  evt_max: 1000
+
+To run a different sequence, either change the ``sequence`` argument passed to
+``run_allen`` in the option module, or use one of the ready-made modules such
+as ``hlt1_allen_lowenergy.py``.  The full set of ``AllenOptions`` (``n_threads``,
+``events_per_slice``, ``device_memory_pool``, ``output_file``, ``output_type``,
+``tck_from_odin``, …) is defined in ``Allen.config.AllenOptions`` and can
+be overridden in the YAML file.
+
+If the option module does not already type its ``main`` with
+``AllenTestOptions``, pass the option class explicitly::
+
+  lbexec --override-option-class=Allen.config:AllenTestOptions <options_module.py>:main <options.yaml>
+
+Examples of Moore HLT1 options and their YAML files live under
+``Moore/Hlt/Hlt1Conf/options/`` and the corresponding pytest tests under
+``Moore/Hlt/Hlt1Conf/tests/pytest/``.  For physics studies within Moore, see
+:ref:`moore_performance_scripts`.
+
+.. _run_allen_online:
+
+Running Allen online (data-taking)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Online (and throughput) running is done through the MooreOnline testbench.  The
+same ``MultiEventScheduler`` is configured by
+``MooreOnline/AllenOnline/options/AllenConfig.py``, which:
+
+* builds an ``AllenOptions`` object with ``input_type="MEP"``,
+* injects an ``MEPProvider`` reading from MBM (or files/MPI for tests),
+* selects the sequence from ``--hlt-type`` or from a TCK,
+* configures the scheduler with ``create_appMgr.global_bind(make_scheduler=make_MultiEventScheduler)``,
+* sets up the online monitoring and output services.
+
+A non-interactive testbench run looks like::
+
+  MooreOnline/run MooreOnline/MooreScripts/scripts/testbench.py \
+    --working-dir=hlt1slim \
+    MooreOnline/MooreScripts/tests/options/HLT1Slim/Arch.xml \
+    --test-file-db-key=2024_mep_292860_run_change_test \
+    --hlt-type=hlt1_pp_no_ut \
+    --tfdb-nfiles 2 \
+    --measure-throughput=0
+
+Throughput measurements must be performed exclusively through the MooreOnline
+testbench; see :ref:`measuring_throughput`.
+
+.. _find_a_used_sequence:
+
+Finding a sequence used on data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Finding the name of a sequence that has been used on a specific LHCb dataset
+may be done using the `runDB <https://lbrundb.cern.ch/rundb/export>`_.  From
+here the option ``Trigger Conf`` may be selected and the Allen sequence used
+when running HLT1 for any Run 3 dataset may be found.
+
+Searching may also be done over a specified time period rather than for
+specific runs.
 
 .. _run_allen_standalone:
 
-Standalone Allen
-^^^^^^^^^^^^^^^^^^^^
+Standalone Allen (deprecated)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+
+   Standalone Allen mode is **deprecated** and will be removed in a subsequent
+   set of merge requests.  Use :ref:`run_allen_in_stack` or
+   :ref:`run_allen_online` instead.  The information below is kept for
+   reference only.
 
 Some input files are included with the project for testing:
 
-* `input/minbias/mdf/MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster_v1.mdf`: Minbias sample produced from MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster TestFile DB entry. Includes raw banks with MC information.
-* The directory `input/detector_configuration` contains the dumped geometry files for MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster
-* Other dumped Allen geometries are located in `/scratch/allen_geometries` in the LHCb Online domain, and are used for other data sets in the CI tests
-* Dumped Allen geometries can also be found in eos under `/eos/lhcb/wg/rta/WP6/Allen/geometries`
+* ``input/minbias/mdf/MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster_v1.mdf``: Minbias sample produced from MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster TestFile DB entry. Includes raw banks with MC information.
+* The directory ``input/detector_configuration`` contains the dumped geometry files for MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster
+* Other dumped Allen geometries are located in ``/scratch/allen_geometries`` in the LHCb Online domain, and are used for other data sets in the CI tests
+* Dumped Allen geometries can also be found in eos under ``/eos/lhcb/wg/rta/WP6/Allen/geometries``
 
-A run of the Allen program with the help option `-h` will let you know the basic options::
+A run of the Allen program with the help option ``-h`` will let you know the basic options::
 
     Usage: ./Allen
      -g {folder containing detector configuration}=../input/detector_configuration/
@@ -45,7 +149,10 @@ A run of the Allen program with the help option `-h` will let you know the basic
      --disable-run-changes {Ignore signals to update non-event data with each run change}=1
      -h {show this help}
 
-Here are some examples for run options. Note that if Allen was :ref:`built with cvmfs<build with cvmfs>`, one can prepend `./toolchain/wrapper` to all the following commands to execute in the correct environment.  ::
+Here are some examples for run options.  Note that if Allen was
+:ref:`built with cvmfs<build with cvmfs>`, one can prepend
+``./toolchain/wrapper`` to all the following commands to execute in the
+correct environment.  ::
 
     # Run on an MDF input file shipped with Allen once
     ./Allen --sequence hlt1_pp_default --mdf ../input/minbias/mdf/MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster_v1.mdf
@@ -63,51 +170,3 @@ Here are some examples for run options. Note that if Allen was :ref:`built with 
     # with batches of 1000 events
     find /some/directory/with/files -type f | sort > files.lst
     ./Allen --sequence hlt1_pp_default -t 4 --events-per-slice 1000 --mdf /path/to/files.lst
-
-.. _run_allen_in_gaudi_moore_eventloop:
-
-As Gaudi project, event loop steered by Moore (offline)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Use Gaudi to update non-event data such as alignment and configuration constants and use Moore to steer the event loop and call Allen one event at a time (this method will be used for the offline workflow).
-To run Allen as the HLT1 trigger application, call the following options script from within the stack directory::
-
-  ./Moore/run gaudirun.py Moore/Hlt/Moore/tests/options/default_input_and_conds_hlt1_retinacluster.py Moore/Hlt/Hlt1Conf/options/allen_hlt1_pp_default.py
-
-To run a different sequence, the function call that sets up the
-control flow can be wrapped using a `with` statement::
-
-  from RecoConf.hlt1_allen import allen_gaudi_node_barriers
-  with allen_gaudi_node_barriers.bind(sequence="hlt1_pp_no_gec"):
-    run_allen(options)
-
-When Allen is compiled in non-standalone mode, every Allen algorithm is automatically translated into a Gaudi algorithm, ready to be run natively in the LHCb stack.
-Other examples of Moore options files can be found [here](https://gitlab.cern.ch/lhcb/Moore/-/tree/master/Hlt/RecoConf/options?ref_type=heads). Call with
-```
-Moore/run gaudirun.py Moore/Hlt/RecoConf/options/an_allen_gaudi_option.py
-```
-How to study the HLT1 physics performance within Moore is described in :ref:`moore_performance_scripts`.
-
-.. _run_allen_in_gaudi_allen_eventloop:
-
-As Gaudi project, event loop steered by Allen (data-taking)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Use Gaudi to update non-event data such as alignment and configuration constants and use Allen to steer the event loop, where batches of events (O(1000)) are processed together (this method will be used for data-taking).
-
-When using MDF files as input, call from the Allen environment::
-
-  ./Allen/build.${ARCHITECTURE}/run python Dumpers/BinaryDumpers/options/allen.py --mdf Allen/input/minbias/mdf/MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster_v1.mdf
-
-When using MEP files as input, call from the MooreOnline environment, as MEP handling is implemented there::
-
-  ./MooreOnline/build.${ARCHITECTURE}/run python Allen/Dumpers/BinaryDumpers/options/allen.py --sequence=Allen/InstallArea/${ARCHITECTURE}/constants/hlt1_pp_default.json --tags="dddb_tag,simcond_tag" --mep mep_file.mep
-
-.. _find_a_used_sequence:
-
-Finding a sequence used on data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Finding the name of a sequence that has been used on a specific LHCb dataset may be done using the [runDB](https://lbrundb.cern.ch/rundb/export). From here the option `Trigger Conf` may be selected and the Allen sequence used when running HLT1 for any Run 3 dataset may be found.
-
-Searching may also be done over a specified time period rather than for specific runs.

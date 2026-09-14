@@ -289,10 +289,6 @@ def make_ut_tracks(
     host_number_of_reconstructed_velo_tracks_t = velo_tracks[
         "host_number_of_reconstructed_velo_tracks"
     ]
-    dev_offsets_all_velo_tracks_t = velo_tracks["dev_offsets_all_velo_tracks"]  # noqa: F841
-    dev_offsets_velo_track_hit_number_t = velo_tracks[  # noqa: F841
-        "dev_offsets_velo_track_hit_number"
-    ]
     if not dev_accepted_velo_tracks:
         dev_accepted_velo_tracks = velo_tracks["dev_accepted_velo_tracks"]
 
@@ -444,6 +440,7 @@ def make_ut_tracks(
         "dev_ut_track_view": ut_consolidate_tracks.dev_ut_track_view_t,
         "dev_ut_tracks_view": ut_consolidate_tracks.dev_ut_tracks_view_t,
         "dev_ut_track_hits": ut_consolidate_tracks.dev_ut_track_hits_t,
+        "dev_ut_track_params": ut_consolidate_tracks.dev_ut_track_params_t,
         "dev_ut_qop": ut_consolidate_tracks.dev_ut_qop_t,
         "dev_ut_track_velo_indices": ut_consolidate_tracks.dev_ut_track_velo_indices_t,
         "dev_ut_multi_event_tracks_view": ut_consolidate_tracks.dev_ut_multi_event_tracks_view_t,

@@ -52,6 +52,18 @@ __global__ void make_subbanks::make_rb_substr(
        event_number += blockDim.x * gridDim.x) {
 
     const unsigned n_sels = parameters.dev_sel_count[event_number];
+    const unsigned n_tracks = parameters.dev_unique_track_count[event_number];
+    const unsigned n_calos = parameters.dev_unique_calo_count[event_number];
+    const unsigned n_svs = parameters.dev_unique_sv_count[event_number];
+
+    // Create the ObjTyp subbank for every event. Even empty events must have
+    // a valid minimal ObjTyp bank header (size 1, no object types).
+    const unsigned objtyp_offset = parameters.dev_rb_objtyp_offsets[event_number];
+    const unsigned objtyp_size = parameters.dev_rb_objtyp_offsets[event_number + 1] - objtyp_offset;
+    const unsigned n_objtyps = objtyp_size - 1;
+    unsigned* event_rb_objtyp = parameters.dev_rb_objtyp + objtyp_offset;
+    make_rb_objtyp_bank(event_rb_objtyp, n_objtyps, n_sels, n_tracks, n_calos, n_svs);
+
     if (n_sels == 0) continue;
 
     unsigned* event_rb_substr = parameters.dev_rb_substr + parameters.dev_rb_substr_offsets[event_number];
@@ -60,9 +72,6 @@ __global__ void make_subbanks::make_rb_substr(
     const unsigned n_lines = parameters.dev_number_of_active_lines[0];
     const unsigned* line_object_offsets = parameters.dev_max_objects_offsets + n_lines * event_number;
     const unsigned selected_object_offset = n_children * line_object_offsets[0];
-    const unsigned n_tracks = parameters.dev_unique_track_count[event_number];
-    const unsigned n_calos = parameters.dev_unique_calo_count[event_number];
-    const unsigned n_svs = parameters.dev_unique_sv_count[event_number];
 
     const auto event_track_ptrs = parameters.dev_basic_particle_ptrs + selected_object_offset;
     const auto event_calo_ptrs = parameters.dev_neutral_basic_particle_ptrs + selected_object_offset;
@@ -103,13 +112,6 @@ __global__ void make_subbanks::make_rb_substr(
       parameters.dev_track_duplicate_map.data(),
       parameters.dev_calo_duplicate_map.data(),
       parameters.dev_sv_duplicate_map.data());
-
-    // Create the ObjTyp subbank.
-    const unsigned objtyp_offset = parameters.dev_rb_objtyp_offsets[event_number];
-    const unsigned objtyp_size = parameters.dev_rb_objtyp_offsets[event_number + 1] - objtyp_offset;
-    const unsigned n_objtyps = objtyp_size - 1;
-    unsigned* event_rb_objtyp = parameters.dev_rb_objtyp + objtyp_offset;
-    make_rb_objtyp_bank(event_rb_objtyp, n_objtyps, n_sels, n_tracks, n_calos, n_svs);
 
     // Create the StdInfo bank.
     unsigned* event_rb_stdinfo = parameters.dev_rb_stdinfo + parameters.dev_rb_stdinfo_offsets[event_number];

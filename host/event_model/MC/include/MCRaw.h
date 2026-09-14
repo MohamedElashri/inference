@@ -65,6 +65,3 @@ private:
   uint32_t const* m_raw_bank_sizes = nullptr;
   char const* m_payload = nullptr;
 };
-
-MCEvents
-mc_info_from_raw_banks_to_mc_events(IInputProvider const* input_provider, size_t idx, size_t first, size_t last);

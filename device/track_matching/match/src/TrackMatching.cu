@@ -679,11 +679,45 @@ __global__ void track_matching::track_matching_select_best_ut_segment(Parameters
         else if (track_1.number_of_hits_ut > track_2.number_of_hits_ut) {
           killed[n_track_2] = true;
         }
-        else if (track_1.ut_score <= track_2.ut_score) {
+        else if (track_1.ut_score < track_2.ut_score) {
           killed[n_track_2] = true;
         }
         else if (track_1.ut_score > track_2.ut_score) {
           killed[n_track_1] = true;
+        }
+        else {
+          bool not_killed = true;
+          for (unsigned layer = 0; layer < UT::Constants::n_layers && not_killed; layer++) {
+            if (
+              track_1.ut_hits[layer] == SciFi::MatchedTrack::InvalidHit &&
+              track_2.ut_hits[layer] == SciFi::MatchedTrack::InvalidHit) {
+              // Skip when both tracks did not find a UT hit in this layer
+              continue;
+            }
+            else if (track_1.ut_hits[layer] == SciFi::MatchedTrack::InvalidHit) {
+              killed[n_track_1] = true;
+              not_killed = false;
+            }
+            else if (track_2.ut_hits[layer] == SciFi::MatchedTrack::InvalidHit) {
+              killed[n_track_2] = true;
+              not_killed = false;
+            }
+            // Keep track with ut hit with smaller index
+            else if (track_1.ut_hits[layer] < track_2.ut_hits[layer]) {
+              killed[n_track_2] = true;
+              not_killed = false;
+            }
+            else if (track_2.ut_hits[layer] < track_1.ut_hits[layer]) {
+              killed[n_track_1] = true;
+              not_killed = false;
+            }
+          }
+          // Kill both for determinism since we cannot tiebreak
+          // Should only affect a negligible amount of candidates
+          if (not_killed) {
+            killed[n_track_1] = true;
+            killed[n_track_2] = true;
+          }
         }
       };
     };

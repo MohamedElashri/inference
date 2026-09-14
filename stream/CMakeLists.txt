@@ -60,6 +60,7 @@ target_link_libraries(Stream
     MuonCommon
     Rich
     TTrack
+    mdf
   PUBLIC
     Utils
     Selections

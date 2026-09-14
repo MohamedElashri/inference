@@ -55,7 +55,7 @@ Let's create a new folder inside the `device` directory named `example`. We need
   add_subdirectory(raw_banks)
   add_subdirectory(example)
 
-Inside the `example` folder we will create the following structure:
+Inside the `example` folder we will create the following structure::
 
   ├── example
   │   ├── CMakeLists.txt

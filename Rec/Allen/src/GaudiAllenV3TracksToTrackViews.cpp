@@ -12,164 +12,96 @@
 // Gaudi
 #include "Gaudi/Accumulators.h"
 #include "GaudiAlg/Transformer.h"
-#include "GaudiKernel/StdArrayAsProperty.h"
 
 // LHCb
 #include "Event/Track.h"
 #include "Event/Track_v3.h"
 #include "Event/TrackEnums.h"
-#include "Event/UniqueIDGenerator.h"
 #include "Event/StateParameters.h"
-#include <Kernel/EventLocalAllocator.h>
 
 // Allen
-#include "Logger.h"
-#include "VeloConsolidated.cuh"
-#include "UTConsolidated.cuh"
-#include "SciFiConsolidated.cuh"
-#include "ParKalmanFittedTrack.cuh"
 #include "States.cuh"
 #include "ParticleTypes.cuh"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
-#include <AIDA/IHistogram1D.h>
 #include <algorithm>
 #include <cmath>
-#include <type_traits>
-#include <functional>
 
 using InTracks = LHCb::Event::v3::Tracks;
-using SL = LHCb::Event::v3::Tracks::StateLocation;
-using InTrackType = LHCb::Event::v3::TrackType;
-template<typename T>
-using allen_t = std::vector<T, LHCb::Allocators::EventLocal<T>>;
-using OffsetsType = allen_t<unsigned>;
+using SL = InTracks::StateLocation;
 namespace InTag = LHCb::Event::v3::Tag;
 
 namespace GaudiAllen::Converters::v3 {
-  namespace { // TODO: move this definition to common header
-    struct beamline_states {
-      using type = Allen::Views::Physics::KalmanStates;
-      // currently unused, comment to avoid clang warning
-      // static constexpr auto keyname = "allen_beamline_states_view";
-    };
-
-    struct endvelo_states {
-      using type = Allen::Views::Physics::KalmanStates;
-      // currently unused, comment to avoid clang warning
-      // static constexpr auto keyname = "allen_endvelo_states_view";
-    };
-
-    struct rich1_front_states {
-      using type = SimpleKalmanState;
-      static constexpr auto keyname = "allen_kalman_R1_F_view";
-    };
-
-    struct rich1_back_states {
-      using type = SimpleKalmanState;
-      static constexpr auto keyname = "allen_kalman_R1_B_view";
-    };
-
-    struct rich2_front_states {
-      using type = SimpleKalmanState;
-      static constexpr auto keyname = "allen_kalman_R2_F_view";
-    };
-
-    struct rich2_back_states {
-      using type = SimpleKalmanState;
-      static constexpr auto keyname = "allen_kalman_R2_B_view";
-    };
-
-    template<typename AllenInput>
-    auto get_output_name()
-    {
-      if constexpr (
-        std::is_same_v<AllenInput, beamline_states> || std::is_same_v<AllenInput, endvelo_states> ||
-        std::is_same_v<AllenInput, rich1_front_states> || std::is_same_v<AllenInput, rich1_back_states> ||
-        std::is_same_v<AllenInput, rich2_front_states> || std::is_same_v<AllenInput, rich2_back_states>) {
-        return AllenInput::keyname;
-      }
-      else {
-        return "allen_tracks_mec";
-      }
-    }
-
-    template<typename KeyValue, typename... AllenInput>
-    auto get_output_names()
-    {
-      return std::make_tuple(
-        KeyValue {"track_offsets", ""}, KeyValue {"num_tracks", ""}, (KeyValue {get_output_name<AllenInput>(), ""})...);
-    }
-  } // namespace
 
   /**
-   * The first template parameter is assumed to be a view of track types.
-   * If present, all other parameters are assumed to be views of states.
-   *
-   * Number of output containers is deduced from input type
-   * - Two track containers for Velo input (forward and backward)
-   * - One track container for all other types of input
+   * Gather per-event v3 Long tracks from multiple event stores,
+   * extract Rich SimpleKalmanState arrays (R1F, R1B, R2F, R2B),
+   * and produce concatenated device buffers for the multi-event slice.
    */
-  template<typename AllenTracks, typename... AllenStates>
-  class GaudiAllenV3TracksToTrackViews final
-    : public Gaudi::Functional::MultiTransformer<
-        std::tuple<OffsetsType, OffsetsType, allen_t<AllenTracks>, allen_t<typename AllenStates::type>...>(
-          InTracks const&)> {
+  class GaudiAllenV3TracksToMEBasicParticlesRichStates final
+    : public LHCb::Algorithm::GatherEvent::MultiTransformer<std::tuple<
+        Allen::device_buffer<unsigned>,
+        Allen::host_buffer<unsigned>,
+        Allen::device_buffer<SimpleKalmanState>,
+        Allen::device_buffer<SimpleKalmanState>,
+        Allen::device_buffer<SimpleKalmanState>,
+        Allen::device_buffer<SimpleKalmanState>>(const InTracks&)> {
 
   public:
-    using OutType = std::tuple<OffsetsType, OffsetsType, allen_t<AllenTracks>, allen_t<typename AllenStates::type>...>;
-    using base_class = Gaudi::Functional::MultiTransformer<OutType(InTracks const&)>;
-    using KeyValue = typename base_class::KeyValue;
-
-    /// Standard constructor
-    GaudiAllenV3TracksToTrackViews(const std::string& name, ISvcLocator* pSvcLocator) :
-      base_class(
+    GaudiAllenV3TracksToMEBasicParticlesRichStates(const std::string& name, ISvcLocator* pSvcLocator) :
+      MultiTransformer(
         name,
         pSvcLocator,
-        // Inputs
         {KeyValue {"InputTracks", ""}},
-        // Outputs
-        get_output_names<KeyValue, AllenTracks, AllenStates...>())
+        {KeyValue {"dev_offsets_tracks", ""},
+         KeyValue {"host_number_of_tracks", ""},
+         KeyValue {"dev_kalman_R1_F_view", ""},
+         KeyValue {"dev_kalman_R1_B_view", ""},
+         KeyValue {"dev_kalman_R2_F_view", ""},
+         KeyValue {"dev_kalman_R2_B_view", ""}})
     {}
 
-    /// Algorithm execution
-    OutType operator()(InTracks const& tracks) const override
+    std::tuple<
+      Allen::device_buffer<unsigned>,
+      Allen::host_buffer<unsigned>,
+      Allen::device_buffer<SimpleKalmanState>,
+      Allen::device_buffer<SimpleKalmanState>,
+      Allen::device_buffer<SimpleKalmanState>,
+      Allen::device_buffer<SimpleKalmanState>>
+    operator()(const EventContext& ctx, const std::span<const InTracks*>& tracks_span) const override
     {
-      OutType output;
+      const auto* ctxExt = Allen::Scheduler::getSchedulerExtension(ctx);
+      const unsigned n_events = tracks_span.size();
 
-      // Make offsets and num tracks
-      auto& offsets = std::get<0>(output);
-      offsets.resize(2);
-      offsets[0] = 0;
-      offsets[1] = tracks.size();
+      // Per-event track offsets
+      Allen::host_buffer<unsigned> h_offsets {n_events + 1, ctxExt->memory_managers};
+      h_offsets[0] = 0;
+      for (unsigned e = 0; e < n_events; ++e)
+        h_offsets[e + 1] = h_offsets[e] + tracks_span[e]->size();
+      const unsigned n_total = h_offsets[n_events];
 
-      auto& num_tracks = std::get<1>(output);
-      num_tracks.resize(1);
-      num_tracks[0] = tracks.size();
+      Allen::host_buffer<unsigned> h_n_tracks {1, ctxExt->memory_managers};
+      h_n_tracks[0] = n_total;
 
-      // Make view
-      // TODO
+      // Allocate host buffers for states
+      Allen::host_buffer<SimpleKalmanState> h_r1f {n_total, ctxExt->memory_managers};
+      Allen::host_buffer<SimpleKalmanState> h_r1b {n_total, ctxExt->memory_managers};
+      Allen::host_buffer<SimpleKalmanState> h_r2f {n_total, ctxExt->memory_managers};
+      Allen::host_buffer<SimpleKalmanState> h_r2b {n_total, ctxExt->memory_managers};
 
-      // Make states, TODO: make this generic ?
-      auto& r1_front_states = std::get<3>(output);
-      auto& r1_end_states = std::get<4>(output);
-      auto& r2_front_states = std::get<5>(output);
-      auto& r2_end_states = std::get<6>(output);
+      // Fill states on host with validity checks
+      unsigned offset = 0;
+      for (unsigned e = 0; e < n_events; ++e) {
+        for (const auto& track : tracks_span[e]->scalar()) {
 
-      r1_front_states.reserve(tracks.size());
-      r1_end_states.reserve(tracks.size());
-      r2_front_states.reserve(tracks.size());
-      r2_end_states.reserve(tracks.size());
-
-      if constexpr (sizeof...(AllenStates) > 0) {
-        for (const auto& track : tracks.scalar()) {
-          const auto make_allen_state = [&](const SL location) {
+          auto make_allen_state = [&](SL location) -> SimpleKalmanState {
             if (!track.has_state(location)) {
               ++m_missing_rich_states;
-              return SimpleKalmanState {};
+              return {};
             }
-
             const auto& state = track.template field<InTag::States>()[track.state_index(location)];
-            const SimpleKalmanState allen_state {
+            SimpleKalmanState s {
               state.x().cast(),
               state.y().cast(),
               state.z().cast(),
@@ -177,22 +109,42 @@ namespace GaudiAllen::Converters::v3 {
               state.ty().cast(),
               state.qOverP().cast()};
             if (
-              !std::isfinite(allen_state.x) || !std::isfinite(allen_state.y) || !std::isfinite(allen_state.z) ||
-              !std::isfinite(allen_state.tx) || !std::isfinite(allen_state.ty) || !std::isfinite(allen_state.qop)) {
+              !std::isfinite(s.x) || !std::isfinite(s.y) || !std::isfinite(s.z) || !std::isfinite(s.tx) ||
+              !std::isfinite(s.ty) || !std::isfinite(s.qop)) {
               ++m_nonfinite_rich_states;
-              return SimpleKalmanState {};
+              return {};
             }
             ++m_converted_rich_states;
-            return allen_state;
+            return s;
           };
 
-          r1_front_states.emplace_back(make_allen_state(SL::BegRich1));
-          r1_end_states.emplace_back(make_allen_state(SL::EndRich1));
-          r2_front_states.emplace_back(make_allen_state(SL::BegRich2));
-          r2_end_states.emplace_back(make_allen_state(SL::EndRich2));
+          h_r1f[offset] = make_allen_state(SL::BegRich1);
+          h_r1b[offset] = make_allen_state(SL::EndRich1);
+          h_r2f[offset] = make_allen_state(SL::BegRich2);
+          h_r2b[offset] = make_allen_state(SL::EndRich2);
+          ++offset;
         }
       }
-      return output;
+
+      // Copy to device
+      Allen::device_buffer<unsigned> d_offsets {ctxExt->memory_managers};
+      Allen::device_buffer<SimpleKalmanState> d_r1f {ctxExt->memory_managers};
+      Allen::device_buffer<SimpleKalmanState> d_r1b {ctxExt->memory_managers};
+      Allen::device_buffer<SimpleKalmanState> d_r2f {ctxExt->memory_managers};
+      Allen::device_buffer<SimpleKalmanState> d_r2b {ctxExt->memory_managers};
+      h_offsets.copy_to(d_offsets);
+      h_r1f.copy_to(d_r1f);
+      h_r1b.copy_to(d_r1b);
+      h_r2f.copy_to(d_r2f);
+      h_r2b.copy_to(d_r2b);
+
+      return {
+        std::move(d_offsets),
+        std::move(h_n_tracks),
+        std::move(d_r1f),
+        std::move(d_r1b),
+        std::move(d_r2f),
+        std::move(d_r2b)};
     }
 
   private:
@@ -205,12 +157,6 @@ namespace GaudiAllen::Converters::v3 {
       "Input track has a non-finite RICH state; using a default state"};
   };
 
-  using GaudiAllenV3TracksToMEBasicParticlesRichStates = GaudiAllenV3TracksToTrackViews<
-    Allen::Views::Physics::MultiEventBasicParticles,
-    rich1_front_states,
-    rich1_back_states,
-    rich2_front_states,
-    rich2_back_states>;
   DECLARE_COMPONENT_WITH_ID(
     GaudiAllenV3TracksToMEBasicParticlesRichStates,
     "GaudiAllenV3TracksToMEBasicParticlesRichStates")
