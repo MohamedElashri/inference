@@ -30,12 +30,16 @@ namespace pvfinder_fc_aggregation {
 
 __device__ void assign_intervals(float z_poca, int* intervals, int* num_intervals) {
     z_poca += 100.0f;
-    *num_intervals = (z_poca >= 0.0f && z_poca <= 400.0f) ? 1 + (z_poca <= 10.0f || z_poca >= 390.0f) : 1;
+    // Branchless; same result as the ternary form. Tracks within 10 of either
+    // end of [0, 400] also feed the neighbouring interval. intervals[1] is
+    // always written but only read when *num_intervals == 2.
+    const int in_range   = (z_poca >= 0.0f) & (z_poca <= 400.0f);
+    const int at_lo_edge = (z_poca <= 10.0f);
+    const int at_hi_edge = (z_poca >= 390.0f);
+    *num_intervals = 1 + (in_range & (at_lo_edge | at_hi_edge));
     int base_interval = min(39, max(0, int(z_poca / 10.0f)));
     intervals[0] = base_interval;
-    if (*num_intervals > 1) {
-        intervals[1] = (z_poca <= 10.0f) ? base_interval + 1 : base_interval - 1;
-    }
+    intervals[1] = base_interval + (2 * at_lo_edge - 1);
 }
 
 __device__ float pvfinder_softplus(float x) {

@@ -122,7 +122,10 @@ __global__ void softplus_scale_kernel(float* __restrict__ x, float scale, int to
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= total) return;
     float v = x[i];
-    x[i] = (v > 0.f ? v + logf(1.f + expf(-v)) : logf(1.f + expf(v))) * scale;
+    // Branchless stable softplus. Same floating-point operations as
+    // v > 0 ? v + log(1 + exp(-v)) : log(1 + exp(v)) for every input
+    // (for v <= 0 it only adds +0), so the output is bit-identical.
+    x[i] = (fmaxf(v, 0.f) + logf(1.f + expf(-fabsf(v)))) * scale;
 }
 
 // ---------------------------------------------------------------------------
