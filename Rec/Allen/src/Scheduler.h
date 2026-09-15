@@ -685,18 +685,6 @@ namespace Allen::Scheduler {
 
     // TODO: simplification (CSE)
 
-    // Debug print
-    std::cout << "\nConfigured sequence:\n";
-    auto names = algorithm_names(sorted);
-    for (const auto& alg : sorted) {
-      BoolExpr& mask = execution_masks[alg->index];
-
-      std::cout << " + " << alg->alg->name() // << " isMultiEvent: " << (int) (alg->isMultiEvent)
-                << " in: " << mask.to_string(names) << std::endl;
-      // if (alg->inputMaskHandle) std::cout << "   in: " << alg->inputMaskHandle->fullKey() << std::endl;
-      // if (alg->outputMaskHandle) std::cout << "   out: " << alg->outputMaskHandle->fullKey() << std::endl;
-    }
-
     return execution_masks;
   }
 
