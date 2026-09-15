@@ -92,8 +92,9 @@ test_pages:
     # use nightly build for python environment, needed for API reference of python selection functions
     - lb-run --nightly lhcb-master/latest Allen/master make -C doc linkcheck || reasons+='ERROR failed link check\n'
     - lb-run --nightly lhcb-master/latest Allen/master make -C doc html || reasons+='ERROR failed html generation\n'
+    - rm -rf "$pages_location"
     - mv doc/_build/html "$pages_location"
-    - test -f "$pages_location/html/index.html" || reasons+='ERROR failed to copy html\n'
+    - test -f "$pages_location/index.html" || reasons+='ERROR failed to copy html\n'
     - if [ -n "$reasons" ]; then echo -e $reasons; exit 1; fi
   allow_failure:
     exit_codes: 77
