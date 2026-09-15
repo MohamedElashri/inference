@@ -1451,8 +1451,6 @@ namespace Allen::CuDNN {
 #endif
   };
 
-  using ConvDescriptors = ForwardConvPlan;
-
   struct BackwardDataConvPlan {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   private:
@@ -2180,7 +2178,7 @@ namespace Allen::CuDNN {
       if (entry.second < needed_bytes) {
         if (entry.first) cudaFree(entry.first);
         entry.first = nullptr;
-        cudaCheck(cudaMalloc(&entry.first, needed_bytes));
+        detail::cuda_check(cudaMalloc(&entry.first, needed_bytes), "thread-local cuDNN workspace allocation failed");
         entry.second = needed_bytes;
       }
       return entry.first;
@@ -2471,7 +2469,7 @@ namespace Allen::CuDNN {
       if (entry.second < needed_bytes) {
         if (entry.first) cudaFree(entry.first);
         entry.first = nullptr;
-        cudaCheck(cudaMalloc(&entry.first, needed_bytes));
+        detail::cuda_check(cudaMalloc(&entry.first, needed_bytes), "thread-local cuDNN workspace allocation failed");
         entry.second = needed_bytes;
       }
       return entry.first;

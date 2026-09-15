@@ -19,15 +19,17 @@ validation = collect_t2kde_arrays('data/pv_HLT1CPU_MinBiasMagDown_14Nov_t2hists_
                             batch_size=64,
                             pin_memory=True,
                             shuffle=False,)
-name = 'weights/07Sept2023_t2hists_HDplusUNet100_iter12Ca_200epochs_2em5_5p0_final.pyt'
+# The model Allen runs (UNet without skip connections), fetched by the weights/
+# pipeline: make -C weights fetch MODEL=unet16_lc4_scnone_asym5_best
+name = '../weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt'
 
 nOut1 = 20
 nOut2 = 20
 nOut3 = 20
 nOut4 = 20
 nOut5 = 20
-latentChannels = 8
-nUNetChannels = 64
+latentChannels = 4
+nUNetChannels = 16
 model = Model(nOut1, nOut2, nOut3, nOut4, nOut5, latentChannels=latentChannels, n=nUNetChannels)
 
 print("our model: \n\n",model)

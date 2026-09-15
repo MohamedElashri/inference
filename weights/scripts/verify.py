@@ -4,8 +4,8 @@
 Reads fc_weights.bin and cnn_weights.bin independently of convert.py, in the
 order and layout Allen's loaders read them (PVFinderFCAggregation.cu and
 load_weights in PVFinderUNet.cu), and compares every tensor bit for bit with
-the checkpoint (as float32). Also reports the Allen build this model needs and
-whether Allen's UNet loader supports its skip-connection mode.
+the checkpoint (as float32). Also checks that the UNet has no skip connections
+(the only architecture Allen implements) and reports the Allen build it needs.
 
 Usage (normally through the pipeline: make -C weights verify MODEL=<name>):
     python3 weights/scripts/verify.py --checkpoint MODEL.pyt --fc fc_weights.bin --cnn cnn_weights.bin
@@ -115,6 +115,7 @@ def convt(prefix):
         problems.append(f"cnn {prefix}: stride {stride} != 2")
     check(f"cnn {prefix}.weight", cnn.floats(cin * cout * k).reshape(cin, cout, k), tensor(f"{prefix}.weight"))
     check(f"cnn {prefix}.bias", cnn.floats(cout), tensor(f"{prefix}.bias"))
+    return cin
 
 
 try:
@@ -122,7 +123,7 @@ try:
     conv("rcbn2.0"); bn("rcbn2.1")
     conv("rcbn3.0"); bn("rcbn3.1")
     convt("up1.0"); conv("up1.1.0"); bn("up1.1.1")
-    convt("up2.0"); conv("up2.1.0"); bn("up2.1.1")
+    up2_in = convt("up2.0"); conv("up2.1.0"); bn("up2.1.1")
     oint_in, _ = conv("out_intermediate")
     conv("outc")
 except (struct.error, ValueError) as exc:
@@ -132,11 +133,11 @@ if cnn.pos != len(cnn.buf):
 if in_ch != latent:
     problems.append(f"cnn input channels {in_ch} != FC latentChannels {latent}")
 
-concat = oint_in == 2 * n_feat
-print(f"cnn_weights.bin: N_FEAT={n_feat}, input channels={in_ch}, "
-      f"skip connections={'concat' if concat else 'add/none'}")
+if up2_in != n_feat or oint_in != n_feat:
+    problems.append(f"cnn up2 takes {up2_in} and out_intermediate {oint_in} input channels, expected "
+                    f"N_FEAT={n_feat} (checkpoint has skip connections; Allen's UNet has none)")
+print(f"cnn_weights.bin: N_FEAT={n_feat}, input channels={in_ch}")
 print(f"Allen build flags: --unet-feat {n_feat} --unet-batch-channels {latent}")
-print(f"Allen UNet loader: {'supported' if concat else 'NOT supported (needs concatenated skip connections); FC stage only'}")
 
 if problems:
     print(f"FAIL: {len(problems)} problem(s): {', '.join(problems[:6])}{' ...' if len(problems) > 6 else ''}")

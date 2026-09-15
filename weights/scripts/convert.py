@@ -10,10 +10,11 @@ Usage (normally through the pipeline: make -C weights convert MODEL=<name>):
       [--fc-out fc_weights.bin] [--cnn-out cnn_weights.bin]
 
 The script detects the UNet feature count (N_FEAT) and latentChannels from the
-state dict. The FC architecture is 9→20→20→20→20→20→(latentChannels*100).
+state dict. The FC architecture is 9→20→20→20→20→20→(latentChannels*100). The
+UNet has no skip connections; a checkpoint trained with them is rejected.
 
-Allen must be built to match the model, e.g. for the 16-channel model:
-  ./ballen -a gpu --cudnn --cublas --unet-feat 16 --unet-batch-channels 8
+Allen must be built to match the model, e.g. for the 16-channel latentChannels-4 model:
+  ./ballen -a gpu --cudnn --cublas --unet-feat 16 --unet-batch-channels 4
 (ballen defaults when the flags are omitted: N_FEAT=64, latentChannels=8).
 """
 
@@ -120,12 +121,12 @@ def write_cnn_weights(f, state_dict):
     _write_conv1d(f, "up1.1.0.weight", "up1.1.0.bias", state_dict, "up1.conv")
     _write_bn1d(f, "up1.1.1", state_dict, "up1.bn")
 
-    # up2: ConvTranspose(2*N_FEAT→N_FEAT, k=2, s=2) + Conv(N_FEAT→N_FEAT, k=5) + BN
+    # up2: ConvTranspose(N_FEAT→N_FEAT, k=2, s=2) + Conv(N_FEAT→N_FEAT, k=5) + BN
     _write_convt1d(f, "up2.0.weight", "up2.0.bias", state_dict, "up2.convt")
     _write_conv1d(f, "up2.1.0.weight", "up2.1.0.bias", state_dict, "up2.conv")
     _write_bn1d(f, "up2.1.1", state_dict, "up2.bn")
 
-    # out_intermediate: Conv(2*N_FEAT→N_FEAT, k=5)
+    # out_intermediate: Conv(N_FEAT→N_FEAT, k=5)
     _write_conv1d(f, "out_intermediate.weight", "out_intermediate.bias", state_dict, "out_intermediate")
 
     # outc: Conv(N_FEAT→1, k=5)
@@ -160,6 +161,12 @@ def main():
     n_feat = detect_n_feat(state_dict)
     n_latent = state_dict["layer6A.bias"].shape[0] // 100  # latentChannels
     print(f"Detected: N_FEAT={n_feat}, latentChannels={n_latent}")
+
+    up2_in = state_dict["up2.0.weight"].shape[0]             # ConvTranspose1d: [in, out, k]
+    oint_in = state_dict["out_intermediate.weight"].shape[1]  # Conv1d: [out, in, k]
+    if not args.fc_only and (up2_in != n_feat or oint_in != n_feat):
+        sys.exit(f"ERROR: up2 takes {up2_in} and out_intermediate {oint_in} input channels, expected "
+                 f"N_FEAT={n_feat}: this checkpoint has skip connections, which Allen's UNet does not implement")
 
     print(f"\nAllen must be built to match this model:")
     print(f"  ./ballen -a gpu --cudnn --cublas --unet-feat {n_feat} --unet-batch-channels {n_latent}\n")

@@ -25,7 +25,9 @@
 
 namespace pvfinder_unet {
 
-// UNet architecture constants (default weights: HDplusUNet100 iter12Ca)
+// UNet architecture constants. The UNet has no skip connections: the decoder
+// only sees the upsampled main path (rcbn1-3 -> up1 -> up2 -> out_intermediate
+// -> outc), matching checkpoints trained with sc_mode=none.
 // Override N_FEAT at build time with -DPVFINDER_UNET_N_FEAT=<n> (e.g. 16 for the lighter model).
 // Override N_BATCH_CHANNELS (the FC/UNet handoff's latentChannels) at build
 // time with -DPVFINDER_UNET_N_BATCH_CHANNELS=<n> to run a model trained
@@ -53,11 +55,11 @@ struct Parameters {
     DEVICE_INPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
 
     // Scratch intermediate buffers (Allen pool, sized for one unet_batch_events batch, reused per batch)
-    DEVICE_OUTPUT(dev_unet_x1_t,      float) dev_unet_x1;    // [N, 64, 100]
-    DEVICE_OUTPUT(dev_unet_x2_t,      float) dev_unet_x2;    // [N, 64, 50]
-    DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, 64, 100] (also logits)
-    DEVICE_OUTPUT(dev_unet_up1_t,     float) dev_unet_up1;   // [N, 64, 50]
-    DEVICE_OUTPUT(dev_unet_cat2_t,    float) dev_unet_cat2;  // [N, 128, 50] (also up2[N,64,100])
+    DEVICE_OUTPUT(dev_unet_x1_t,      float) dev_unet_x1;    // [N, N_FEAT, 100] (also oint)
+    DEVICE_OUTPUT(dev_unet_x2_t,      float) dev_unet_x2;    // [N, N_FEAT, 50]
+    DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, N_FEAT, 100] (also logits)
+    DEVICE_OUTPUT(dev_unet_up1_t,     float) dev_unet_up1;   // [N, N_FEAT, 50]
+    DEVICE_OUTPUT(dev_unet_up2_t,     float) dev_unet_up2;   // [N, N_FEAT, 100]
     // conv_ws: IMPLICIT_GEMM needs 0 workspace; allocate 1 float as Allen requires non-zero size.
     DEVICE_OUTPUT(dev_unet_conv_ws_t, float) dev_unet_conv_ws;
 
@@ -162,7 +164,7 @@ private:
     // by default). 0 (default) keeps every forward conv pinned to
     // IMPLICIT_GEMM, bit-for-bit identical to current production behaviour.
     // A nonzero value applies to ALL forward ConvDescriptors (rcbn1/2/3,
-    // up1_c, up2_c, oint_half, outc, and their FP16 counterparts) uniformly.
+    // up1_c, up2_c, oint, outc, and their FP16 counterparts) uniformly.
     Allen::Property<unsigned> m_fwd_algo_ws_budget_bytes {
         this, "fwd_algo_ws_budget_bytes", 0u,
         "0 (default): pin IMPLICIT_GEMM everywhere (no search). Nonzero: bounded "
@@ -192,55 +194,26 @@ private:
         "eager FP32 path only: fuse each bias+ReLU epilogue into the max-pool "
         "that consumes it (rcbn2 and rcbn3), removing two DRAM round trips"};
 
-    // Merge out_intermediate+outc into a single Conv1d(k=9) per branch,
-    // exact everywhere (interior via the merged kernel, boundary via the
-    // original nested formula -- see oint_outc_merged_kernel). Eager FP32
-    // path, skip_mode=="concat" only; ignored otherwise (falls back to the
-    // existing unmerged path). Measured as a net throughput regression (the
-    // hand-written merged kernel loses to tuned cuDNN despite fewer FLOPs) --
-    // kept for reference, default off.
-    Allen::Property<bool> m_use_merged_oint_outc {
-        this, "use_merged_oint_outc", false,
-        "eager FP32 path, skip_mode=concat only: replace the two-branch "
-        "oint_half + bias_add + outc sequence with a single merged "
-        "Conv1d(k=9)-per-branch kernel (exact, incl. boundary)"};
-
     // Merge up1's ConvTranspose1d(k=2,s=2) + Conv1d(k=5,pad=2) into one
     // phase-dependent kernel (exact, incl. boundary -- see up1_merge_kernel's
-    // comment). Eager FP32 path only. Same result as
-    // use_merged_oint_outc above: correct but a net throughput regression
-    // versus the tuned cuDNN path it replaces -- kept for reference, default
-    // off.
+    // comment). Eager FP32 path only. Correct but a net throughput regression
+    // versus the tuned cuDNN path it replaces (the hand-written kernel loses
+    // despite fewer FLOPs) -- kept for reference, default off.
     Allen::Property<bool> m_use_merged_up1 {
         this, "use_merged_up1", false,
         "eager FP32 path only: replace up1's ConvTranspose+Conv+BiasReLU "
         "sequence with a single merged kernel (exact, incl. boundary)"};
 
-    // Skip-connection ablation (FP32 path only; ignored when use_fp16=true).
-    // "concat" — current physics-validated behaviour (default).
-    // "add"    — replace both channel-concat skips with element-wise add
-    //            (halves the channel count feeding the merge conv/deconv);
-    //            reuses one arbitrary half of the concat-trained weights,
-    //            so output is NOT physics-valid — throughput only.
-    // "none"   — drop both skip connections entirely; decoder only sees the
-    //            upsampled main path. Also throughput only.
-    Allen::Property<std::string> m_skip_mode {
-        this, "skip_mode", "concat",
-        "Skip-connection ablation for throughput testing: concat | add | none "
-        "(add/none are not physics-valid, benchmark only)"};
-
     // CUDA graph capture: captures the per-chunk pipeline once (thread_local) and
     // replays it via cudaGraphLaunch instead of ~15-20 separate host API calls per
     // chunk. Covers both use_fp16=false and use_fp16=true (separate captured graphs,
     // separate thread_local scratch pools -- see get_or_capture_cuda_graph and
-    // get_or_capture_cuda_graph_fp16). Only active when skip_mode=="concat" (checked
-    // fresh every call); add/none keep using the eager path (skip-mode ablation is
-    // FP16-incompatible by design regardless of graphs, so this restriction isn't
-    // graph-specific).
+    // get_or_capture_cuda_graph_fp16). BF16 has no graph variant and always runs
+    // the eager path.
     Allen::Property<bool> m_use_cuda_graph {
         this, "use_cuda_graph", false,
-        "capture+replay the concat-mode UNet pipeline (FP32 or FP16) as a CUDA graph "
-        "(only active when skip_mode=concat)"};
+        "capture+replay the UNet pipeline (FP32 or FP16) as a CUDA graph "
+        "(ignored when use_bf16=true)"};
 
     // Per-instance state: BN-folded weights, cuDNN descriptors and their
     // once-flag, defined in PVFinderUNet.cu so the cuDNN types stay out of this
@@ -285,8 +258,7 @@ private:
         const float* w_ptr,  const float* bias_ptr,
         int N, int C_out, int W,
         const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle,
-        float beta_val = 0.f) const;
+        cudnnHandle_t handle) const;
 
     void run_conv_transpose(
         const float* input, float* output,
@@ -301,7 +273,7 @@ private:
         cudnnConvolutionBwdDataAlgo_t algo,
         void* workspace, size_t ws_bytes) const;
 
-    // CUDA graph capture (thread_local, lazy): captures the FP32/concat pipeline
+    // CUDA graph capture (thread_local, lazy): captures the FP32 pipeline
     // once per OS thread against the fixed graph-scratch pool, and returns the
     // graph exec + the two shuttle-kernel node handles so the caller can patch
     // their pointer arguments before each cudaGraphLaunch. seed_ncw/seed_kde only

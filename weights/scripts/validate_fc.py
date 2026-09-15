@@ -52,7 +52,7 @@ parser = argparse.ArgumentParser(description="Validate Allen FC aggregation agai
 parser.add_argument("--dump-dir", required=True,
                     help="directory written by pvfinder_fc_aggregation.dump_validation")
 parser.add_argument("--weights",
-                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc8_iter9.pyt"),
+                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_best.pyt"),
                     help="checkpoint (.pyt) the Allen run is supposed to implement")
 parser.add_argument("--fc-bin", default="",
                     help="optional: the fc_weights .bin Allen loaded; checked against the checkpoint")

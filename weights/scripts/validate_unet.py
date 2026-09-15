@@ -12,10 +12,10 @@ Reads:
     <dump_dir>/allen_kde_output.bin  — KDE output tensor dumped by Allen
     (written by pvfinder_unet when its dump_validation property is set)
 
-Runs the same NCW input through the PyTorch model and compares outputs. The
-UNet width (N_FEAT) and latentChannels are read from the checkpoint, so the
-same script validates 16- and 64-channel models; the Allen build and the
-checkpoint must describe the same model.
+Runs the same NCW input through the PyTorch model (the UNet without skip
+connections) and compares outputs. The UNet width (N_FEAT) and latentChannels
+are read from the checkpoint; the Allen build and the checkpoint must describe
+the same model.
 
 Binary file format (written by PVFinderUNet.cu):
     uint32  magic   = 0xAB1E
@@ -40,8 +40,8 @@ parser = argparse.ArgumentParser(description="Validate Allen UNet against PyTorc
 parser.add_argument("--dump-dir",  default="validation_dump",
                     help="Directory containing allen_ncw_input.bin and allen_kde_output.bin")
 parser.add_argument("--weights",
-                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc8_iter9.pyt"),
-                    help="PyTorch weight file (.pyt); default: the unet16_lc8_iter9 checkpoint fetched by the pipeline")
+                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_best.pyt"),
+                    help="PyTorch weight file (.pyt); default: the unet16_lc4_scnone_asym5_best checkpoint fetched by the pipeline")
 parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
 parser.add_argument("--plot",      action="store_true",
@@ -63,7 +63,6 @@ if "awkward" not in sys.modules:
     sys.modules["awkward"] = types.ModuleType("awkward")
 
 from utils import TrackIntervalsToKDE_HDplusUNet100 as Model
-from utils import combine
 
 if not os.path.exists(args.weights):
     print(f"ERROR: weight file not found: {args.weights}")
@@ -76,9 +75,10 @@ if hasattr(state_dict, "state_dict"):
 
 # rcbn1 is Conv1d(latentChannels -> N_FEAT); layerK is Linear(in -> nOutK).
 nUNetChannels, latentChannels = state_dict["rcbn1.0.weight"].shape[:2]
-if state_dict["out_intermediate.weight"].shape[1] != 2 * nUNetChannels:
-    print("ERROR: this checkpoint does not use concatenated skip connections; Allen's UNet "
-          "loader (and this validator) only supports sc_mode=concat")
+if (state_dict["up2.0.weight"].shape[0] != nUNetChannels
+        or state_dict["out_intermediate.weight"].shape[1] != nUNetChannels):
+    print("ERROR: this checkpoint has skip connections; Allen's UNet (and this validator) "
+          "implement the model without them")
     sys.exit(2)
 nOut1, nOut2, nOut3, nOut4, nOut5 = (state_dict[f"layer{k}.weight"].shape[0] for k in range(1, 6))
 print(f"  checkpoint: N_FEAT={nUNetChannels}  latentChannels={latentChannels}  "
@@ -146,12 +146,8 @@ def run_unet_only(model, y0):
     x2 = model.d(model.rcbn2(x1))                        # [N, n, 50]
     x  = model.d(model.rcbn3(x2))                        # [N, n, 25]
     x  = model.up1(x)                                    # [N, n, 50]
-
-    # combine(x, x2, mode='concat') -> [N, 2n, 50]
-    x  = model.up2(combine(x, x2, mode=model.mode))      # [N, n, 100]
-
-    # out_intermediate expects concat(x, x1) -> [N, 2n, 100]
-    x  = model.out_intermediate(combine(x, x1, mode=model.mode))  # [N, n, 100]
+    x  = model.up2(x)                                    # [N, n, 100]
+    x  = model.out_intermediate(x)                       # [N, n, 100]
     logits = model.outc(x)                               # [N, 1, 100]
     y_pred = F.softplus(logits).squeeze(1) * 0.001       # [N, 100]
     return y_pred

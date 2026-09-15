@@ -14,7 +14,7 @@ Usage:
 
 Options:
   --label LABEL              Required result label, e.g. reference_A_fp32_head_d1874d8
-  -B, --build-dir NAME       Allen build directory name under Allen/ (default: buildgpu16chgpu)
+  -B, --build-dir NAME       Allen build directory name under Allen/ (default: buildgpu16chL4gpu)
   -d, --device N             GPU device index (default: 2)
   -t, --threads N            Allen threads / streams (default: 16)
   -n, --events N             Events to process (default: 100)
@@ -23,16 +23,14 @@ Options:
   --repeats N                Number of repeated benchmark runs (default: 3)
   --model NAME               Weights from the weights/ pipeline:
                              weights/out/NAME/{cnn,fc}_weights.bin
-                             (default: unet16_lc8_iter9; see make -C weights list)
+                             (default: unet16_lc4_scnone_asym5_best; see make -C weights list)
   --cnn-weights PATH         Override pvfinder_unet weight_file (default: from --model)
   --fc-weights PATH          Override pvfinder_fc_aggregation weight_file (default: from --model)
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
   --use-bf16 BOOL            Set pvfinder_unet.use_bf16 true/false (default: false)
                              eager path only, takes precedence over use_fp16
-  --skip-mode MODE           Set pvfinder_unet.skip_mode: concat|add|none (default: concat)
-                             add/none are throughput-only ablations, not physics-valid
   --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
-                             only active when use_fp16=false and skip_mode=concat
+                             FP32 or FP16; ignored when use_bf16=true
   --use-fused-cbr BOOL       Set pvfinder_unet.use_fused_cbr true/false (default: false)
                              rcbn1 only, FP32 only; falls back automatically if
                              unsupported on the GPU
@@ -44,14 +42,8 @@ Options:
                              (default: false); fuses each bias+ReLU epilogue into
                              the max-pool that consumes it, eager FP32 path only
                              rcbn3 only, eager FP32 path only
-  --use-merged-oint-outc BOOL
-                             Set pvfinder_unet.use_merged_oint_outc true/false
-                             (default: false); eager FP32 path, skip_mode=concat
-                             only -- measured as a throughput regression, kept
-                             for reference
   --use-merged-up1 BOOL     Set pvfinder_unet.use_merged_up1 true/false
-                             (default: false); eager FP32 path only -- same
-                             result as use-merged-oint-outc, a measured
+                             (default: false); eager FP32 path only -- a measured
                              throughput regression kept for reference
   --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
                              (default: unset -- leaves Allen's own build-derived
@@ -121,7 +113,7 @@ Options:
 Example:
   benchmarks/benchmark_pvfinder_batch.sh \
     --label reference_A_fp32_head_d1874d8 \
-    -B buildgpu16chgpu --model unet16_lc8_iter9 \
+    -B buildgpu16chL4gpu --model unet16_lc4_scnone_asym5_best \
     -d 2 -t 16 -n 100 -m 300 -r 500 --repeats 3 --use-fp16 false
 USAGE
 }
@@ -133,25 +125,23 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ORIGINAL_ARGS=("$@")
 
 LABEL=""
-BUILD_NAME="buildgpu16chgpu"
+BUILD_NAME="buildgpu16chL4gpu"
 DEVICE=2
 THREADS=16
 EVENTS=100
 MEMORY=300
 REPS=500
 REPEATS=3
-MODEL=unet16_lc8_iter9
+MODEL=unet16_lc4_scnone_asym5_best
 CNN_WEIGHTS_OVERRIDE=""
 FC_WEIGHTS_OVERRIDE=""
 USE_FP16=false
 USE_BF16=false
-SKIP_MODE=concat
 USE_CUDA_GRAPH=false
 USE_FUSED_CBR=false
 FWD_ALGO_WS_BUDGET_MB=0
 USE_FUSED_RCBN3=false
 USE_FUSED_BIAS_RELU_POOL=""
-USE_MERGED_OINT_OUTC=false
 USE_MERGED_UP1=false
 L6A_M=""    # unset default: leaves Allen's own build-derived L6A_WIDTH in effect
 USE_NONATOMIC_L6A_REDUCE=false
@@ -184,13 +174,11 @@ while [[ $# -gt 0 ]]; do
         --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --use-fp16) USE_FP16="$2"; shift 2 ;;
         --use-bf16) USE_BF16="$2"; shift 2 ;;
-        --skip-mode) SKIP_MODE="$2"; shift 2 ;;
         --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
         --use-fused-cbr) USE_FUSED_CBR="$2"; shift 2 ;;
         --fwd-algo-ws-budget-mb) FWD_ALGO_WS_BUDGET_MB="$2"; shift 2 ;;
         --use-fused-rcbn3) USE_FUSED_RCBN3="$2"; shift 2 ;;
         --use-fused-bias-relu-pool) USE_FUSED_BIAS_RELU_POOL="$2"; shift 2 ;;
-        --use-merged-oint-outc) USE_MERGED_OINT_OUTC="$2"; shift 2 ;;
         --use-merged-up1) USE_MERGED_UP1="$2"; shift 2 ;;
         --l6a-m) L6A_M="$2"; shift 2 ;;
         --use-nonatomic-l6a-reduce) USE_NONATOMIC_L6A_REDUCE="$2"; shift 2 ;;
@@ -228,11 +216,6 @@ case "${USE_BF16}" in
     *) echo "ERROR: --use-bf16 must be true or false" >&2; exit 1 ;;
 esac
 
-case "${SKIP_MODE}" in
-    concat|add|none) ;;
-    *) echo "ERROR: --skip-mode must be concat, add, or none" >&2; exit 1 ;;
-esac
-
 case "${USE_CUDA_GRAPH}" in
     true|false) ;;
     *) echo "ERROR: --use-cuda-graph must be true or false" >&2; exit 1 ;;
@@ -255,11 +238,6 @@ esac
 case "${USE_FUSED_RCBN3}" in
     true|false) ;;
     *) echo "ERROR: --use-fused-rcbn3 must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_MERGED_OINT_OUTC}" in
-    true|false) ;;
-    *) echo "ERROR: --use-merged-oint-outc must be true or false" >&2; exit 1 ;;
 esac
 
 case "${USE_MERGED_UP1}" in
@@ -431,11 +409,11 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$SKIP_MODE" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_MERGED_OINT_OUTC" "$USE_BF16" "$USE_MERGED_UP1" "$USE_FUSED_BIAS_RELU_POOL" "$UNET_BATCH_EVENTS" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_BF16" "$USE_MERGED_UP1" "$USE_FUSED_BIAS_RELU_POOL" "$UNET_BATCH_EVENTS" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, skip_mode, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_merged_oint_outc_raw, use_bf16_raw, use_merged_up1_raw, use_fused_brp_raw, unet_batch_events_raw = sys.argv[1:]
+path, weights, use_fp16_raw, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_bf16_raw, use_merged_up1_raw, use_fused_brp_raw, unet_batch_events_raw = sys.argv[1:]
 use_fp16 = use_fp16_raw == "true"
 use_bf16 = use_bf16_raw == "true"
 use_merged_up1 = use_merged_up1_raw == "true"
@@ -443,7 +421,6 @@ use_cuda_graph = use_cuda_graph_raw == "true"
 use_fused_cbr = use_fused_cbr_raw == "true"
 fwd_ws_budget_bytes = int(fwd_ws_budget_mb_raw) * 1024 * 1024
 use_fused_rcbn3 = use_fused_rcbn3_raw == "true"
-use_merged_oint_outc = use_merged_oint_outc_raw == "true"
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -453,14 +430,12 @@ pvfinder_unet["weight_file"] = weights
 pvfinder_unet["use_fp16"] = use_fp16
 pvfinder_unet["use_bf16"] = use_bf16
 pvfinder_unet["use_merged_up1"] = use_merged_up1
-pvfinder_unet["skip_mode"] = skip_mode
 pvfinder_unet["use_cuda_graph"] = use_cuda_graph
 pvfinder_unet["use_fused_cbr"] = use_fused_cbr
 pvfinder_unet["fwd_algo_ws_budget_bytes"] = fwd_ws_budget_bytes
 pvfinder_unet["use_fused_rcbn3"] = use_fused_rcbn3
 if use_fused_brp_raw:            # only touch builds that have the property
     pvfinder_unet["use_fused_bias_relu_pool"] = use_fused_brp_raw == "true"
-pvfinder_unet["use_merged_oint_outc"] = use_merged_oint_outc
 pvfinder_unet["unet_batch_events"] = int(unet_batch_events_raw)
 
 with open(path, "w", encoding="utf-8") as handle:
@@ -631,13 +606,11 @@ run_sequence() {
     echo "fc_weights=${FC_WEIGHTS_ABS}"
     echo "use_fp16=${USE_FP16}"
     echo "use_bf16=${USE_BF16}"
-    echo "skip_mode=${SKIP_MODE}"
     echo "use_cuda_graph=${USE_CUDA_GRAPH}"
     echo "use_fused_cbr=${USE_FUSED_CBR}"
     echo "fwd_algo_ws_budget_mb=${FWD_ALGO_WS_BUDGET_MB}"
     echo "use_fused_rcbn3=${USE_FUSED_RCBN3}"
     echo "use_fused_bias_relu_pool=${USE_FUSED_BIAS_RELU_POOL}"
-    echo "use_merged_oint_outc=${USE_MERGED_OINT_OUTC}"
     echo "use_merged_up1=${USE_MERGED_UP1}"
     echo "l6a_m=${L6A_M:-<build-default L6A_WIDTH>}"
     echo "use_nonatomic_l6a_reduce=${USE_NONATOMIC_L6A_REDUCE}"

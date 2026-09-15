@@ -12,7 +12,7 @@
 #   make env      MODEL=<name>       print the PVFINDER_WEIGHTS_DIR export Allen configs need
 #   make clean    MODEL=<name>       remove out/<name>
 #
-# MODEL defaults to unet16_lc8_iter9. Optional: DEVICE (GPU index, default 2),
+# MODEL defaults to unet16_lc4_scnone_asym5_best. Optional: DEVICE (GPU index, default 2),
 # EVENTS (slice size for dump, default 500), JOBS (build jobs, default 16), PY.
 
 SHELL         := /bin/bash
@@ -27,7 +27,7 @@ PY      ?= $(REPO)/.venv/bin/python3
 CATALOG := $(WEIGHTS)/models.tsv
 SCRIPTS := $(WEIGHTS)/scripts
 
-MODEL   ?= unet16_lc8_iter9
+MODEL   ?= unet16_lc4_scnone_asym5_best
 DEVICE  ?= 2
 EVENTS  ?= 500
 JOBS    ?= 16
@@ -39,16 +39,12 @@ MODELS := $(shell awk -F'\t' 'NR > 1 && NF && substr($$1, 1, 1) != "\043" {print
 SOURCE     := $(call field,$(MODEL),2)
 UNET_FEAT  := $(call field,$(MODEL),3)
 LATENT     := $(call field,$(MODEL),4)
-SC_MODE    := $(call field,$(MODEL),5)
-ALLEN_UNET := $(call field,$(MODEL),6)
-BUILD      := $(call field,$(MODEL),7)
+BUILD      := $(call field,$(MODEL),5)
 
 CKPT := $(WEIGHTS)/checkpoints/$(MODEL).pyt
 OUT  := $(WEIGHTS)/out/$(MODEL)
 DUMP := $(OUT)/dump
-# Allen's UNet loader only supports concatenated skip connections; the other
-# architectures are validated on the FC stage alone.
-SEQUENCE := $(if $(filter yes,$(ALLEN_UNET)),hlt1_pp_pvfinder_unet_benchmark,hlt1_pp_pvfinder_benchmark)
+SEQUENCE := hlt1_pp_pvfinder_unet_benchmark
 
 .PHONY: help list check-model fetch convert verify build dump validate all verify-all env clean
 
@@ -56,7 +52,7 @@ help:
 > @sed -n '2,17s/^# \{0,1\}//p' $(firstword $(MAKEFILE_LIST))
 
 list:
-> @awk -F'\t' '$$1 !~ /^#/ && NF {printf "%-32s %-9s %-6s %-7s %-10s %s\n", $$1, $$3, $$4, $$5, $$6, $$7}' $(CATALOG)
+> @awk -F'\t' '$$1 !~ /^#/ && NF {printf "%-32s %-9s %-6s %s\n", $$1, $$3, $$4, $$5}' $(CATALOG)
 
 check-model:
 > @if [[ -z "$(SOURCE)" ]]; then echo "unknown MODEL '$(MODEL)'; see 'make list'" >&2; exit 1; fi
@@ -93,11 +89,7 @@ dump: verify build
 validate: check-model
 > @test -f $(DUMP)/allen_fc_csr.bin || { echo "no dump for $(MODEL): run 'make dump MODEL=$(MODEL)'" >&2; exit 1; }
 > $(PY) $(SCRIPTS)/validate_fc.py --dump-dir $(DUMP) --weights $(CKPT) --fc-bin $(OUT)/fc_weights.bin | tee $(OUT)/validate_fc.txt
-> @if [[ "$(ALLEN_UNET)" == yes ]]; then \
->     $(PY) $(SCRIPTS)/validate_unet.py --dump-dir $(DUMP) --weights $(CKPT) | tee $(OUT)/validate_unet.txt; \
-> else \
->     echo "UNet validation skipped: Allen's UNet loader does not support sc_mode=$(SC_MODE)" | tee $(OUT)/validate_unet.txt; \
-> fi
+> $(PY) $(SCRIPTS)/validate_unet.py --dump-dir $(DUMP) --weights $(CKPT) | tee $(OUT)/validate_unet.txt
 
 all: check-model
 > $(MAKE) --no-print-directory fetch convert verify MODEL=$(MODEL)

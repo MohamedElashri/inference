@@ -5,10 +5,10 @@ Allen loads, and to prove Allen reproduces that checkpoint, lives here and is
 driven by `make`:
 
 ```bash
-make -C weights list                                   # models in the catalog
-make -C weights all MODEL=unet16_lc8_iter9             # fetch -> convert -> verify -> build -> dump -> validate
-make -C weights verify-all                             # fetch + convert + verify every model
-eval "$(make -s -C weights env MODEL=unet16_lc8_iter9)" # export PVFINDER_WEIGHTS_DIR for Allen configs
+make -C weights list                                               # models in the catalog
+make -C weights all MODEL=unet16_lc4_scnone_asym5_best             # fetch -> convert -> verify -> build -> dump -> validate
+make -C weights verify-all                                         # fetch + convert + verify every model
+eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_best)" # export PVFINDER_WEIGHTS_DIR for Allen configs
 ```
 
 `make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`, `JOBS`, `PY`).
@@ -21,7 +21,7 @@ eval "$(make -s -C weights env MODEL=unet16_lc8_iter9)" # export PVFINDER_WEIGHT
 | `convert` | `scripts/convert.py`: checkpoint to Allen format | `cnn_weights.bin`, `fc_weights.bin` |
 | `verify` | `scripts/verify.py`: re-reads both files in Allen's loader order and compares every tensor bit for bit with the checkpoint | `verify.txt` |
 | `build` | `../ballen` with the model's `--unet-feat` / `--unet-batch-channels` into `Allen/<build>gpu` | Allen build |
-| `dump` | `scripts/allen_dump.sh`: one 500-event slice with `dump_validation` on for FC (and UNet) | `dump/` |
+| `dump` | `scripts/allen_dump.sh`: one 500-event slice with `dump_validation` on for FC and UNet | `dump/` |
 | `validate` | `scripts/validate_fc.py` recomputes FC from the checkpoint with Allen's own track-to-interval assignment; `scripts/validate_unet.py` does the same for the UNet | `validate_fc.txt`, `validate_unet.txt` |
 
 `validate` fails (non-zero exit) on any mismatch. `validate_fc.py` also checks
@@ -44,48 +44,45 @@ The Allen build must match the model: `N_FEAT` and `latentChannels` are
 compile-time constants. The catalog's `build` column names the `ballen -b`
 base; `make build` passes the right flags.
 
+## Model architecture
+
+Allen's UNet (`pvfinder_unet`) and the PyTorch reference
+(`pvfinder_pytorch/utils.py`) implement the UNet **without skip connections**
+(trained with `sc_mode=none`): rcbn1 -> rcbn2 -> pool -> rcbn3 -> pool -> up1
+-> up2 -> out_intermediate -> outc, where up2's ConvTranspose and
+out_intermediate take `N_FEAT` channels. `convert.py` and `verify.py` reject a
+checkpoint trained with skip connections (`2*N_FEAT` inputs at those layers),
+and Allen's loader checks every layer's shape against its build.
+
 ## Catalog (`models.tsv`)
 
-Tab-separated: `name`, `source` checkpoint, `unet_feat`, `latent`, `sc_mode`,
-`allen_unet` (can Allen's UNet load it), `build`, `notes`. Add a model by
-adding a row. All current models are `N_FEAT=16` with five 20-wide FC hidden
-layers and 100 bins per interval. Sources are the training team's outputs
-under `/share/lazy/mpeters/output/`.
-
-| Model group | Allen build | Notes |
-|---|---|---|
-| `unet16_lc8_iter9` | `buildgpu16chgpu` | Default model; latentChannels 8 |
-| `unet16_lc4_asym5_*` (8) | `buildgpu16chL4gpu` | latentChannels 4, concat skips, asym 5: `best`, `final`, and fp16/bf16 quantized variants of `best` (stored as fp32 on disk) |
-| `unet16_lc4_scadd_asym7.5_*` (2) | `buildgpu16chL4gpu` | `add` skip connections; FC stage only in Allen |
-| `unet16_lc4_scnone_*` (5) | `buildgpu16chL4gpu` | no skip connections (asym 1, 2.5, 17, 19); FC stage only in Allen |
+Tab-separated: `name`, `source` checkpoint, `unet_feat`, `latent`, `build`,
+`notes`. Add a model by adding a row. All current models are `N_FEAT=16`,
+latentChannels 4, with five 20-wide FC hidden layers and 100 bins per
+interval, and build into `buildgpu16chL4gpu`. Sources are the training team's
+outputs under `/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/`,
+which also holds asym 7-15 sweeps and older `iter*` runs not catalogued here.
 
 Training-side metrics recorded with the checkpoints (from the training team's
-metadata, not measured here):
+`metadata.json` and `stats.csv`, not measured here):
 
 | Model | efficiency | fp/event | Notes |
 |---|---:|---:|---|
-| `unet16_lc4_asym5_best` | 0.9632 | 0.0207 | epoch 36, source of the quantized variants |
-| `unet16_lc4_asym5_final` | 0.9628 | 0.0194 | epoch 39 |
-| `unet16_lc4_asym5_fp16_both` | 0.9632 | 0.0209 | quantized loss reported as NaN upstream |
-| `unet16_lc4_asym5_fp16_fcn` | 0.9632 | 0.0209 | metrics identical to fp16_both upstream |
-| `unet16_lc4_asym5_fp16_unet` | 0.9632 | 0.0207 | |
-| `unet16_lc4_asym5_bf16_both` | 0.9634 | 0.0211 | |
-| `unet16_lc4_asym5_bf16_fcn` | 0.9635 | 0.0210 | |
-| `unet16_lc4_asym5_bf16_unet` | 0.9633 | 0.0204 | |
-| `unet16_lc4_scadd_asym7.5_best` / `_final` | 0.9705 / 0.9682 | 0.0402 / 0.0301 | epochs 54 / 75 |
+| `unet16_lc4_scnone_asym5_best` | 0.9671 | 0.0241 | **default**; epoch 5 of 70 (lowest val loss) |
+| `unet16_lc4_scnone_asym5_final` | 0.9654 | 0.0214 | epoch 69 |
 | `unet16_lc4_scnone_asym1_best` / `_final` | 0.9383 / 0.9378 | 0.0042 / 0.0042 | epochs 82 / 86 |
 | `unet16_lc4_scnone_asym2.5_best` | 0.9566 | 0.0130 | from the last `stats.csv` row, approximate |
 | `unet16_lc4_scnone_asym17_final` | 0.9766 | 0.0842 | epoch 131 |
 | `unet16_lc4_scnone_asym19_best` | 0.9767 | 0.0807 | upstream stats have a single epoch; likely incomplete |
 
-The `sc_mode` groups use different `asym` values, so they are not a matched
-comparison of skip-connection choices.
-
 ## Limitations and history
 
-- **Allen's UNet loader only supports concatenated skip connections.** For
-  `add`/`none` checkpoints `out_intermediate` has `N_FEAT` inputs, which the
-  loader's split does not handle; the pipeline validates their FC stage only.
+- **Skip connections removed 2026-09-15.** Earlier the catalog defaulted to
+  `unet16_lc8_iter9` and held latentChannels-4 models with concatenated or
+  added skip connections; Allen only ran the concat architecture, so the
+  no-skip models were validated on their FC stage alone. Those models and all
+  skip-connection code paths (concat kernels, `skip_mode`,
+  `use_merged_oint_outc`) are gone.
 - **`legacy/`** (ignored) keeps files whose source checkpoint no longer exists:
   `unet16_lc4_scnone_asym17_best` (the upstream `weights_best.pyt` was
   overwritten on 2026-08-28 after conversion) and the 64-channel model's files.
