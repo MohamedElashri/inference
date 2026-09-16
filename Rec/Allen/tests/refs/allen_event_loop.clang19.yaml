@@ -1147,56 +1147,56 @@ stdout: |-
 histos:
   Hlt1DiElectronLowMass_NoIP:
     dielectron_mass_counts:
-      nEntries: 139.0
+      nEntries: 149.0
       title: dielectron masses
-      sum: 139
-      meanX: 1159.397482
-      stdDevX: 408.779806
+      sum: 149
+      meanX: 1098.196309
+      stdDevX: 457.067069
     dielectron_mass_counts_brem:
-      nEntries: 120.0
+      nEntries: 130.0
       title: dielectron masses with brem
-      sum: 120
-      meanX: 1153.5625
-      stdDevX: 411.096243
+      sum: 130
+      meanX: 1086.576923
+      stdDevX: 459.061898
   Hlt1DiElectronLowMass_NoIPNorm:
     dielectron_mass_counts:
-      nEntries: 520.0
+      nEntries: 529.0
       title: dielectron masses
-      sum: 520
-      meanX: 1222.615385
-      stdDevX: 350.092929
+      sum: 529
+      meanX: 1206.628072
+      stdDevX: 368.023637
     dielectron_mass_counts_brem:
-      nEntries: 435.0
+      nEntries: 444.0
       title: dielectron masses with brem
-      sum: 435
-      meanX: 1220.715517
-      stdDevX: 355.583564
+      sum: 444
+      meanX: 1202.094595
+      stdDevX: 375.164216
   Hlt1DiElectronLowMass_SS_NoIP:
     dielectron_mass_counts:
-      nEntries: 184.0
+      nEntries: 186.0
       title: dielectron masses
-      sum: 184
-      meanX: 768.831522
-      stdDevX: 540.244504
+      sum: 186
+      meanX: 761.814516
+      stdDevX: 541.841882
     dielectron_mass_counts_brem:
-      nEntries: 169.0
+      nEntries: 171.0
       title: dielectron masses with brem
-      sum: 169
-      meanX: 751.397929
-      stdDevX: 523.683592
+      sum: 171
+      meanX: 742.171053
+      stdDevX: 526.05171
   Hlt1DiElectronLowMass_SS_NoIPNorm:
     dielectron_mass_counts:
-      nEntries: 617.0
+      nEntries: 622.0
       title: dielectron masses
-      sum: 617
-      meanX: 1002.68436
-      stdDevX: 505.684871
+      sum: 622
+      meanX: 995.643087
+      stdDevX: 509.644468
     dielectron_mass_counts_brem:
-      nEntries: 560.0
+      nEntries: 565.0
       title: dielectron masses with brem
-      sum: 560
-      meanX: 994.875
-      stdDevX: 507.338057
+      sum: 565
+      meanX: 987.219027
+      stdDevX: 511.090606
   Hlt1KsLLDetachedTrack:
     KsTrack_mass_KsLLDetachedTrack:
       nEntries: 1.0
@@ -1378,56 +1378,56 @@ histos:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 35.2397
-      stdDevX: 42.012851
+      meanX: 35.2467
+      stdDevX: 42.016583
   fit_dihadrons_noipcut_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 3.1479
-      stdDevX: 5.503347
+      meanX: 3.1482
+      stdDevX: 5.503348
   fit_dilepton_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 15.6803
-      stdDevX: 31.043571
+      meanX: 15.6864
+      stdDevX: 31.053406
   fit_dilepton_secondary_vertices_nopt:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 24.429
-      stdDevX: 45.393528
+      meanX: 24.4367
+      stdDevX: 45.404229
   fit_prompt_dihadron_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
-      meanX: 15.8705
-      stdDevX: 20.728086
+      meanX: 15.8715
+      stdDevX: 20.730494
   fit_v0_secondary_vertices:
     number_of_svs:
       nEntries: 10000.0
       title: NSVs
       sum: 10000
       meanX: 0.8556
-      stdDevX: 1.879295
+      stdDevX: 1.879561
   gather_selections:
     line_passes:
-      nEntries: 17414.0
+      nEntries: 17446.0
       title: line passes
-      sum: 17414
-      meanX: 86.195016
-      stdDevX: 23.0172
+      sum: 17446
+      meanX: 86.090622
+      stdDevX: 23.139619
     line_rates:
-      nEntries: 667.0
+      nEntries: 687.0
       title: line rates
-      sum: 667
-      meanX: 79.805847
-      stdDevX: 32.49536
+      sum: 687
+      meanX: 78.430131
+      stdDevX: 33.242277
   is_muon:
     n_muons:
       nEntries: 458847.0
@@ -1745,9 +1745,9 @@ counters:
     Hlt1D2KPiRate:
       nEntries: 15.0
     Hlt1D2KshhPass:
-      nEntries: 8.0
+      nEntries: 7.0
     Hlt1D2KshhRate:
-      nEntries: 8.0
+      nEntries: 7.0
     Hlt1D2PiPiPass:
       nEntries: 4.0
     Hlt1D2PiPiRate:
@@ -1757,33 +1757,33 @@ counters:
     Hlt1DetJpsiToMuMuNegTagLineRate:
       nEntries: 1.0
     Hlt1DiElectronDisplacedPass:
-      nEntries: 24.0
+      nEntries: 27.0
     Hlt1DiElectronDisplacedRate:
-      nEntries: 24.0
+      nEntries: 27.0
     Hlt1DiElectronLowMass_DisplacedPass:
-      nEntries: 6.0
+      nEntries: 11.0
     Hlt1DiElectronLowMass_DisplacedRate:
-      nEntries: 6.0
+      nEntries: 11.0
     Hlt1DiElectronLowMass_NoIPNormPass:
-      nEntries: 60.0
+      nEntries: 69.0
     Hlt1DiElectronLowMass_NoIPNormRate:
       nEntries: 3.0
     Hlt1DiElectronLowMass_NoIPPass:
-      nEntries: 20.0
+      nEntries: 27.0
     Hlt1DiElectronLowMass_NoIPRate:
-      nEntries: 20.0
+      nEntries: 27.0
     Hlt1DiElectronLowMass_SS_DisplacedPass:
-      nEntries: 24.0
+      nEntries: 28.0
     Hlt1DiElectronLowMass_SS_DisplacedRate:
       nEntries: 1.0
     Hlt1DiElectronLowMass_SS_NoIPNormPass:
-      nEntries: 141.0
+      nEntries: 144.0
     Hlt1DiElectronLowMass_SS_NoIPNormRate:
-      nEntries: 2.0
+      nEntries: 3.0
     Hlt1DiElectronLowMass_SS_NoIPPass:
-      nEntries: 76.0
+      nEntries: 74.0
     Hlt1DiElectronLowMass_SS_NoIPRate:
-      nEntries: 1.0
+      nEntries: 2.0
     Hlt1DiMuonDisplacedPass:
       nEntries: 4.0
     Hlt1DiMuonDisplacedRate:
@@ -1811,13 +1811,13 @@ counters:
     Hlt1DiPhotonHighMassRate:
       nEntries: 32.0
     Hlt1Dst2D0PiAlignmentPass:
-      nEntries: 2.0
+      nEntries: 3.0
     Hlt1Dst2D0PiAlignmentRate:
-      nEntries: 2.0
+      nEntries: 3.0
     Hlt1Dst2D0PiPass:
-      nEntries: 2.0
+      nEntries: 3.0
     Hlt1Dst2D0PiRate:
-      nEntries: 2.0
+      nEntries: 3.0
     Hlt1GECPassthroughPass:
       nEntries: 2.0
     Hlt1GECPassthroughRate:
@@ -1903,9 +1903,9 @@ counters:
     Hlt1TwoTrackKsRate:
       nEntries: 31.0
     Hlt1TwoTrackMVAPass:
-      nEntries: 245.0
+      nEntries: 247.0
     Hlt1TwoTrackMVARate:
-      nEntries: 245.0
+      nEntries: 247.0
     Hlt1VeloMicroBiasPass:
       nEntries: 9997.0
     Hlt1VeloMicroBiasRate:
@@ -1917,15 +1917,15 @@ counters:
       sum: 458847.0
   output_handler:
     BatchSize:
-      mean: 8.5
+      mean: 8.633333
       nEntries: 60
-      sum: 510.0
+      sum: 518.0
     NBatches:
       mean: 3.0
       nEntries: 20
       sum: 60.0
     NOutput:
-      nEntries: 510
+      nEntries: 518
     NProcessed:
       nEntries: 10000
   pv_beamline_cleanup:
