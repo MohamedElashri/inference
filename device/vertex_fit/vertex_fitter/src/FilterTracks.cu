@@ -159,13 +159,13 @@ __global__ void FilterTracks::filter_tracks(
 
       // Check the DOCA.
       const float doca = Allen::Views::Physics::state_doca(trackA_ministate, trackB_ministate);
-      if (doca > doca_max) continue;
+      if (doca > doca_max || doca < 0.f) continue;
 
       // Check the POCA.
       float x;
       float y;
       float z;
-      if (LHCb::essentiallyZero(Allen::Views::Physics::state_poca(trackA_ministate, trackB_ministate, x, y, z))) {
+      if (!Allen::Views::Physics::state_poca(trackA_ministate, trackB_ministate, x, y, z)) {
         continue;
       }
 
