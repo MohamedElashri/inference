@@ -762,7 +762,7 @@ target_link_libraries(HostCommon PRIVATE
   mdf EventModel Gear Backend mdf AllenCommon LHCbEvent Boost::iostreams Rangev3::rangev3)
 
 if (NOT STANDALONE)
-  target_link_libraries(HostCommon PRIVATE LHCb::IOAlgorithmsLib)
+  target_link_libraries(HostCommon PUBLIC LHCb::IOAlgorithmsLib)
 endif()
 
 allen_add_host_library(AllenLib SHARED
