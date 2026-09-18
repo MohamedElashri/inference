@@ -98,7 +98,7 @@ elif [ "${RUN_PROFILER}" = "1" ]; then
 
   mkdir -p "${RUN_PROFILER_OUTPUT}"
 
-  # The following ncu command always fails at removing the tmp folder, ignore that failure with || true
+  # The following nsys command always fails at removing the tmp folder, ignore that failure with || true
   # TMPDIR=tmp
   {
   eval "CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=${GPU_NUMBER} numactl --cpunodebind=${NUMA_NODE} --membind=${NUMA_NODE} nsys profile -o allen_report --force-overwrite true ./toolchain/wrapper ./Allen $@"

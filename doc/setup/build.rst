@@ -169,7 +169,7 @@ Note: CUDA builds with CVMFS outside CERN network still require a local CUDA ins
 
 In order to run, use the generated wrapper::
 
-    ./toolchain/wrapper ./Allen --sequence hlt1_pp_validation
+    ./toolchain/wrapper ./Allen --sequence hlt1_pp_default
 
 .. _build-without-cvmfs:
 
@@ -192,7 +192,7 @@ Note that specifying ``-DINSTALL_GEOMETRY`` here will build the necessary files 
 
 To run Allen, simply invoke the generated binary::
 
-    ./Allen --sequence hlt1_pp_validation -g allen_geometries/<path to geometry> --mdf <the input file>
+    ./Allen --sequence hlt1_pp_default -g allen_geometries/<path to geometry> --mdf <the input file>
 
 Building on macOS
 -----------------
@@ -217,7 +217,7 @@ Finally, Allen can be built and run as on any other platform::
     cd build
     cmake -DSTANDALONE=ON ..
     make
-    ./Allen --sequence hlt1_pp_validation
+    ./Allen --sequence hlt1_pp_default
 
 Purging / rebuilding
 --------------------

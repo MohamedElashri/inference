@@ -21,13 +21,6 @@ from tabulate import tabulate
 
 DEVICE_THROUGHPUT_DECREASE_THRESHOLD = -0.075
 AVG_THROUGHPUT_DECREASE_THRESHOLD = -0.025
-# By default weights are 1.0 if not specified.
-# When a weight is less than one for a device, it will contribute
-# correspondlingly less to the average and its individual threshold will
-# be relaxed.
-DEVICE_WEIGHTS = {
-    "MI100": 0.5,
-}
 
 
 def check_throughput_change(throughput, master_throughput):
@@ -36,7 +29,6 @@ def check_throughput_change(throughput, master_throughput):
     }
 
     problems = []
-    weights = {device: DEVICE_WEIGHTS.get(device, 1.0) for device in speedup_wrt_master}
 
     if len(speedup_wrt_master) == 0:
         return problems
@@ -45,7 +37,7 @@ def check_throughput_change(throughput, master_throughput):
     single_device_table = []
     for device, speedup in speedup_wrt_master.items():
         change = speedup - 1.0
-        tput_tol = DEVICE_THROUGHPUT_DECREASE_THRESHOLD / weights[device]
+        tput_tol = DEVICE_THROUGHPUT_DECREASE_THRESHOLD
         # print(f"{device:<30}  speedup (% change): {speedup:.2f}x ({change*100:.2f}%)")
 
         status = "OK"
@@ -88,9 +80,7 @@ def check_throughput_change(throughput, master_throughput):
     print("")
 
     # Average throughputs across all devices and complain if we are above decr % threshold
-    average_speedup = sum(
-        speedup * weights[device] for device, speedup in speedup_wrt_master.items()
-    ) / sum(weights.values())
+    average_speedup = sum(speedup_wrt_master.values()) / len(speedup_wrt_master)
     change = average_speedup - 1.0
     print(f"Device-averaged speedup: {average_speedup:.2f}x")
     print(f"               % change: {change * 100:.2f}%")

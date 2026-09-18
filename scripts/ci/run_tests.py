@@ -193,45 +193,6 @@ def post_proc_throughput(
     return {"throughput": float(throughput), "device": full_device_name}
 
 
-def post_proc_efficiency(
-    test: dict,
-    log_output: str,
-    run_profiler_output: Path = None,
-    allen_profiler_log: str = None,
-):
-    build_options = test.get("build_options", "")
-    output_directory = Path(
-        f"run_physics_efficiency_output_{test['sequence']}{build_options}"
-    )
-    output_directory.mkdir(parents=True, exist_ok=True)
-    write_text(
-        output_directory / f"{test['dataset']}_{test['sequence']}_{device_id}.txt",
-        log_output,
-    )
-
-    return {}
-
-
-def post_proc_run_changes(
-    test: dict,
-    log_output: str,
-    run_profiler_output: Path = None,
-    allen_profiler_log: str = None,
-):
-    disable_run_changes = int(test["disable_run_changes"])
-    output_directory = None
-    if disable_run_changes == 1:
-        output_directory = Path(f"run_no_run_changes_output_{test['sequence']}")
-    elif disable_run_changes == 0:
-        output_directory = Path(f"run_with_run_changes_output_{test['sequence']}")
-    else:
-        raise ValueError("disable_run_changes must be 0 or 1.")
-    output_directory.mkdir(parents=True, exist_ok=True)
-    write_text(output_directory / f"minbias_{device_id}.txt", log_output)
-
-    return {}
-
-
 def post_proc_run_built_tests(
     test: dict,
     log_output: str,
@@ -273,8 +234,6 @@ def post_proc_sanitizer(
 
 test_postproc = {
     "throughput": post_proc_throughput,
-    "efficiency": post_proc_efficiency,
-    "run_changes": post_proc_run_changes,
     "run_built_tests": post_proc_run_built_tests,
     "run_memcheck": post_proc_sanitizer,
     "run_racecheck": post_proc_sanitizer,

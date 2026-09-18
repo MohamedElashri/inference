@@ -19,8 +19,8 @@ The ``/ci-test`` command launches a test of all the listed merge requests
 together (for example ``LHCb!5683`` is LHCb merge request 5683,
 ``Allen!2414`` is Allen merge request 2414, and so on).  Only list the merge
 requests that are actually interdependent; the CI then builds and tests the
-resulting stack combination, including Allen's physics-performance and
-throughput tests.
+resulting stack combination, including Allen's throughput tests.  The HLT1
+physics validation (efficiency) tests have been migrated to Moore.
 
 Deprecated CI configuration
 ---------------------------
@@ -51,15 +51,11 @@ Adding new devices
       - .[cuda/hip/cpu]_run_job
       - .run_jobs_full
 
-4. Add the jobs to the dependencies of `.device-jobs` and `.depend_full_run_jobs`:
+4. Add the job to the dependencies of `.depend_full_jobs`:
 
 .. code-block:: yaml
 
-  .device-jobs:
-    dependencies:
-      - ...
-
-  .depend_full_run_jobs:
+  .depend_full_jobs:
     dependencies:
       - ...
 
@@ -67,6 +63,13 @@ Adding new devices
 
 Adding new tests
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+   The test matrix is now defined in `scripts/ci/test_config.yaml` and executed
+   by `scripts/ci/run_tests.py`; the legacy `parallel:matrix` description below
+   is kept for reference only.
+
 See `Gitlab CI documentation <https://docs.gitlab.com/ee/ci/yaml>`_ for more information on how the `parallel:matrix` keyword works.
 
 To the minimal pipeline
@@ -75,10 +78,10 @@ Add a key to `.run_matrix_jobs_minimal:parallel:matrix:` in `common-run.yaml` e.
 
 .. code-block:: yaml
 
-      # efficiency tests
-      - TEST_NAME: "run_physics_efficiency" # name of the test - runs the bash script scripts/ci/jobs/$TEST_NAME.sh
-        SEQUENCES: ["hlt1_pp_validation"]   # sequence(s) to run the test on
-        DATA_TAG: ["Upgrade_BsPhiPhi_MD_FTv4_DIGI_retinacluster_v1"] # input dataset
+      # throughput test
+      - TEST_NAME: "run_throughput"       # name of the test
+        SEQUENCES: ["hlt1_pp_default"]    # sequence(s) to run the test on
+        DATA_TAG: ["Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD"] # input dataset
 
 Other variables can be set (but are optional - see below).
 
@@ -106,17 +109,18 @@ In order to ensure the correct build from the `build` stage is used in your test
 * `${OPTIONS}` (optional, can be set in `.run_matrix_jobs_full:parallel:matrix:`)
 * `${GEOMETRY}` (optional, can be left undefined or set if a specific geometry is needed)
 
-Adding new efficiency reference files
+Physics validation / efficiency tests
 -----------------------------------------
-Create the reference file with the format `test/reference/${DATA_TAG}_${DEVICE_ID}.txt`.
+The standalone HLT1 physics validation (efficiency) tests and their reference
+files (`test/reference`) have been migrated to Moore. There the Allen HLT1
+sequences are run and the reconstruction is validated with the Rec/Moore
+checkers, instead of the Allen validators. They are no longer part of the Allen
+CI.
 
-Updating efficiency reference files
------------------------------------------
-If the changes introduced in a MR are expected to have an impact on the physics efficiency, the job will fail, pointing to the need of updating the reference files.
-Make sure that the differences reported in the failing job make sense.
-If in doubt, or for any significant changes, flag it up on your MR.
-
-The failing CI job will produce a patch file and provide instructions on how to commit at the bottom.
+The stack-level reference tests (`Rec/Allen/tests`) are still in use and are
+updated via the reference-update bot. When a MR changes the stack references,
+the bot opens a MR with the updated reference files; the update can also be
+triggered from the bot's manual job.
 
 Adding new builds
 ---------------------
