@@ -678,7 +678,6 @@ def create_filter_manager(
 
 def setup_hlt1_node(
     enablePhysics=True,
-    withMCChecking=False,
     EnableGEC=True,
     DisableLinesDuringVPClosing=False,
     withSMOG2=True,
@@ -808,7 +807,6 @@ def setup_hlt1_node(
         with_lumi=with_lumi,
         with_rich=with_rich,
         enableRateValidator=enableRateValidator,
-        withMCChecking=withMCChecking,
         tracking_type=tracking_type,
         with_ut=with_ut,
         with_muon=with_muon,

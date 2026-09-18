@@ -24,11 +24,3 @@ class ActivityType(Enum):
     PRIMARY_VERTICES = 2
     SCIFI_CLUSTERS = 3
     LONG_TRACKS = 4
-
-
-def includes_matching(tracking_type):
-    return tracking_type in (
-        TrackingType.MATCHING,
-        TrackingType.FORWARD_THEN_MATCHING,
-        TrackingType.MATCHING_THEN_FORWARD,
-    )

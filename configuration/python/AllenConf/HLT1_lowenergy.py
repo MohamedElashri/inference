@@ -14,7 +14,7 @@ from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
 from AllenConf.calo_reconstruction import decode_calo
-from AllenConf.enum_types import TrackingType, includes_matching
+from AllenConf.enum_types import TrackingType
 from AllenConf.filters import *
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.hlt1_calibration_lines import *
@@ -28,7 +28,6 @@ from AllenConf.hlt1_photon_lines import *
 from AllenConf.hlt1_reconstruction import (
     hlt1_reconstruction,
     make_dq_node,
-    validator_node,
 )
 from AllenConf.hlt1_smog2_lines import *
 from AllenConf.lumi_reconstruction import lumi_reconstruction
@@ -1050,7 +1049,6 @@ def default_bgi_activity_lines(
 
 def setup_hlt1_node(
     enablePhysics=True,
-    withMCChecking=False,
     EnableGEC=True,
     DisableLinesDuringVPClosing=True,
     withSMOG2=True,
@@ -1441,28 +1439,6 @@ def setup_hlt1_node(
         )
         return node
 
-    if not withMCChecking:
-        hlt1_config["control_flow_node"] = hlt1_node
-    else:
-        validation_node = validator_node(
-            reconstructed_objects,
-            line_algorithms,
-            includes_matching(tracking_type),
-            with_ut,
-            with_muon,
-            with_AC_split,
-            with_fullKF,
-            with_downstream_KF,
-            prefilters,
-        )
-        hlt1_config["validator_node"] = validation_node
-
-        node = CompositeNode(
-            "AllenWithValidators",
-            [hlt1_node, validation_node],
-            NodeLogic.NONLAZY_AND,
-            force_order=False,
-        )
-        hlt1_config["control_flow_node"] = node
+    hlt1_config["control_flow_node"] = hlt1_node
 
     return hlt1_config

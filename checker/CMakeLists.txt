@@ -9,5 +9,4 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 add_subdirectory(tracking)
-add_subdirectory(pv)
 add_subdirectory(selections)

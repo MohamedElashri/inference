@@ -15,12 +15,12 @@ In order to debug you should use a debug build for the target architecture you a
 
 Then, you should be able to run your code with a debugger such as `gdb` (CPU), `cuda-gdb` (CUDA) or `rocgdb` (HIP). For instance::
 
-    ./toolchain/wrapper /usr/local/cuda/bin/cuda-gdb --args ./Allen --sequence hlt1_pp_validation
+    ./toolchain/wrapper /usr/local/cuda/bin/cuda-gdb --args ./Allen --sequence hlt1_pp_default
 
 If you don't have CVMFS available, you should set the `CMAKE_BUILD_TYPE` to `Debug` and use the available local installation of the debugger::
 
     cmake -DSTANDALONE=ON -DCMAKE_BUILD_TYPE=Debug -DTARGET_DEVICE=CUDA ..
-    cuda-gdb --args ./Allen --sequence hlt1_pp_validation
+    cuda-gdb --args ./Allen --sequence hlt1_pp_default
 
 For some materials on gdb, some recommended reading:
 

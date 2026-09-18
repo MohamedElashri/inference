@@ -157,8 +157,8 @@ correct environment.  ::
     # Run on an MDF input file shipped with Allen once
     ./Allen --sequence hlt1_pp_default --mdf ../input/minbias/mdf/MiniBrunel_2018_MinBias_FTv4_DIGI_retinacluster_v1.mdf
 
-    # Run a total of 1000 events once with validation
-    ./Allen --sequence hlt1_pp_validation -n 1000 --mdf /path/to/mdf/input/file
+    # Run a total of 1000 events once
+    ./Allen --sequence hlt1_pp_default -n 1000 --mdf /path/to/mdf/input/file
 
     # Run four streams, each with 4000 events and 20 repetitions
     ./Allen --sequence hlt1_pp_default -t 4 -n 4000 -r 20 --mdf /path/to/mdf/input/file

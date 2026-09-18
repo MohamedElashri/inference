@@ -124,8 +124,6 @@ These algorithms show complete uses of the service:
   copies several device buffers and writes per-track muon information.
 * `VeloKalmanFilter.cu <https://gitlab.cern.ch/lhcb/Allen/-/blob/master/device/velo/simplified_kalman_filter/src/VeloKalmanFilter.cu>`_
   writes fitted VELO track-state values.
-* `ReconstrucibleSignalCounter.cpp <https://gitlab.cern.ch/lhcb/Allen/-/blob/master/host/validators/src/ReconstrucibleSignalCounter.cpp>`_
-  shows the same service from a host algorithm.
 
 For histograms and the monitoring infrastructure used in production, see
 :doc:`../monitoring/monitoring_allen`.

@@ -231,7 +231,6 @@ set(ALLEN_ALGORITHM_LIB
   Kalman
   Lumi
   Muon
-  PVChecking
   PV_beamline
   Plume
   Rich

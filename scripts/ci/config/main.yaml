@@ -60,33 +60,9 @@ a5000:
     - .a5000
     - .run_job
 
-.device-jobs:
-  dependencies:
-    - a5000
-    - geforcertx2080ti
-    - geforcertx3090
-
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # test and publish stages for the minimal pipeline          #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-physics-efficiency:
-  stage: test
-  extends:
-    - .test_physics_efficiency
-    - .default_rules_always_run
-    - .device-jobs
-
-
-# run-changes:
-#   stage: test
-#   extends:
-#     - .test_run_changes
-#     - .default_rules_always_run
-#   needs:
-#     - a5000
-
 
 throughput:
   extends:
@@ -147,7 +123,7 @@ full-pipeline:
   needs: []
 
 
-# separate build jobs for CPU, CUDA, HIP targets
+# build job for the CUDA target
 
 .full-build:
   needs: [full-pipeline]
@@ -158,20 +134,10 @@ full-pipeline:
     - .build_job_additional_matrix
   timeout: 1h 30m
 
-CPU:
-  extends: .full-build
-  variables:
-    LCG_QUALIFIER: "cpu"
-
 CUDA:
   extends: .full-build
   variables:
     LCG_QUALIFIER: "cuda13_3"
-
-# HIP:
-#   extends: .full-build
-#   variables:
-#     LCG_QUALIFIER: hip5
 
 
 
@@ -184,20 +150,10 @@ CUDA:
 # N.B. if needs: refers to more than 50 jobs and throws an error, try using
 # dependencies: instead.
 
-.cpu_run_job:
-  dependencies: [CPU, build]
-  variables:
-    LCG_QUALIFIER: "cpu"
-
 .cuda_run_job:
   dependencies: [CUDA, build]
   variables:
     LCG_QUALIFIER: cuda13_3
-
-# .hip_run_job:
-#   dependencies: [HIP, build]
-#   variables:
-#     LCG_QUALIFIER: hip5
 
 # GPU / CUDA
 # RTX 3090
@@ -244,22 +200,6 @@ geforcertx2080ti-full:
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # test and publish jobs for full pipeline
-
-physics-efficiency-full:
-  stage: test full
-  extends:
-    - .test_physics_efficiency
-    - .default_rules_always_run
-    - .depend_full_jobs
-
-# FIXME
-# run-changes-full:
-#   stage: test full
-#   extends:
-#     - .test_run_changes
-#     - .default_rules_always_run
-#     - .depend_full_jobs
-
 
 throughput-full:
   extends:

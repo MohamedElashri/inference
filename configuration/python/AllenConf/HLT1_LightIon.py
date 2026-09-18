@@ -318,7 +318,6 @@ def create_filter_manager(
 
 @configurable
 def setup_hlt1_node(
-    withMCChecking=False,
     max_ecal_upc=94000,
     min_ecal_hadro=94000,
     EnableGEC=False,
@@ -480,7 +479,6 @@ def setup_hlt1_node(
         with_lumi=with_lumi,
         with_rich=with_rich,
         enableRateValidator=enableRateValidator,
-        withMCChecking=withMCChecking,
         tracking_type=tracking_type,
         with_ut=with_ut,
         with_muon=with_muon,

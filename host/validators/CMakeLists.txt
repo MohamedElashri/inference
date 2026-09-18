@@ -17,7 +17,6 @@ allen_add_host_library(Validators OBJECT
 target_link_libraries(Validators PRIVATE
   TrackChecking
   SelChecking
-  PVChecking
   PV_beamline
   HostEventModel
   EventModel
