@@ -1,0 +1,713 @@
+#!/usr/bin/env bash
+# Reproducible PVFinder benchmark batch runner.
+#
+# This wraps Allen benchmark runs with provenance capture, repeated measurements,
+# per-run logs/configs, optional nsys profiling, and an explicit pvfinder_unet
+# use_fp16 configuration toggle.
+
+set -euo pipefail
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  benchmarks/benchmark_pvfinder_batch.sh --label LABEL [options]
+
+Options:
+  --label LABEL              Required result label, e.g. reference_A_fp32_head_d1874d8
+  -B, --build-dir NAME       Allen build directory name under Allen/ (default: buildgpu16chL4gpu)
+  -d, --device N             GPU device index (default: 2)
+  -t, --threads N            Allen threads / streams (default: 16)
+  -n, --events N             Events to process (default: 100)
+  -m, --memory MB            Device memory per thread / stream (default: 300)
+  -r, --repetitions N        Repetitions per thread / stream (default: 500)
+  --repeats N                Number of repeated benchmark runs (default: 3)
+  --model NAME               Weights from the weights/ pipeline:
+                             weights/out/NAME/{cnn,fc}_weights.bin
+                             (default: unet16_lc4_scnone_asym5_final; see make -C weights list)
+  --cnn-weights PATH         Override pvfinder_unet weight_file (default: from --model)
+  --fc-weights PATH          Override pvfinder_fc_aggregation weight_file (default: from --model)
+  --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
+  --use-bf16 BOOL            Set pvfinder_unet.use_bf16 true/false (default: false)
+                             eager path only, takes precedence over use_fp16
+  --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
+                             FP32 or FP16; ignored when use_bf16=true
+  --use-fused-cbr BOOL       Set pvfinder_unet.use_fused_cbr true/false (default: false)
+                             rcbn1 only, FP32 only; falls back automatically if
+                             unsupported on the GPU
+  --fwd-algo-ws-budget-mb N  Set pvfinder_unet.fwd_algo_ws_budget_bytes = N*1024*1024
+                             (default: 0 = pinned IMPLICIT_GEMM, no search)
+  --use-fused-rcbn3 BOOL     Set pvfinder_unet.use_fused_rcbn3 true/false (default: false)
+  --use-fused-bias-relu-pool BOOL
+                             Set pvfinder_unet.use_fused_bias_relu_pool true/false
+                             (default: false); fuses each bias+ReLU epilogue into
+                             the max-pool that consumes it, eager FP32 path only
+                             rcbn3 only, eager FP32 path only
+  --use-merged-up1 BOOL     Set pvfinder_unet.use_merged_up1 true/false
+                             (default: false); eager FP32 path only -- a measured
+                             throughput regression kept for reference
+  --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
+                             (default: unset -- leaves Allen's own build-derived
+                             default, L6A_WIDTH, in effect; that's 800 for the
+                             standard 8-channel build, and scales with
+                             --unet-batch-channels for others. Any value other
+                             than that build's real L6A_WIDTH is throughput-only
+                             tile-alignment testing, not physics-valid -- passing
+                             a value for the wrong build's L6A_WIDTH, e.g. 800
+                             against a --unet-batch-channels 4 build, is an
+                             invalid cuBLAS call, not just non-physical)
+  --use-nonatomic-l6a-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_nonatomic_l6a_reduce
+                             true/false (default: false)
+  --use-warp-parallel-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_warp_parallel_reduce
+                             true/false (default: true)
+  --unet-batch-events N      Set pvfinder_unet.unet_batch_events and
+                             pvfinder_fc_aggregation.unet_batch_events together
+                             (default: 20); events per cuDNN batch, set equal
+                             to -n to run the whole slice in one pass
+  --fc-chunk-size N          Set pvfinder_fc_aggregation.fc_chunk_size
+                             (default: 130)
+  --use-fused-bias-relu-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_fused_bias_relu_reduce
+                             true/false (default: true)
+  --skip-redundant-memset BOOL
+                             Set pvfinder_fc_aggregation.skip_redundant_memset
+                             true/false (default: true)
+  --use-grid-stride-reduce BOOL
+                             Set pvfinder_fc_aggregation.use_grid_stride_reduce
+                             true/false (default: true); requires
+                             --use-warp-parallel-reduce and
+                             --use-fused-bias-relu-reduce true
+  --fc-single-hidden-layer BOOL
+                             Set pvfinder_fc_aggregation.fc_single_hidden_layer
+                             true/false (default: false); throughput-ceiling
+                             probe -- skips L1-L5's layers 2-5 (NOT physics-valid
+                             when true)
+  --l1-l5-hidden-width N     Set pvfinder_fc_aggregation.l1_l5_hidden_width
+                             (default: 20, physics-valid); throughput-ceiling probe --
+                             uses only the first N of L1-L5's 20 real neurons per layer
+                             and shrinks L6A's GEMM K accordingly (NOT physics-valid
+                             when < 20)
+  --l6a-active-channels N    Set pvfinder_fc_aggregation.l6a_active_channels
+                             (default: unset -- leaves Allen's own build-derived
+                             default, N_LATENT_CHANNELS, in effect; that's 8 for
+                             the standard build, and scales with
+                             --unet-batch-channels for others); throughput-ceiling
+                             probe -- bounds L6A's zero-init/channel-reduction/
+                             write-back to N of this build's real N_LATENT_CHANNELS
+                             channels (NOT physics-valid when < N_LATENT_CHANNELS);
+                             set to l6a-m/100 for a consistent narrower-L6A
+                             simulation
+  --use-precomputed-csr-offset BOOL
+                             Set pvfinder_fc_aggregation.use_precomputed_csr_offset
+                             true/false (default: true)
+  --safe-avg-entries-per-event N
+                             Set pvfinder_fc_aggregation.safe_avg_entries_per_event
+                             (default: 450); CAUTION -- lowering this reclaims
+                             T_chunk_max headroom for a larger fc_chunk_size at
+                             real crash risk if set too low
+  --profile                  Run each sequence under nsys
+  --result-root DIR          Directory for batches (default: benchmark_results)
+  -h, --help                 Show this help
+
+Example:
+  benchmarks/benchmark_pvfinder_batch.sh \
+    --label reference_A_fp32_head_d1874d8 \
+    -B buildgpu16chL4gpu --model unet16_lc4_scnone_asym5_final \
+    -d 2 -t 16 -n 100 -m 300 -r 500 --repeats 3 --use-fp16 false
+USAGE
+}
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The script lives in benchmarks/; Allen, weights and results are resolved
+# from the repository root.
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ORIGINAL_ARGS=("$@")
+
+LABEL=""
+BUILD_NAME="buildgpu16chL4gpu"
+DEVICE=2
+THREADS=16
+EVENTS=100
+MEMORY=300
+REPS=500
+REPEATS=3
+MODEL=unet16_lc4_scnone_asym5_final
+CNN_WEIGHTS_OVERRIDE=""
+FC_WEIGHTS_OVERRIDE=""
+USE_FP16=false
+USE_BF16=false
+USE_CUDA_GRAPH=false
+USE_FUSED_CBR=false
+FWD_ALGO_WS_BUDGET_MB=0
+USE_FUSED_RCBN3=false
+USE_FUSED_BIAS_RELU_POOL=""
+USE_MERGED_UP1=false
+L6A_M=""    # unset default: leaves Allen's own build-derived L6A_WIDTH in effect
+USE_NONATOMIC_L6A_REDUCE=false
+USE_WARP_PARALLEL_REDUCE=true
+FC_CHUNK_SIZE=130
+UNET_BATCH_EVENTS=20
+USE_FUSED_BIAS_RELU_REDUCE=true
+SKIP_REDUNDANT_MEMSET=true
+USE_GRID_STRIDE_REDUCE=true
+FC_SINGLE_HIDDEN_LAYER=false
+L1_L5_HIDDEN_WIDTH=20
+L6A_ACTIVE_CHANNELS=""    # unset default: leaves Allen's own build-derived N_LATENT_CHANNELS in effect
+USE_PRECOMPUTED_CSR_OFFSET=true
+SAFE_AVG_ENTRIES_PER_EVENT=450
+PROFILE=0
+RESULT_ROOT="${REPO_ROOT}/benchmark_results"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --label) LABEL="$2"; shift 2 ;;
+        --build-dir|-B) BUILD_NAME="$2"; shift 2 ;;
+        --device|-d) DEVICE="$2"; shift 2 ;;
+        --threads|-t) THREADS="$2"; shift 2 ;;
+        --events|-n) EVENTS="$2"; shift 2 ;;
+        --memory|-m) MEMORY="$2"; shift 2 ;;
+        --repetitions|-r) REPS="$2"; shift 2 ;;
+        --repeats) REPEATS="$2"; shift 2 ;;
+        --model) MODEL="$2"; shift 2 ;;
+        --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
+        --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
+        --use-fp16) USE_FP16="$2"; shift 2 ;;
+        --use-bf16) USE_BF16="$2"; shift 2 ;;
+        --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
+        --use-fused-cbr) USE_FUSED_CBR="$2"; shift 2 ;;
+        --fwd-algo-ws-budget-mb) FWD_ALGO_WS_BUDGET_MB="$2"; shift 2 ;;
+        --use-fused-rcbn3) USE_FUSED_RCBN3="$2"; shift 2 ;;
+        --use-fused-bias-relu-pool) USE_FUSED_BIAS_RELU_POOL="$2"; shift 2 ;;
+        --use-merged-up1) USE_MERGED_UP1="$2"; shift 2 ;;
+        --l6a-m) L6A_M="$2"; shift 2 ;;
+        --use-nonatomic-l6a-reduce) USE_NONATOMIC_L6A_REDUCE="$2"; shift 2 ;;
+        --use-warp-parallel-reduce) USE_WARP_PARALLEL_REDUCE="$2"; shift 2 ;;
+        --fc-chunk-size) FC_CHUNK_SIZE="$2"; shift 2 ;;
+        --unet-batch-events) UNET_BATCH_EVENTS="$2"; shift 2 ;;
+        --use-fused-bias-relu-reduce) USE_FUSED_BIAS_RELU_REDUCE="$2"; shift 2 ;;
+        --skip-redundant-memset) SKIP_REDUNDANT_MEMSET="$2"; shift 2 ;;
+        --use-grid-stride-reduce) USE_GRID_STRIDE_REDUCE="$2"; shift 2 ;;
+        --fc-single-hidden-layer) FC_SINGLE_HIDDEN_LAYER="$2"; shift 2 ;;
+        --l1-l5-hidden-width) L1_L5_HIDDEN_WIDTH="$2"; shift 2 ;;
+        --l6a-active-channels) L6A_ACTIVE_CHANNELS="$2"; shift 2 ;;
+        --use-precomputed-csr-offset) USE_PRECOMPUTED_CSR_OFFSET="$2"; shift 2 ;;
+        --safe-avg-entries-per-event) SAFE_AVG_ENTRIES_PER_EVENT="$2"; shift 2 ;;
+        --profile) PROFILE=1; shift 1 ;;
+        --result-root) RESULT_ROOT="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+    esac
+done
+
+if [[ -z "${LABEL}" ]]; then
+    echo "ERROR: --label is required" >&2
+    usage >&2
+    exit 1
+fi
+
+case "${USE_FP16}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fp16 must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_BF16}" in
+    true|false) ;;
+    *) echo "ERROR: --use-bf16 must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_CUDA_GRAPH}" in
+    true|false) ;;
+    *) echo "ERROR: --use-cuda-graph must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_FUSED_CBR}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fused-cbr must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${FWD_ALGO_WS_BUDGET_MB}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --fwd-algo-ws-budget-mb must be a non-negative integer" >&2
+    exit 1
+fi
+
+case "${USE_FUSED_BIAS_RELU_POOL}" in
+    true|false|"") ;;
+    *) echo "ERROR: --use-fused-bias-relu-pool must be true or false" >&2; exit 1 ;;
+esac
+case "${USE_FUSED_RCBN3}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fused-rcbn3 must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_MERGED_UP1}" in
+    true|false) ;;
+    *) echo "ERROR: --use-merged-up1 must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_NONATOMIC_L6A_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-nonatomic-l6a-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_WARP_PARALLEL_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-warp-parallel-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${UNET_BATCH_EVENTS}" =~ ^[0-9]+$ ]] || [[ "${UNET_BATCH_EVENTS}" -lt 1 ]]; then
+    echo "ERROR: --unet-batch-events must be a positive integer" >&2
+    exit 1
+fi
+if ! [[ "${FC_CHUNK_SIZE}" =~ ^[0-9]+$ ]] || [[ "${FC_CHUNK_SIZE}" -lt 1 ]]; then
+    echo "ERROR: --fc-chunk-size must be a positive integer" >&2
+    exit 1
+fi
+
+case "${USE_FUSED_BIAS_RELU_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-fused-bias-relu-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+case "${SKIP_REDUNDANT_MEMSET}" in
+    true|false) ;;
+    *) echo "ERROR: --skip-redundant-memset must be true or false" >&2; exit 1 ;;
+esac
+
+case "${USE_GRID_STRIDE_REDUCE}" in
+    true|false) ;;
+    *) echo "ERROR: --use-grid-stride-reduce must be true or false" >&2; exit 1 ;;
+esac
+
+case "${FC_SINGLE_HIDDEN_LAYER}" in
+    true|false) ;;
+    *) echo "ERROR: --fc-single-hidden-layer must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${L1_L5_HIDDEN_WIDTH}" =~ ^[0-9]+$ ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -lt 1 ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -gt 20 ]]; then
+    echo "ERROR: --l1-l5-hidden-width must be an integer in [1, 20] (20 = physics-valid default)" >&2
+    exit 1
+fi
+
+if [[ -n "${L6A_ACTIVE_CHANNELS}" ]] && { ! [[ "${L6A_ACTIVE_CHANNELS}" =~ ^[0-9]+$ ]] || [[ "${L6A_ACTIVE_CHANNELS}" -lt 1 ]]; }; then
+    echo "ERROR: --l6a-active-channels must be a positive integer (leave unset for this build's own physics-valid N_LATENT_CHANNELS default -- the upper bound is build-dependent, see --unet-batch-channels)" >&2
+    exit 1
+fi
+
+case "${USE_PRECOMPUTED_CSR_OFFSET}" in
+    true|false) ;;
+    *) echo "ERROR: --use-precomputed-csr-offset must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" =~ ^[0-9]+$ ]] || [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" -lt 1 ]]; then
+    echo "ERROR: --safe-avg-entries-per-event must be a positive integer" >&2
+    exit 1
+fi
+
+if [[ -n "${L6A_M}" ]] && { ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]]; }; then
+    echo "ERROR: --l6a-m must be a positive integer (leave unset for this build's own physics-valid L6A_WIDTH default -- the upper bound is build-dependent, see --unet-batch-channels)" >&2
+    exit 1
+fi
+
+BUILD_DIR="${REPO_ROOT}/Allen/${BUILD_NAME}"
+ALLEN_WRAPPER="${BUILD_DIR}/toolchain/wrapper"
+ALLEN_BIN="${BUILD_DIR}/Allen"
+MDF="${REPO_ROOT}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
+GEO="${REPO_ROOT}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
+
+if [[ ! -x "${ALLEN_WRAPPER}" || ! -x "${ALLEN_BIN}" ]]; then
+    echo "ERROR: build does not look runnable: ${BUILD_DIR}" >&2
+    exit 1
+fi
+
+# Model weights come from the weights/ pipeline. Sequence generation needs
+# PVFINDER_WEIGHTS_DIR (AllenConf has no default weight location); explicit
+# --cnn-weights / --fc-weights still override the generated configuration.
+MODEL_DIR="${REPO_ROOT}/weights/out/${MODEL}"
+for f in cnn_weights.bin fc_weights.bin; do
+    if [[ ! -f "${MODEL_DIR}/${f}" ]]; then
+        echo "ERROR: ${MODEL_DIR}/${f} not found; run: make -C weights verify MODEL=${MODEL}" >&2
+        exit 1
+    fi
+done
+export PVFINDER_WEIGHTS_DIR="${MODEL_DIR}"
+
+if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
+    if [[ "${CNN_WEIGHTS_OVERRIDE}" = /* ]]; then
+        CNN_WEIGHTS_ABS="${CNN_WEIGHTS_OVERRIDE}"
+    else
+        CNN_WEIGHTS_ABS="${REPO_ROOT}/${CNN_WEIGHTS_OVERRIDE}"
+    fi
+    if [[ ! -f "${CNN_WEIGHTS_ABS}" ]]; then
+        echo "ERROR: --cnn-weights file not found: ${CNN_WEIGHTS_ABS}" >&2
+        exit 1
+    fi
+else
+    CNN_WEIGHTS_ABS="${MODEL_DIR}/cnn_weights.bin"
+fi
+
+if [[ -n "${FC_WEIGHTS_OVERRIDE}" ]]; then
+    if [[ "${FC_WEIGHTS_OVERRIDE}" = /* ]]; then
+        FC_WEIGHTS_ABS="${FC_WEIGHTS_OVERRIDE}"
+    else
+        FC_WEIGHTS_ABS="${REPO_ROOT}/${FC_WEIGHTS_OVERRIDE}"
+    fi
+    if [[ ! -f "${FC_WEIGHTS_ABS}" ]]; then
+        echo "ERROR: --fc-weights file not found: ${FC_WEIGHTS_ABS}" >&2
+        exit 1
+    fi
+else
+    FC_WEIGHTS_ABS="${MODEL_DIR}/fc_weights.bin"
+fi
+
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+SAFE_LABEL="$(printf '%s' "${LABEL}" | tr -c 'A-Za-z0-9_.=-' '_')"
+BATCH_DIR="${RESULT_ROOT}/${TIMESTAMP}_${SAFE_LABEL}"
+mkdir -p "${BATCH_DIR}"
+
+COMMON_ARGS=(
+    --mdf "${MDF}"
+    -g "${GEO}"
+    -n "${EVENTS}"
+    -m "${MEMORY}"
+    -r "${REPS}"
+    -t "${THREADS}"
+)
+
+# Default triple: HLT1 alone | HLT1+FC | HLT1+FC+UNet.
+# Override with PVF_SEQUENCES="<baseline_seq> <fc_seq> <unet_seq>" to benchmark
+# against a different HLT1 sequence (e.g. a reduced-work HLT1). Names must end
+# in the same _pvfinder_benchmark / _pvfinder_unet_benchmark suffixes so the
+# config patchers and the summary labels still recognise the FC and UNet rows.
+if [[ -n "${PVF_SEQUENCES:-}" ]]; then
+    read -r -a SEQUENCES <<< "${PVF_SEQUENCES}"
+else
+    SEQUENCES=(
+        "hlt1_pp_default"
+        "hlt1_pp_pvfinder_benchmark"
+        "hlt1_pp_pvfinder_unet_benchmark"
+    )
+fi
+
+sequence_label() {
+    case "$1" in
+        *_pvfinder_unet_benchmark) echo "unet" ;;
+        *_pvfinder_benchmark) echo "fc" ;;
+        *) echo "baseline" ;;
+    esac
+}
+
+extract_rate() {
+    grep -oP '[0-9]+\.[0-9]+(?=\s+events/s)' "$1" | tail -1
+}
+
+write_command() {
+    local out="$1"; shift
+    printf '%q ' "$@" > "${out}"
+    printf '\n' >> "${out}"
+}
+
+patch_unet_config() {
+    local config="$1"
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_BF16" "$USE_MERGED_UP1" "$USE_FUSED_BIAS_RELU_POOL" "$UNET_BATCH_EVENTS" <<'PY'
+import json
+import sys
+
+path, weights, use_fp16_raw, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_bf16_raw, use_merged_up1_raw, use_fused_brp_raw, unet_batch_events_raw = sys.argv[1:]
+use_fp16 = use_fp16_raw == "true"
+use_bf16 = use_bf16_raw == "true"
+use_merged_up1 = use_merged_up1_raw == "true"
+use_cuda_graph = use_cuda_graph_raw == "true"
+use_fused_cbr = use_fused_cbr_raw == "true"
+fwd_ws_budget_bytes = int(fwd_ws_budget_mb_raw) * 1024 * 1024
+use_fused_rcbn3 = use_fused_rcbn3_raw == "true"
+
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+pvfinder_unet = data.setdefault("pvfinder_unet", {})
+pvfinder_unet["weight_file"] = weights
+pvfinder_unet["use_fp16"] = use_fp16
+pvfinder_unet["use_bf16"] = use_bf16
+pvfinder_unet["use_merged_up1"] = use_merged_up1
+pvfinder_unet["use_cuda_graph"] = use_cuda_graph
+pvfinder_unet["use_fused_cbr"] = use_fused_cbr
+pvfinder_unet["fwd_algo_ws_budget_bytes"] = fwd_ws_budget_bytes
+pvfinder_unet["use_fused_rcbn3"] = use_fused_rcbn3
+if use_fused_brp_raw:            # only touch builds that have the property
+    pvfinder_unet["use_fused_bias_relu_pool"] = use_fused_brp_raw == "true"
+pvfinder_unet["unet_batch_events"] = int(unet_batch_events_raw)
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+}
+
+patch_fc_config() {
+    local config="$1"
+    python3 - "$config" "$L6A_M" "$USE_NONATOMIC_L6A_REDUCE" \
+        "$USE_WARP_PARALLEL_REDUCE" "$FC_CHUNK_SIZE" \
+        "$USE_FUSED_BIAS_RELU_REDUCE" "$SKIP_REDUNDANT_MEMSET" \
+        "$USE_GRID_STRIDE_REDUCE" "$FC_SINGLE_HIDDEN_LAYER" \
+        "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" \
+        "$L1_L5_HIDDEN_WIDTH" "$L6A_ACTIVE_CHANNELS" "$FC_WEIGHTS_ABS" \
+        "$UNET_BATCH_EVENTS" <<'PY'
+import json
+import sys
+
+(path, l6a_m_raw, use_nonatomic_raw, use_warp_parallel_raw, fc_chunk_size_raw,
+ use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw,
+ fc_single_hidden_layer_raw, use_precomputed_csr_offset_raw,
+ safe_avg_entries_per_event_raw, l1_l5_hidden_width_raw,
+ l6a_active_channels_raw, fc_weights_abs, unet_batch_events_raw) = sys.argv[1:]
+
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
+fc_agg["weight_file"] = fc_weights_abs
+# l6a_m and l6a_active_channels used to always be patched in, defaulting to
+# this script's own hardcoded 800/8 -- silently overriding Allen's own
+# build-derived defaults (L6A_WIDTH/N_LATENT_CHANNELS) even for a build
+# whose real width is different, which is an invalid cuBLAS call (M larger
+# than the buffer's real leading dimension), not just a wrong physics
+# result. Now left out of the config entirely (leaving Allen's own
+# compile-time-correct default in effect) unless the caller explicitly
+# passed --l6a-m / --l6a-active-channels.
+if l6a_m_raw != "":
+    fc_agg["l6a_m"] = int(l6a_m_raw)
+fc_agg["use_nonatomic_l6a_reduce"] = use_nonatomic_raw == "true"
+fc_agg["use_warp_parallel_reduce"] = use_warp_parallel_raw == "true"
+fc_agg["fc_chunk_size"] = int(fc_chunk_size_raw)
+fc_agg["unet_batch_events"] = int(unet_batch_events_raw)
+fc_agg["use_fused_bias_relu_reduce"] = use_fused_bias_relu_raw == "true"
+fc_agg["skip_redundant_memset"] = skip_memset_raw == "true"
+fc_agg["use_grid_stride_reduce"] = use_grid_stride_reduce_raw == "true"
+fc_agg["fc_single_hidden_layer"] = fc_single_hidden_layer_raw == "true"
+fc_agg["use_precomputed_csr_offset"] = use_precomputed_csr_offset_raw == "true"
+fc_agg["safe_avg_entries_per_event"] = int(safe_avg_entries_per_event_raw)
+fc_agg["l1_l5_hidden_width"] = int(l1_l5_hidden_width_raw)
+if l6a_active_channels_raw != "":
+    fc_agg["l6a_active_channels"] = int(l6a_active_channels_raw)
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+}
+
+generate_config() {
+    local seq="$1"
+    local out_config="$2"
+    local log="$3"
+    local seq_py="${BUILD_DIR}/code_generation/sequences/AllenSequences/${seq}.py"
+    local tmp
+
+    if [[ ! -f "${seq_py}" ]]; then
+        echo "ERROR: sequence Python file not found: ${seq_py}" >&2
+        exit 1
+    fi
+
+    tmp="$(mktemp -d)"
+    (
+        cd "${tmp}"
+        "${ALLEN_WRAPPER}" bash -c '
+            export ALLEN_BUILD_DIR="$1"
+            export PYTHONPATH="$1/code_generation/sequences:${PYTHONPATH:-}"
+            python3 "$1/code_generation/sequences/AllenCore/gen_allen_json.py" \
+                --no-register-keys --seqpath "$2"
+        ' bash "${BUILD_DIR}" "${seq_py}"
+    ) > "${log}" 2>&1
+
+    if [[ ! -f "${tmp}/Sequence.json" ]]; then
+        echo "ERROR: failed to generate config for ${seq}; see ${log}" >&2
+        rm -rf "${tmp}"
+        exit 1
+    fi
+
+    cp "${tmp}/Sequence.json" "${out_config}"
+    rm -rf "${tmp}"
+
+    if [[ "${seq}" == *_pvfinder_unet_benchmark ]]; then
+        patch_unet_config "${out_config}"
+    fi
+    if [[ "${seq}" == *_pvfinder_benchmark || "${seq}" == *_pvfinder_unet_benchmark ]]; then
+        patch_fc_config "${out_config}"
+    fi
+}
+
+run_sequence() {
+    local seq="$1"
+    local run_dir="$2"
+    local short
+    short="$(sequence_label "${seq}")"
+
+    local config="${run_dir}/${short}_effective_config.json"
+    local gen_log="${run_dir}/${short}_generate_config.log"
+    local log="${run_dir}/bench_${short}.log"
+    local cmd_file="${run_dir}/bench_${short}.cmd"
+
+    generate_config "${seq}" "${config}" "${gen_log}"
+
+    if [[ "${PROFILE}" -eq 1 ]]; then
+        local profile_out="${run_dir}/pvfinder_profile_${short}"
+        write_command "${cmd_file}" nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
+            "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+            "${COMMON_ARGS[@]}" --device "${DEVICE}"
+        (
+            cd "${run_dir}"
+            nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
+                "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+                "${COMMON_ARGS[@]}" --device "${DEVICE}"
+        ) > "${log}" 2>&1
+    else
+        write_command "${cmd_file}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+            "${COMMON_ARGS[@]}" --device "${DEVICE}"
+        (
+            cd "${run_dir}"
+            "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+                "${COMMON_ARGS[@]}" --device "${DEVICE}"
+        ) > "${log}" 2>&1
+    fi
+
+    local rate
+    rate="$(extract_rate "${log}")"
+    if [[ -z "${rate}" ]]; then
+        echo "ERROR: could not extract rate for ${seq}; see ${log}" >&2
+        exit 1
+    fi
+    # Allen halves a slice and retries when it exceeds -m; the rate is then
+    # measured on smaller slices than requested, so flag it loudly.
+    local n_splits
+    n_splits="$(grep -c "Insufficient memory to process slice" "${log}" || true)"
+    if [[ "${n_splits}" -gt 0 ]]; then
+        echo "WARNING: ${seq} hit ${n_splits} slice split(s) from insufficient -m; rate is not at the requested slice size" >&2
+        printf '%s\t%s\n' "${short}" "${n_splits}" >> "${run_dir}/slice_splits.tsv"
+    fi
+    printf '%s\t%s\n' "${short}" "${rate}"
+}
+
+{
+    echo "# PVFinder benchmark batch"
+    echo "label=${LABEL}"
+    echo "timestamp=${TIMESTAMP}"
+    echo "build_name=${BUILD_NAME}"
+    echo "build_dir=${BUILD_DIR}"
+    echo "device=${DEVICE}"
+    echo "threads=${THREADS}"
+    echo "events=${EVENTS}"
+    echo "memory=${MEMORY}"
+    echo "repetitions=${REPS}"
+    echo "repeats=${REPEATS}"
+    echo "profile=${PROFILE}"
+    echo "model=${MODEL}"
+    echo "cnn_weights=${CNN_WEIGHTS_ABS}"
+    echo "fc_weights=${FC_WEIGHTS_ABS}"
+    echo "use_fp16=${USE_FP16}"
+    echo "use_bf16=${USE_BF16}"
+    echo "use_cuda_graph=${USE_CUDA_GRAPH}"
+    echo "use_fused_cbr=${USE_FUSED_CBR}"
+    echo "fwd_algo_ws_budget_mb=${FWD_ALGO_WS_BUDGET_MB}"
+    echo "use_fused_rcbn3=${USE_FUSED_RCBN3}"
+    echo "use_fused_bias_relu_pool=${USE_FUSED_BIAS_RELU_POOL}"
+    echo "use_merged_up1=${USE_MERGED_UP1}"
+    echo "l6a_m=${L6A_M:-<build-default L6A_WIDTH>}"
+    echo "use_nonatomic_l6a_reduce=${USE_NONATOMIC_L6A_REDUCE}"
+    echo "use_warp_parallel_reduce=${USE_WARP_PARALLEL_REDUCE}"
+    echo "fc_chunk_size=${FC_CHUNK_SIZE}"
+    echo "unet_batch_events=${UNET_BATCH_EVENTS}"
+    echo "use_fused_bias_relu_reduce=${USE_FUSED_BIAS_RELU_REDUCE}"
+    echo "skip_redundant_memset=${SKIP_REDUNDANT_MEMSET}"
+    echo "use_grid_stride_reduce=${USE_GRID_STRIDE_REDUCE}"
+    echo "fc_single_hidden_layer=${FC_SINGLE_HIDDEN_LAYER}"
+    echo "l1_l5_hidden_width=${L1_L5_HIDDEN_WIDTH}"
+    echo "l6a_active_channels=${L6A_ACTIVE_CHANNELS:-<build-default N_LATENT_CHANNELS>}"
+    echo "use_precomputed_csr_offset=${USE_PRECOMPUTED_CSR_OFFSET}"
+    echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
+    echo "mdf=${MDF}"
+    echo "geometry=${GEO}"
+} > "${BATCH_DIR}/metadata.env"
+
+git -C "${REPO_ROOT}" rev-parse HEAD > "${BATCH_DIR}/git_head.txt"
+git -C "${REPO_ROOT}" status --short > "${BATCH_DIR}/git_status_short.txt"
+git -C "${REPO_ROOT}" log --oneline -8 --decorate > "${BATCH_DIR}/git_log_oneline.txt"
+
+sha256sum "${CNN_WEIGHTS_ABS}" "${FC_WEIGHTS_ABS}" > "${BATCH_DIR}/weights.sha256"
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+    nvidia-smi > "${BATCH_DIR}/nvidia_smi.txt" 2>&1 || true
+    nvidia-smi pmon -c 5 > "${BATCH_DIR}/nvidia_smi_pmon.txt" 2>&1 || true
+fi
+
+write_command "${BATCH_DIR}/batch_command.cmd" "$0" "${ORIGINAL_ARGS[@]}"
+
+printf 'run\tbaseline\tfc\tunet\tfc_overhead_pct\tunet_overhead_pct\tunet_retention_pct\n' \
+    > "${BATCH_DIR}/summary.tsv"
+
+for run_idx in $(seq 1 "${REPEATS}"); do
+    run_dir="${BATCH_DIR}/run_$(printf '%02d' "${run_idx}")"
+    mkdir -p "${run_dir}"
+    printf 'Running batch %s, repeat %s/%s...\n' "${LABEL}" "${run_idx}" "${REPEATS}"
+
+    rates_file="${run_dir}/rates.tsv"
+    : > "${rates_file}"
+    for seq in "${SEQUENCES[@]}"; do
+        run_sequence "${seq}" "${run_dir}" | tee -a "${rates_file}"
+    done
+
+    baseline="$(awk '$1=="baseline"{print $2}' "${rates_file}")"
+    fc="$(awk '$1=="fc"{print $2}' "${rates_file}")"
+    unet="$(awk '$1=="unet"{print $2}' "${rates_file}")"
+
+    awk -v run="${run_idx}" -v base="${baseline}" -v fc="${fc}" -v unet="${unet}" '
+      BEGIN {
+        fc_over = (base > 0) ? (base - fc) / base * 100.0 : 0.0;
+        unet_over = (base > 0) ? (base - unet) / base * 100.0 : 0.0;
+        retain = (base > 0) ? unet / base * 100.0 : 0.0;
+        printf "%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n",
+          run, base, fc, unet, fc_over, unet_over, retain;
+      }' >> "${BATCH_DIR}/summary.tsv"
+done
+
+awk '
+  NR == 1 { next }
+  {
+    b[NR-1] = $2; f[NR-1] = $3; u[NR-1] = $4;
+    fo[NR-1] = $5; uo[NR-1] = $6; r[NR-1] = $7;
+    n = NR-1;
+  }
+  function sort(a, n, i, j, t) {
+    for (i = 1; i <= n; ++i) for (j = i + 1; j <= n; ++j) if (a[j] < a[i]) {
+      t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+  }
+  function median(a, n) {
+    sort(a, n);
+    return (n % 2) ? a[(n + 1) / 2] : (a[n / 2] + a[n / 2 + 1]) / 2.0;
+  }
+  END {
+    if (n == 0) exit;
+    mb = median(b, n); mf = median(f, n); mu = median(u, n);
+    mfo = median(fo, n); muo = median(uo, n); mr = median(r, n);
+    minb = b[1]; maxb = b[n];
+    spread = (mb > 0) ? (maxb - minb) / mb * 100.0 : 0.0;
+    printf "# PVFinder benchmark summary\n\n";
+    printf "- repeats: %d\n", n;
+    printf "- median baseline events/s: %.2f\n", mb;
+    printf "- median FC events/s: %.2f\n", mf;
+    printf "- median FC+UNet events/s: %.2f\n", mu;
+    printf "- median FC overhead: %.2f%%\n", mfo;
+    printf "- median FC+UNet overhead: %.2f%%\n", muo;
+    printf "- median FC+UNet retention: %.2f%%\n", mr;
+    printf "- baseline spread: %.2f%%\n", spread;
+    if (spread > 5.0) {
+      printf "- contention status: contended, repeat later\n";
+    } else {
+      printf "- contention status: acceptable\n";
+    }
+  }
+' "${BATCH_DIR}/summary.tsv" > "${BATCH_DIR}/summary.md"
+
+printf '\nBatch complete: %s\n' "${BATCH_DIR}"
+cat "${BATCH_DIR}/summary.md"
