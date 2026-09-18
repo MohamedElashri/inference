@@ -500,7 +500,7 @@ is a separate change and must match the current path in validation
 
 PVFinder-specific pieces are not part of the generic backend contract. Its model
 file format, interval feature construction, batch-normalization folding,
-maxpooling, concatenation, softplus/output kernels, FP16/BF16 conversion, and
+maxpooling, softplus/output kernels, FP16/BF16 conversion, and
 PyTorch comparison path belong to PVFinder. A new Allen algorithm should copy
 the integration pattern, not the PVFinder topology.
 
