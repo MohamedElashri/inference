@@ -12,7 +12,7 @@
 #   make env      MODEL=<name>       print the PVFINDER_WEIGHTS_DIR export Allen configs need
 #   make clean    MODEL=<name>       remove out/<name>
 #
-# MODEL defaults to unet16_lc4_scnone_asym5_best. Optional: DEVICE (GPU index, default 2),
+# MODEL defaults to unet16_lc4_scnone_asym5_final. Optional: DEVICE (GPU index, default 2),
 # EVENTS (slice size for dump, default 500), JOBS (build jobs, default 16), PY.
 
 SHELL         := /bin/bash
@@ -27,7 +27,7 @@ PY      ?= $(REPO)/.venv/bin/python3
 CATALOG := $(WEIGHTS)/models.tsv
 SCRIPTS := $(WEIGHTS)/scripts
 
-MODEL   ?= unet16_lc4_scnone_asym5_best
+MODEL   ?= unet16_lc4_scnone_asym5_final
 DEVICE  ?= 2
 EVENTS  ?= 500
 JOBS    ?= 16

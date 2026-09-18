@@ -23,7 +23,7 @@ Options:
   --repeats N                Number of repeated benchmark runs (default: 3)
   --model NAME               Weights from the weights/ pipeline:
                              weights/out/NAME/{cnn,fc}_weights.bin
-                             (default: unet16_lc4_scnone_asym5_best; see make -C weights list)
+                             (default: unet16_lc4_scnone_asym5_final; see make -C weights list)
   --cnn-weights PATH         Override pvfinder_unet weight_file (default: from --model)
   --fc-weights PATH          Override pvfinder_fc_aggregation weight_file (default: from --model)
   --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
@@ -113,7 +113,7 @@ Options:
 Example:
   benchmarks/benchmark_pvfinder_batch.sh \
     --label reference_A_fp32_head_d1874d8 \
-    -B buildgpu16chL4gpu --model unet16_lc4_scnone_asym5_best \
+    -B buildgpu16chL4gpu --model unet16_lc4_scnone_asym5_final \
     -d 2 -t 16 -n 100 -m 300 -r 500 --repeats 3 --use-fp16 false
 USAGE
 }
@@ -132,7 +132,7 @@ EVENTS=100
 MEMORY=300
 REPS=500
 REPEATS=3
-MODEL=unet16_lc4_scnone_asym5_best
+MODEL=unet16_lc4_scnone_asym5_final
 CNN_WEIGHTS_OVERRIDE=""
 FC_WEIGHTS_OVERRIDE=""
 USE_FP16=false

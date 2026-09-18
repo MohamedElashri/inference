@@ -40,8 +40,8 @@ parser = argparse.ArgumentParser(description="Validate Allen UNet against PyTorc
 parser.add_argument("--dump-dir",  default="validation_dump",
                     help="Directory containing allen_ncw_input.bin and allen_kde_output.bin")
 parser.add_argument("--weights",
-                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_best.pyt"),
-                    help="PyTorch weight file (.pyt); default: the unet16_lc4_scnone_asym5_best checkpoint fetched by the pipeline")
+                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_final.pyt"),
+                    help="PyTorch weight file (.pyt); default: the unet16_lc4_scnone_asym5_final checkpoint fetched by the pipeline")
 parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
 parser.add_argument("--plot",      action="store_true",

@@ -20,8 +20,8 @@ validation = collect_t2kde_arrays('data/pv_HLT1CPU_MinBiasMagDown_14Nov_t2hists_
                             pin_memory=True,
                             shuffle=False,)
 # The model Allen runs (UNet without skip connections), fetched by the weights/
-# pipeline: make -C weights fetch MODEL=unet16_lc4_scnone_asym5_best
-name = '../weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt'
+# pipeline: make -C weights fetch MODEL=unet16_lc4_scnone_asym5_final
+name = '../weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt'
 
 nOut1 = 20
 nOut2 = 20

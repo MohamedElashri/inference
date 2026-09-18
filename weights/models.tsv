@@ -1,6 +1,6 @@
 name	source	unet_feat	latent	build	notes
-unet16_lc4_scnone_asym5_best	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_best.pyt	16	4	buildgpu16chL4	default model; asym 5, best val loss (epoch 5)
-unet16_lc4_scnone_asym5_final	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_final.pyt	16	4	buildgpu16chL4	asym 5, last epoch (69)
+unet16_lc4_scnone_asym5_final	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_final.pyt	16	4	buildgpu16chL4	default model; asym 5, last epoch (69)
+unet16_lc4_scnone_asym5_best	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_best.pyt	16	4	buildgpu16chL4	asym 5, best val loss (epoch 5 of 70)
 unet16_lc4_scnone_asym1_best	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_1/weights/weights_best.pyt	16	4	buildgpu16chL4	asym 1 (epoch 82)
 unet16_lc4_scnone_asym1_final	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_1/weights/weights_final.pyt	16	4	buildgpu16chL4	asym 1 (epoch 86)
 unet16_lc4_scnone_asym2.5_best	/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_2.5/weights/weights_best.pyt	16	4	buildgpu16chL4	asym 2.5

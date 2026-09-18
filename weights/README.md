@@ -6,9 +6,9 @@ driven by `make`:
 
 ```bash
 make -C weights list                                               # models in the catalog
-make -C weights all MODEL=unet16_lc4_scnone_asym5_best             # fetch -> convert -> verify -> build -> dump -> validate
+make -C weights all MODEL=unet16_lc4_scnone_asym5_final            # fetch -> convert -> verify -> build -> dump -> validate
 make -C weights verify-all                                         # fetch + convert + verify every model
-eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_best)" # export PVFINDER_WEIGHTS_DIR for Allen configs
+eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_final)" # export PVFINDER_WEIGHTS_DIR for Allen configs
 ```
 
 `make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`, `JOBS`, `PY`).
@@ -68,8 +68,8 @@ Training-side metrics recorded with the checkpoints (from the training team's
 
 | Model | efficiency | fp/event | Notes |
 |---|---:|---:|---|
-| `unet16_lc4_scnone_asym5_best` | 0.9671 | 0.0241 | **default**; epoch 5 of 70 (lowest val loss) |
-| `unet16_lc4_scnone_asym5_final` | 0.9654 | 0.0214 | epoch 69 |
+| `unet16_lc4_scnone_asym5_final` | 0.9654 | 0.0214 | **default**; epoch 69, the last epoch |
+| `unet16_lc4_scnone_asym5_best` | 0.9671 | 0.0241 | epoch 5 of 70, the lowest validation loss of that run |
 | `unet16_lc4_scnone_asym1_best` / `_final` | 0.9383 / 0.9378 | 0.0042 / 0.0042 | epochs 82 / 86 |
 | `unet16_lc4_scnone_asym2.5_best` | 0.9566 | 0.0130 | from the last `stats.csv` row, approximate |
 | `unet16_lc4_scnone_asym17_final` | 0.9766 | 0.0842 | epoch 131 |
