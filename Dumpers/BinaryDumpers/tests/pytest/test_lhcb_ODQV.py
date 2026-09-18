@@ -34,7 +34,8 @@ class Test(LHCbExeTest):
     def test_modules(self, stdout: bytes):
         modules = ["occupancy", "velo", "forward", "matching", "pv"]
         algorithm_patterns = [
-            re.compile(rf"^ \+ data_quality_validation_{m} ") for m in modules
+            re.compile(rf"^MultiEventScheduler\s+INFO\s+data_quality_validation_{m} ")
+            for m in modules
         ]
         time_pattern = re.compile(r"^.*Execution time: (\d+) ms.")
 

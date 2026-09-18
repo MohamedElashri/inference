@@ -186,6 +186,13 @@ public:
     auto algs = Allen::Scheduler::configured_algorithms(*appMgr, m_producers, cf_nodes);
     auto sorted = Allen::Scheduler::topological_sort(algs);
     m_execution_masks = Allen::Scheduler::find_execution_masks(sorted, algs, cf_nodes);
+    if (msgLevel(MSG::INFO)) {
+      info() << "Configured sequence:" << endmsg;
+      const auto names = Allen::Scheduler::algorithm_names(sorted);
+      for (const auto* alg : sorted) {
+        info() << "   " << alg->alg->name() << " in: " << m_execution_masks[alg->index].to_string(names) << endmsg;
+      }
+    }
     m_sequence = Allen::Scheduler::finalizeConfiguration(sorted);
     std::tie(m_reserve_args, m_free_args) = Allen::Scheduler::calculate_lifetime_dependencies(sorted);
 
