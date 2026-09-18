@@ -140,23 +140,57 @@ print(f"  n_events={n_events}  ncw={ncw_tensor.shape}  allen_kde={allen_kde.shap
 import torch.nn.functional as F
 
 def run_unet_only(model, y0):
-    """Run the UNet portion of the model starting from y0 = [N, C, W=100]."""
-    # model is in eval mode; no dropout. n = N_FEAT below.
+    """Run the UNet portion of the model starting from y0 = [N, C, W=100].
+
+    Returns the KDE plus every intermediate stage, so a mismatch can be traced
+    to the stage where it first appears.
+    """
+    # model is in eval mode; no dropout. n = N_FEAT below. No skip connections.
+    stages = {}
     x1 = model.rcbn1(y0)                                 # [N, n, 100]
+    stages["x1_rcbn1"] = x1
     x2 = model.d(model.rcbn2(x1))                        # [N, n, 50]
+    stages["x2_rcbn2_mp"] = x2
     x  = model.d(model.rcbn3(x2))                        # [N, n, 25]
+    stages["x3_rcbn3_mp"] = x
     x  = model.up1(x)                                    # [N, n, 50]
+    stages["xu1_up1"] = x
     x  = model.up2(x)                                    # [N, n, 100]
+    stages["xu2_up2"] = x
     x  = model.out_intermediate(x)                       # [N, n, 100]
+    stages["x_oint"] = x
     logits = model.outc(x)                               # [N, 1, 100]
+    stages["logits"] = logits
     y_pred = F.softplus(logits).squeeze(1) * 0.001       # [N, 100]
-    return y_pred
+    stages["pt_kde"] = y_pred
+    return y_pred, {k: v.cpu().numpy() for k, v in stages.items()}
 
 print("Running PyTorch UNet inference (from y0) ...")
 y0_t = torch.tensor(ncw_tensor, dtype=torch.float32).to(device)
 
 with torch.no_grad():
-    pt_out = run_unet_only(model, y0_t).cpu().numpy()    # [N*40, 100]
+    pt_tensor, stages = run_unet_only(model, y0_t)
+    pt_out = pt_tensor.cpu().numpy()                     # [N*40, 100]
+
+# Per-stage statistics on the PyTorch side: says at which stage an unexpected
+# magnitude (or a non-finite value) first appears when the KDE disagrees.
+# Statistics are over finite entries only, since intervals whose FC input is
+# already non-finite would otherwise make every stage read NaN.
+print("\n  PyTorch intermediate stage statistics")
+layer_stats = {}
+for lname, arr in stages.items():
+    finite = np.isfinite(arr)
+    st = {"shape": list(arr.shape), "non_finite": int((~finite).sum())}
+    if finite.any():
+        vals = arr[finite]
+        st.update(mean=float(vals.mean()), std=float(vals.std()),
+                  min=float(vals.min()), max=float(vals.max()))
+    else:
+        st.update(mean=float("nan"), std=float("nan"), min=float("nan"), max=float("nan"))
+    layer_stats[lname] = st
+    print(f"    {lname:14s} shape={str(st['shape']):24s} mean={st['mean']:.4e} "
+          f"std={st['std']:.4e} min={st['min']:.4e} max={st['max']:.4e} "
+          f"non-finite={st['non_finite']}")
 
 # Squeeze any residual channel dim
 pt_kde = pt_out.reshape(n_events * N_INTERVALS, W_IN)
@@ -226,11 +260,29 @@ print(f"  Worst event {worst_ev}, interval {worst_iv}: max abs diff {ev_diff[wor
       f"PyTorch peak {pt_kde.reshape(n_events, N_INTERVALS, W_IN)[worst_ev, worst_iv].max():.4e}, "
       f"Allen peak {allen_kde.reshape(n_events, N_INTERVALS, W_IN)[worst_ev, worst_iv].max():.4e}")
 
-# Pass/fail threshold — expect cuDNN fp32 vs PyTorch fp32 differences < 1e-3
+# Verdict. The 1e-3 tier decides the exit status (an exact FP32 cuDNN path
+# against PyTorch fp32 lands far below it); the finer tiers show how much
+# headroom there is, which is what separates an exact path from an approximate
+# one such as FP16 or BF16.
+TIERS = [("fp32_noise  (< 1e-5, ideal)", 1e-5),
+         ("tight       (< 1e-4, good)", 1e-4),
+         ("acceptable  (< 1e-3, fp32 ok)", 1e-3),
+         ("loose       (< 1e-2, marginal)", 1e-2)]
 threshold = 1e-3
 worst = abs_diff.max()
 status = "PASS" if (worst < threshold and nonfinite_out == 0) else "FAIL"
-print(f"\n  Threshold: {threshold:.0e}  →  {status}  (worst={worst:.3e})")
+print()
+tier_results, best_tier = {}, None
+for label, thr in TIERS:
+    ok = bool(worst < thr)
+    tier_results[label.split()[0]] = ok
+    print(f"  {label:34s} worst={worst:.3e}  {'PASS' if ok else 'FAIL'}")
+    if ok and best_tier is None:
+        best_tier = label.split()[0]
+tier_note = f", best tier {best_tier}" if best_tier else ", exceeds every tier"
+print(f"\n  Threshold: {threshold:.0e}  →  {status}  (worst={worst:.3e}{tier_note})")
+sig_under_tight = bool(sig_worst < 1e-4)
+print(f"  Signal region (worst {sig_worst:.3e}) under 1e-4: {'yes' if sig_under_tight else 'no'}")
 
 if args.report:
     import json
@@ -248,6 +300,10 @@ if args.report:
         "signal_region": {"n_bins": int(sig_mask.sum()), "max_abs_diff": sig_worst},
         "background_region": {"n_bins": int(bg_mask.sum()), "max_abs_diff": bg_worst},
         "worst_event": {"event": worst_ev, "interval": worst_iv},
+        "layer_stats": layer_stats,
+        "tiers": tier_results,
+        "best_tier": best_tier,
+        "signal_region_under_1e-4": sig_under_tight,
         "per_event_max_abs_diff": per_event_max.tolist(),
         "threshold": threshold,
         "status": status,
