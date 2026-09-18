@@ -26,6 +26,9 @@ function help {
   echo "  --cudnn                         Enable cuDNN support (sets -DWITH_CUDNN=ON with local path)"
   echo "  --cublas                        Enable cuBLAS GEMM for PVFinder L6A (sets -DWITH_CUBLAS=ON)"
   echo "  --cuda-arch <arch>              Set CUDA_ARCH (e.g. 86 for SM 8.6, 75 for SM 7.5; default: COMPATIBILITY)"
+  echo "  --unet-feat <n>                 Override UNet N_FEAT (e.g. 16 for 16-channel model; default: 64)"
+  echo "  --unet-batch-channels <n>       Override UNet N_BATCH_CHANNELS / latentChannels (e.g. 4; default: 8)"
+  echo "  --tests                         Build the Catch2 unit tests (sets -DBUILD_TESTING=ON; run with ctest)"
     echo "  -f, --force                     Force rebuild, even if 'Allen' binary exists"
     echo "  -t, --lcg-toolchain <path>      Specify the LCG toolchain folder location"
     echo "  -d, --dry-run                   Print commands without executing them"
@@ -61,6 +64,9 @@ while [[ "$#" -gt 0 ]]; do
         --cudnn) USE_CUDNN=1 ;;
         --cublas) USE_CUBLAS=1 ;;
         --cuda-arch) [[ -n "$2" && "$2" != -* ]] && CUDA_ARCH_OVERRIDE="$2" && shift || { echo "Error: --cuda-arch requires an argument"; exit 1; } ;;
+        --unet-feat) [[ -n "$2" && "$2" != -* ]] && UNET_N_FEAT="$2" && shift || { echo "Error: --unet-feat requires an argument"; exit 1; } ;;
+        --unet-batch-channels) [[ -n "$2" && "$2" != -* ]] && UNET_N_BATCH_CHANNELS="$2" && shift || { echo "Error: --unet-batch-channels requires an argument"; exit 1; } ;;
+        --tests) BUILD_TESTS=1 ;;
         -h|--help) help ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
@@ -121,7 +127,7 @@ function build_gpu {
     if [[ $FORCE -eq 1 ]]; then
         echo "Force rebuilding GPU build..."
         if [[ -d "$ALLEN_REPO/$BUILD_GPU" ]]; then
-            dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES"
+            dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES" || return 1
             return
         else
             echo "Build directory does not exist, doing full setup..."
@@ -130,7 +136,7 @@ function build_gpu {
 
     if check_allen_binary "$BUILD_GPU"; then
         echo "'Allen' binary exists in $BUILD_GPU, running make only..."
-        dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES"
+        dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES" || return 1
     else
         echo "'Allen' binary not found in $BUILD_GPU, doing full build..."
         dryrun mkdir -p "$ALLEN_REPO/$BUILD_GPU"
@@ -144,14 +150,28 @@ function build_gpu {
         if [[ ${USE_CUBLAS:-0} -eq 1 ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUBLAS=ON"
         fi
+        if [[ -n "${UNET_N_FEAT:-}" ]]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_FEAT=${UNET_N_FEAT}"
+        fi
+        if [[ -n "${UNET_N_BATCH_CHANNELS:-}" ]]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_BATCH_CHANNELS=${UNET_N_BATCH_CHANNELS}"
+        fi
         if [[ -n "${CUDA_ARCH_OVERRIDE:-}" ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DCUDA_ARCH=${CUDA_ARCH_OVERRIDE}"
         fi
-        dryrun cmake $CMAKE_ARGS ..
+        if [[ ${BUILD_TESTS:-0} -eq 1 ]]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DBUILD_TESTING=ON"
+        fi
+        dryrun cmake $CMAKE_ARGS .. || return 1
         echo "Bootstrapping parameter files and dependencies (single-threaded)..."
-        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1
+        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1 || return 1
         echo "Starting full parallel build..."
-        dryrun make -j"$CORES" || { echo "Initial make failed, retrying..."; dryrun make -j"$CORES"; }
+        # One retry: a fresh tree occasionally races on generated sources. If the
+        # retry fails too, report it -- never claim success on a failed build.
+        if ! dryrun make -j"$CORES"; then
+            echo "Initial make failed, retrying..."
+            dryrun make -j"$CORES" || { if [[ $DRYRUN -eq 0 ]]; then cd .. || exit; fi; return 1; }
+        fi
         if [[ $DRYRUN -eq 0 ]]; then cd .. || exit; fi
     fi
 }
@@ -160,7 +180,7 @@ function build_cpu {
     if [[ $FORCE -eq 1 ]]; then
         echo "Force rebuilding CPU build..."
         if [[ -d "$ALLEN_REPO/$BUILD_CPU" ]]; then
-            dryrun make -C "$ALLEN_REPO/$BUILD_CPU" -j"$CORES"
+            dryrun make -C "$ALLEN_REPO/$BUILD_CPU" -j"$CORES" || return 1
             return
         else
             echo "Build directory does not exist, doing full setup..."
@@ -169,18 +189,21 @@ function build_cpu {
 
     if check_allen_binary "$BUILD_CPU"; then
         echo "'Allen' binary exists in $BUILD_CPU, running make only..."
-        dryrun make -C "$ALLEN_REPO/$BUILD_CPU" -j"$CORES"
+        dryrun make -C "$ALLEN_REPO/$BUILD_CPU" -j"$CORES" || return 1
     else
         echo "'Allen' binary not found in $BUILD_CPU, doing full build..."
         dryrun mkdir -p "$ALLEN_REPO/$BUILD_CPU"
         if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_CPU" ]]; then cd "$ALLEN_REPO/$BUILD_CPU" || exit; fi
         TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13-opt+g.cmake"
         if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
-        dryrun cmake -DSTANDALONE=ON -DTARGET_DEVICE=CPU -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" ..
+        dryrun cmake -DSTANDALONE=ON -DTARGET_DEVICE=CPU -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" .. || return 1
         echo "Bootstrapping parameter files and dependencies (single-threaded)..."
-        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1
+        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1 || return 1
         echo "Starting full parallel build..."
-        dryrun make -j"$CORES" || { echo "Initial make failed, retrying..."; dryrun make -j"$CORES"; }
+        if ! dryrun make -j"$CORES"; then
+            echo "Initial make failed, retrying..."
+            dryrun make -j"$CORES" || { if [[ $DRYRUN -eq 0 ]]; then cd "$ALLEN_REPO" || exit; fi; return 1; }
+        fi
         if [[ $DRYRUN -eq 0 ]]; then cd "$ALLEN_REPO" || exit; fi
     fi
 }
@@ -200,12 +223,18 @@ if [[ -n "$CLEAN" ]]; then
     clean_build "$CLEAN"
 fi
 
+BUILD_STATUS=0
 case $ARCH in
-    gpu) build_gpu ;;
-    cpu) build_cpu ;;
-    full) build_gpu; build_cpu ;;
+    gpu) build_gpu || BUILD_STATUS=1 ;;
+    cpu) build_cpu || BUILD_STATUS=1 ;;
+    full) build_gpu || BUILD_STATUS=1; build_cpu || BUILD_STATUS=1 ;;
     *) echo "Invalid architecture. Use --help or -h for options."; exit 1 ;;
 esac
+
+if [[ $BUILD_STATUS -ne 0 ]]; then
+    echo "Build FAILED. See the make output above." >&2
+    exit 1
+fi
 
 echo "Operation complete."
 if [[ $DRYRUN -eq 1 ]]; then
