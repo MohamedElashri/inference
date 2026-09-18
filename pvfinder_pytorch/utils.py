@@ -220,21 +220,13 @@ upsample_options = {
     'Up':Up,
 }
 
-def combine(x, y, mode='concat'):
-    if mode == 'concat':
-        return torch.cat([x, y], dim=1)
-    elif mode == 'add':
-        return x+y
-    else:
-        raise RuntimeError(f'''Invalid option {mode} from choices 'concat' or 'add' ''')
-
-
 ####################################################################################################
 class TrackIntervalsToKDE_HDplusUNet100(nn.Module):
+    """FC track-to-interval network followed by a UNet without skip connections."""
     softplus = torch.nn.Softplus()
 
-    def __init__(self, nOut1=20, nOut2=20, nOut3=20, nOut4=20, nOut5=20, 
-                 latentChannels=8, n=64, sc_mode='concat', dropout_p=.25, 
+    def __init__(self, nOut1=20, nOut2=20, nOut3=20, nOut4=20, nOut5=20,
+                 latentChannels=4, n=16, dropout_p=.25,
                  dropout_fc6=0.20, d_selection='ConvBNrelu', u_selection='Up'):
         super(TrackIntervalsToKDE_HDplusUNet100, self).__init__()
 
@@ -260,10 +252,6 @@ class TrackIntervalsToKDE_HDplusUNet100(nn.Module):
         #                            U-Net Models
         # ======================================================================
 
-        # Concatenation factor based on `sc_mode`
-        factor = 2 if sc_mode == 'concat' else 1
-        self.mode = sc_mode
-
         # Dropout layers
         self.fc6dropout = nn.Dropout(dropout_fc6)
         self.p = dropout_p
@@ -283,10 +271,10 @@ class TrackIntervalsToKDE_HDplusUNet100(nn.Module):
 
         # Upsampling layers
         self.up1 = u_block(n, n, kernel_size=5, p=dropout_p)
-        self.up2 = u_block(n * factor, n, kernel_size=5, p=dropout_p)
+        self.up2 = u_block(n, n, kernel_size=5, p=dropout_p)
 
         # Output layers
-        self.out_intermediate = nn.Conv1d(n * factor, n, 5, padding=2)
+        self.out_intermediate = nn.Conv1d(n, n, 5, padding=2)
         self.outc = nn.Conv1d(n, 1, 5, padding=2)
 
         # MaxPooling layer for downsampling
@@ -342,10 +330,10 @@ class TrackIntervalsToKDE_HDplusUNet100(nn.Module):
 
         # Pass through upsampling layers
         x = self.up1(x)  # Size: 50
-        x = self.up2(combine(x, x2, mode=self.mode))  # Size: 100
+        x = self.up2(x)  # Size: 100
 
         # Final output layers
-        x = self.out_intermediate(combine(x, x1, mode=self.mode))  # Size: 100
+        x = self.out_intermediate(x)  # Size: 100
         logits_x0 = self.outc(x)  # Final convolution layer
 
         # Apply softplus activation and squeeze to remove extra dimensions

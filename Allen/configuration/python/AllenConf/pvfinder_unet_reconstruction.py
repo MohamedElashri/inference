@@ -5,13 +5,14 @@ from AllenCore.algorithms import (
     pvfinder_unet_t,
 )
 from AllenConf.utils import initialize_number_of_events
+from AllenConf.pvfinder_fc_reconstruction import pvfinder_weight_file
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
 
 @configurable
 def make_pvfinder_unet(fc_output,
-                       weight_file="/data/home/melashri/iris/inference/cnn_weights.bin",
+                       weight_file=None,
                        dump_validation=""):
     """
     Wire PVFinderUNet directly downstream of the FC aggregation.
@@ -25,8 +26,11 @@ def make_pvfinder_unet(fc_output,
         Return value of make_pvfinder_fc(), must contain:
           - "dev_pvfinder_interval_features"
           - "host_number_of_events"
-    weight_file : str
-        Path to cnn_weights.bin produced by convert_cnn_weights.py.
+    weight_file : str, optional
+        Path to cnn_weights.bin. Defaults to $PVFINDER_WEIGHTS_DIR/cnn_weights.bin,
+        produced by the repository's weights/ pipeline (see pvfinder_weight_file).
+    dump_validation : str
+        Directory for weights/scripts/validate_unet.py dumps, "" = off.
 
     Returns
     -------
@@ -34,6 +38,8 @@ def make_pvfinder_unet(fc_output,
       - "dev_pvfinder_kde_output"  : final KDE float array [n_events*40*100]
       - "unet_producer"            : the pvfinder_unet algorithm node
     """
+    if weight_file is None:
+        weight_file = pvfinder_weight_file("cnn_weights.bin")
     host_number_of_events = fc_output["host_number_of_events"]
 
     # Direct UNet forward pass — no NCW copy step needed

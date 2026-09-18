@@ -24,6 +24,7 @@ This site documents various aspects of Allen.
    develop/selections
    develop/combiners
    develop/tests
+   develop/allen_cudnn
    develop/root_service
    develop/memory_layouts
    develop/debugging

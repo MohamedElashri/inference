@@ -67,52 +67,73 @@ namespace Allen::CuDNN {
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   /**
-   * @brief Singleton resource manager for cudnnHandle_t based on cudaStream_t.
-   * 
-   * Provides 1:1 mapping of cuDNN handles to Allen CUDA streams. This ensures resources 
-   * correspond to Allen's thread lifecycle rather than arbitrary OS thread boundaries.
+   * @brief Process-wide map from Allen CUDA stream to its cudnnHandle_t.
+   *
+   * Handles follow Allen's streams (one per -t slot) rather than whatever OS
+   * thread happens to run them, and are shared by every cuDNN-using algorithm
+   * on that stream. Created lazily, never destroyed (process lifetime).
    */
-  class CuDNNManager {
+  class HandleManager {
   public:
-    static CuDNNManager& instance() {
-      static CuDNNManager s_instance;
+    static HandleManager& instance() {
+      static HandleManager s_instance;
       return s_instance;
     }
 
-    cudnnHandle_t get_handle(cudaStream_t stream) {
+    cudnnHandle_t handle_for(cudaStream_t stream) {
       std::lock_guard<std::mutex> lock(m_mutex);
-      auto it = m_handles.find(stream);
-      if (it == m_handles.end()) {
-        cudnnHandle_t h;
-        ALLEN_CUDNN_CHECK(cudnnCreate(&h));
-        ALLEN_CUDNN_CHECK(cudnnSetStream(h, stream));
-        m_handles[stream] = h;
-        return h;
-      }
-      // Ensure the handle continues to recognize this stream
-      ALLEN_CUDNN_CHECK(cudnnSetStream(it->second, stream));
+      auto [it, inserted] = m_handles.try_emplace(stream, nullptr);
+      if (inserted) ALLEN_CUDNN_CHECK(cudnnCreate(&it->second));
       return it->second;
     }
 
-  private:
-    CuDNNManager() = default;
-    ~CuDNNManager() = default;
-    
-    CuDNNManager(const CuDNNManager&) = delete;
-    CuDNNManager& operator=(const CuDNNManager&) = delete;
+    HandleManager(const HandleManager&) = delete;
+    HandleManager& operator=(const HandleManager&) = delete;
 
+  private:
+    HandleManager() = default;
     std::mutex m_mutex;
     std::unordered_map<cudaStream_t, cudnnHandle_t> m_handles;
   };
 
   /**
-   * @brief Helper to get the stream-associated handle.
+   * @brief Return the cudnnHandle_t of the given CUDA stream, bound to it.
+   *
+   * The per-thread cache makes the steady state lock-free: an Allen stream is
+   * served by one thread, so the map is only consulted on a thread's first call
+   * (or if it is handed a different stream).
+   *
+   * Usage in operator() const:
+   *   cudnnHandle_t h = Allen::CuDNN::get_thread_local_handle(context.stream());
+   *   desc.forward(h, ...);
    */
   inline cudnnHandle_t get_thread_local_handle(cudaStream_t stream) {
-    return CuDNNManager::instance().get_handle(stream);
+    thread_local cudaStream_t tl_stream = nullptr;
+    thread_local cudnnHandle_t tl_handle = nullptr;
+    if (tl_handle == nullptr || tl_stream != stream) {
+      tl_handle = HandleManager::instance().handle_for(stream);
+      tl_stream = stream;
+    }
+    ALLEN_CUDNN_CHECK(cudnnSetStream(tl_handle, stream));
+    return tl_handle;
   }
+
+  /**
+   * @brief Default Allen cuDNN handle provider.
+   *
+   * Handles are owned per CUDA stream by HandleManager, created lazily, rebound
+   * to the caller's stream on every request, and intentionally left alive until
+   * process shutdown. Allen may reset the CUDA device during teardown, so destroying
+   * thread-local cuDNN handles from C++ static destructors is not reliable.
+   */
+  struct HandleProvider {
+    static cudnnHandle_t get(cudaStream_t stream) { return get_thread_local_handle(stream); }
+  };
 #else
   inline void* get_thread_local_handle(void*) { return nullptr; }
+  struct HandleProvider {
+    static void* get(void*) { return nullptr; }
+  };
 #endif
 
 } // namespace Allen::CuDNN
