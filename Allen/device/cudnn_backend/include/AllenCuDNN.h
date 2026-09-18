@@ -14,5 +14,5 @@
 #include "CuDNNDescriptors.h"   // Convolution shape configurations caching
 #include "CuDNNFusedOps.h"      // Metadata-first fused convolution API
 #include "CuDNNDeviceWeights.h" // Process-lifetime typed device weights
-#include "CuDNNWeightRegistry.h"// Legacy singleton facade over DeviceWeights
+#include "CuDNNWeightRegistry.h" // Compatibility facade over DeviceWeights
 #include "CuDNNLayoutTransform.cuh"// Boilerplate macros

@@ -15,7 +15,7 @@
 // Output: dev_pvfinder_kde_output  [n_events, 40, 100]  (flat: n_events*4000)
 //
 // cuDNN integration design:
-//   - Tensor shapes are fixed per process (N = unet_batch_events * 40) — descriptors created once globally.
+//   - Tensor shapes are fixed per algorithm instance (N = unet_batch_events * 40).
 //   - One thread_local cudnnHandle_t per OS thread, created lazily via
 //     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
 //   - IMPLICIT_GEMM algorithm pinned everywhere → zero workspace.
@@ -100,13 +100,9 @@ private:
         this, "dump_validation", "",
         "if non-empty, dump NCW input + KDE output of the first slice to this directory"};
 
-    // Which operator() call (0-indexed) to dump on. Default 0 preserves prior
-    // behaviour (dump the first call). A later index is needed to validate the
-    // CUDA-graph path specifically: Allen's memory manager reshuffles argument
-    // addresses every repetition, so the graph path's real correctness risk
-    // (replaying against a stale/patched pointer after that reshuffle) only
-    // manifests on calls after the first -- dumping only the first call cannot
-    // exercise it.
+    // Zero-based operator() call to dump. Values greater than zero exercise
+    // CUDA-graph replay after Allen's memory manager has reassigned argument
+    // addresses, which verifies that the graph's shuttle nodes are patched.
     Allen::Property<unsigned> m_dump_repetition {
         this, "dump_repetition", 0u,
         "0-indexed operator() call to dump on, when dump_validation is set"};
@@ -126,17 +122,11 @@ private:
         this, "use_fp16", false,
         "use FP16 Tensor Core path for CBR layers (physics approximate)"};
 
-    // BF16 Tensor Core path for CBR layers, same structure as m_use_fp16
-    // (ConvTranspose and the output stage stay FP32 either way -- see the
-    // eager-path comment in the .cu). Motivated by a confirmed FP16 bug:
-    // input values up to ~109,000 exceed FP16's ~65504 max representable
-    // magnitude at the very first f32->half cast, producing real NaN on
-    // ~0.5% of real intervals. BF16 shares FP32's exponent range, so that
-    // specific overflow cannot recur here -- still physics-approximate
-    // (reduced mantissa, like FP16), not physics-exact. If both use_fp16 and
-    // use_bf16 are set, BF16 takes precedence (see operator()'s branch
-    // order) -- an arbitrary but deterministic choice, not expected to
-    // matter since setting both is not a supported configuration.
+    // BF16 Tensor Core path for CBR layers. ConvTranspose and the output stage
+    // remain FP32. BF16 accommodates the observed input range (up to about
+    // 109,000), which exceeds FP16's maximum finite value, but its reduced
+    // mantissa still makes this path physics-approximate. BF16 takes precedence
+    // if both reduced-precision options are set.
     Allen::Property<bool> m_use_bf16 {
         this, "use_bf16", false,
         "BF16 Tensor Core path for CBR layers (physics approximate, but "
@@ -149,7 +139,7 @@ private:
     // into the weights either way); this only changes how many times the
     // conv output round-trips through DRAM. FP32 only — ConvBiasReluGraph has
     // no FP16 variant, so this flag has no effect when use_fp16=true. Falls
-    // back to the existing two-pass path at runtime if the backend graph API
+    // back to the two-pass path at runtime if the backend graph API
     // finds no usable engine for this shape on the current GPU (see
     // ConvBiasReluGraph::create()'s doc comment).
     Allen::Property<bool> m_use_fused_cbr {
@@ -161,8 +151,7 @@ private:
     // Forward-conv algorithm selection, bounded to a workspace budget instead
     // of an unrestricted Find/heur_v7 search (see CuDNNDescriptors.h's
     // ConvDescriptors class comment for why unrestricted search is not used
-    // by default). 0 (default) keeps every forward conv pinned to
-    // IMPLICIT_GEMM, bit-for-bit identical to current production behaviour.
+    // by default). 0 pins every forward convolution to IMPLICIT_GEMM.
     // A nonzero value applies to ALL forward ConvDescriptors (rcbn1/2/3,
     // up1_c, up2_c, oint, outc, and their FP16 counterparts) uniformly.
     Allen::Property<unsigned> m_fwd_algo_ws_budget_bytes {
@@ -176,9 +165,8 @@ private:
     // only -- not FP16, not the CUDA-graph path), replacing cuDNN + a
     // separate bias_relu_kernel pass with one
     // kernel that keeps the activation slice in shared memory instead of
-    // round-tripping the raw conv output through DRAM. Physics-identical
-    // (same weights/bias, same cross-correlation math) when correct; default
-    // off pending the accompanying correctness sanity check.
+    // round-tripping the raw conv output through DRAM. It uses the same
+    // weights, bias and cross-correlation operation as the cuDNN path.
     Allen::Property<bool> m_use_fused_rcbn3 {
         this, "use_fused_rcbn3", false,
         "rcbn3 only, eager FP32 path only: use a hand-written shared-memory "
@@ -195,10 +183,9 @@ private:
         "that consumes it (rcbn2 and rcbn3), removing two DRAM round trips"};
 
     // Merge up1's ConvTranspose1d(k=2,s=2) + Conv1d(k=5,pad=2) into one
-    // phase-dependent kernel (exact, incl. boundary -- see up1_merge_kernel's
-    // comment). Eager FP32 path only. Correct but a net throughput regression
-    // versus the tuned cuDNN path it replaces (the hand-written kernel loses
-    // despite fewer FLOPs) -- kept for reference, default off.
+    // parity-dependent kernel (including exact boundary handling; see
+    // up1_merge_kernel). This eager FP32 option is disabled by default because
+    // the tuned cuDNN sequence has higher measured throughput.
     Allen::Property<bool> m_use_merged_up1 {
         this, "use_merged_up1", false,
         "eager FP32 path only: replace up1's ConvTranspose+Conv+BiasReLU "

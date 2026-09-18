@@ -41,10 +41,9 @@ Options:
                              Set pvfinder_unet.use_fused_bias_relu_pool true/false
                              (default: false); fuses each bias+ReLU epilogue into
                              the max-pool that consumes it, eager FP32 path only
-                             rcbn3 only, eager FP32 path only
   --use-merged-up1 BOOL     Set pvfinder_unet.use_merged_up1 true/false
-                             (default: false); eager FP32 path only -- a measured
-                             throughput regression kept for reference
+                             (default: false); eager FP32 path only; the tuned
+                             cuDNN sequence is faster
   --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
                              (default: unset -- leaves Allen's own build-derived
                              default, L6A_WIDTH, in effect; that's 800 for the
@@ -467,14 +466,9 @@ with open(path, "r", encoding="utf-8") as handle:
 
 fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
 fc_agg["weight_file"] = fc_weights_abs
-# l6a_m and l6a_active_channels used to always be patched in, defaulting to
-# this script's own hardcoded 800/8 -- silently overriding Allen's own
-# build-derived defaults (L6A_WIDTH/N_LATENT_CHANNELS) even for a build
-# whose real width is different, which is an invalid cuBLAS call (M larger
-# than the buffer's real leading dimension), not just a wrong physics
-# result. Now left out of the config entirely (leaving Allen's own
-# compile-time-correct default in effect) unless the caller explicitly
-# passed --l6a-m / --l6a-active-channels.
+# Omit width overrides unless explicitly requested so Allen uses the
+# build-derived L6A_WIDTH and N_LATENT_CHANNELS. Values that exceed the built
+# buffer dimensions would make the cuBLAS leading dimensions invalid.
 if l6a_m_raw != "":
     fc_agg["l6a_m"] = int(l6a_m_raw)
 fc_agg["use_nonatomic_l6a_reduce"] = use_nonatomic_raw == "true"

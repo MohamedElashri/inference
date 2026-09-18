@@ -22,7 +22,7 @@ def hook_pvfinder_to_hlt1():
         with_fullKF=True,
     )
     
-    # Rather than creating a NEW wrapper Node, inject the new algorithm directly into the top node
+    # Append the aggregation producer directly to the top-level control-flow node.
     hlt1_graph = hlt1_node_dict['control_flow_node']
     reco = hlt1_node_dict['reconstruction']
     
