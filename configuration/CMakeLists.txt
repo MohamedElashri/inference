@@ -36,6 +36,8 @@ if (NOT STANDALONE)
       DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Allen)
 
     pybind11_add_module(TCK NO_EXTRAS src/bindings.cpp)
+    set_target_properties(TCK PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/Allen")
     target_link_libraries(TCK
       PRIVATE
         Configuration
