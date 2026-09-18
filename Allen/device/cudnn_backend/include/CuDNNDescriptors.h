@@ -2108,40 +2108,27 @@ namespace Allen::CuDNN {
   // Fixed-shape descriptor wrappers used by PVFinder's production UNet path.
   // ConvDescriptors keeps a pinned IMPLICIT_GEMM default, FP16/BF16 forwards and
   // per-thread workspaces tuned for many concurrent Allen streams;
-  // ConvBiasReluGraph is the backend-graph fused Conv+Bias+ReLU. New clients
-  // should prefer the plan API above (ForwardConvPlan, FusedConvPlan, ...).
+  // ConvBiasReluGraph provides backend-graph fused Conv+Bias+ReLU for the
+  // fixed-shape interface. General callers use the plan API above.
   // ---------------------------------------------------------------------------
 
   /**
    * @brief RAII wrapper for a cuDNN convolution's four descriptors.
    *
    * Design constraints (Allen compatibility):
-   *  - Algorithm is pinned to IMPLICIT_GEMM at create() time by default,
-   *    rather than selected via cudnnFindConvolutionForwardAlgorithmEx or
-   *    cudnnGetConvolutionForwardAlgorithm_v7's heuristic. For this
-   *    network's thin, low-channel shapes under real concurrent multi-thread
-   *    load, an algorithm promoted by either search strategy tends to need a
-   *    multi-MB per-thread workspace (im2col-style scratch written to and
-   *    read from GPU global memory on every call); the resulting
-   *    memory-bandwidth contention across many concurrent threads costs more
-   *    than any Tensor-Core math it buys back. A one-shot, isolated timing
-   *    or cost-model measurement at create() time has no way to see that
-   *    concurrent-load cost, so IMPLICIT_GEMM's near-zero workspace
-   *    footprint wins for this shape under production load even though it
-   *    isn't the fastest single-call candidate in isolation. A bounded,
-   *    live-verified heuristic search is available opt-in via
-   *    workspace_budget_bytes for callers where that tradeoff differs (see
-   *    below).
+   *  - Algorithm selection defaults to IMPLICIT_GEMM. PVFinder's thin,
+   *    low-channel shapes favor its small workspace under concurrent load.
+   *    Callers can enable bounded, live-verified heuristic selection with
+   *    workspace_budget_bytes.
    *  - Workspace is thread_local, not a single shared buffer: cuDNN writes real
    *    per-call intermediate scratch state into it during forward() (im2col buffers,
    *    partial reductions, etc.) -- it is NOT read-only/inert. A single workspace
    *    buffer shared across concurrent threads on the same descriptor would be a data
    *    race whenever the selected algorithm has nonzero workspace_bytes() (IMPLICIT_GEMM
-   *    itself is typically zero-workspace for these shapes, but the size is still queried
-   *    via cudnnGetConvolutionForwardWorkspaceSize() rather than assumed, in case that
-   *    changes for a future shape). Each descriptor instance still selects ONE
-   *    algorithm/size at create() time (single-threaded init); only the workspace
-   *    *buffer* backing that fixed size is now lazily allocated per (thread, instance)
+   *    itself is typically zero-workspace for these shapes, but the size is queried
+   *    via cudnnGetConvolutionForwardWorkspaceSize() for every shape). Each descriptor
+   *    instance selects one algorithm and size at create() time; only the workspace
+   *    buffer backing that fixed size is lazily allocated per (thread, instance)
    *    via get_thread_local_workspace(), mirroring the thread_local idiom used elsewhere
    *    in Allen::CuDNN (see CuDNNHandle.h's get_thread_local_handle). Never freed (relies
    *    on process teardown, same as that handle) -- sizes here are a few KB at most.
@@ -2166,10 +2153,10 @@ namespace Allen::CuDNN {
     // needed_bytes on first use per (thread, instance); never shrinks or frees.
     // cudaMalloc's result MUST be checked here: on failure it leaves the pointer
     // null, and if entry.second were still marked as "sized" despite that, every
-    // later call would silently hand cudnnConvolutionForward a null workspace
+    // subsequent calls would hand cudnnConvolutionForward a null workspace
     // with a nonzero requested size -- CUDNN_STATUS_BAD_PARAM, permanently, for
     // the rest of the process's life on that (thread, instance). Only record the
-    // new size once the allocation actually succeeds, so a transient failure is
+    // size only after allocation succeeds, so a transient failure is
     // retried on the next call instead of being latched in as a fatal state.
     static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes) {
       if (needed_bytes == 0) return nullptr;
@@ -2199,7 +2186,7 @@ namespace Allen::CuDNN {
     }
 
     // Forces this instance's thread-local workspace to be allocated on the calling
-    // thread right now, rather than lazily on the first forward()/forward_half()
+    // thread immediately, rather than lazily on the first forward()/forward_half()
     // call. Needed before capturing a CUDA graph that calls forward() on this
     // descriptor: growing the workspace (cudaMalloc/cudaFree) DURING an active
     // stream capture is unsupported, so callers that capture must pre-warm every
@@ -2224,11 +2211,9 @@ namespace Allen::CuDNN {
       std::array<int,2> stride   = {1, 1},
       std::array<int,2> dilation = {1, 1},
       cudnnDataType_t   dtype    = CUDNN_DATA_FLOAT,
-      // 0 (default): keep the pinned-IMPLICIT_GEMM behavior unchanged, bit
-      // for bit, from before this parameter existed. Nonzero: run
+      // 0 pins IMPLICIT_GEMM. A nonzero value runs
       // cudnnGetConvolutionForwardAlgorithm_v7 (a static heuristic cost
-      // model, not a timed benchmark -- same query style already proven for
-      // ConvTranspose's kBwdBudget in PVFinderUNet.cu), then LIVE-VERIFY each
+      // model, not a timed benchmark), then executes each
       // within-budget candidate with one real cudnnConvolutionForward() call
       // against scratch buffers before adopting it -- the heuristic can and
       // does report success for algorithms that then fail at real call time
@@ -2275,14 +2260,10 @@ namespace Allen::CuDNN {
         if (cudnnGetConvolutionForwardAlgorithm_v7(
               handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc,
               kFwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
-          // v7's ranking is a static cost model, not a real execution -- it can
-          // (and, empirically, does for some FP16/shape combinations here)
-          // report CUDNN_STATUS_SUCCESS for an algorithm that then fails at
-          // real cudnnConvolutionForward() call time with CUDNN_STATUS_BAD_PARAM.
-          // Guard against that by actually executing each within-budget
-          // candidate once, here at init time, against scratch buffers sized
-          // to this descriptor's real tensors, and only adopting the first
-          // one that genuinely succeeds.
+          // The v7 ranking is a static cost model, so a successful query does
+          // not guarantee that the candidate executes for this shape and dtype.
+          // Execute each within-budget candidate against correctly sized scratch
+          // buffers and adopt the first one that succeeds.
           const size_t elem_size  = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
           const size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
           const size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
@@ -2349,7 +2330,7 @@ namespace Allen::CuDNN {
         m_output_desc, dev_output));
     }
 
-    // Legacy overload: accept a Handle wrapper (for backward compat).
+    // Compatibility overload for callers that use the Handle wrapper.
     void forward(
       const Handle&  handle,
       const float    alpha, const float beta,

@@ -88,7 +88,7 @@ namespace Allen::CuDNN {
     TensorLayout output_layout = TensorLayout::NCHW;
     bool has_output_shape = false;
     FusedConvBackendPreference backend_preference = FusedConvBackendPreference::Auto;
-    // Compatibility alias retained for V2.1/V2.2 callers. New callers should use backend_preference.
+    // Deprecated compatibility alias; backend_preference takes precedence.
     FusedConvBackend preferred_backend = FusedConvBackend::Auto;
     FusedConvFallbackPolicy fallback_policy = FusedConvFallbackPolicy::AllowMetadataOnly;
     bool log_plan_creation = false;
@@ -363,18 +363,17 @@ namespace Allen::CuDNN {
       capability.reason = "runtime cuDNN version is too old for the frontend graph backend";
     }
     else if (!capability.dtype_supported) {
-      capability.reason = "frontend graph backend accepts only FP32 fused convolution in V2.3";
+      capability.reason = "frontend graph backend accepts only FP32 fused convolution";
     }
     else if (!capability.layout_supported) {
-      capability.reason = "frontend graph backend accepts only TensorLayout::NCHW in V2.3";
+      capability.reason = "frontend graph backend accepts only TensorLayout::NCHW";
     }
     else if (!capability.post_ops_supported) {
-      capability.reason = "frontend graph backend supports only conv, bias, ReLU, and bias+ReLU in V2.3";
+      capability.reason = "frontend graph backend supports only conv, bias, ReLU, and bias+ReLU";
     }
     else {
       capability.reason =
-        "cuDNN frontend graph backend is capability-detected but disabled for V2.3; earlier PVFinder "
-        "NCHW FP32 graph experiments were unsupported or slower than the legacy fused backend";
+        "cuDNN frontend graph execution is disabled; use LegacyConvPlusCudaPostOp";
     }
 #else
     (void) shape;
@@ -646,7 +645,7 @@ namespace Allen::CuDNN {
       if (backend_preference == FusedConvBackendPreference::ForceCudnnFrontendGraph) {
         const std::string reason =
           frontend_capability.reason.empty() ?
-            "CudnnFrontendGraph execution is not enabled for V2.3" :
+            "CudnnFrontendGraph execution is not enabled" :
             std::string("CudnnFrontendGraph unavailable: ") + frontend_capability.reason;
         throw std::invalid_argument(std::string("AllenCuDNN: FusedConvPlan ") + reason);
       }
@@ -666,10 +665,10 @@ namespace Allen::CuDNN {
                    " cannot use LegacyConvPlusCudaPostOp";
         }
         else if (!fp32) {
-          reason = "LegacyConvPlusCudaPostOp supports FP32 plans in V2.2/V2.3";
+          reason = "LegacyConvPlusCudaPostOp supports only FP32 plans";
         }
         else {
-          reason = "LegacyConvPlusCudaPostOp supports only identity and ReLU activation in V2.2/V2.3";
+          reason = "LegacyConvPlusCudaPostOp supports only identity and ReLU activation";
         }
         if (options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend || forces_backend(backend_preference)) {
           throw std::invalid_argument(std::string("AllenCuDNN: FusedConvPlan ") + reason);

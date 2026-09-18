@@ -175,13 +175,11 @@ __global__ void fold_bn_into_conv_kernel(
 // vs. odd output positions (a "polyphase" structure, not a single fixed
 // kernel): each output position depends on only 3 input positions
 // (t-1,t,t+1 where t = m/2 or (m-1)/2), with different tap weights per
-// parity. Derived by direct forward composition (no impulse-response
-// inversion, so no flip subtlety), verified against real trained weights:
-// interior exact to float noise, edge (positions 0,1,W_out-2,W_out-1) needs
+// parity. Direct forward composition avoids kernel-flip ambiguity. The
+// interior agrees to floating-point precision, while edge positions need
 // the literal two-stage formula, because composing two independently
 // zero-padded stages isn't reducible to one fixed kernel at the boundary.
-// Measured as a net throughput regression versus the unmerged path --
-// kept for reference, not the default.
+// The tuned cuDNN sequence remains the default because it is faster.
 // ---------------------------------------------------------------------------
 
 // Fold kernel: derives K_even[C,C,3], K_odd[C,C,3], merged_bias[C] from the
@@ -246,7 +244,7 @@ __global__ void fold_up1_merge_kernel(
 
 // Forward kernel: computes z[n, c_out2, m] directly from x (ConvTranspose's
 // input, [N,C,L_in]) -- fast phase-dependent 3-tap path for interior m,
-// exact literal two-stage formula (using the original unmerged weights)
+// exact literal two-stage formula
 // for the boundary. One thread per (event, output position m in
 // [0,2*L_in)); each thread loops over all C output channels.
 __global__ void up1_merge_kernel(
@@ -448,7 +446,7 @@ inline void launch_fused_rcbn3(
 }
 
 // ---------------------------------------------------------------------------
-// Phase M FP16 kernels — used when m_use_fp16=true for Tensor Core benchmarking.
+// FP16 kernels used by the Tensor Core CBR path.
 // All weights/biases must be __half (converted from FP32 BN-folded weights at init).
 // ---------------------------------------------------------------------------
 
@@ -530,16 +528,12 @@ inline void launch_maxpool_half(
 }
 
 // ---------------------------------------------------------------------------
-// BF16 kernels — used when m_use_bf16=true. Mirrors the FP16 kernels above
-// exactly (same math, same launch shapes); the only difference is the
+// BF16 kernels used by the Tensor Core CBR path. They mirror the FP16 kernels
+// (same math and launch shapes); the only difference is the
 // storage type and its conversion intrinsics (__bfloat162float/
-// __float2bfloat16 vs. __half2float/__float2half). Motivation: FP16
-// produces real NaN on real data (input values up to ~109,000 exceed
-// FP16's ~65504 max representable magnitude at the very first f32->half
-// cast); BF16 shares FP32's exponent range, so that specific overflow
-// cannot recur here. Written as separate kernels rather than templating
-// the FP16 ones above, to keep zero risk to the existing, already-validated
-// FP16 path.
+// __float2bfloat16 vs. __half2float/__float2half). BF16 shares FP32's
+// exponent range and can represent inputs that overflow FP16. Separate
+// kernels keep the storage-specific intrinsics explicit.
 // ---------------------------------------------------------------------------
 
 __global__ void f32_to_bf16_kernel(__nv_bfloat16* __restrict__ dst, const float* __restrict__ src, int n) {

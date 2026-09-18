@@ -53,7 +53,7 @@ struct GlobalDescriptors {
     float* up1c_w_f  = nullptr; float* up1c_b_f  = nullptr;
     float* up2c_w_f  = nullptr; float* up2c_b_f  = nullptr;
 
-    // Phase M: FP16 CBR descriptors and weights (CUDNN_DATA_HALF, BN-folded at init).
+    // FP16 CBR descriptors and weights (CUDNN_DATA_HALF, BN-folded at init).
     Allen::CuDNN::ConvDescriptors rcbn1_h, rcbn2_h, rcbn3_h, up1c_h, up2c_h;
     __half* rcbn1_w_h = nullptr; __half* rcbn1_b_h = nullptr;
     __half* rcbn2_w_h = nullptr; __half* rcbn2_b_h = nullptr;
@@ -71,15 +71,9 @@ struct GlobalDescriptors {
     __half* fp16_up1  = nullptr;  // [N, N_FEAT, W_HALF]
     __half* fp16_up2  = nullptr;  // [N, N_FEAT, W_IN]
 
-    // BF16 CBR descriptors and
-    // weights (CUDNN_DATA_BFLOAT16, BN-folded at init) -- exact structural
-    // mirror of the FP16 fields above, added instead of reusing them so the
-    // already-validated FP16 path is untouched by this addition. No shared
-    // bf16_pool activation buffer here, deliberately -- this phase's BF16
-    // support is eager-path-only (no CUDA graph capture), and the eager
-    // FP16 path itself does not use the (unused) fp16_pool either; it uses a
-    // thread_local pool instead (GraphScratchPoolBF16 below), for the same
-    // reason the FP16 one does (see that struct's comment).
+    // BF16 CBR descriptors and BN-folded weights. Activations use the
+    // thread-local GraphScratchPoolBF16 below because BF16 is supported only
+    // by the eager path and concurrent streams require independent storage.
     Allen::CuDNN::ConvDescriptors rcbn1_bf, rcbn2_bf, rcbn3_bf, up1c_bf, up2c_bf;
     __nv_bfloat16* rcbn1_w_bf = nullptr; __nv_bfloat16* rcbn1_b_bf = nullptr;
     __nv_bfloat16* rcbn2_w_bf = nullptr; __nv_bfloat16* rcbn2_b_bf = nullptr;
@@ -102,7 +96,7 @@ struct GlobalDescriptors {
     size_t                         ws_up2_bytes = 0;
 
     // Merged up1 ConvTranspose+Conv
-    // phase-dependent taps ([N_FEAT,N_FEAT,3] each) and scalar-per-channel
+    // ([N_FEAT,N_FEAT,3] each) and scalar-per-channel
     // bias ([N_FEAT]), folded once at init -- see fold_up1_merge_kernel.
     // Eager FP32 path only; opt-in via use_merged_up1.
     float* up1_merge_K_even = nullptr;
@@ -114,29 +108,21 @@ struct GlobalDescriptors {
 // get_or_capture_cuda_graph / get_or_capture_cuda_graph_fp16 across ALL
 // threads. Each thread's captured graph/exec/scratch-pool is still fully
 // independent afterward (thread_local, not shared) -- this mutex only
-// prevents multiple threads from being INSIDE cudaStreamBeginCapture /
+// prevents multiple threads from being inside cudaStreamBeginCapture /
 // cudaStreamEndCapture (plus the workspace pre-warming and scratch-pool
-// cudaMalloc calls immediately around it) at the same wall-clock moment.
-// Evidence for needing this: a CUDNN_STATUS_BAD_PARAM crash was observed on
-// a fresh process's very first repetition, with multiple threads' "scratch
-// pool allocated" log lines interleaved right at the crash -- consistent
-// with many threads racing to capture for the first time simultaneously at
-// startup. Costs a one-time, short serialization at startup only; steady-
-// state replay (the actual hot path) is unaffected since captured threads
-// never re-enter this block.
+// cudaMalloc calls around it). This protects cuDNN graph initialization from
+// concurrent first-use capture. Replay does not acquire the mutex.
 static std::mutex s_graph_capture_mutex;
 
 // ---------------------------------------------------------------------------
 // Thread-local ConvTranspose tensor descriptors.
 // Shapes are compile-time constants (N, N_FEAT, W_QTR/W_HALF/W_IN never
 // change), so each OS thread creates its set exactly once — lazily, on first
-// use — and reuses it for the thread's lifetime, mirroring the idiom used by
+// use — and reuses it for the thread's lifetime, matching the lifetime of
 // Allen::CuDNN::get_thread_local_handle (CuDNNHandle.h): null-check-then-create,
-// never explicitly destroyed (relies on process teardown, same as that handle).
+// never explicitly destroyed, and released by process teardown.
 // A graph captured against these descriptors (see CUDA-graph path) depends on
-// them staying alive and unchanged for as long as the graph is replayed, so
-// destroying them per-call (as before) is no longer an option once graphs are
-// in play — this cache is a hard prerequisite, not just an optimization.
+// them staying alive and unchanged for as long as the graph is replayed.
 // ---------------------------------------------------------------------------
 struct ConvTransposeTensorDescs {
     cudnnTensorDescriptor_t td_up1_in      = nullptr;
@@ -168,14 +154,14 @@ static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(con
 }
 
 // ---------------------------------------------------------------------------
-// CUDA graph scratch pool (Part 2: graph capture, FP32).
+// FP32 CUDA graph scratch pool.
 //
 // Allen's SingleAlloc memory manager runs a full free/reserve cycle for the
 // WHOLE sequence's arguments before every repetition (MemoryManager.cuh), so
 // no data<ArgumentTag>(arguments) pointer -- not the input, not the output,
 // not the internal scratch buffers -- is stable across operator() calls. A
 // captured CUDA graph cannot bake in those pointers. Instead, the graph's
-// internal nodes operate purely on this fixed, raw-cudaMalloc'd pool (mirrors
+// internal nodes operate on this fixed, raw-cudaMalloc'd pool (mirrors
 // dev_unet_x1_t/x2/x3/up1/up2 sizes exactly, taken from set_arguments_size()
 // below -- note x3 is W_IN-wide, matching its `logits` alias use, NOT the
 // W_QTR width its maxpool producer writes). Only the two shuttle-kernel nodes
@@ -183,12 +169,9 @@ static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(con
 // Allen-managed pointers, and their arguments are patched per replay via
 // cudaGraphExecKernelNodeSetParams.
 //
-// MUST be thread_local, not one shared pool like the unused fp16_pool field: many OS
-// threads (one per Allen Stream, per -t N) call operator() on this same
-// shared algorithm instance concurrently, each on its own stream. A shared
-// pool would let concurrent threads' chunk pipelines corrupt each other's
-// activations -- the same class of bug the fp16_pool global risks today.
-// Never freed (same lifetime pattern as the thread_local handle/descriptors).
+// The pool is thread-local because Allen streams may run the same algorithm
+// instance concurrently. A shared pool would allow their activations to race.
+// Its lifetime matches the thread-local cuDNN handle and descriptors.
 // ---------------------------------------------------------------------------
 struct GraphScratchPool {
     float* ncw_in  = nullptr;  // [N, N_BATCH_CHANNELS, W_IN]
@@ -230,14 +213,9 @@ static const GraphScratchPool& get_thread_local_graph_scratch_pool(const void* o
 }
 
 // ---------------------------------------------------------------------------
-// CUDA graph scratch pool -- FP16 counterpart of GraphScratchPool, same
-// thread_local/never-freed rules apply (see comment above GraphScratchPool).
-// Mirrors the fp16_pool field's layout/sizes exactly, but is NOT that shared
-// global -- each thread gets its own copy, avoiding the same class of
-// multi-thread race a shared fp16_pool has in the eager FP16 path (not fixed
-// here; out of scope, flagged separately). FP32-side buffers needed at the
-// FP16 path's boundaries (x1/oint, x3/logits, up1, up2) reuse the
-// existing GraphScratchPool rather than duplicating them.
+// Thread-local FP16 scratch pool. FP32 buffers needed at precision boundaries
+// (x1/oint, x3/logits, up1, up2) use GraphScratchPool to avoid duplicate
+// allocations.
 // ---------------------------------------------------------------------------
 struct GraphScratchPoolFP16 {
     __half* ncw  = nullptr;  // [N, N_BATCH_CHANNELS, W_IN]
@@ -275,13 +253,8 @@ static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16(cons
 }
 
 // ---------------------------------------------------------------------------
-// BF16 counterpart of GraphScratchPoolFP16. Same thread_local/never-freed
-// rules, same layout/sizes, same
-// reuse of the existing FP32 GraphScratchPool at the path's boundaries
-// (x3/logits, up1, up2). Eager-path-only for now -- not wired into
-// either CUDA graph capture function, unlike the FP16 pool (which serves
-// both) -- so this is simpler than its FP16 counterpart in that respect,
-// not because the underlying risk differs.
+// Thread-local BF16 scratch pool for the eager path. FP32 buffers at precision
+// boundaries (x3/logits, up1, up2) use GraphScratchPool.
 // ---------------------------------------------------------------------------
 struct GraphScratchPoolBF16 {
     __nv_bfloat16* ncw  = nullptr;  // [N, N_BATCH_CHANNELS, W_IN]
@@ -391,7 +364,7 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
             w_f, b_f, w, b, gamma, beta, mean, var, eps, K, CxHxW);
     };
 
-    // Helper: convert FP32 BN-folded weights to FP16 (for Phase M Tensor Core path).
+    // Convert FP32 BN-folded weights to FP16 for the Tensor Core path.
     auto to_half = [](const float* w_f, const float* b_f, int K, int CxHxW,
                       __half*& w_h, __half*& b_h, cudaStream_t stream) {
         size_t wn = (size_t)K * CxHxW;
@@ -549,24 +522,10 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
     desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2},
                             {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
 
-    // One-time diagnostic: confirms the header's design intent -- "IMPLICIT_GEMM
-    // pinned everywhere -> zero workspace" -- actually holds when
-    // fwd_algo_ws_budget_bytes==0 (the default). ConvDescriptors::create() pins
-    // CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM unconditionally in that case (no
-    // algorithm search); an earlier cudnnFindConvolutionForwardAlgorithmEx-based
-    // selection experiment was tried and reverted (see CuDNNDescriptors.h's class
-    // comment) because it regressed under real -t16 memory-bandwidth contention
-    // despite looking faster in isolation. fwd_algo_ws_budget_bytes below reopens
-    // this with a workspace-budgeted heuristic search instead of an unrestricted
-    // one -- active only when it is set nonzero. Each
-    // ConvDescriptors' workspace is thread_local (not a single shared buffer), so
-    // even a nonzero size here would not be a cross-thread race. Logged once so
-    // the actual algorithm/workspace state is visible rather than assumed. Routed
-    // to stderr (unbuffered) and flushed explicitly: stdout is fully buffered once
-    // redirected to a file, so on an abrupt abort() (e.g. the std::terminate path
-    // from ALLEN_CUDNN_CHECK) any unflushed printf content -- including this
-    // diagnostic -- is silently lost, leaving no evidence of which
-    // algorithm/workspace size was actually selected for a crashing run.
+    // Report the selected algorithms and workspace sizes. A zero budget pins
+    // IMPLICIT_GEMM; a nonzero budget enables bounded heuristic selection.
+    // Workspaces are thread-local. stderr is flushed so diagnostics survive an
+    // abrupt failure in a subsequent cuDNN call.
     fprintf(stderr, "[pvfinder_unet] cuDNN batch N=%d samples (%d events)\n", N, N / N_INTERVALS);
     fprintf(stderr, "[pvfinder_unet] fwd_algo_ws_budget_bytes=%zu\n", fwd_ws_budget_bytes);
     fprintf(stderr, "[pvfinder_unet] ConvDescriptors workspace bytes: rcbn1=%zu rcbn2=%zu rcbn3=%zu "
@@ -578,16 +537,8 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
            desc.rcbn1.algo_id(), desc.rcbn2.algo_id(), desc.rcbn3.algo_id(),
            desc.up1_c.algo_id(), desc.up2_c.algo_id(),
            desc.oint.algo_id(), desc.outc.algo_id());
-    // Same diagnostic, FP16 descriptors: rcbn1_h in particular picks an algorithm
-    // with a ~3.85MB workspace (vs ~1.6KB for every other descriptor here) --
-    // large enough that lazily allocating it from inside the hot per-chunk loop,
-    // with many threads racing to do so on their first call, caused a real
-    // (if rare) CUDNN_STATUS_BAD_PARAM crash under sustained -t16 load. Fixed by
-    // pre-warming every descriptor's thread-local workspace once per thread
-    // before the chunk loop (see operator()), for both eager and graph paths.
-    // Algo ids logged here too, even though algorithm selection is pinned
-    // (IMPLICIT_GEMM, no search) -- if that ever changes, this is what would
-    // reveal which algorithm/workspace size is actually in effect.
+    // Report the FP16 descriptor choices as well. operator() allocates these
+    // thread-local workspaces before entering the chunk loop.
     fprintf(stderr, "[pvfinder_unet] FP16 ConvDescriptors workspace bytes: rcbn1_h=%zu rcbn2_h=%zu "
            "rcbn3_h=%zu up1c_h=%zu up2c_h=%zu | algo ids: rcbn1_h=%d rcbn2_h=%d rcbn3_h=%d "
            "up1c_h=%d up2c_h=%d\n",
@@ -929,8 +880,8 @@ void pvfinder_unet_t::set_arguments_size(
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 // Conv1d + bias + ReLU (BN folded into w_fused/b_fused at init).
-// Uses cudnnConvolutionForward with the Phase K timed algorithm, then
-// launches bias_relu_kernel (no BN math — BN already in w_fused/b_fused).
+// Uses the descriptor's selected forward algorithm, then launches
+// bias_relu_kernel (BN is already folded into w_fused/b_fused).
 void pvfinder_unet_t::run_convbnrelu(
     const Allen::CuDNN::ConvDescriptors& desc,
     const float* input, float* output,
@@ -1143,13 +1094,9 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
 }
 
 // ---------------------------------------------------------------------------
-// CUDA graph capture, FP16 counterpart of get_or_capture_cuda_graph. Same
-// idiom (thread_local exec/nodes/template graph, capture-once, live node
-// handles via cudaStreamGetCaptureInfo). Reuses the existing FP32
-// GraphScratchPool for the FP32-side buffers this sequence needs (x1/oint,
-// x3/logits, up1, up2 -- same aliasing as the eager FP32/FP16 paths) and a
-// new GraphScratchPoolFP16 for the FP16-side ones. The leading f32_to_f16
-// conversion doubles as the input shuttle -- no separate copy kernel needed.
+// FP16 CUDA graph capture. The graph uses GraphScratchPool for FP32 buffers
+// and GraphScratchPoolFP16 for FP16 buffers. The leading f32_to_f16
+// conversion also serves as the input shuttle.
 // ---------------------------------------------------------------------------
 void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
     cudnnHandle_t handle,
@@ -1181,8 +1128,8 @@ void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
         const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(m_state.get(), N);
         cudaStream_t stream = ctx.stream();
 
-        // FP32-side buffers (reusing the existing FP32 pool -- same proven-safe
-        // aliasing scheme as the eager path: oint=x1, logits=x3).
+        // FP32-side buffers use the eager path's safe aliases: oint=x1 and
+        // logits=x3.
         float* g_x1 = pool32.x1; float* g_x3 = pool32.x3;
         float* g_up1 = pool32.up1; float* g_up2 = pool32.up2;
         float* g_oint = g_x1; float* g_logits = g_x3;
@@ -1308,16 +1255,15 @@ void pvfinder_unet_t::operator()(
 
     // Descriptor creation needs a live handle (for algorithm selection), so it runs
     // here on first operator() call rather than in init(). fwd_ws_budget_bytes is
-    // read from whichever call happens to win the call_once race -- fine here since
-    // it's a benchmark-only property set once at process/config level, not expected
-    // to vary between concurrent operator() calls.
+    // read from the call that initializes the descriptors. Algorithm properties
+    // are immutable for the lifetime of the configured algorithm instance.
     const unsigned batch_events = m_unet_batch_events.value();
     const int N = (int)batch_events * N_INTERVALS;  // samples per cuDNN batch
     const size_t fwd_ws_budget_bytes = m_fwd_algo_ws_budget_bytes.value();
     std::call_once(state.desc_init_flag, [&state, handle, fwd_ws_budget_bytes, N]() {
         init_descriptors(state.desc, handle, state.wb, fwd_ws_budget_bytes, N);
-        // Event processing has started, so every instance's init() (and its
-        // weight upload) is done: refuse any later registry allocation.
+        // Event processing has started; lock the registry against further
+        // allocations after initialization.
         Allen::CuDNN::WeightRegistry::instance().lock_allocations();
     });
 
@@ -1358,12 +1304,7 @@ void pvfinder_unet_t::operator()(
             "set pvfinder_fc_aggregation.unet_batch_events to the same value");
     }
 
-    // BF16 takes precedence over
-    // FP16 if both are somehow set (not a supported configuration, just a
-    // deterministic tie-break) -- forcing use_fp16 false here means every
-    // existing use_fp16-gated branch below (including the CUDA graph FP16
-    // path, which BF16 does not support) is correctly bypassed without
-    // needing to touch that logic.
+    // BF16 takes precedence if both reduced-precision options are set.
     const bool use_bf16 = m_use_bf16.value();
     const bool use_fp16 = m_use_fp16.value() && !use_bf16;
     // CUDA graph path. BF16 has no CUDA-graph-capture variant (eager-path-only) --
@@ -1383,15 +1324,9 @@ void pvfinder_unet_t::operator()(
     const bool use_graph_fp32 = graph_eligible && !use_fp16;
     const bool use_graph_fp16 = graph_eligible && use_fp16;
 
-    // Pre-warm every ConvDescriptors' thread-local workspace once per thread,
-    // for BOTH the eager and graph paths (previously only done before graph
-    // capture). Without this, each thread's first-ever eager call lazily
-    // cudaMalloc's its workspace from inside the hot per-chunk loop -- for
-    // rcbn1_h that's ~3.85 MB (vs. ~1.6 KB for every other descriptor), and
-    // with many threads starting their first call at close to the same time,
-    // that turned into a real, if rare, CUDNN_STATUS_BAD_PARAM crash under
-    // sustained -t16 load. Warming here decouples allocation from the hot
-    // path and from other threads' concurrent first-touch timing entirely.
+    // Allocate the active descriptors' thread-local workspaces before the
+    // chunk loop. This keeps cudaMalloc out of both eager execution and graph
+    // capture, including the comparatively large rcbn1_h workspace.
     {
         thread_local std::unordered_map<const void*, bool> tl_warmed_by_instance;
         bool& tl_warmed = tl_warmed_by_instance[m_state.get()];
@@ -1426,18 +1361,9 @@ void pvfinder_unet_t::operator()(
 
     // FP16 pool pointers (only used when use_fp16 is true).
     //
-    // Deliberately NOT desc.fp16_* here: those are a single process-wide
-    // shared allocation (see GlobalDescriptors::fp16_pool) -- with many OS
-    // threads (one per Allen Stream, per -t N) all running the eager FP16
-    // path concurrently, every thread would read/write the EXACT SAME
-    // fp16_ncw/x1/x2/x3/up1/up2 addresses simultaneously with zero
-    // synchronization. This is very likely the root cause of the intermittent
-    // CUDNN_STATUS_BAD_PARAM crashes seen under sustained -t16 load: this bug
-    // predates today's session (flagged earlier as a known-but-unfixed issue
-    // when the FP16 CUDA graph path was built, since that new code correctly
-    // used its own thread_local pool instead and has run crash-free). Reusing
-    // that same thread_local GraphScratchPoolFP16 here for the eager path
-    // fixes it the same way, using infrastructure already built and validated.
+    // Do not use desc.fp16_* here because that allocation is shared across
+    // process threads. The thread-local pool prevents concurrent Allen streams
+    // from reading and writing the same activation buffers.
     const GraphScratchPoolFP16* fp16_pool_tl = use_fp16 ? &get_thread_local_graph_scratch_pool_fp16(m_state.get(), N) : nullptr;
     __half* fp16_ncw  = use_fp16 ? fp16_pool_tl->ncw  : nullptr;
     __half* fp16_x1   = use_fp16 ? fp16_pool_tl->x1   : nullptr;
@@ -1550,12 +1476,9 @@ void pvfinder_unet_t::operator()(
             // Structurally identical to the FP16 path below: CBR layers run
             // as Tensor Core BF16 convs; ConvTranspose and the output stage
             // stay FP32, with explicit F32<->BF16 conversions at the
-            // boundaries. Motivated by a confirmed FP16 bug: FP16 produces
-            // real NaN on real data (input values up to ~109,000 exceed FP16's ~65504
-            // max representable magnitude at the very first f32->half
-            // cast); BF16 shares FP32's exponent range, so that specific
-            // overflow cannot recur here. Eager path only -- no CUDA graph
-            // capture variant yet (see graph_eligible's exclusion above).
+            // boundaries. BF16's FP32-sized exponent accommodates input values
+            // that exceed FP16's maximum finite value. This path does not use
+            // CUDA graph capture (see graph_eligible above).
 
             // Encoder
             launch_f32_to_bf16(bf16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
@@ -1597,7 +1520,7 @@ void pvfinder_unet_t::operator()(
                 desc.up2c_w_bf, desc.up2c_b_bf, N_FEAT, W_IN, N, handle, block, context);
             launch_bf16_to_f32(up2, bf16_x1, N * N_FEAT * W_IN, block, context);
         } else if (!use_fp16) {
-            // ---- FP32 path (Phase L baseline) ----
+            // ---- FP32 path ----
             if (use_fused_cbr) {
                 // Single-pass Conv+Bias+ReLU: no separate bias_relu_kernel launch,
                 // no extra DRAM round trip on the conv output.
@@ -1658,7 +1581,7 @@ void pvfinder_unet_t::operator()(
                 desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
             run_convbnrelu(desc.up2_c, logits, up2, desc.up2c_w_f, desc.up2c_b_f, N_FEAT, W_IN, N, handle, block, context);
         } else {
-            // ---- FP16 path (Phase M benchmark) ----
+            // ---- FP16 path ----
             // CBR layers run as Tensor Core FP16 convs; ConvTranspose and output
             // layers stay FP32. Explicit F32↔F16 conversions at the boundaries.
 
@@ -1715,10 +1638,9 @@ void pvfinder_unet_t::operator()(
     // ConvTranspose tensor descriptors are thread_local (see
     // get_thread_local_conv_transpose_descs()) and intentionally never destroyed here.
 
-    // Validation dump (on the m_dump_repetition-th call, when dump_dir property is
-    // set; default 0 dumps the first call, matching prior behaviour). A later index
-    // is needed to validate the CUDA-graph path against pointer drift -- see
-    // m_dump_repetition's doc comment in PVFinderUNet.cuh.
+    // Validation dump for the selected call. A nonzero repetition verifies CUDA
+    // graph replay after Allen-managed pointers have changed; see the property
+    // documentation in PVFinderUNet.cuh.
     const unsigned this_call = m_call_count++;
     const std::string& dump_dir = m_dump_dir.value();
     if (!dump_dir.empty() && !m_dump_done && this_call == m_dump_repetition.value()) {

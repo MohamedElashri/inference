@@ -1,2 +1,2 @@
 #include "CuDNNHandle.h"
-// Out-of-line definitions if required in future.
+// Translation unit for the cuDNN handle interface.

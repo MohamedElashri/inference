@@ -94,12 +94,9 @@ private:
     // physics-valid, matching w6A/b6A and every downstream buffer, which all
     // stay sized for L6A_WIDTH regardless of this value. A smaller value
     // shrinks the cuBLAS GEMM's M, the bias/ReLU kernel's work, AND the
-    // per-track accumulation loop in the reduction kernel (the actual
-    // dominant cost in this block, ~6x the GEMM's own share -- an earlier
-    // GEMM-only version of this property, isolating just the GEMM to test
-    // cuBLAS tile-alignment effects, undersold any real width reduction
-    // because it left the reduction kernel doing full-width work
-    // regardless). Neurons >= this value simply never get a nonzero
+    // per-track accumulation loop in the reduction kernel. The reduction is
+    // the dominant cost in this block, so all three stages use the same bound.
+    // Neurons >= this value never get a nonzero
     // contribution; downstream buffers stay the same L6A_WIDTH/100 shape
     // (just partially zero), so nothing else needs to change to test this.
     // Any value other than L6A_WIDTH is NOT physics-valid -- this is a
@@ -120,14 +117,12 @@ private:
     // thread_id+blockDim.x, ...) is identical on every iteration of the enclosing
     // track loop, so each slot is written by exactly one thread for the block's
     // entire lifetime -- no two threads ever touch the same slot. The atomic
-    // appears to be unnecessary; this flag swaps it for a plain += to test that.
-    // Physics-identical if the no-race analysis is correct (same arithmetic, same
-    // result) -- default false (keep atomicAdd) until benchmarked and verified.
+    // can therefore use a plain += without a cross-thread race. The default
+    // retains atomicAdd; the flag selects the non-atomic implementation.
     Allen::Property<bool> m_use_nonatomic_l6a_reduce {
         this, "use_nonatomic_l6a_reduce", false,
         "Replace atomicAdd with a plain += in pvfinder_reduce_l6a_kernel's "
-        "per-track accumulation loop (see comment above) -- candidate fix for "
-        "the reduction being ~9x the cost of the GEMM it reduces"};
+        "per-track accumulation loop (see comment above)"};
 
     // The per-track accumulation loop above is also fully serial within a
     // block -- all threads jointly process one track before moving to the
@@ -144,8 +139,7 @@ private:
         this, "use_warp_parallel_reduce", true,
         "Split pvfinder_reduce_l6a_kernel's per-track accumulation across the "
         "block's warps (round-robin over tracks) instead of processing tracks "
-        "serially with the whole block -- candidate fix for track-heavy "
-        "intervals dominating kernel wall-clock time"};
+        "serially with the whole block"};
 
     // The FC pipeline's chunk size (events processed per
     // L1-L5/GEMM/bias-relu/reduce launch) caps pvfinder_reduce_l6a_kernel's
@@ -190,8 +184,7 @@ private:
         this, "use_fused_bias_relu_reduce", true,
         "Apply L6A bias+LeakyReLU inline inside pvfinder_reduce_l6a_kernel's "
         "read of the raw GEMM output instead of running "
-        "pvfinder_l6a_bias_relu_kernel as a separate pass -- candidate fix "
-        "for FC's largest kernel cost"};
+        "pvfinder_l6a_bias_relu_kernel as a separate pass"};
 
     // Throughput-ceiling probe: if L1-L5 were architecturally 1 hidden layer
     // instead of 5, how much of FC's runtime would that buy back? Not a
@@ -213,9 +206,8 @@ private:
     // Replaces pvfinder_reduce_l6a_kernel's per-slot ev_col_offset
     // computation (a serial walk over this chunk's per-event CSR sentinels)
     // with an O(1) lookup into a per-chunk offset array, precomputed on the
-    // host (piggybacking on the existing T_chunk host walk) and uploaded
-    // once per chunk. A measured, real win under production-scale
-    // multi-thread contention, though invisible in single-thread profiling.
+    // host during the T_chunk walk and uploaded once per chunk. This removes
+    // the per-slot O(events-in-chunk) scan under concurrent execution.
     Allen::Property<bool> m_use_precomputed_csr_offset {
         this, "use_precomputed_csr_offset", true,
         "Replace pvfinder_reduce_l6a_kernel's O(events-in-chunk) ev_col_offset "
@@ -229,8 +221,8 @@ private:
     // real illegal-memory-access crash if some dataset exceeds what it was
     // calibrated against. Smaller values reclaim memory to allow a larger
     // fc_chunk_size, at that risk. Exposed as a runtime property (rather
-    // than a compile-time constant) so a candidate value can be tested and
-    // dialed back without recompiling.
+    // than a compile-time constant) so datasets can choose an appropriate
+    // safety bound without recompiling.
     Allen::Property<unsigned> m_safe_avg_entries_per_event {
         this, "safe_avg_entries_per_event", 450u,
         "Per-event CSR-entry safety margin used to size T_chunk_max = "
@@ -279,11 +271,11 @@ private:
     // early-return-and-rely-on-a-separate-whole-buffer-memset design pays
     // for a memset that's mostly redundant with work the kernel is already
     // positioned to do itself under real multi-thread contention.
-    // pvfinder_reduce_l6a_kernel now unconditionally writes explicit zeros
+    // pvfinder_reduce_l6a_kernel unconditionally writes explicit zeros
     // for empty slots instead of early-returning (always-on, not gated by
     // this flag -- provably correctness-preserving on its own, since it
     // writes literal 0.0f wherever the memset already would have). This
-    // flag controls whether operator() still also runs the now-redundant
+    // flag controls whether operator() also runs the redundant
     // memsets: dev_pvfinder_output_histogram never needs one in this mode
     // (exactly n_events-sized, fully covered by the kernel);
     // dev_pvfinder_interval_features still needs a small memset for its
@@ -294,13 +286,10 @@ private:
         "Skip pvfinder_output_histogram's full memset and shrink "
         "pvfinder_interval_features's memset to just its padding tail, "
         "relying on pvfinder_reduce_l6a_kernel's own explicit zero-writes "
-        "for empty (event, interval) slots instead -- candidate fix for "
-        "cudaMemsetAsync's real cost under -t16 contention"};
+        "for empty (event, interval) slots instead"};
 
-    // pvfinder_reduce_l6a_kernel launches exactly one block per
-    // (event, interval) slot in the current chunk (n_chunk_events*40
-    // blocks), which typically leaves it partially warp-occupied. Instead
-    // of a grid sized to the chunk's slot count, this launches a FIXED
+    // The static reduction dispatch uses one block per (event, interval) slot
+    // and may not fill the device. The grid-stride dispatch launches a fixed
     // number of blocks sized to the GPU's actual occupancy ceiling for this
     // kernel (SM count * cudaOccupancyMaxActiveBlocksPerMultiprocessor,
     // queried once per thread and cached -- portable across devices), each
@@ -312,8 +301,7 @@ private:
         this, "use_grid_stride_reduce", true,
         "Launch pvfinder_reduce_l6a_kernel as a fixed, occupancy-sized grid "
         "that work-steals over all (event, interval) slots via an atomic "
-        "counter, instead of one block per slot -- candidate fix for "
-        "reduce's partial warp occupancy"};
+        "counter, instead of one block per slot"};
 };
 
 } // namespace pvfinder_fc_aggregation

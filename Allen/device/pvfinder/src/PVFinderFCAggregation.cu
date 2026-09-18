@@ -42,9 +42,7 @@ __device__ void assign_intervals(float z_poca, int* intervals, int* num_interval
     intervals[1] = base_interval + (2 * at_lo_edge - 1);
 }
 
-// Exact softplus log(1 + exp(x)), branchless and overflow-safe. It used to
-// return x for x > 0, dropping log(1 + exp(-x)) (up to log 2 near 0), so the
-// FC-only histogram did not match PyTorch's softplus.
+// Exact, branchless and overflow-safe softplus: log(1 + exp(x)).
 __device__ float pvfinder_softplus(float x) {
     return fmaxf(x, 0.0f) + logf(1.0f + expf(-fabsf(x)));
 }
@@ -54,13 +52,9 @@ __device__ __forceinline__ float pvfinder_leaky_relu(float x) {
     return x > 0.0f ? x : 0.01f * x;
 }
 
-// w_stride defaults to 0, meaning "use in_f as the row stride" (every
-// pre-existing call site's original behavior, unchanged). Passing a
-// nonzero w_stride lets a caller read only the first in_f columns/out_f
-// rows of a matrix whose REAL stored stride is wider than in_f -- the same
-// "valid cuBLAS/kernel sub-block read into a wider real buffer" trick
-// m_l6a_m already uses for L6A's GEMM, applied here to L1-L5's weight
-// matrices for the m_l1_l5_hidden_width throughput probe.
+// A zero w_stride uses in_f as the row stride. A nonzero stride selects a
+// leading submatrix from wider stored weights for the hidden-width throughput
+// probe.
 __device__ __forceinline__ void pvfinder_linear_layer_reg(
     const float* __restrict__ x, float* __restrict__ y,
     const float* __restrict__ w, const float* __restrict__ b,
@@ -170,10 +164,9 @@ __global__ void pvfinder_build_csr_kernel(
 // L6A_WIDTH=800). This keeps occupancy high (many blocks resident per SM)
 // which is the dominant factor on both SM 7.5 and SM 8.6.
 //
-// NOTE: L6A weight caching in shared memory was tried (69.2 KB dynamic
-// smem) but regressed on SM 8.6 — the 69 KB smem drops blocks-per-SM
-// from ~16 to 1, killing occupancy. The RTX 3090 L2 ($936 GB/s) handles
-// the 64 KB weight matrix well enough without smem caching.
+// L6A weights remain in global memory because caching the 64 KB matrix would
+// require about 69 KB of dynamic shared memory and reduce SM 8.6 residency
+// from roughly 16 blocks to one.
 // ---------------------------------------------------------------------------
 __global__ void pvfinder_fused_fc_aggregation_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
@@ -448,9 +441,8 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // identical on every iteration of the track loop, so a given s_feat[n] slot
 // is written by exactly one thread for the block's entire lifetime -- no
 // cross-thread race. UseAtomic=false trades atomicAdd for a plain +=, which
-// should be equivalent given that invariant; kept as a compile-time template
-// parameter (not a runtime branch) so the untested variant carries zero
-// overhead relative to a hand-written non-atomic kernel. Ignored when
+// is equivalent given that invariant. It is a compile-time template parameter
+// rather than a runtime branch. Ignored when
 // WarpParallelTracks=true (that path always uses its own small, bounded
 // combine step -- see below).
 //
@@ -466,35 +458,15 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // FuseBiasRelu (see m_use_fused_bias_relu_reduce doc comment): when
 // true, this kernel reads the RAW GEMM output (pvfinder_l6a_bias_relu_kernel
 // is not launched at all in this mode) and applies bias+LeakyReLU inline,
-// identical math to what that separate kernel used to write back in-place --
+// identical math to the separate in-place epilogue --
 // b6A must be non-null in this mode.
 //
-// BUG FIX: this kernel used to take a csr_offset parameter ("offset into
-// the global CSR that corresponds to chunk_start") and add it into the
-// dev_pvfinder_l6a_output column index (col = csr_offset + ev_col_offset +
-// t). dev_pvfinder_l6a_output is a chunk-relative buffer, reused across
-// chunks -- cuBLAS always writes each chunk's GEMM output starting at
-// column 0 (see the operator() call site; nothing offsets cublasSgemm's
-// output pointer), and pvfinder_l6a_bias_relu_kernel (the epilogue kernel
-// this one can replace via FuseBiasRelu) indexes the exact same buffer
-// using only its own chunk-relative t in [0, T_chunk) -- no csr_offset at
-// all. Adding a cumulative whole-batch csr_offset here was simply wrong:
-// for any chunk after the first (i.e. any batch spanning more than one
-// chunk -- the normal production case), this kernel was reading from the
-// wrong column, silently returning incorrect physics results whenever the
-// erroneous column still happened to land inside the buffer's bounds
-// (which T_chunk_max's safety margin usually provided), and crashing with
-// an illegal memory access once the cumulative offset grew large enough to
-// exceed it (found via a large multi-chunk batch, n=500 at chunk_size=100
-// -- 5 chunks -- compute-sanitizer pinpointed the exact out-of-bounds
-// read). Every earlier correctness check used a small enough event count
-// to never exceed a single chunk, so this bug went unexercised for a long
-// time. Fixed by removing csr_offset from the column computation entirely
-// (col = ev_col_offset + t, matching pvfinder_l6a_bias_relu_kernel's own
-// indexing) and dropping the now-unused parameter.
+// dev_pvfinder_l6a_output is chunk-relative: cuBLAS writes every chunk from
+// column zero. Reduction columns therefore use ev_col_offset + t, without a
+// whole-batch CSR offset. The bias/ReLU epilogue uses the same indexing.
 //
 // The per-(event,interval) processing logic below is factored into this
-// helper so both the original one-block-per-slot dispatch and the
+// helper so both the one-block-per-slot dispatch and the
 // grid-stride work-stealing dispatch (see the UseGridStride branch in
 // pvfinder_reduce_l6a_kernel below) share identical accumulation logic and
 // can't drift apart.
@@ -505,9 +477,8 @@ __global__ void pvfinder_l6a_bias_relu_kernel(
 // on empty slots and redundant (thread_id-independent) work on non-empty
 // ones. PrecomputedOffset sources the value from an O(1) lookup into a
 // host-precomputed per-chunk array instead of an O(events-in-chunk) serial
-// CSR-sentinel walk (see m_use_precomputed_csr_offset's doc comment in
-// PVFinderFCAggregation.cuh); a measured, real win under production-scale
-// contention.
+// CSR-sentinel walk (see m_use_precomputed_csr_offset in
+// PVFinderFCAggregation.cuh).
 //
 // active_channels bounds a DIFFERENT dimension than l6a_m. l6a_m bounds how many of L6A_WIDTH's flat
 // neurons the GEMM/accumulation step touches; it never bounded the
@@ -547,9 +518,8 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     if (n_local == 0) {
         // This block still gets launched even for an empty slot, so rather
         // than rely on a separate whole-buffer cudaMemsetAsync to leave
-        // correct zeros here, write them directly -- cudaMemsetAsync is a
-        // real cost under production-scale multi-thread contention that a
-        // single-thread profile understates.
+        // correct zeros here, write them directly and avoid a full-buffer
+        // cudaMemsetAsync under concurrent execution.
         float* g_feat = parameters.dev_pvfinder_interval_features
                         + (unsigned long long)event_number * INTERVAL_FEATURES_STRIDE + interval * L6A_WIDTH;
         for (unsigned i = thread_id; i < active_neurons; i += blockDim.x) g_feat[i] = 0.0f;
@@ -590,13 +560,9 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     __syncthreads();
 
     if constexpr (WarpParallelTracks) {
-        // N_WARPS matches KERNEL3_BLOCK=128 (the only block size this kernel
-        // is ever launched with) / warpSize=32. A wider block (more warps
-        // cooperating per slot) was tried and measured as a net regression:
-        // doubling block size roughly halves blocks resident per SM (same
-        // total concurrent warp count either way), so there is no net
-        // parallelism gain to fund the extra per-block sync/zero-init
-        // overhead.
+        // N_WARPS matches KERNEL3_BLOCK=128 / warpSize=32. A wider block would
+        // reduce resident blocks per SM without increasing the total number of
+        // concurrent warps, while increasing synchronization and zero-init work.
         constexpr unsigned N_WARPS = 4;
         constexpr unsigned MAX_PER_LANE = (L6A_WIDTH + 31u) / 32u;  // 25 by default
 
@@ -636,8 +602,7 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
         }
     } else {
         // Accumulate: for each track t in [iv_begin, iv_end)
-        // Column index in dev_l6a_output = ev_col_offset + t (chunk-relative --
-        // see the BUG FIX note on the kernel's doc comment above)
+        // dev_l6a_output is chunk-relative, so its column is ev_col_offset + t.
         for (int t = iv_begin; t < iv_end; ++t) {
             const unsigned col = ev_col_offset + (unsigned)t;
             // Each thread sums a strided subset of the l6a_m active neurons.
@@ -706,12 +671,9 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
 // without it, threads that finish a slot's write-back loops earlier than
 // others could race the next slot's shared-memory init.
 //
-// (A warp-scoped variant -- one warp handling an entire slot alone so a
-// block's warps could each work a different slot concurrently instead of
-// jointly waiting on one shared slot -- was tried and measured as a large
-// regression: it trades away the dominant win of splitting one busy slot's
-// track loop across all warps, for a track-count distribution where busy
-// slots dominate, so the tradeoff loses badly.)
+// All warps cooperate on one slot because busy slots dominate the track-count
+// distribution; assigning a separate slot to each warp would serialize each
+// busy slot's track loop.
 // ---------------------------------------------------------------------------
 template <bool UseAtomic, bool WarpParallelTracks, bool FuseBiasRelu, bool UseGridStride,
           bool PrecomputedOffset = false>
@@ -791,20 +753,9 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     // buffer sizing must track whatever value it's set to (same value
     // operator() chunks by, below).
     const unsigned B_CHUNK = m_fc_chunk_size.value();
-    // T_chunk_max sizing: sizing this buffer from *average* tracks/event
-    // across the whole batch with zero safety margin is NOT safe for any
-    // *individual* chunk's actual entry count -- a real illegal-memory-access
-    // crash under exactly that sizing motivated the current approach.
-    // Assuming every event in a chunk simultaneously hits the absolute
-    // per-event worst case is safe but wastefully over-allocates (real
-    // per-chunk entry totals concentrate tightly around their mean, as
-    // expected for a sum of ~independent per-event contributions, so that
-    // worst case essentially never occurs across a whole chunk at once).
-    // m_safe_avg_entries_per_event is an empirically calibrated margin
-    // (against a large real-event sample) exposed as a runtime property
-    // (rather than a compile-time constant) specifically so a tighter
-    // candidate value can be tested without a rebuild -- see its own doc
-    // comment before changing it from the default.
+    // T_chunk_max uses a per-event safety bound because a batch-wide average
+    // does not bound an individual chunk. The configurable empirical margin
+    // avoids allocating for the absolute per-event maximum in every slot.
     const unsigned T_chunk_max = m_safe_avg_entries_per_event.value() * B_CHUNK;
     // dev_l5_output: [T_chunk_max × 20]  row-major — L1-L5 hidden states
     set_size<dev_pvfinder_l5_output_t> (arguments, T_chunk_max * 20u);
@@ -860,15 +811,9 @@ void pvfinder_fc_aggregation_t::operator()(
             // which every other kernel/buffer in this file derives at compile
             // time from N_LATENT_CHANNELS -- reading/writing as if the file
             // had a different row count than the build expects would
-            // corrupt/misalign everything downstream, even with a
-            // byte-count-correct transpose (an earlier version of this loader
-            // hardcoded the row count, which heap-corrupted on a
-            // differently-sized weight file: the transpose below overflowed
-            // host_buf, corrupting the heap and crashing later at an unrelated
-            // free() with a symptom that looked unrelated to its actual
-            // cause). Instead, this loader validates that the loaded file's
-            // size matches this build's L6A_WIDTH exactly, and throws a clear
-            // error naming the mismatch otherwise -- a mismatch here means
+            // corrupt or misalign downstream data. The loader validates that
+            // the file size matches this build's L6A_WIDTH exactly and reports
+            // a mismatch before transposing. A mismatch here means
             // this build's --unet-batch-channels doesn't match the weight
             // file's latentChannels; rebuild to match, or use a matching
             // weight file, rather than silently running an inconsistent pair.
@@ -919,7 +864,7 @@ void pvfinder_fc_aggregation_t::operator()(
     const unsigned n_events = first<host_number_of_events_t>(arguments);
 
     // -----------------------------------------------------------------------
-    // Step 1: Build CSR index (same as before).
+    // Step 1: Build the CSR index.
     // -----------------------------------------------------------------------
     global_function(pvfinder_build_csr_kernel)(
         dim3(n_events), m_block_dim, context)(
@@ -927,8 +872,7 @@ void pvfinder_fc_aggregation_t::operator()(
 
     // -----------------------------------------------------------------------
     // Step 2: Zero the interval feature and histogram output buffers.
-    // (Same in both cuBLAS and non-cuBLAS paths — correctness guarantee for
-    // empty intervals, free on-stream cost.)
+    // The non-cuBLAS path requires full initialization for empty intervals.
     // -----------------------------------------------------------------------
     const unsigned unet_batch_events = m_unet_batch_events.value();
     const unsigned padded_events = ((n_events + unet_batch_events - 1) / unet_batch_events) * unet_batch_events;
@@ -941,7 +885,7 @@ void pvfinder_fc_aggregation_t::operator()(
 #endif
     if (skip_redundant_memset) {
         // pvfinder_reduce_l6a_kernel writes explicit zeros for every empty
-        // (event, interval) slot itself now (see its doc comment) -- only
+        // (event, interval) slot (see its doc comment), so only
         // the padding tail of dev_pvfinder_interval_features, which no FC
         // kernel ever writes to (real events only go up to n_events), still
         // needs zeroing. dev_pvfinder_output_histogram needs no memset at
@@ -974,8 +918,7 @@ void pvfinder_fc_aggregation_t::operator()(
     // T_chunk computation strategy: ONE batch DtoH of the full CSR sentinel column
     // (index 41 of each event's interval_start array = total CSR entries for that event).
     // Total transfer: n_events * 42 * sizeof(int) ≈ 16 KB for 100 events — negligible.
-    // This replaces the previous approach of n_events individual cudaMemcpy DtoH calls
-    // (100 blocking syncs per slice), which caused the 77% overhead regression.
+    // A single transfer avoids per-event synchronization.
     //
     // Flow:
     //   1. cudaStreamSynchronize  — wait for CSR kernel (once per slice)
@@ -1060,9 +1003,8 @@ void pvfinder_fc_aggregation_t::operator()(
 
         // See m_use_precomputed_csr_offset doc comment: precompute this
         // chunk's cumulative per-event column offsets on the host -- reusing
-        // the same host_csr data T_chunk just
-        // walked above, so this costs one more cheap host-side pass, not a
-        // new device round-trip for the source data -- and upload once per
+        // the same host_csr data T_chunk just walked above, so this adds a
+        // host-side pass but no device read. Upload the offsets once per
         // chunk (at most (B_CHUNK+1)*4 bytes, e.g. 404 bytes at
         // fc_chunk_size=100). pvfinder_reduce_l6a_kernel then looks this up
         // in O(1) instead of walking host_csr's device-side mirror

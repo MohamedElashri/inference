@@ -751,13 +751,13 @@ TEST_CASE("cudnn.pooling_plan.max_pool_1d_matches_reference", "[AllenCuDNN]") {
 
 TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
   REQUIRE_CUDA_DEVICE();
-  Allen::CuDNN::DeviceWeights weights {"unit_phase2"};
+  Allen::CuDNN::DeviceWeights weights {"unit2"};
   const float host_values[4] = {1.f, 2.f, 3.f, 4.f};
   const float replacement_values[2] = {5.f, 6.f};
 
   weights.load_from_buffer("weights", host_values, sizeof(host_values), sizeof(host_values));
   REQUIRE(weights.contains("weights"));
-  REQUIRE(weights.full_key("weights") == "unit_phase2.weights");
+  REQUIRE(weights.full_key("weights") == "unit.weights");
   REQUIRE(weights.size_bytes("weights") == sizeof(host_values));
   REQUIRE(weights.get<float>("weights") != nullptr);
 
