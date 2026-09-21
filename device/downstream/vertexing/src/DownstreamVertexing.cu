@@ -88,14 +88,24 @@ namespace {
     const float tyB,
     const float dz0)
   {
-    const auto a = txA * xA - txB * xA - txA * xB + txB * xB + tyA * yA - tyB * yA - tyA * yB + tyB * yB;
-    const auto b = txA * txA - 2 * txA * txB + txB * txB + tyA * tyA - 2 * tyA * tyB + tyB * tyB + 2 * gA * xA -
-                   2 * gB * xA - 2 * gA * xB + 2 * gB * xB;
-    const auto c = 3 * gA * txA - 3 * gB * txA - 3 * gA * txB + 3 * gB * txB;
-    const auto d = 2 * gA * gA - 4 * gA * gB + 2 * gB * gB;
+    // Express the polynomial in terms of the antisymmetric differences
+    // (dX = XA - XB). The coefficients then only contain products of two
+    // differences (dg*dx, dg*dtx, ...) and are bit-for-bit invariant under
+    // exchanging the two tracks. The FMAs additionally pin the contraction
+    // pattern, as done for the DOCA/POCA in States.cuh.
+    const float dtx = txA - txB;
+    const float dty = tyA - tyB;
+    const float dx = xA - xB;
+    const float dy = yA - yB;
+    const float dg = gA - gB;
 
-    auto f = [a, b, c, d](const float z) { return a + b * z + c * z * z + d * z * z * z; };
-    auto fp = [b, c, d](const float z) { return b + 2 * c * z + 3 * d * z * z; };
+    const auto a = fma_rn(dtx, dx, dty * dy);
+    const auto b = fma_rn(dtx, dtx, fma_rn(dty, dty, 2.f * dg * dx));
+    const auto c = 3.f * dg * dtx;
+    const auto d = 2.f * dg * dg;
+
+    auto f = [a, b, c, d](const float z) { return fma_rn(z, fma_rn(z, fma_rn(d, z, c), b), a); };
+    auto fp = [b, c, d](const float z) { return fma_rn(z, fma_rn(3.f * d, z, 2.f * c), b); };
 
     const auto dz = Downstream::DownstreamHelpers::find_root<MaxIter>(f, fp, dz0);
 
@@ -126,9 +136,13 @@ namespace {
     const auto gA = Downstream::DownstreamExtrapolation::Physics::gamma(qopA, polarity);
     const auto gB = Downstream::DownstreamExtrapolation::Physics::gamma(qopB, polarity);
 
-    // Initial estimation of dz
-    const auto dz0 = ((-txA) * xA + txB * xA + txA * xB - txB * xB - tyA * yA + tyB * yA + tyA * yB - tyB * yB) /
-                     (txA * txA - 2 * txA * txB + txB * txB + tyA * tyA - 2 * tyA * tyB + tyB * tyB);
+    // Initial estimation of dz. Using the antisymmetric differences keeps this
+    // bit-for-bit independent of the order of the two tracks.
+    const float dtx = txA - txB;
+    const float dty = tyA - tyB;
+    const float dx = xA - xB;
+    const float dy = yA - yB;
+    const auto dz0 = -fma_rn(dtx, dx, dty * dy) / fma_rn(dtx, dtx, dty * dty);
 
     // Find poca
     const auto dz = compute_dz_from_poca<MaxIter>(xA, txA, gA, yA, tyA, xB, txB, gB, yB, tyB, dz0);

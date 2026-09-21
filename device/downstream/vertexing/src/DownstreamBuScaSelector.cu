@@ -57,11 +57,26 @@ __global__ void downstream_busca_selector::downstream_busca_selector(
     const auto dA = static_cast<const Allen::Views::Physics::BasicParticle*>(downstream_composite.child(0));
     const auto dB = static_cast<const Allen::Views::Physics::BasicParticle*>(downstream_composite.child(1));
 
-    // Daughters info
-    const auto dA_ip = dA->ownpv_ip();
-    const auto dB_ip = dB->ownpv_ip();
-    const auto dA_chi2 = dA->chi2();
-    const auto dB_chi2 = dB->chi2();
+    // Daughters info. The downstream tracking builds the composites with an
+    // atomicAdd-based compaction, so the (non-deterministic) track order decides
+    // which daughter is child(0) and which is child(1). The BuSca NN is not
+    // symmetric under exchanging the two daughters, so canonicalise their
+    // order here: decreasing IP, then increasing chi2 for equal IP. The
+    // (IP, chi2) pair is moved as a unit so the NN never mixes features from
+    // different daughters. The comparison avoids `==` on floats on purpose.
+    auto dA_ip = dA->ownpv_ip();
+    auto dB_ip = dB->ownpv_ip();
+    auto dA_chi2 = dA->chi2();
+    auto dB_chi2 = dB->chi2();
+
+    if (dA_ip < dB_ip || (!(dB_ip < dA_ip) && dA_chi2 > dB_chi2)) {
+      const auto tmp_ip = dA_ip;
+      const auto tmp_chi2 = dA_chi2;
+      dA_ip = dB_ip;
+      dA_chi2 = dB_chi2;
+      dB_ip = tmp_ip;
+      dB_chi2 = tmp_chi2;
+    }
 
     const auto quality = downstream_composite.vertex().downstream_quality();
 
