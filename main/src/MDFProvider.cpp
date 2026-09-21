@@ -10,6 +10,41 @@
 \*****************************************************************************/
 
 #include <MDFProvider.h>
+#include <stdexcept>
+#include <iomanip>
+
+#ifndef ALLEN_STANDALONE
+namespace Allen {
+  namespace {
+    using namespace std::string_view_literals;
+    constexpr auto inputFileTypeNames = std::array {"MDF"sv, "ROOT"sv};
+  } // namespace
+
+  std::string toString(InputFileType type) { return std::string {inputFileTypeNames.at(static_cast<size_t>(type))}; }
+
+  std::ostream& toStream(InputFileType type, std::ostream& stream)
+  {
+    return stream << std::quoted(toString(type), '\'');
+  }
+
+  StatusCode parse(InputFileType& type, std::string_view input)
+  {
+    std::string name;
+    return Gaudi::Parsers::parse(name, input).andThen([&]() -> StatusCode {
+      // PyConf's FileFormats.RAW denotes MDF input to this provider.
+      if (name == "RAW") name = "MDF";
+      auto found = std::ranges::find(inputFileTypeNames, name);
+      if (found == inputFileTypeNames.end()) return StatusCode::FAILURE;
+      type = static_cast<InputFileType>(found - inputFileTypeNames.begin());
+      return StatusCode::SUCCESS;
+    });
+  }
+} // namespace Allen
+LHCb::IO::InputFileManifest IInputProviderSvc::getInputFileManifest(size_t const, unsigned const) const
+{
+  throw std::logic_error {"This input provider does not support ROOT input-file manifests"};
+}
+#endif
 
 void MDFProvider::init()
 {

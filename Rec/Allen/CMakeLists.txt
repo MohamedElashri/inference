@@ -92,7 +92,20 @@ target_compile_options(AllenAlgorithms PRIVATE -Wno-c++20-extensions)
 
 gaudi_install(PYTHON)
 
+# Expose the generated module alongside Gaudi's build-tree package wrapper.
+# PROJECT_BINARY_DIR is Allen's build directory, also in a monobuild.
+file(CREATE_LINK
+    "${PROJECT_BINARY_DIR}/code_generation/sequences/AllenAlgorithms/allen_standalone_algorithms.py"
+    "${CMAKE_BINARY_DIR}/python/AllenAlgorithms/allen_standalone_algorithms.py"
+    SYMBOLIC)
+
 gaudi_add_pytest(tests/pytest)
+
+gaudi_add_executable(test_input_file_manifest
+    SOURCES tests/src/test_input_file_manifest.cpp
+    LINK Boost::unit_test_framework Boost::thread AllenLib mdf Backend EventModel LHCb::IOAlgorithmsLib
+    TEST
+)
 
 gaudi_add_executable(test_mass_definitions
     SOURCES

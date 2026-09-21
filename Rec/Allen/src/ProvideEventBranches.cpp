@@ -12,11 +12,12 @@
 // ----------------------------------------------------------------------------
 // Transformer exposing requested raw-event branches: retrieves them from the
 // input provider via EventBranches, puts each branch on the TES and returns the
-// current LHCb::RawEvent.
+// current LHCb::RawEvent and its input-file manifest.
 // ----------------------------------------------------------------------------
 #include <array>
 #include <map>
 #include <string>
+#include <tuple>
 
 #include <Gaudi/Parsers/Factory.h>
 #include <GaudiKernel/DataObjID.h>
@@ -26,6 +27,7 @@
 #include "Event/RawEvent.h"
 
 #include "InputProvider.h"
+#include "IOAlgorithms/InputFileManifest.h"
 #include "MultiEventContextExt.h"
 
 namespace Gaudi::Parsers {
@@ -50,17 +52,22 @@ namespace Gaudi::Parsers {
   };
 } // namespace Gaudi::Parsers
 
-class ProvideEventBranches final : public LHCb::Algorithm::Transformer<LHCb::RawEvent(const EventContext&)> {
-  using LHCb::Algorithm::Transformer<LHCb::RawEvent(const EventContext&)>::Transformer;
+class ProvideEventBranches final
+  : public LHCb::Algorithm::MultiTransformer<std::tuple<LHCb::RawEvent, LHCb::IO::InputFileManifest>(
+      const EventContext&)> {
+  using MultiTransformer::MultiTransformer;
 
 public:
   ProvideEventBranches(const std::string& name, ISvcLocator* pSvcLocator) :
-    Transformer(name, pSvcLocator, KeyValue {"RawEventLocation", ""})
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"RawEventLocation", ""}, KeyValue {"InputFileManifestLocation", "/Event/InputFileManifest"}})
   {}
 
   StatusCode initialize() override
   {
-    return Transformer::initialize().andThen([&]() {
+    return MultiTransformer::initialize().andThen([&]() {
       // Create dynamically DataHandles for each branch requested
       for (auto& [branch, tesPath] : m_eventBranches) {
         // add a new DataHandle for this branch
@@ -69,7 +76,7 @@ public:
     });
   }
 
-  LHCb::RawEvent operator()(const EventContext& evtCtx) const override
+  std::tuple<LHCb::RawEvent, LHCb::IO::InputFileManifest> operator()(const EventContext& evtCtx) const override
   {
     const auto* ctxExt = Allen::Scheduler::getSchedulerExtension(evtCtx);
 
@@ -80,7 +87,9 @@ public:
       m_dataHandles[i].put(std::unique_ptr<DataObject>(eventData[i]));
     }
 
-    return m_input_provider->getRawEvent(ctxExt->slice_index, evtCtx.evt());
+    return {
+      m_input_provider->getRawEvent(ctxExt->slice_index, evtCtx.evt()),
+      m_input_provider->getInputFileManifest(ctxExt->slice_index, evtCtx.evt())};
   }
 
 private:

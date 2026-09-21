@@ -8,21 +8,3 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import os
-
-__path__ += [
-    d
-    for d in [
-        os.path.realpath(
-            os.path.join(
-                os.path.dirname(__file__),
-                "..",
-                "..",
-                "code_generation",
-                "sequences",
-                "AllenAlgorithms",
-            )
-        )
-    ]
-    if os.path.exists(d)
-]

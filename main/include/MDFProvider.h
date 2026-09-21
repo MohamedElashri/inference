@@ -87,6 +87,13 @@ namespace {
 #include <GaudiKernel/DataObjectHandle.h>
 #include <GaudiKernel/Service.h>
 
+namespace Allen {
+  enum class InputFileType { MDF, ROOT };
+  std::string toString(InputFileType type);
+  std::ostream& toStream(InputFileType type, std::ostream& stream);
+  StatusCode parse(InputFileType& type, std::string_view input);
+} // namespace Allen
+
 namespace Gaudi::Parsers {
   StatusCode parse(std::map<std::string, DataObjID>& m, std::string_view in)
   {
@@ -126,7 +133,7 @@ public:
   Gaudi::Property<bool> m_split_by_run {this, "SplitByRun", false, "Whether to split slices by run number"};
   Gaudi::Property<bool> m_use_retina {this, "UseRetina", true, "Use Retina RawBanks instead of Super-pixels"};
 
-  Gaudi::Property<std::string> m_input_type {this, "InputType", "MDF", "MDF or ROOT"};
+  Gaudi::Property<Allen::InputFileType> m_input_type {this, "InputType", Allen::InputFileType::MDF, "MDF or ROOT"};
 
   Gaudi::Property<std::string> m_eventTreeName {
     this,
@@ -177,7 +184,7 @@ public:
       .events_per_buffer = (m_events_per_slice + 9) / 10, // number of events per read buffer
       .n_loops = m_n_loops,                               // number of loops over the input files
       .split_by_run = m_split_by_run.value(),             // Whether to split slices by run number
-      .use_ROOT_prefetcher = (m_input_type == "ROOT"),
+      .use_ROOT_prefetcher = (m_input_type == Allen::InputFileType::ROOT),
       .use_retina = m_use_retina.value()};
 
     init_input(m_nslices, m_events_per_slice, m_bank_types, IInputProvider::Layout::Allen, n_events);
@@ -212,6 +219,12 @@ public:
     return raw_event;
   }
 
+  LHCb::IO::InputFileManifest getInputFileManifest(size_t const slice_index, unsigned const event) const override
+  {
+    if (m_input_type != Allen::InputFileType::ROOT) return IInputProviderSvc::getInputFileManifest(slice_index, event);
+    return m_transpose_workers->slice(slice_index).batch.input_file_manifests.at(event);
+  }
+
   LHCb::ODIN getODIN(size_t const slice_index) const override
   {
     return m_transpose_workers->slice(slice_index).batch.odin_data[0];
@@ -241,9 +254,6 @@ public:
   void init();
 
   void startPrefetcher() const override { m_prefetch_thread->start(); }
-
-  /// Destructor
-  virtual ~MDFProvider() = default;
 
   /**
    * @brief      Obtain event IDs of events stored in a given slice
