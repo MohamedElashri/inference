@@ -1148,52 +1148,52 @@ stdout: |-
 histos:
   Hlt1DiElectronLowMass_NoIP:
     dielectron_mass_counts:
-      nEntries: 145.0
+      nEntries: 215.0
       title: dielectron masses
       sum: 145
       meanX: 1106.767241
       stdDevX: 445.92435
     dielectron_mass_counts_brem:
-      nEntries: 126.0
+      nEntries: 215.0
       title: dielectron masses with brem
       sum: 126
       meanX: 1096.428571
       stdDevX: 446.369746
   Hlt1DiElectronLowMass_NoIPNorm:
     dielectron_mass_counts:
-      nEntries: 534.0
+      nEntries: 826.0
       title: dielectron masses
       sum: 534
       meanX: 1208.033708
       stdDevX: 369.84758
     dielectron_mass_counts_brem:
-      nEntries: 446.0
+      nEntries: 826.0
       title: dielectron masses with brem
       sum: 446
       meanX: 1201.378924
       stdDevX: 378.343018
   Hlt1DiElectronLowMass_SS_NoIP:
     dielectron_mass_counts:
-      nEntries: 187.0
+      nEntries: 288.0
       title: dielectron masses
       sum: 187
       meanX: 759.244652
       stdDevX: 531.895689
     dielectron_mass_counts_brem:
-      nEntries: 172.0
+      nEntries: 288.0
       title: dielectron masses with brem
       sum: 172
       meanX: 739.883721
       stdDevX: 515.368484
   Hlt1DiElectronLowMass_SS_NoIPNorm:
     dielectron_mass_counts:
-      nEntries: 626.0
+      nEntries: 1004.0
       title: dielectron masses
       sum: 626
       meanX: 993.977636
       stdDevX: 508.01334
     dielectron_mass_counts_brem:
-      nEntries: 569.0
+      nEntries: 1004.0
       title: dielectron masses with brem
       sum: 569
       meanX: 985.380053
@@ -1278,13 +1278,13 @@ histos:
       stdDevX: 220.0
   calo_find_clusters:
     ecal_cluster_e:
-      nEntries: 490553.0
+      nEntries: 494739.0
       title: EcalClusterE
       sum: 490553
-      meanX: 8010.942171
-      stdDevX: 7523.231527
+      meanX: 8010.942131
+      stdDevX: 7523.231625
     ecal_cluster_et:
-      nEntries: 494433.0
+      nEntries: 494739.0
       title: EcalClusterEt
       sum: 494433
       meanX: 806.371915
@@ -1302,7 +1302,7 @@ histos:
       meanX: -1.111445
       stdDevX: 1037.330384
     ecal_digit_e:
-      nEntries: 1073921.0
+      nEntries: 1082843.0
       title: EcalDigitE
       sum: 1073921
       meanX: 1545.737205
@@ -1437,13 +1437,13 @@ histos:
       meanX: 0.109643
       stdDevX: 0.312444
     pv_x:
-      nEntries: 29988.0
+      nEntries: 50556.0
       title: pv_x
       sum: 29988
       meanX: 2.0
       stdDevX: 0.0
     pv_y:
-      nEntries: 50555.0
+      nEntries: 50556.0
       title: pv_y
       sum: 50555
       meanX: 502.264366
@@ -1468,7 +1468,7 @@ histos:
       meanX: -0.004062
       stdDevX: 1.803826
     trk_pt:
-      nEntries: 461030.0
+      nEntries: 461097.0
       title: ptTrk
       sum: 461030
       meanX: 661.481726
@@ -1517,7 +1517,7 @@ histos:
       meanX: -0.004101
       stdDevX: 1.803811
     long_track_matching_pt:
-      nEntries: 461030.0
+      nEntries: 461097.0
       title: pt
       sum: 461030
       meanX: 660.967833
@@ -1548,19 +1548,19 @@ histos:
       stdDevX: 26.711418
   momentum_brem_correction_e62e35df:
     BremEoverP:
-      nEntries: 187522.0
+      nEntries: 461097.0
       title: BremE/ ( BremE + P (track) )
       sum: 187522
       meanX: 0.120853
       stdDevX: 0.147119
     EoverP:
-      nEntries: 378274.0
+      nEntries: 461097.0
       title: E (Ecal) / P (track)
       sum: 378274
       meanX: 0.347059
       stdDevX: 0.300491
     EoverP_hasbrem:
-      nEntries: 89842.0
+      nEntries: 104265.0
       title: E (Ecal) / P (track) (with HasBrem)
       sum: 89842
       meanX: 0.409726
@@ -1585,7 +1585,7 @@ histos:
       meanX: -0.000118
       stdDevX: 0.030515
     pv_x_vs_z:
-      nEntries: 51678.0
+      nEntries: 51728.0
       title: pv_x_vs_z
       sum: 51678
       meanX: 1.012268
@@ -1599,7 +1599,7 @@ histos:
       meanX: 3.6e-05
       stdDevX: 0.030206
     pv_y_vs_z:
-      nEntries: 51678.0
+      nEntries: 51728.0
       title: pv_y_vs_z
       sum: 51678
       meanX: 1.012268
@@ -1607,7 +1607,7 @@ histos:
       meanY: 2.5e-05
       stdDevY: 0.032342
     pv_z:
-      nEntries: 51678.0
+      nEntries: 51728.0
       title: pv_z
       sum: 51678
       meanX: 1.005287
@@ -1657,14 +1657,14 @@ histos:
       stdDevX: 0.000163
   velo_consolidate_tracks:
     n_velo_tracks_event:
-      nEntries: 9999.0
+      nEntries: 10000.0
       title: n_velo_tracks_event
       sum: 9999
       meanX: 250.115012
       stdDevX: 134.328012
   velo_kalman_filter:
     velo_backward_track_eta:
-      nEntries: 935907.0
+      nEntries: 935908.0
       title: '#backward_eta'
       sum: 935907
       meanX: -3.014304
@@ -1700,7 +1700,7 @@ histos:
       meanX: -0.003104
       stdDevX: 1.819988
     velo_total_track_eta:
-      nEntries: 2501913.0
+      nEntries: 2501914.0
       title: '#total_eta'
       sum: 2501913
       meanX: 0.922523
