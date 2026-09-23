@@ -78,6 +78,7 @@ void seed_confirmTracks::seed_confirmTracks_t::operator()(
 __device__ unsigned
 seed_confirmTracks::findHit(const float tolRem, float predPos, int startPos, int nHits, float* coords)
 {
+  if (nHits <= 0) return SciFi::Constants::INVALID_IDX;
   auto minIdx = seeding::searchBin(predPos, coords, startPos, nHits);
   if (std::fabs(coords[minIdx] - predPos) > tolRem) return SciFi::Constants::INVALID_IDX;
   return minIdx;

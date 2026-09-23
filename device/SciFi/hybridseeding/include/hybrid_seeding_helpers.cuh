@@ -56,7 +56,7 @@ namespace seed_xz {
   };
 
   struct multiHitCombination {
-    unsigned idx[SciFi::Constants::n_xzlayers] = {0};
+    unsigned idx[SciFi::Constants::n_xzlayers] = {SciFi::Constants::INVALID_IDX};
     float ax;
     float bx;
     float cx;
