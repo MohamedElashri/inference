@@ -17,6 +17,7 @@
 // ----------------------------------------------------------------------------
 #pragma once
 
+#include <GAUDI_VERSION.h>
 #include "GaudiAlg/Transformer.h"
 #include "Kernel/ThreadLocalAllocator.h"
 #include "MultiEventContextExt.h"
@@ -32,8 +33,13 @@ namespace Gaudi::Functional::details {
 
     template<typename... Out, typename... In, typename Traits_>
     struct MultiTransformer<std::tuple<Out...>(const In&...), Traits_>
+#if GAUDI_MAJOR_VERSION > 40
+      : DataHandleMixin<type_list<Out...>, type_list<In...>, Traits_> {
+      using DataHandleMixin<type_list<Out...>, type_list<In...>, Traits_>::DataHandleMixin;
+#else
       : DataHandleMixin<std::tuple<Out...>, std::tuple<In...>, Traits_> {
       using DataHandleMixin<std::tuple<Out...>, std::tuple<In...>, Traits_>::DataHandleMixin;
+#endif
 
       StatusCode execute(const EventContext& ctx) const override final
       {
@@ -103,8 +109,13 @@ namespace Gaudi::Functional::details {
 
     template<typename... Out, typename... In, typename Traits_>
     struct MultiTransformer<std::tuple<Out...>(const In&...), Traits_>
+#if GAUDI_MAJOR_VERSION > 40
+      : DataHandleMixin<type_list<Out...>, type_list<In...>, Traits_> {
+      using DataHandleMixin<type_list<Out...>, type_list<In...>, Traits_>::DataHandleMixin;
+#else
       : DataHandleMixin<std::tuple<Out...>, std::tuple<In...>, Traits_> {
       using DataHandleMixin<std::tuple<Out...>, std::tuple<In...>, Traits_>::DataHandleMixin;
+#endif
 
       StatusCode execute(const EventContext& ctx) const override final
       {
