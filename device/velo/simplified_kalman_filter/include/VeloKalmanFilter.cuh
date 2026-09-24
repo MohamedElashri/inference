@@ -18,7 +18,6 @@
 #include "VeloConsolidated.cuh"
 #include "ParticleTypes.cuh"
 #include "patPV_Definitions.cuh"
-#include "CopyTrackParameters.cuh"
 #include "BeamlinePVConstants.cuh"
 #include "AllenMonitoring.h"
 

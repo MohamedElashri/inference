@@ -18,7 +18,7 @@ allen_add_device_library(TTrack OBJECT
   ${ttrack_make_vertices}
 )
 
-target_link_libraries(TTrack PRIVATE Backend HostEventModel EventModel Utils Kalman TrackChecking)
+target_link_libraries(TTrack PRIVATE Backend HostEventModel EventModel Utils Kalman)
 
 target_include_directories(TTrack PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>

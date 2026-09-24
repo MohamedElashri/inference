@@ -8,15 +8,16 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-file(GLOB host_event_model "MC/src/*cpp")
+add_library(HostEventModel INTERFACE)
+install(TARGETS HostEventModel EXPORT Allen)
+add_library(Allen::HostEventModel ALIAS HostEventModel)
 
-allen_add_host_library(HostEventModel OBJECT
-  ${host_event_model}
-)
-
-target_link_libraries(HostEventModel PRIVATE EventModel Gear AllenCommon Backend)
-
-target_include_directories(HostEventModel PUBLIC
+target_include_directories(HostEventModel INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/routing_bits/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tae/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/MC/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tae/include>)
+
+target_link_libraries(HostEventModel INTERFACE
+  $<LINK_ONLY:EventModel>
+  $<LINK_ONLY:Gear>
+  $<LINK_ONLY:AllenCommon>
+  $<LINK_ONLY:Backend>)

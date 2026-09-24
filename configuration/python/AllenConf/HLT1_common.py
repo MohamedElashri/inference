@@ -10,6 +10,7 @@
 ###############################################################################
 import itertools
 
+from AllenCore.configuration_options import is_allen_standalone
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
@@ -911,7 +912,7 @@ def add_optional_features(
             force_order=False,
         )
 
-    if enableRateValidator:
+    if enableRateValidator and not is_allen_standalone():
         hlt1_node = CompositeNode(
             "AllenRateValidation",
             [

@@ -30,9 +30,7 @@ def lhcb_bank_types(allen_sd):
 
 
 @configurable
-def allen_runtime_options(
-    filename="allen_monitor.root", InputProvider="MDFProvider", enable_checker=False
-):
+def allen_runtime_options(filename="allen_monitor.root", InputProvider="MDFProvider"):
     from Configurables import AllenROOTService
 
     rootService = AllenROOTService()
@@ -46,7 +44,7 @@ def allen_runtime_options(
         rootService.MonitorFile = filename
 
     return ProvideRuntimeOptions(
-        InputProvider=InputProvider, EnableChecker=enable_checker
+        name="ProvideRuntimeOptions", InputProvider=InputProvider
     )
 
 

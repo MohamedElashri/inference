@@ -20,7 +20,7 @@ from AllenConf.odin import (
 )
 from AllenConf.persistency import make_persistency
 from AllenConf.utils import line_maker
-from AllenConf.validators import rate_validation
+from AllenConf.validators import rate_validation_nodes
 from AllenCore.generator import generate
 from PyConf.control_flow import CompositeNode, NodeLogic
 
@@ -65,7 +65,7 @@ persistency_node, persistency_algorithms = make_persistency(line_algorithms)
 
 calo_sequence = CompositeNode(
     "CaloClustering",
-    [lines, persistency_node, rate_validation(lines=line_algorithms)],
+    [lines, persistency_node, *rate_validation_nodes(lines=line_algorithms)],
     NodeLogic.NONLAZY_AND,
     force_order=True,
 )

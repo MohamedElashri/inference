@@ -26,7 +26,7 @@ from AllenConf.odin import (
 )
 from AllenConf.persistency import make_gather_selections, make_persistency
 from AllenConf.utils import line_maker, make_invert_event_list
-from AllenConf.validators import rate_validation
+from AllenConf.validators import rate_validation_nodes
 from AllenConf.velo_reconstruction import decode_velo, make_pr_velo_tracks
 from AllenCore.generator import generate
 from PyConf.control_flow import CompositeNode, NodeLogic
@@ -143,7 +143,7 @@ def setup_hlt1_node(velo_open=False, enableBGI=True, enableBGI_full=False):
         "AllenRateValidation",
         [
             hlt1_node,
-            rate_validation(lines=line_algorithms),
+            *rate_validation_nodes(lines=line_algorithms),
         ],
         NodeLogic.NONLAZY_AND,
         force_order=True,

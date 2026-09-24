@@ -183,6 +183,30 @@ endif()
 
 file(GLOB python_allen_conf "${PROJECT_SOURCE_DIR}/configuration/python/AllenConf/*py")
 file(GLOB python_allen_core "${PROJECT_SOURCE_DIR}/configuration/python/AllenCore/*py")
+
+# The sequence configuration JSON is generated at build time only for the
+# sequences exercised by the CI (throughput and sanitizer jobs), which run the
+# standalone binary from those files. Every other sequence is configured from
+# python at runtime.
+set(ALLEN_JSON_SEQUENCES
+  hlt1_pp_default
+  hlt1_pp_veloSP
+  hlt1_pp_forward_then_matching_and_downstream_veloSP
+  hlt1_pp_lumi
+  hlt1_pp_forward
+  hlt1_pp_matching
+  hlt1_pp_forward_then_matching
+  hlt1_pp_forward_then_matching_no_ut
+  hlt1_pp_forward_then_matching_and_downstream
+  hlt1_pp_forward_then_matching_with_parkf
+  hlt1_pp_forward_then_matching_and_downstream_with_parkf_rich
+  hlt1_pp_forward_then_matching_and_downstream_with_parkf_rich_from_cones
+  hlt1_pp_2025_ttracks
+  hlt1_pp_ref_forward_then_matching
+  hlt1_pp_lowenergy_forward_then_matching_with_parkf_SMOGMBunprescaled
+  hlt1_PbPb_PbSMOG
+  hlt1_LightIon_IonSMOG_veloSP)
+
 function(generate_sequence sequence)
   set(sequence_dir ${PROJECT_SEQUENCE_DIR}/${sequence})
   file(MAKE_DIRECTORY ${sequence_dir})

@@ -46,7 +46,7 @@ dnf install -y numactl-libs glibc-devel
 
 setupViews
 
-cmake -DSTANDALONE=ON -GNinja -DSEQUENCES=all ${ADDITIONAL_OPTIONS} ${SOURCE_FOLDER}
+cmake -DSTANDALONE=ON -GNinja ${ADDITIONAL_OPTIONS} ${SOURCE_FOLDER}
 
 set +e;
 TRIES=0

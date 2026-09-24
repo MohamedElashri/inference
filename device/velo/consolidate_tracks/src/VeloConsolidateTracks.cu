@@ -9,6 +9,7 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "VeloConsolidateTracks.cuh"
+#include "LHCbID.cuh"
 
 INSTANTIATE_ALGORITHM(velo_consolidate_tracks::velo_consolidate_tracks_t)
 

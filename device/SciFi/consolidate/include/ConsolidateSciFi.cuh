@@ -18,7 +18,6 @@
 #include "AlgorithmTypes.cuh"
 #include "LookingForwardConstants.cuh"
 #include "ParticleTypes.cuh"
-#include "CopyTrackParameters.cuh"
 #include "LongTrackMomentumEvaluation.cuh"
 
 #include "AllenMonitoring.h"

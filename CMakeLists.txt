@@ -102,13 +102,6 @@ endif()
 # Unrestricted options
 # --------------------
 
-# Sequences to build, SEQUENCE argument overrides SEQUENCES for now
-if (STANDALONE)
-  set(SEQUENCES "" CACHE STRING "Sequences to build as a regex for exact matching; \"all\" builds all sequences")
-else()
-  set(SEQUENCES "all" CACHE STRING "Sequences to build as a regex for exact matching; \"all\" builds all sequences")
-endif()
-
 # Configured CPU architecture
 set(CPU_ARCH native CACHE STRING "Target CPU architecture")
 message(STATUS "CPU_ARCH: " ${CPU_ARCH})
@@ -216,7 +209,6 @@ set(ALLEN_ALGORITHM_LIB
   Associate
   Calo
   Combiners
-  DeviceValidators
   Downstream
   Examples
   HostCombiners
@@ -235,13 +227,10 @@ set(ALLEN_ALGORITHM_LIB
   Plume
   Rich
   SciFi
-  SelChecking
   Selections
-  TrackChecking
   TTrack
   UT
   Utils
-  Validators
   Velo
   VertexFitter
   track_matching
@@ -651,17 +640,6 @@ if (NOT STANDALONE)
     SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
     SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
-
-# Determine which sequences to generate or copy configurations for
-file(GLOB available_sequences CONFIGURE_DEPENDS "configuration/python/AllenSequences/*.py")
-set(BUILD_SEQUENCES "")
-foreach(sequence_filename ${available_sequences})
-  get_filename_component(sequence ${sequence_filename} NAME_WE)
-  string(REGEX MATCH "^${SEQUENCES}\$" sequence_matches ${sequence})
-  if (sequence_matches OR "${SEQUENCES}" STREQUAL "all")
-    list(APPEND BUILD_SEQUENCES ${sequence})
-  endif()
-endforeach()
 
 if(BUILD_TESTING)
   add_subdirectory(test/unit_tests)

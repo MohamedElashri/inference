@@ -12,7 +12,7 @@ from AllenConf.hlt1_photon_lines import make_single_calo_cluster_line
 from AllenConf.hlt1_reconstruction import hlt1_reconstruction
 from AllenConf.persistency import make_global_decision
 from AllenConf.utils import line_maker
-from AllenConf.validators import rate_validation
+from AllenConf.validators import rate_validation_nodes
 from AllenCore.generator import generate
 from PyConf.control_flow import CompositeNode, NodeLogic
 
@@ -35,7 +35,7 @@ lines = CompositeNode(
 
 calo_sequence = CompositeNode(
     "CaloClustering",
-    [lines, global_decision, rate_validation(lines=line_algorithms)],
+    [lines, global_decision, *rate_validation_nodes(lines=line_algorithms)],
     NodeLogic.NONLAZY_AND,
     force_order=True,
 )

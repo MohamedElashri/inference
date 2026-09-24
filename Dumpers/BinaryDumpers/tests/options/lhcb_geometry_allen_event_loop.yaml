@@ -7,3 +7,4 @@ device_memory_pool: 1000
 repetitions: 1
 
 histo_file: 'allen_event_loop.root'
+ntuple_file: 'allen_odqv_pytest.root'
