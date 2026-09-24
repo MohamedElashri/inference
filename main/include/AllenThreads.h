@@ -15,7 +15,6 @@
 class IZeroMQSvc;
 class OutputHandler;
 struct StreamWrapper;
-struct CheckerInvoker;
 struct ROOTService;
 struct Stream;
 class IInputProvider;
@@ -33,11 +32,10 @@ void run_stream(
   Stream* stream,
   std::shared_ptr<IInputProvider> input_provider,
   IZeroMQSvc* zmqSvc,
-  CheckerInvoker* checker_invoker,
   ROOTService* root_service,
   unsigned n_reps,
   bool mep_layout,
-  uint inject_mem_fail,
+  unsigned int inject_mem_fail,
   bool prefer_shared);
 
 struct MonitoringPrinter;

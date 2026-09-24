@@ -12,7 +12,7 @@ from AllenConf.hlt1_calibration_lines import make_passthrough_line
 from AllenConf.odin import decode_odin
 from AllenConf.persistency import make_persistency
 from AllenConf.utils import line_maker
-from AllenConf.validators import rate_validation
+from AllenConf.validators import rate_validation_nodes
 from AllenCore.algorithms import data_provider_t
 from AllenCore.generator import generate, make_algorithm
 from PyConf.control_flow import CompositeNode, NodeLogic
@@ -45,7 +45,7 @@ persistency_node, persistency_algorithms = make_persistency(line_algorithms)
 
 hlt1_node = CompositeNode(
     "Passthrough",
-    [providers, lines, persistency_node, rate_validation(lines=line_algorithms)],
+    [providers, lines, persistency_node, *rate_validation_nodes(lines=line_algorithms)],
     NodeLogic.NONLAZY_AND,
     force_order=True,
 )

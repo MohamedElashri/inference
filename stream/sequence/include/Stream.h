@@ -23,7 +23,6 @@
 #include "Tools.h"
 #include "Constants.cuh"
 #include "RuntimeOptions.h"
-#include "CheckerInvoker.h"
 #include "Configuration.h"
 #include "nlohmann/json.hpp"
 #include "Scheduler.cuh"

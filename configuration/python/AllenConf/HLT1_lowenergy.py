@@ -10,6 +10,7 @@
 ###############################################################################
 import itertools
 
+from AllenCore.configuration_options import is_allen_standalone
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
@@ -1414,7 +1415,7 @@ def setup_hlt1_node(
     hlt1_config["line_algorithms"] = line_algorithms
     hlt1_config.update(persistency_algorithms)
 
-    if enableRateValidator:
+    if enableRateValidator and not is_allen_standalone():
         hlt1_node = CompositeNode(
             "AllenRateValidation",
             [

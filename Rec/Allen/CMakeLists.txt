@@ -50,6 +50,7 @@ gaudi_add_module(AllenWrapper
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MCEvent
+                   LHCb::PhysEvent
                    LHCb::RecEvent
                    LHCb::RichFutureUtils
                    LHCb::HLTSchedulerLib

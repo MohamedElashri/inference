@@ -52,7 +52,6 @@
 #include "Timer.h"
 #include "Constants.cuh"
 #include "MuonDefinitions.cuh"
-#include "CheckerInvoker.h"
 #include "FileWriter.h"
 #include "ZMQOutputSender.h"
 #include "Stream.h"
@@ -115,7 +114,7 @@ int allen(
   std::string file_list;
   bool print_config = 0;
   bool print_status = 0;
-  uint inject_mem_fail = 0;
+  unsigned int inject_mem_fail = 0;
   std::string mon_filename;
   bool disable_run_changes = 0;
   bool prefer_shared = false;
@@ -384,8 +383,6 @@ int allen(
     }
   }
 
-  auto checker_invoker = std::make_unique<CheckerInvoker>();
-
   // Lambda with the execution of a thread-stream pair
   const auto stream_thread = [&](unsigned thread_id, unsigned stream_id) {
     // The InputProvider in RuntimeOptions is a shared_ptr to sort out
@@ -400,7 +397,6 @@ int allen(
       streams[stream_id].get(),
       std::move(provider),
       zmqSvc,
-      checker_invoker.get(),
       root_service.get(),
       io_conf.number_of_repetitions,
       input_provider->layout() == IInputProvider::Layout::MEP,
@@ -560,7 +556,7 @@ int allen(
   // track run changes
   std::optional<LHCb::ODIN> next_odin;
   bool run_change = false;
-  uint current_run_number = 0;
+  unsigned int current_run_number = 0;
 
   // Lambda to check if any event processors are done processing
   auto check_processors = [&]() {
@@ -964,10 +960,6 @@ loop_error:
       std::get<0>(worker).join();
     }
   }
-
-  // Print checker reports
-  checker_invoker->report(n_events_processed * io_conf.number_of_repetitions);
-  checker_invoker.reset();
 
   // Print throughput measurement result
   if (t && throughput_processed) {

@@ -8,6 +8,7 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
+from AllenCore.configuration_options import is_allen_standalone
 from PyConf.control_flow import CompositeNode, NodeLogic
 
 from AllenConf.calo_reconstruction import decode_calo, make_ecal_clusters
@@ -138,7 +139,7 @@ def setup_hlt1_node(enableRateValidator=True):
     hlt1_config["line_algorithms"] = line_algorithms
     hlt1_config.update(persistency_algorithms)
 
-    if enableRateValidator:
+    if enableRateValidator and not is_allen_standalone():
         hlt1_node = CompositeNode(
             "CosmicsRateValidation",
             [

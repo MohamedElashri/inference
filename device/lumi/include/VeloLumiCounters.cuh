@@ -51,8 +51,7 @@ namespace velo_lumi_counters {
     const shifts_and_scales_t shifts_and_scales,
     std::array<unsigned, 4>);
 
-  // doca and eta copied from device/event_model/common/include/CopyTrackParameters.cuh
-  // to avoid extra header files requirements
+  // doca and eta duplicated here to avoid extra header file requirements
   // use (0, 0, 0) to replace pv position for simplicity
   __device__ float velo_DOCAz(const Allen::Views::Physics::KalmanState& velo_kalman_state)
   {

@@ -19,9 +19,7 @@
 
 #include <OutputHandler.h>
 #include <OutputManager.h>
-#include <CheckerInvoker.h>
 #include <ROOTService.h>
-#include <MCRaw.h>
 #include <InputProvider.h>
 #include <Stream.h>
 #include <Tools.h>
@@ -175,7 +173,7 @@ void run_slices(const size_t thread_id, IZeroMQSvc* zmqSvc, IInputProvider* inpu
   zmq::pollitem_t items[] = {{control, 0, zmq::POLLIN, 0}};
 
   int timeout = -1;
-  uint current_run_number = 0;
+  unsigned int current_run_number = 0;
   while (true) {
 
     // Check if there are messages without blocking
@@ -243,11 +241,10 @@ void run_stream(
   Stream* stream,
   std::shared_ptr<IInputProvider> input_provider,
   IZeroMQSvc* zmqSvc,
-  CheckerInvoker* checker_invoker,
   ROOTService* root_service,
   unsigned n_reps,
   bool mep_layout,
-  uint inject_mem_fail,
+  unsigned int inject_mem_fail,
   [[maybe_unused]] bool prefer_shared)
 {
   Allen::set_device(device_id, stream_id);
@@ -300,7 +297,6 @@ void run_stream(
          n_reps,
          mep_layout,
          inject_mem_fail,
-         checker_invoker,
          root_service});
 
       if (status == Allen::error::errorMemoryAllocation) {

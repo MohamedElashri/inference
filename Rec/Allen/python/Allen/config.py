@@ -185,36 +185,6 @@ def allen_non_event_data_config(
     return dump_geometry, out_dir, beamline_offset
 
 
-@configurable
-def allen_json_sequence(sequence="hlt1_pp_default", json=None):
-    """Provide the name of the Allen sequence and the json configuration file
-
-    Args:
-        sequence (string): name of the Allen sequence to run
-        json: (string): path the JSON file to be used to configure the chosen Allen sequence. If `None`, a default file that corresponds to the sequence will be used.
-    """
-    if sequence is None and json is not None:
-        sequence = os.path.splitext(os.path.basename(json))[0]
-
-    if json is None:
-        config_path = "${ALLEN_INSTALL_DIR}/constants"
-        json_dir = os.path.join(os.path.expandvars("${ALLEN_INSTALL_DIR}"), "constants")
-        available_sequences = [
-            os.path.splitext(json_file)[0] for json_file in os.listdir(json_dir)
-        ]
-        if sequence not in available_sequences:
-            raise AttributeError(
-                "Sequence {} was not built in to Allen;available sequences: {}".format(
-                    sequence, " ".join(available_sequences)
-                )
-            )
-        json = os.path.join(config_path, "{}.json".format(sequence))
-    elif not os.path.exists(json):
-        raise OSError("JSON file does not exist")
-
-    return (sequence, json)
-
-
 def configured_bank_types(sequence_json):
     if type(sequence_json) == str:
         sequence_json = json.loads(sequence_json)
@@ -320,30 +290,10 @@ def allen_provide_odin(stream=""):
     return odin_provider.ODIN
 
 
-def call_allen_decision_logger(gather_selections):
-    """
-    Configure GaudiAllenCountAndDumpLineDecisions to count and report
-    Allen line decisions.
-    """
-    from AllenConf import persistency
-    from PyConf.Algorithms import GaudiAllenCountAndDumpLineDecisions
-
-    line_names = [l + "Decision" for l in persistency.line_names(gather_selections)]
-
-    return GaudiAllenCountAndDumpLineDecisions(
-        allen_number_of_active_lines=gather_selections.host_number_of_active_lines_t,
-        allen_names_of_active_lines=gather_selections.host_names_of_active_lines_t,
-        allen_selections=gather_selections.dev_selections_t,
-        allen_selections_offsets=gather_selections.dev_selections_offsets_t,
-        Hlt1LineNames=line_names,
-    )
-
-
 def run_allen(
     options: AllenOptions,
     sequence,
     public_tools=[],
-    add_decision_logger: bool = False,
     write_all_input_leaves: bool = True,
     flagging: bool = False,
 ):
@@ -430,12 +380,6 @@ def run_allen(
         non_event_data_node = setup_allen_non_event_data_service()
 
         allen_algs = [non_event_data_node, allen_cf]
-
-        if add_decision_logger:
-            # Check if hlt1_config contains gather selections and if so add a decision logger
-            gather_selections = hlt1_config.get("gather_selections", None)
-            if gather_selections is not None:
-                allen_algs.append(call_allen_decision_logger(gather_selections))
 
         allen_node = CompositeNode(
             "allen_algorithms",
