@@ -4,6 +4,11 @@
 # This wraps Allen benchmark runs with provenance capture, repeated measurements,
 # per-run logs/configs, optional nsys profiling, and an explicit pvfinder_unet
 # use_fp16 configuration toggle.
+#
+# Every batch, including failed and interrupted ones, leaves a JSON run record
+# in results/runs/ (tracked in git; see results/README.md and
+# benchmarks/runs.py). Raw logs, configs and nsys reports stay in the ignored
+# batch directory under benchmark_results/.
 
 set -euo pipefail
 
@@ -106,8 +111,10 @@ Options:
                              (default: 450); CAUTION -- lowering this reclaims
                              T_chunk_max headroom for a larger fc_chunk_size at
                              real crash risk if set too low
-  --profile                  Run each sequence under nsys
+  --profile                  Run each sequence under nsys; the record gets
+                             the per-sequence kernel summary
   --result-root DIR          Directory for batches (default: benchmark_results)
+  --no-record                Do not write a results/runs/ record (smoke tests)
   -h, --help                 Show this help
 
 Example:
@@ -158,6 +165,7 @@ USE_PRECOMPUTED_CSR_OFFSET=true
 SAFE_AVG_ENTRIES_PER_EVENT=450
 PROFILE=0
 RESULT_ROOT="${REPO_ROOT}/benchmark_results"
+RECORD=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -195,6 +203,7 @@ while [[ $# -gt 0 ]]; do
         --safe-avg-entries-per-event) SAFE_AVG_ENTRIES_PER_EVENT="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
+        --no-record) RECORD=0; shift 1 ;;
         --help|-h) usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
     esac
@@ -397,6 +406,15 @@ sequence_label() {
     esac
 }
 
+# Run records are written with the repository venv when it exists; runs.py
+# needs only the standard library, so any python3 works.
+if [[ -x "${REPO_ROOT}/.venv/bin/python3" ]]; then
+    RECORD_PY="${REPO_ROOT}/.venv/bin/python3"
+else
+    RECORD_PY="python3"
+fi
+RUNS_PY="${REPO_ROOT}/benchmarks/runs.py"
+
 extract_rate() {
     grep -oP '[0-9]+\.[0-9]+(?=\s+events/s)' "$1" | tail -1
 }
@@ -561,6 +579,11 @@ run_sequence() {
                 "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
                 "${COMMON_ARGS[@]}" --device "${DEVICE}"
         ) > "${log}" 2>&1
+        # Kernel summary as CSV for the run record.
+        nsys stats --report cuda_gpu_kern_sum --format csv --force-export=true \
+            --output "${profile_out}" "${profile_out}.nsys-rep" \
+            > "${run_dir}/${short}_nsys_stats.log" 2>&1 || \
+            echo "WARNING: nsys stats failed for ${seq}; see ${run_dir}/${short}_nsys_stats.log" >&2
     else
         write_command "${cmd_file}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
             "${COMMON_ARGS[@]}" --device "${DEVICE}"
@@ -627,6 +650,7 @@ run_sequence() {
     echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
+    echo "sequences=${SEQUENCES[*]}"
 } > "${BATCH_DIR}/metadata.env"
 
 git -C "${REPO_ROOT}" rev-parse HEAD > "${BATCH_DIR}/git_head.txt"
@@ -641,6 +665,27 @@ if command -v nvidia-smi >/dev/null 2>&1; then
 fi
 
 write_command "${BATCH_DIR}/batch_command.cmd" "$0" "${ORIGINAL_ARGS[@]}"
+
+# Environment at the start of the batch (GPU and its other processes, git
+# state, build flags, model and weight hashes) for the run record.
+RECORDED=0
+if [[ "${RECORD}" -eq 1 ]]; then
+    "${RECORD_PY}" "${RUNS_PY}" snapshot "${BATCH_DIR}" --device "${DEVICE}" \
+        --build-dir "${BUILD_DIR}" --model "${MODEL}" \
+        --cnn-weights "${CNN_WEIGHTS_ABS}" --fc-weights "${FC_WEIGHTS_ABS}"
+    # A batch that stops early still gets a record, with whatever repeats finished.
+    on_exit() {
+        local rc=$?
+        if [[ "${RECORDED}" -eq 0 ]]; then
+            local status=failed
+            [[ ${rc} -eq 130 || ${rc} -eq 143 ]] && status=interrupted
+            "${RECORD_PY}" "${RUNS_PY}" record "${BATCH_DIR}" --status "${status}" || true
+        fi
+    }
+    trap on_exit EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+fi
 
 printf 'run\tbaseline\tfc\tunet\tfc_overhead_pct\tunet_overhead_pct\tunet_retention_pct\n' \
     > "${BATCH_DIR}/summary.tsv"
@@ -711,3 +756,7 @@ awk '
 
 printf '\nBatch complete: %s\n' "${BATCH_DIR}"
 cat "${BATCH_DIR}/summary.md"
+if [[ "${RECORD}" -eq 1 ]]; then
+    "${RECORD_PY}" "${RUNS_PY}" record "${BATCH_DIR}" --status ok
+    RECORDED=1
+fi

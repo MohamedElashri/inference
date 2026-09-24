@@ -59,6 +59,8 @@ parser.add_argument("--fc-bin", default="",
 parser.add_argument("--max-f32-ulps", type=float, default=1.0,
                     help="PASS limit on |Allen - reference|, in float32 rounding steps (ulps) of the "
                          "magnitude envelope feeding each output (default 1)")
+parser.add_argument("--report", default="",
+                    help="optional: write the results as JSON to this path")
 args = parser.parse_args()
 
 MAGIC = 0xFC01
@@ -104,6 +106,7 @@ if W["6A"].shape != (L6A, 20):
 print(f"checkpoint: {args.weights}")
 
 ok = True
+report = {"dump_dir": args.dump_dir, "weights": args.weights, "max_f32_ulps": args.max_f32_ulps}
 
 # ---------------------------------------------------------------------------
 # Optional: is the .bin Allen loaded the checkpoint, in the layout Allen expects?
@@ -114,9 +117,11 @@ if args.fc_bin:
                                for k in ("1", "2", "3", "4", "5", "6A")])
     if blob.size != expected.size:
         print(f"fc-bin: {args.fc_bin} has {blob.size} floats, checkpoint needs {expected.size}  -> MISMATCH")
+        report["fc_bin"] = {"status": "MISMATCH", "reason": "size"}
         ok = False
     elif np.array_equal(blob, expected):
         print(f"fc-bin: {args.fc_bin} == checkpoint in Allen's layout  -> OK")
+        report["fc_bin"] = {"status": "OK"}
     else:
         w6a = blob[1880:1880 + L6A * 20]
         head_same = np.array_equal(blob[:1880], expected[:1880])
@@ -127,6 +132,7 @@ if args.fc_bin:
         else:
             why = "layer6A differs"
         print(f"fc-bin: {args.fc_bin} does NOT match the checkpoint: {why}  -> MISMATCH")
+        report["fc_bin"] = {"status": "MISMATCH", "reason": why}
         ok = False
 
 # ---------------------------------------------------------------------------
@@ -187,9 +193,20 @@ def compare(name, allen, ref, env):
           f"largest term magnitude {env[finite_slot].max():.3e})  -> {status}")
     if status == "FAIL":
         ok = False
+    report[name.strip().replace(" ", "_")] = {
+        "slots_compared": int(finite_slot.sum()), "non_finite_slots": n_bad,
+        "max_abs_diff": float(abs_d.max()), "max_rel_diff": float(rel_d.max()),
+        "max_f32_ulps": worst, "largest_term": float(env[finite_slot].max()), "status": status,
+    }
 
 
 compare("interval features", ifeat, ref_feat, env_feat)
 compare("histogram        ", hist, ref_hist, env_hist)
 print("PASS" if ok else "FAIL")
+if args.report:
+    import json
+    report.update(n_events=int(n_events), n_tracks=int(n_tracks), latent_channels=int(n_latent),
+                  status="PASS" if ok else "FAIL")
+    with open(args.report, "w") as fp:
+        json.dump(report, fp, indent=2)
 sys.exit(0 if ok else 1)

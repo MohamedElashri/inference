@@ -11,7 +11,8 @@ make -C weights verify-all                                         # fetch + con
 eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_final)" # export PVFINDER_WEIGHTS_DIR for Allen configs
 ```
 
-`make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`, `JOBS`, `PY`).
+`make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`, `JOBS`, `PY`,
+`DUMP_SET`, `DUMP_TAG`, `LABEL`).
 
 ## Stages
 
@@ -21,10 +22,18 @@ eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_final)" # export PV
 | `convert` | `scripts/convert.py`: checkpoint to Allen format | `cnn_weights.bin`, `fc_weights.bin` |
 | `verify` | `scripts/verify.py`: re-reads both files in Allen's loader order and compares every tensor bit for bit with the checkpoint | `verify.txt` |
 | `build` | `../ballen` with the model's `--unet-feat` / `--unet-batch-channels` into `Allen/<build>gpu` | Allen build |
-| `dump` | `scripts/allen_dump.sh`: one 500-event slice with `dump_validation` on for FC and UNet | `dump/` |
-| `validate` | `scripts/validate_fc.py` recomputes FC from the checkpoint with Allen's own track-to-interval assignment; `scripts/validate_unet.py` does the same for the UNet | `validate_fc.txt`, `validate_unet.txt` |
+| `dump` | `scripts/allen_dump.sh`: one 500-event slice with `dump_validation` on for FC and UNet, plus a `snapshot.json` of the environment | `dump/` (`dump_<DUMP_TAG>/`) |
+| `validate` | `scripts/validate_fc.py` recomputes FC from the checkpoint with Allen's own track-to-interval assignment; `scripts/validate_unet.py` does the same for the UNet. Writes a run record to `results/runs/` | `dump*/validate_{fc,unet}.{txt,json}` |
 
-`validate` fails (non-zero exit) on any mismatch. `validate_fc.py` also checks
+To validate a non-default Allen configuration, override properties at dump
+time and keep that dump separate with a tag, for example the BF16 path:
+
+```bash
+make -C weights dump validate MODEL=<name> DUMP_TAG=bf16 DUMP_SET="pvfinder_unet.use_bf16=true"
+```
+
+`validate` fails (non-zero exit) on any mismatch, after writing its run record
+(see `results/README.md`). `validate_fc.py` also checks
 that the `.bin` Allen loaded is the checkpoint in Allen's layout, and names a
 transposed layer 6A explicitly.
 
@@ -57,7 +66,9 @@ and Allen's loader checks every layer's shape against its build.
 ## Catalog (`models.tsv`)
 
 Tab-separated: `name`, `source` checkpoint, `unet_feat`, `latent`, `build`,
-`notes`. Add a model by adding a row. All current models are `N_FEAT=16`,
+`notes`, `precision` (the dtype of the checkpoint's conv and linear weights:
+`fp32`, or `bf16` for the training team's reduced-precision exports). Add a
+model by adding a row. Every run record carries the model's full row. All current models are `N_FEAT=16`,
 latentChannels 4, with five 20-wide FC hidden layers and 100 bins per
 interval, and build into `buildgpu16chL4gpu`. Sources are the training team's
 outputs under `/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/`,

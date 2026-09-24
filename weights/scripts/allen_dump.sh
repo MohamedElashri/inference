@@ -7,9 +7,13 @@
 # stream for two repetitions of the same slice. The dumps are read by
 # validate_fc.py and validate_unet.py.
 #
+# --set ALG.PROPERTY=VALUE (repeatable) overrides one algorithm property in the
+# generated configuration, e.g. --set pvfinder_unet.use_bf16=true; VALUE is
+# read as JSON when it parses, as a string otherwise.
+#
 # Usage:
 #   allen_dump.sh --build ALLEN_BUILD_DIR --weights-dir DIR --sequence NAME --dump-dir DIR
-#                 [--events N] [--memory MB] [--device N]
+#                 [--events N] [--memory MB] [--device N] [--set ALG.PROP=VALUE]...
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -18,6 +22,7 @@ MDF="${REPO}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${REPO}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
 
 BUILD="" WDIR="" SEQ="" DUMP="" EVENTS=500 MEMORY=1000 DEVICE=2
+SETS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --build) BUILD="$2"; shift 2 ;;
@@ -27,6 +32,7 @@ while [[ $# -gt 0 ]]; do
         --events) EVENTS="$2"; shift 2 ;;
         --memory) MEMORY="$2"; shift 2 ;;
         --device) DEVICE="$2"; shift 2 ;;
+        --set) SETS+=("$2"); shift 2 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -54,13 +60,23 @@ if ! (cd "${tmp}" && PVFINDER_WEIGHTS_DIR="$(cd "${WDIR}" && pwd)" "${BUILD}/too
     exit 1
 fi
 
-"${PY}" - "${tmp}/Sequence.json" "${DUMP}/config.json" "${DUMP}" <<'EOF'
+"${PY}" - "${tmp}/Sequence.json" "${DUMP}/config.json" "${DUMP}" "${SETS[@]}" <<'EOF'
 import json, sys
-src, dst, dump = sys.argv[1:]
+src, dst, dump, *sets = sys.argv[1:]
 cfg = json.load(open(src))
 for alg in ("pvfinder_fc_aggregation", "pvfinder_unet"):
     if alg in cfg:
         cfg[alg]["dump_validation"] = dump
+for item in sets:
+    key, _, raw = item.partition("=")
+    alg, _, prop = key.partition(".")
+    if not prop or alg not in cfg:
+        sys.exit(f"--set {item}: expected ALG.PROPERTY=VALUE with ALG in the sequence")
+    try:
+        cfg[alg][prop] = json.loads(raw)
+    except json.JSONDecodeError:
+        cfg[alg][prop] = raw
+    print(f"override: {alg}.{prop} = {cfg[alg][prop]!r}")
 json.dump(cfg, open(dst, "w"), indent=2, sort_keys=True)
 EOF
 

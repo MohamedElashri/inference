@@ -7,13 +7,17 @@
 #   make verify   MODEL=<name>       re-read both files the way Allen does, compare with the checkpoint
 #   make build    MODEL=<name>       build the Allen variant the model needs (../ballen)
 #   make dump     MODEL=<name>       run Allen on one slice with the FC (and UNet) dumps enabled
-#   make validate MODEL=<name>       recompute FC (and UNet) from the checkpoint, compare with the dump
+#   make validate MODEL=<name>       recompute FC (and UNet) from the checkpoint, compare with the dump,
+#                                    and write a run record to ../results/runs/
 #   make verify-all                  fetch + convert + verify every model
 #   make env      MODEL=<name>       print the PVFINDER_WEIGHTS_DIR export Allen configs need
 #   make clean    MODEL=<name>       remove out/<name>
 #
 # MODEL defaults to unet16_lc4_scnone_asym5_final. Optional: DEVICE (GPU index, default 2),
 # EVENTS (slice size for dump, default 500), JOBS (build jobs, default 16), PY.
+# Variants: DUMP_SET="pvfinder_unet.use_bf16=true ..." overrides Allen properties
+# for dump; DUMP_TAG=<tag> keeps that dump in out/<name>/dump_<tag>/ (use the
+# same DUMP_TAG for validate); LABEL names the run record.
 
 SHELL         := /bin/bash
 .SHELLFLAGS   := -eu -o pipefail -c
@@ -31,6 +35,9 @@ MODEL   ?= unet16_lc4_scnone_asym5_final
 DEVICE  ?= 2
 EVENTS  ?= 500
 JOBS    ?= 16
+DUMP_SET ?=
+DUMP_TAG ?=
+LABEL    ?= validate$(if $(DUMP_TAG),_$(DUMP_TAG))
 
 # $(call field,<model>,<column>): one column of that model's catalog row
 field  = $(shell awk -F'\t' -v m='$(1)' '$$1 == m {print $$$(2)}' $(CATALOG))
@@ -43,7 +50,8 @@ BUILD      := $(call field,$(MODEL),5)
 
 CKPT := $(WEIGHTS)/checkpoints/$(MODEL).pyt
 OUT  := $(WEIGHTS)/out/$(MODEL)
-DUMP := $(OUT)/dump
+DUMP := $(OUT)/dump$(if $(DUMP_TAG),_$(DUMP_TAG))
+RUNS := $(REPO)/benchmarks/runs.py
 SEQUENCE := hlt1_pp_pvfinder_unet_benchmark
 
 .PHONY: help list check-model fetch convert verify build dump validate all verify-all env clean
@@ -52,7 +60,7 @@ help:
 > @sed -n '2,17s/^# \{0,1\}//p' $(firstword $(MAKEFILE_LIST))
 
 list:
-> @awk -F'\t' '$$1 !~ /^#/ && NF {printf "%-32s %-9s %-6s %s\n", $$1, $$3, $$4, $$5}' $(CATALOG)
+> @awk -F'\t' '$$1 !~ /^#/ && NF {printf "%-36s %-9s %-6s %-16s %s\n", $$1, $$3, $$4, $$5, $$7}' $(CATALOG)
 
 check-model:
 > @if [[ -z "$(SOURCE)" ]]; then echo "unknown MODEL '$(MODEL)'; see 'make list'" >&2; exit 1; fi
@@ -84,12 +92,23 @@ build: check-model
 
 dump: verify build
 > $(SCRIPTS)/allen_dump.sh --build $(REPO)/Allen/$(BUILD)gpu --weights-dir $(OUT) \
->     --sequence $(SEQUENCE) --dump-dir $(DUMP) --events $(EVENTS) --device $(DEVICE)
+>     --sequence $(SEQUENCE) --dump-dir $(DUMP) --events $(EVENTS) --device $(DEVICE) \
+>     $(foreach s,$(DUMP_SET),--set $(s))
+> $(PY) $(RUNS) snapshot $(DUMP) --device $(DEVICE) --build-dir $(REPO)/Allen/$(BUILD)gpu --model $(MODEL)
 
+# Both validators always run and the run record is always written; the target
+# fails afterwards if either validator did.
 validate: check-model
 > @test -f $(DUMP)/allen_fc_csr.bin || { echo "no dump for $(MODEL): run 'make dump MODEL=$(MODEL)'" >&2; exit 1; }
-> $(PY) $(SCRIPTS)/validate_fc.py --dump-dir $(DUMP) --weights $(CKPT) --fc-bin $(OUT)/fc_weights.bin | tee $(OUT)/validate_fc.txt
-> $(PY) $(SCRIPTS)/validate_unet.py --dump-dir $(DUMP) --weights $(CKPT) | tee $(OUT)/validate_unet.txt
+> @rc=0; \
+> $(PY) $(SCRIPTS)/validate_fc.py --dump-dir $(DUMP) --weights $(CKPT) --fc-bin $(OUT)/fc_weights.bin \
+>     --report $(DUMP)/validate_fc.json | tee $(DUMP)/validate_fc.txt || rc=1; \
+> $(PY) $(SCRIPTS)/validate_unet.py --dump-dir $(DUMP) --weights $(CKPT) \
+>     --report $(DUMP)/validate_unet.json | tee $(DUMP)/validate_unet.txt || rc=1; \
+> $(PY) $(RUNS) validation --model $(MODEL) --build-dir $(REPO)/Allen/$(BUILD)gpu --dump-dir $(DUMP) \
+>     --device $(DEVICE) --events $(EVENTS) --sequence $(SEQUENCE) --label $(LABEL) \
+>     --fc-report $(DUMP)/validate_fc.json --unet-report $(DUMP)/validate_unet.json; \
+> exit $$rc
 
 all: check-model
 > $(MAKE) --no-print-directory fetch convert verify MODEL=$(MODEL)
