@@ -584,7 +584,7 @@ public:
           }
         }
 
-        if (m_repetitions == 1) {
+        if (m_repetitions == 1u) {
           m_workers->submit({static_cast<unsigned>(slice_index), 0, static_cast<unsigned>(n_filled)});
           m_nextEvt += n_filled;
         }

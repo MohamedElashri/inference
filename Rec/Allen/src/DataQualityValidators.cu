@@ -186,7 +186,7 @@ public:
        KeyValue {"dev_velo_kalman_states", ""},
        KeyValue {"host_number_of_events", ""}})
   {
-    std::ignore = setProperty("NTuplePrint", false).ignore();
+    std::ignore = setProperty("NTuplePrint", false);
   }
 
   void operator()(
@@ -254,7 +254,7 @@ public:
        KeyValue {"dev_number_of_multi_fit_vertices", ""},
        KeyValue {"host_number_of_events", ""}})
   {
-    std::ignore = setProperty("NTuplePrint", false).ignore();
+    std::ignore = setProperty("NTuplePrint", false);
   }
 
   void operator()(
@@ -370,7 +370,7 @@ public:
        KeyValue {"dev_scifi_seedsXZ", ""},
        KeyValue {"host_number_of_events", ""}})
   {
-    std::ignore = setProperty("NTuplePrint", false).ignore();
+    std::ignore = setProperty("NTuplePrint", false);
   }
 
   void operator()(
@@ -443,7 +443,7 @@ public:
   DataQualityValidatorLong(const std::string& name, ISvcLocator* pSvcLocator) :
     Consumer(name, pSvcLocator, {KeyValue {"DQLongTrackInfo", ""}})
   {
-    std::ignore = setProperty("NTuplePrint", false).ignore();
+    std::ignore = setProperty("NTuplePrint", false);
   }
 
   void operator()(const std::vector<DQLongTrackInfo>& long_track_infos) const override
