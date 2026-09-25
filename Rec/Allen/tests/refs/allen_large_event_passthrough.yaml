@@ -261,7 +261,7 @@ stdout: |-
   MultiEventScheduler                    INFO    host_dummy_maker in: calo_count_digits_8f5cd83e
   MultiEventScheduler                    INFO    output_handler in: calo_count_digits_8f5cd83e
   MultiEventScheduler                    INFO    rate_validator in: calo_count_digits_8f5cd83e
-  Opening output file large_event_passthrough.mdf
+  MultiEventScheduler                    INFO Opening output file large_event_passthrough.mdf
   FileOutputWriter                       INFO Initialize
   MultiEventScheduler                    INFO Concurrency level information:
   MultiEventScheduler                    INFO  o Number of streams: 1
