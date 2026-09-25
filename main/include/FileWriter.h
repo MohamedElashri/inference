@@ -12,12 +12,13 @@
 
 #include <read_mdf.hpp>
 #include <OutputHandler.h>
+#include "Logger.h"
 
 class FileWriter final : public OutputHandler {
 public:
   FileWriter(std::string filename) : OutputHandler {std::move(filename)}
   {
-    std::cout << "Opening output file " << connection() << std::endl;
+    info_cout << "Opening output file " << connection() << "\n";
     m_output = MDF::open(connection(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (!m_output.good) {
       throw std::runtime_error {"Failed to open output file"};
@@ -39,7 +40,7 @@ public:
   ~FileWriter()
   {
     if (m_output.good) {
-      std::cout << "Closing output file " << connection() << std::endl;
+      info_cout << "Closing output file " << connection() << "\n";
       m_output.close();
     }
   }

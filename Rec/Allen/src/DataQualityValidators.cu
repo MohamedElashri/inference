@@ -448,6 +448,8 @@ public:
 
   void operator()(const std::vector<DQLongTrackInfo>& long_track_infos) const override
   {
+    std::lock_guard<std::mutex> guard(m_mutex);
+
     Tuple tree = nTuple("long_track_particles", "Long track particles");
     Tuple eventTree = nTuple("long_tracks_event", "Long tracks per event");
     auto col = make_column(tree);
@@ -493,6 +495,9 @@ public:
     eventCol("n_long_tracks", n_long_tracks);
     std::ignore = eventTree->write().orThrow("Failed to fill ntuple", "DataQualityValidatorLong");
   }
+
+private:
+  mutable std::mutex m_mutex;
 };
 
 DECLARE_COMPONENT(DataQualityValidatorLong)
