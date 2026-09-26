@@ -586,6 +586,7 @@ def cmd_validation(args):
     started = now_iso()
     fc = read_json(args.fc_report) if args.fc_report else None
     unet = read_json(args.unet_report) if args.unet_report else None
+    model = read_json(args.model_report) if args.model_report else None
     if unet:
         unet.pop("per_event_max_abs_diff", None)   # 500 numbers; the batch dir keeps them
     cfg = read_json(os.path.join(args.dump_dir, "config.json")) or {}
@@ -596,7 +597,7 @@ def cmd_validation(args):
         "build": build_info(args.build_dir), "model": model_info(args.model)}
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     label = args.label or "validate"
-    ok = all(r is None or r.get("status") == "PASS" for r in (fc, unet)) and (fc or unet)
+    ok = all(r is None or r.get("status") == "PASS" for r in (fc, unet, model)) and (fc or unet or model)
     record = {
         "schema": SCHEMA,
         "kind": "validation",
@@ -614,7 +615,7 @@ def cmd_validation(args):
         "workload": {"events": args.events, "threads": 1, "device": args.device,
                      "sequence": args.sequence},
         "config": {"dump": {"algorithms": relativize({k: v for k, v in sorted(cfg.items()) if k.startswith("pvfinder")})}},
-        "results": {"fc": fc, "unet": unet},
+        "results": {"fc": fc, "unet": unet, "model": model},
         "profile": None,
         "artifacts": {"dump_dir": rel(args.dump_dir)},
     }
@@ -658,7 +659,9 @@ def headline(r):
     if r["kind"] == "validation":
         u = (r.get("results") or {}).get("unet") or {}
         f = (r.get("results") or {}).get("fc") or {}
-        return f"fc {f.get('status', '-')}, unet {u.get('status', '-')} max|d| {u.get('max_abs_diff', float('nan')):.2e}"
+        m = (r.get("results") or {}).get("model") or {}
+        return (f"fc {f.get('status', '-')}, unet {u.get('status', '-')} max|d| {u.get('max_abs_diff', float('nan')):.2e}"
+                + (f", model {m.get('status')} peaks {m['intervals_with_peak_above_1e-3']['allen']:.3f}" if m else ""))
     fmt = lambda v: f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
     return f"base {fmt(m.get('baseline'))}  fc {fmt(m.get('fc'))}  unet {fmt(m.get('unet'))}"
 
@@ -807,6 +810,7 @@ def main():
     s.add_argument("--sequence", default=None)
     s.add_argument("--fc-report", default=None)
     s.add_argument("--unet-report", default=None)
+    s.add_argument("--model-report", default=None, help="validate_model.py JSON (full model from Allen's track features)")
     s.add_argument("--label", default=None)
     s.set_defaults(func=cmd_validation)
 

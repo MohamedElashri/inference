@@ -2,6 +2,7 @@
 
 #include "VeloConsolidated.cuh"
 #include "AlgorithmTypes.cuh"
+#include "ParticleTypes.cuh"
 
 namespace pvfinder_fc_aggregation {
 
@@ -33,7 +34,10 @@ struct Parameters {
     HOST_INPUT(host_number_of_reconstructed_velo_tracks_t, unsigned) host_number_of_reconstructed_velo_tracks;
     
     DEVICE_INPUT(dev_velo_tracks_view_t, Allen::Views::Velo::Consolidated::Tracks) dev_velo_tracks_view;
-    DEVICE_INPUT(dev_pvfinder_track_features_t, float) dev_pvfinder_track_features;      // Track size x 9
+    DEVICE_INPUT(dev_velo_states_view_t, Allen::Views::Physics::KalmanStates) dev_velo_states_view;
+    // Per-track input features [tracks x 9] (PVFinderTrackFeatures.cuh),
+    // computed by the CSR build's first pass (which reads them there anyway).
+    DEVICE_OUTPUT(dev_pvfinder_track_features_t, float) dev_pvfinder_track_features;
     
     // Output array: [events x 40 intervals x 100 bins] -> 4000 floats per event mapping the KDE layout targets
     DEVICE_OUTPUT(dev_pvfinder_output_histogram_t, float) dev_pvfinder_output_histogram;
@@ -65,6 +69,31 @@ struct Parameters {
     // m_use_precomputed_csr_offset is true -- see that property's doc
     // comment. Zero-sized otherwise.
     DEVICE_OUTPUT(dev_pvfinder_event_col_offset_t, unsigned) dev_pvfinder_event_col_offset;
+    // Row layout of dev_pvfinder_interval_features for the UNet, see
+    // m_skip_empty_intervals:
+    //   host_pvfinder_unet_rows[0]: 0 = dense (row = event * 40 + interval,
+    //       padded to a multiple of unet_batch_events events), 1 = compact
+    //   host_pvfinder_unet_rows[1]: compact only, number of rows in use
+    //   host_pvfinder_unet_rows[2]: storage type of the features, 0 = float32,
+    //       1 = bfloat16 (see m_unet_input_dtype)
+    //   host_pvfinder_unet_rows[3]: 1 when each row is stored channels last,
+    //       [bin][channel] (see m_unet_input_layout)
+    //   dev_pvfinder_slot_row[event * 40 + interval]: compact only, the
+    //       interval's row, or -1 when the UNet skips it
+    HOST_OUTPUT(host_pvfinder_unet_rows_t, unsigned) host_pvfinder_unet_rows;
+    DEVICE_OUTPUT(dev_pvfinder_slot_row_t, int) dev_pvfinder_slot_row;
+    // Its inverse, compact only: dev_pvfinder_row_slot[row] = event * 40 +
+    // interval, written by the FC kernels with the row's features (the fused
+    // UNet writes each row's KDE straight to its slot with it).
+    DEVICE_OUTPUT(dev_pvfinder_row_slot_t, int) dev_pvfinder_row_slot;
+    // Work list of the per-warp fused FC kernels (see m_fc_largest_first):
+    // uint4 {slot, first CSR entry, entries, feature row} by decreasing
+    // entries, 4 words per slot.
+    DEVICE_OUTPUT(dev_pvfinder_slot_order_t, unsigned) dev_pvfinder_slot_order;
+    // Split slots of the tensor-core fused FC: partial sums per chunk
+    // [rows][L6A_WIDTH] and, per split slot, the number of chunks done.
+    DEVICE_OUTPUT(dev_pvfinder_fc_partial_t, float) dev_pvfinder_fc_partial;
+    DEVICE_OUTPUT(dev_pvfinder_fc_arrive_t, unsigned) dev_pvfinder_fc_arrive;
 };
 
 struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
@@ -76,8 +105,14 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
         const Constants& constants,
         const Allen::Context& context) const;
 
+    // Loads the beamline into dev_beamline (the track features are in its frame).
+    void update(const Constants& constants) const;
+
 private:
-    Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
+    // Block of the CSR build (one per event). 512 is fastest on the RTX 3090:
+    // the busiest events' canonical ranking is the kernel's tail, and more
+    // threads shorten it (256: 6.0 ms, 512: 5.0, 1024: 7.3 per 100 slices).
+    Allen::Property<dim3> m_block_dim {this, "block_dim", {512, 1, 1}, "block dimensions"};
 
     // Required, no default, like pvfinder_unet's weight_file: the
     // repository's weights/ pipeline produces fc_weights.bin
@@ -167,6 +202,136 @@ private:
         this, "unet_batch_events", 20u,
         "pad interval features to a multiple of this many events; must match "
         "pvfinder_unet.unet_batch_events"};
+
+    // Hand the UNet only the intervals that can contribute. An interval with
+    // no tracks has all-zero features, so the UNet's output there is its
+    // response to a zero input, the same for every such interval (exactly 0
+    // for the current models). With this on, the reduce kernel writes the
+    // features of the intervals with at least min_interval_tracks tracks to
+    // consecutive rows, the UNet runs on those rows only and writes its
+    // zero-input response to every other interval. The row map is built on
+    // the host from the CSR offsets operator() already copies back to size
+    // its chunks, so it adds no device synchronisation. The pvfinder_unet
+    // downstream follows host_pvfinder_unet_rows, so only this algorithm
+    // needs configuring. cuBLAS builds only (ignored otherwise). On by
+    // default: validated exact on every UNet path, see
+    // docs/pvfinder/skip_empty_intervals.md.
+    Allen::Property<bool> m_skip_empty_intervals {
+        this, "skip_empty_intervals", true,
+        "give the UNet only intervals with >= min_interval_tracks tracks; it writes its "
+        "zero-input response to all others (exact for min_interval_tracks = 1)"};
+
+    // Put each interval's tracks in a canonical order (by their features) when
+    // building the CSR. The atomic scatter and the VELO reconstruction both
+    // change the order from run to run, and with it the rounding of every sum
+    // over an interval's tracks; with this on (and fc_fused, whose sums run in
+    // a fixed order) the whole PVFinder output is bit-for-bit reproducible.
+    Allen::Property<bool> m_canonical_track_order {
+        this, "canonical_track_order", true,
+        "sort each interval's tracks by their features when building the CSR, so the "
+        "sums over tracks (and, with fc_fused, the whole output) are reproducible"};
+
+    // One fused kernel for the whole FC stage (pvfinder_fused_fc_kernel):
+    // L1-L5, L6A, bias + LeakyReLU and the sum over each interval's tracks,
+    // without writing the per-entry L6A output to memory, and without the
+    // cuBLAS GEMM, the chunking and its buffers. FP32, deterministic sums.
+    // The throughput probes (l6a_m, l1_l5_hidden_width, l6a_active_channels,
+    // fc_single_hidden_layer) and the chunk/reduce options apply to the
+    // unfused path only. cuBLAS builds only (ignored otherwise).
+    Allen::Property<bool> m_fc_fused {
+        this, "fc_fused", true,
+        "compute the FC stage in one fused kernel (no L6A round trip through memory, "
+        "no cuBLAS GEMM, deterministic sums)"};
+
+    // Precision of layers 2-5 in the fused FC's tensor-core kernel (fc_fused,
+    // fc_fused_per_warp, bfloat16 L6A): "bfloat16" runs them as BF16 tensor
+    // core products with FP32 accumulation, activations rounded to BF16
+    // between layers; layer 1 (raw track features) stays FP32. "auto" (the
+    // default) = bfloat16 whenever L6A is on tensor cores.
+    Allen::Property<std::string> m_fc_hidden_dtype {
+        this, "fc_hidden_dtype", "auto",
+        "float32, bfloat16 or auto: precision of FC layers 2-5 in the tensor-core fused FC "
+        "(auto = bfloat16 when L6A is bfloat16)"};
+
+    // Fraction of the full-occupancy grid the tensor-core fused FC kernel is
+    // launched with. Its blocks take most of an SM's shared memory; below 1,
+    // other streams' kernels keep SMs while it runs. At 16 streams on the RTX
+    // 3090 (FC + UNet, both set alike): 1: 6.3% loss, 1/2: 4.9%, 1/4: 4.3%,
+    // 1/8: 4.0%, 1/16: 3.9% (docs/pvfinder/pvfinder_16_streams.md).
+    Allen::Property<float> m_fused_grid_fraction {
+        this, "fused_grid_fraction", 0.125f,
+        "fraction of the full-occupancy grid for the tensor-core fused FC kernel"};
+
+    // dev_pvfinder_output_histogram, the FC's own KDE estimate, is not read
+    // by the UNet (which takes the interval features) nor by anything else in
+    // the sequence. The tensor-core fused FC writes it only when this is set,
+    // or when dumping for validation (dump_dir); the other FC paths always do.
+    Allen::Property<bool> m_write_histogram {
+        this, "write_histogram", false,
+        "write dev_pvfinder_output_histogram in the tensor-core fused FC (always when dump_dir is set)"};
+
+    // With fc_fused_per_warp: warps take the slots from a work list built on
+    // the host from the CSR readback, largest first (the biggest intervals do
+    // not start last and run alone at the end of the kernel), each entry
+    // carrying the slot's CSR range and row (one load instead of a chain of
+    // dependent ones); slots that need no output (empty, with compact rows
+    // and no histogram) are left out. Same results: each slot is still
+    // computed by one warp, in fixed order.
+    Allen::Property<bool> m_fc_largest_first {
+        this, "fc_largest_first", true,
+        "with fc_fused_per_warp: process the slots in decreasing track count"};
+
+    // With fc_fused: one warp per (event, interval) slot instead of one
+    // block (no block-wide barriers; tracks one per lane through L1-L5).
+    // Same results: FP32 bit-identical, tensor-core L6A the same sums.
+    Allen::Property<bool> m_fc_fused_per_warp {
+        this, "fc_fused_per_warp", true,
+        "with fc_fused: one warp per slot instead of one block"};
+
+    // Storage type of dev_pvfinder_interval_features. "bfloat16" rounds the
+    // Precision of L6A. With "bfloat16", L6A's inputs (the layer-5 outputs)
+    // and W6A are rounded to bfloat16 and multiplied on tensor cores with
+    // float32 accumulation; bias, LeakyReLU and the sum over tracks stay
+    // float32. With fc_fused this is the fused kernel's tensor-core L6A
+    // (compute capability 8.0 or newer); on the unfused path the cuBLAS GEMM
+    // also stores its output as bfloat16, halving what the reduce kernel
+    // reads back (needs use_fused_bias_relu_reduce). Meant for the bfloat16
+    // UNet path; float32 is exact. The default "auto" is bfloat16 for the
+    // fused FC when it writes bfloat16 features (unet_input_dtype) on a
+    // device with bfloat16 tensor cores, float32 otherwise.
+    Allen::Property<std::string> m_l6a_dtype {
+        this, "l6a_dtype", "auto",
+        "float32, bfloat16 or auto: precision of the L6A matrix product (bfloat16 = tensor cores; "
+        "auto = bfloat16 in the fused FC when the UNet input is bfloat16)"};
+    // features once, in the reduce kernel, so the UNet's BF16 path
+    // (pvfinder_unet.use_bf16) reads them without a conversion pass; only
+    // that path accepts it. The FC arithmetic and histogram stay float32.
+    // cuBLAS builds only (ignored otherwise).
+    Allen::Property<std::string> m_unet_input_dtype {
+        this, "unet_input_dtype", "float32",
+        "storage type of the interval features handed to the UNet: float32 (default) or "
+        "bfloat16 (for pvfinder_unet.use_bf16 = true, avoids its input conversion)"};
+
+    // Layout of each bfloat16 row: "ncw" ([channel][bin], default) or "nwc"
+    // ([bin][channel]), the layout of the UNet's channels-last BF16 path
+    // (pvfinder_unet.bf16_layout = nwc), which then reads the features as they
+    // are. Only valid with unet_input_dtype = bfloat16.
+    Allen::Property<std::string> m_unet_input_layout {
+        this, "unet_input_layout", "ncw",
+        "layout of each bfloat16 interval-feature row: ncw (default) or nwc (for "
+        "pvfinder_unet.bf16_layout = nwc)"};
+
+    // On top of skip_empty_intervals: also skip non-empty intervals with fewer
+    // tracks. The UNet writes its zero-input response there, which is NOT
+    // what it would compute from their (non-zero) features. 2 skips
+    // single-track intervals, about 23% of the UNet's rows, for about 1% of
+    // throughput; on the validation sample they hold 0.28% of the intervals
+    // with a KDE bin above 1e-3, at most 0.056
+    // (docs/pvfinder/pvfinder_16_streams.md). Not worth it: default 1.
+    Allen::Property<unsigned> m_min_interval_tracks {
+        this, "min_interval_tracks", 1u,
+        "with skip_empty_intervals: tracks an interval needs to go through the UNet "
+        "(default 1 = every non-empty interval, exact; larger is NOT physics-exact)"};
 
     // Validation dump: when non-empty, the first operator() call writes the
     // raw FC inputs and outputs (track-to-interval CSR, per-event track

@@ -23,14 +23,27 @@ eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_final)" # export PV
 | `verify` | `scripts/verify.py`: re-reads both files in Allen's loader order and compares every tensor bit for bit with the checkpoint | `verify.txt` |
 | `build` | `../ballen` with the model's `--unet-feat` / `--unet-batch-channels` into `Allen/<build>gpu` | Allen build |
 | `dump` | `scripts/allen_dump.sh`: one 500-event slice with `dump_validation` on for FC and UNet, plus a `snapshot.json` of the environment | `dump/` (`dump_<DUMP_TAG>/`) |
-| `validate` | `scripts/validate_fc.py` recomputes FC from the checkpoint with Allen's own track-to-interval assignment; `scripts/validate_unet.py` does the same for the UNet. Writes a run record to `results/runs/` | `dump*/validate_{fc,unet}.{txt,json}` |
+| `validate` | `scripts/validate_fc.py` recomputes FC from the checkpoint per (track, interval) entry and checks Allen's track-to-interval assignment against the training rules; `scripts/validate_unet.py` recomputes the UNet from Allen's FC output; `scripts/validate_model.py` builds the network input from Allen's raw track features exactly like the training arrays and runs the full PyTorch model. Writes a run record to `results/runs/` | `dump*/validate_{fc,unet,model}.{txt,json}` |
 
 To validate a non-default Allen configuration, override properties at dump
 time and keep that dump separate with a tag, for example the BF16 path:
 
 ```bash
-make -C weights dump validate MODEL=<name> DUMP_TAG=bf16 DUMP_SET="pvfinder_unet.use_bf16=true"
+make -C weights dump validate MODEL=<name> DUMP_TAG=bf16 \
+    DUMP_SET="pvfinder_unet.use_bf16=true pvfinder_fc_aggregation.unet_input_dtype=bfloat16 pvfinder_fc_aggregation.unet_input_layout=nwc"
 ```
+
+`validate_fc.py` and `validate_unet.py` each check one Allen stage against its
+own dumped input, so they prove the arithmetic but not that Allen feeds the
+network what it was trained on; `validate_model.py` is the check for that,
+and also prints physics-level numbers (fraction of intervals with a KDE peak,
+peaks per event) to compare with the training sample. Allen's input
+definition is documented in `docs/pvfinder/pvfinder_input_features.md`.
+
+(The BF16 path runs channels last by default, `pvfinder_unet.bf16_layout = nwc`;
+`unet_input_layout = nwc` has the FC stage write its BF16 output in that
+layout. The dumps convert back to the channels-first float layout the
+validators read. See `docs/pvfinder/bf16.md`.)
 
 `validate` fails (non-zero exit) on any mismatch, after writing its run record
 (see `results/README.md`). `validate_fc.py` also checks

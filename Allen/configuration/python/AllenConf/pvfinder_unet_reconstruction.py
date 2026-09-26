@@ -25,6 +25,8 @@ def make_pvfinder_unet(fc_output,
     fc_output : dict
         Return value of make_pvfinder_fc(), must contain:
           - "dev_pvfinder_interval_features"
+          - "host_pvfinder_unet_rows", "dev_pvfinder_slot_row" (row layout of
+            the features; compact when pvfinder_fc_aggregation.skip_empty_intervals)
           - "host_number_of_events"
     weight_file : str, optional
         Path to cnn_weights.bin. Defaults to $PVFINDER_WEIGHTS_DIR/cnn_weights.bin,
@@ -48,6 +50,9 @@ def make_pvfinder_unet(fc_output,
         name="pvfinder_unet",
         host_number_of_events_t=host_number_of_events,
         dev_pvfinder_interval_features_t=fc_output["dev_pvfinder_interval_features"],
+        host_pvfinder_unet_rows_t=fc_output["host_pvfinder_unet_rows"],
+        dev_pvfinder_slot_row_t=fc_output["dev_pvfinder_slot_row"],
+        dev_pvfinder_row_slot_t=fc_output["dev_pvfinder_row_slot"],
         weight_file=weight_file,
         dump_validation=dump_validation,
     )

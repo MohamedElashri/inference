@@ -1,0 +1,294 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260924_103258_p4_skip_off_production",
+  "label": "p4_skip_off_production",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-24T10:33:02-04:00",
+  "finished_at": "2026-09-24T11:01:30-04:00",
+  "command": "/data/home/melashri/iris/inference-p3/benchmarks/benchmark_pvfinder_batch.sh --label p4_skip_off_production -B buildp3_16chL4gpu -d 2 --model unet16_lc4_scnone_asym5_final -n 500 -m 500 -r 1000 -t 16 --repeats 3 --skip-empty-intervals false",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "e077c17e1aefe6e2c1ba2ccb1d6edf80f9dedf61",
+    "branch": "feat/skip-empty-intervals",
+    "subject": "results: skip_empty_intervals throughput at the production point",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/device/pvfinder/include/PVFinderFCAggregation.cuh",
+      "Allen/device/pvfinder/include/VeloFeatureExtraction.cuh",
+      "Allen/device/pvfinder/src/PVFinderFCAggregation.cu",
+      "Allen/device/pvfinder/src/VeloFeatureExtraction.cu",
+      "benchmarks/benchmark_pvfinder_batch.sh",
+      "benchmarks/runs.py",
+      "weights/Makefile",
+      "weights/scripts/validate_fc.py",
+      "weights/scripts/validate_model.py"
+    ],
+    "diff_sha256": "5230e41417b17cbc65e0eb7d0876a154a7c8fa0040dfc8bd32eac6fdec186d3b"
+  },
+  "build": {
+    "name": "buildp3_16chL4gpu",
+    "dir": "Allen/buildp3_16chL4gpu",
+    "cmake": {
+      "BUILD_TESTING": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-24T10:27:17-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_final",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_final",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_final.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "default model; asym 5, last epoch (69)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "sha256": "1ead334f6e2728b96a34084ce4b1b444f799080b14a72306022d5283c9923d38"
+    },
+    "weights": {
+      "cnn": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_final/cnn_weights.bin",
+        "sha256": "3df43fe945ce863f805c20610942bcb921336176bd62dd0a99e28e0937eec24e"
+      },
+      "fc": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_final/fc_weights.bin",
+        "sha256": "c8e229f5e66f0b81b7289328fb83f8bd32551994e05748874469d204e3797ddb"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "fc_chunk_size": 130,
+    "fc_single_hidden_layer": false,
+    "fwd_algo_ws_budget_mb": 0,
+    "l1_l5_hidden_width": 20,
+    "l6a_active_channels": null,
+    "l6a_m": null,
+    "min_interval_tracks": 1,
+    "safe_avg_entries_per_event": 450,
+    "skip_empty_intervals": false,
+    "skip_redundant_memset": true,
+    "unet_batch_events": 20,
+    "use_bf16": false,
+    "use_cuda_graph": false,
+    "use_fp16": false,
+    "use_fused_bias_relu_pool": null,
+    "use_fused_bias_relu_reduce": true,
+    "use_fused_cbr": false,
+    "use_fused_rcbn3": false,
+    "use_grid_stride_reduce": true,
+    "use_merged_up1": false,
+    "use_nonatomic_l6a_reduce": false,
+    "use_precomputed_csr_offset": true,
+    "use_warp_parallel_reduce": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "5a311cf5903f4e8aa1d3681e19fdcc272569636bdb3353a6a229357e5e9344e3",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "7cfa3967c3b34aa0c1cd5cc6d2fa77e07cf72bc642b9bc0e8168eb3ea8b44c4c",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fc_chunk_size": 130,
+          "fc_single_hidden_layer": false,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": false,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_final/fc_weights.bin"
+        },
+        "pvfinder_velo_feature_extraction": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "6d5bd79a08016d50efe4297cfd80247f56d12fb8718bfa4352b19f8e5820051b",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fc_chunk_size": 130,
+          "fc_single_hidden_layer": false,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": false,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_final/fc_weights.bin"
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_repetition": 0,
+          "dump_validation": "",
+          "fwd_algo_ws_budget_bytes": 0,
+          "unet_batch_events": 20,
+          "use_bf16": false,
+          "use_cuda_graph": false,
+          "use_fp16": false,
+          "use_fused_bias_relu_pool": false,
+          "use_fused_cbr": false,
+          "use_fused_rcbn3": false,
+          "use_merged_up1": false,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_final/cnn_weights.bin"
+        },
+        "pvfinder_velo_feature_extraction": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 87306.175078,
+          "fc": 67929.726629,
+          "unet": 27917.693037
+        },
+        "fc_overhead_pct": 22.193674653240663,
+        "unet_overhead_pct": 68.02323201989078,
+        "unet_retention_pct": 31.976767980109223
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 87209.658414,
+          "fc": 67528.224941,
+          "unet": 27924.003768
+        },
+        "fc_overhead_pct": 22.567951567438428,
+        "unet_overhead_pct": 67.98060641925726,
+        "unet_retention_pct": 32.01939358074275
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 87188.864862,
+          "fc": 67551.135812,
+          "unet": 27933.078994
+        },
+        "fc_overhead_pct": 22.52320761496555,
+        "unet_overhead_pct": 67.9625614598703,
+        "unet_retention_pct": 32.037438540129706
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 87209.658414,
+        "fc": 67551.135812,
+        "unet": 27924.003768
+      },
+      "median_fc_overhead_pct": 22.52320761496555,
+      "median_unet_overhead_pct": 67.98060641925726,
+      "median_unet_retention_pct": 32.01939358074275,
+      "baseline_spread_pct": 0.13451516510144468,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260924_103258_p4_skip_off_production"
+  },
+  "duration_s": 1708
+}

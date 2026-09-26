@@ -142,41 +142,106 @@ def leaky(x):
     return np.where(x > 0, x, 0.01 * x)
 
 
-h = feats
-envelope = np.abs(feats)                                # magnitude of the terms float32 adds
-for k in ("1", "2", "3", "4", "5"):
-    h = leaky(h @ W[k].T + B[k])
-    envelope = envelope @ np.abs(W[k]).T + np.abs(B[k])
-z = leaky(h @ W["6A"].T + B["6A"])                      # [n_tracks, L6A]
-envelope = envelope @ np.abs(W["6A"]).T + np.abs(B["6A"])
+# Allen's CSR (which tracks feed which interval) against the training rules:
+# interval i covers z in [-100 + 10 i, -90 + 10 i) extended by 2.5 mm each
+# side; tracks need sigma_z < 2 and |x| / sigma_x, |y| / sigma_y < 4, with
+# sigma = 1 / sqrt(|A|), 1 / sqrt(|B|), 1 / sqrt(|C|).
+x_, y_, z_ = feats[:, 0], feats[:, 1], feats[:, 2]
+with np.errstate(divide="ignore", invalid="ignore"):
+    sig = np.sqrt(np.abs(1.0 / feats[:, 3:6]))
+    selected = (sig[:, 2] < 2) & (np.abs(x_ / sig[:, 0]) < 4) & (np.abs(y_ / sig[:, 1]) < 4)
+csr_bad = 0
+for e in range(n_events):
+    off = int(offsets[e])
+    n_ev_tracks = (int(offsets[e + 1]) if e + 1 < n_events else n_tracks) - off
+    zz, sel = z_[off:off + n_ev_tracks], selected[off:off + n_ev_tracks]
+    n_entries = int(csr[e, 41])
+    local = track_idx[off * 2: off * 2 + n_entries]
+    for iv in range(40):
+        lo = -100.0 + 10.0 * iv
+        want = set(np.nonzero(sel & (zz > lo - 2.5) & (zz < lo + 12.5))[0].tolist())
+        got = set(local[csr[e, iv]:csr[e, iv + 1]].tolist())
+        csr_bad += want != got
+status = "OK" if csr_bad == 0 else "MISMATCH"
+print(f"track-to-interval assignment vs training rules: {csr_bad} of {n_events * 40} intervals differ  -> {status}")
+report["csr"] = {"intervals_differing": int(csr_bad), "status": status}
+ok &= csr_bad == 0
 
-ref_feat = np.zeros((n_events, 40, L6A))
-ref_hist = np.zeros((n_events, 40, 100))
-env_feat = np.zeros((n_events, 40, L6A))
-env_hist = np.zeros((n_events, 40, 100))
+# One network input per (track, interval) entry, in the training order
+# (z - interval lower edge, x, y, A..F).
+entry_in, entry_slot = [], []
 for e in range(n_events):
     off = int(offsets[e])
     n_entries = int(csr[e, 41])
     gidx = off + track_idx[off * 2: off * 2 + n_entries].astype(np.int64)
     for iv in range(40):
         a, b = int(csr[e, iv]), int(csr[e, iv + 1])
-        n_local = b - a
-        if n_local == 0:
+        if a == b:
             continue
-        s = z[gidx[a:b]].sum(axis=0)
-        ref_feat[e, iv] = s / n_local
-        chan = s.reshape(n_latent, 100).sum(axis=0)
-        sp = np.logaddexp(0.0, chan)                      # exact softplus
-        ref_hist[e, iv] = sp / n_local
-        env = envelope[gidx[a:b]].sum(axis=0)
-        env_feat[e, iv] = env / n_local
-        env_hist[e, iv] = env.reshape(n_latent, 100).sum(axis=0) / n_local
+        f = feats[gidx[a:b]]
+        entry_in.append(np.column_stack([f[:, 2] - (-100.0 + 10.0 * iv), f[:, 0], f[:, 1], f[:, 3:9]]))
+        entry_slot.append(np.full(b - a, e * 40 + iv))
+entry_in = np.concatenate(entry_in)
+entry_slot = np.concatenate(entry_slot)
+
+h = entry_in
+envelope = np.abs(entry_in)                             # magnitude of the terms float32 adds
+for k in ("1", "2", "3", "4", "5"):
+    h = leaky(h @ W[k].T + B[k])
+    envelope = envelope @ np.abs(W[k]).T + np.abs(B[k])
+z = leaky(h @ W["6A"].T + B["6A"])                      # [n_entries, L6A]
+envelope = envelope @ np.abs(W["6A"]).T + np.abs(B["6A"])
+
+n_slots = n_events * 40
+s_sum = np.zeros((n_slots, L6A)); np.add.at(s_sum, entry_slot, z)
+e_sum = np.zeros((n_slots, L6A)); np.add.at(e_sum, entry_slot, envelope)
+n_loc = np.bincount(entry_slot, minlength=n_slots).astype(np.float64)
+nz = n_loc > 0
+ref_feat = np.zeros((n_slots, L6A)); env_feat = np.zeros((n_slots, L6A))
+ref_hist = np.zeros((n_slots, 100)); env_hist = np.zeros((n_slots, 100))
+ref_feat[nz] = s_sum[nz]                                  # UNet input: sum over the interval's tracks
+env_feat[nz] = e_sum[nz]
+chan = s_sum[nz].reshape(-1, n_latent, 100).sum(axis=1)
+ref_hist[nz] = np.logaddexp(0.0, chan) / n_loc[nz, None]   # exact softplus
+env_hist[nz] = e_sum[nz].reshape(-1, n_latent, 100).sum(axis=1) / n_loc[nz, None]
+ref_feat = ref_feat.reshape(n_events, 40, L6A); env_feat = env_feat.reshape(n_events, 40, L6A)
+ref_hist = ref_hist.reshape(n_events, 40, 100); env_hist = env_hist.reshape(n_events, 40, 100)
 
 
 F32_EPS = float(np.finfo(np.float32).eps)
+BF16_EPS = 2.0 ** -7   # bfloat16 keeps 8 significant bits
+
+# Features stored as bfloat16 (pvfinder_fc_aggregation.unet_input_dtype) are
+# rounded on purpose: measure them in bfloat16 ulps instead.
+features_eps, features_unit = F32_EPS, "float32"
+# A bfloat16 L6A (pvfinder_fc_aggregation.l6a_dtype) rounds its inputs, so
+# every per-entry term is off by bfloat16 rounding: both outputs are measured
+# in bfloat16 ulps.
+hist_eps, hist_unit = F32_EPS, "float32"
+# With skip_empty_intervals, intervals with fewer than min_interval_tracks
+# tracks get no feature row (the UNet skips them), so the dump holds zeros
+# there: leave those slots out of the feature comparison (their histogram is
+# still written and compared).
+min_tracks = 0
+cfg_path = os.path.join(args.dump_dir, "config.json")
+if os.path.isfile(cfg_path):
+    import json
+    with open(cfg_path) as fp:
+        fc_cfg = json.load(fp).get("pvfinder_fc_aggregation", {})
+    if fc_cfg.get("skip_empty_intervals", False):
+        min_tracks = int(fc_cfg.get("min_interval_tracks", 1))
+    if fc_cfg.get("unet_input_dtype") == "bfloat16":
+        features_eps, features_unit = BF16_EPS, "bfloat16"
+    l6a = fc_cfg.get("l6a_dtype", "auto")
+    if l6a == "bfloat16" or (l6a == "auto" and fc_cfg.get("fc_fused", True)
+                             and fc_cfg.get("unet_input_dtype") == "bfloat16"):
+        features_eps, features_unit = BF16_EPS, "bfloat16"
+        hist_eps, hist_unit = BF16_EPS, "bfloat16"
+report["features_dtype"] = features_unit
+report["histogram_dtype"] = hist_unit
 
 
-def compare(name, allen, ref, env):
+def compare(name, allen, ref, env, eps=F32_EPS, unit="float32"):
     global ok
     finite_slot = np.isfinite(ref).all(axis=-1) & np.isfinite(allen).all(axis=-1) & np.isfinite(env).all(axis=-1)
     n_bad = int((~finite_slot).sum())
@@ -184,12 +249,12 @@ def compare(name, allen, ref, env):
     r = ref[finite_slot]
     abs_d = np.abs(a - r)
     rel_d = abs_d / np.maximum(np.abs(r), 1.0)
-    ulps = abs_d / (F32_EPS * np.maximum(env[finite_slot], 1.0))
+    ulps = abs_d / (eps * np.maximum(env[finite_slot], 1.0))
     worst = float(ulps.max()) if ulps.size else 0.0
     status = "PASS" if worst < args.max_f32_ulps else "FAIL"
     print(f"{name}: slots compared {int(finite_slot.sum())}, non-finite slots skipped {n_bad}; "
           f"max|diff| {abs_d.max():.3e}, max rel diff {rel_d.max():.3e}, "
-          f"max error {worst:.3g} float32 ulps (limit {args.max_f32_ulps:g}; "
+          f"max error {worst:.3g} {unit} ulps (limit {args.max_f32_ulps:g}; "
           f"largest term magnitude {env[finite_slot].max():.3e})  -> {status}")
     if status == "FAIL":
         ok = False
@@ -200,8 +265,14 @@ def compare(name, allen, ref, env):
     }
 
 
-compare("interval features", ifeat, ref_feat, env_feat)
-compare("histogram        ", hist, ref_hist, env_hist)
+no_row = ((n_loc > 0) & (n_loc < min_tracks)).reshape(n_events, 40)
+report["feature_slots_without_row"] = int(no_row.sum())
+if no_row.any():
+    print(f"interval features: {int(no_row.sum())} slots with 1..{min_tracks - 1} tracks have no row "
+          f"(min_interval_tracks={min_tracks}), not compared")
+feat_nan = np.where(no_row[..., None], np.nan, 0.0)   # non-finite slots are skipped by compare()
+compare("interval features", ifeat + feat_nan, ref_feat, env_feat, features_eps, features_unit)
+compare("histogram        ", hist, ref_hist, env_hist, hist_eps, hist_unit)
 print("PASS" if ok else "FAIL")
 if args.report:
     import json

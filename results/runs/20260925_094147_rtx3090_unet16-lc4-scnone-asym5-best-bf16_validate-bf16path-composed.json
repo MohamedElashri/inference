@@ -1,0 +1,368 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "validation",
+  "id": "20260925_094147_validate-bf16path-composed",
+  "label": "validate_bf16path_composed",
+  "status": "failed",
+  "imported": false,
+  "started_at": "2026-09-25T09:41:36-04:00",
+  "finished_at": "2026-09-25T09:41:47-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "e077c17e1aefe6e2c1ba2ccb1d6edf80f9dedf61",
+    "branch": "feat/skip-empty-intervals",
+    "subject": "results: skip_empty_intervals throughput at the production point",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/device/pvfinder/include/PVFinderFCAggregation.cuh",
+      "Allen/device/pvfinder/include/VeloFeatureExtraction.cuh",
+      "Allen/device/pvfinder/src/PVFinderFCAggregation.cu",
+      "Allen/device/pvfinder/src/PVFinderUNet.cu",
+      "Allen/device/pvfinder/src/VeloFeatureExtraction.cu",
+      "benchmarks/benchmark_pvfinder_batch.sh",
+      "benchmarks/runs.py",
+      "weights/Makefile",
+      "weights/README.md",
+      "weights/scripts/validate_fc.py",
+      "Allen/device/pvfinder/include/PVFinderUNetLowPrecision.cuh",
+      "weights/scripts/validate_model.py"
+    ],
+    "diff_sha256": "dee976adf9bc5a0eb9356f45cfa9c0a595b2b26e0ffbd09ecc8fb32043f7eee7"
+  },
+  "build": {
+    "name": "buildp3_16chL4gpu",
+    "dir": "Allen/buildp3_16chL4gpu",
+    "cmake": {
+      "BUILD_TESTING": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-25T09:39:44-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "cnn": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/cnn_weights.bin",
+        "sha256": "6ce42daaa24536b65bf0137a5314827f790ce75ebe0fdad28a45d940bea41def"
+      },
+      "fc": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin",
+        "sha256": "8f7904905d734ac4f6c043ee5dc40a58bfc1d8497e3016ce5300f8e65c7e07a9"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "events": 500,
+    "threads": 1,
+    "device": 2,
+    "sequence": "hlt1_pp_pvfinder_unet_benchmark"
+  },
+  "config": {
+    "dump": {
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_best_bf16/dump_p6_bf16path",
+          "fc_chunk_size": 130,
+          "fc_single_hidden_layer": false,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": true,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "unet_input_dtype": "bfloat16",
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin"
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_repetition": 0,
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_best_bf16/dump_p6_bf16path",
+          "fwd_algo_ws_budget_bytes": 0,
+          "unet_batch_events": 20,
+          "use_bf16": true,
+          "use_cuda_graph": false,
+          "use_fp16": false,
+          "use_fused_bias_relu_pool": false,
+          "use_fused_cbr": false,
+          "use_fused_rcbn3": false,
+          "use_merged_up1": false,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/cnn_weights.bin"
+        },
+        "pvfinder_velo_feature_extraction": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "fc": {
+      "dump_dir": "/data/home/melashri/iris/inference-p3/weights/out/unet16_lc4_scnone_asym5_best_bf16/dump_p6_bf16path",
+      "weights": "/data/home/melashri/iris/inference-p3/weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "max_f32_ulps": 1.0,
+      "fc_bin": {
+        "status": "OK"
+      },
+      "csr": {
+        "intervals_differing": 0,
+        "status": "OK"
+      },
+      "features_dtype": "bfloat16",
+      "interval_features": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 28484.9600640852,
+        "max_rel_diff": 0.055764446052656035,
+        "max_f32_ulps": 5.5589570564530836e-06,
+        "largest_term": 8779422771643.459,
+        "status": "PASS"
+      },
+      "histogram": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 1.1284560400345072,
+        "max_rel_diff": 0.009610785258460602,
+        "max_f32_ulps": 8.731897588015652e-05,
+        "largest_term": 501447157931.54407,
+        "status": "PASS"
+      },
+      "n_events": 500,
+      "n_tracks": 122358,
+      "latent_channels": 4,
+      "status": "PASS"
+    },
+    "unet": {
+      "dump_dir": "/data/home/melashri/iris/inference-p3/weights/out/unet16_lc4_scnone_asym5_best_bf16/dump_p6_bf16path",
+      "weights": "/data/home/melashri/iris/inference-p3/weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "n_events": 500,
+      "n_intervals": 20000,
+      "non_finite_input_intervals": 0,
+      "max_abs_diff": 0.1343381404876709,
+      "abs_percentiles": {
+        "P50": 1.1119986174408384e-15,
+        "P90": 4.0350521535170714e-11,
+        "P95": 2.3094415269042656e-10,
+        "P99": 1.9215366337448656e-05,
+        "P99.9": 0.006969517171383832,
+        "Pmax": 0.1343381404876709
+      },
+      "rel_percentiles": {
+        "P50": 1.111997380901288e-06,
+        "P90": 0.01584576561050254,
+        "P95": 0.04311737160242875,
+        "P99": 0.10514173070892864,
+        "P99.9": 0.5436174219004436,
+        "Pmax": 10.323866898555984
+      },
+      "pearson_r": 0.9999674857685297,
+      "r_squared": 0.9999349317029963,
+      "signal_region": {
+        "n_bins": 20144,
+        "max_abs_diff": 0.1343381404876709
+      },
+      "background_region": {
+        "n_bins": 1977616,
+        "max_abs_diff": 0.00018486664339434355
+      },
+      "worst_event": {
+        "event": 77,
+        "interval": 11
+      },
+      "layer_stats": {
+        "x1_rcbn1": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.7430818676948547,
+          "std": 1.641903042793274,
+          "min": 0.0,
+          "max": 203.845947265625
+        },
+        "x2_rcbn2_mp": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.5454510450363159,
+          "std": 1.355648398399353,
+          "min": 0.0,
+          "max": 112.7681655883789
+        },
+        "x3_rcbn3_mp": {
+          "shape": [
+            20000,
+            16,
+            25
+          ],
+          "non_finite": 0,
+          "mean": 1.0774650573730469,
+          "std": 1.9315165281295776,
+          "min": 0.0,
+          "max": 114.09693908691406
+        },
+        "xu1_up1": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.6397837400436401,
+          "std": 1.3112186193466187,
+          "min": 0.0,
+          "max": 58.77165222167969
+        },
+        "xu2_up2": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.062457118183374405,
+          "std": 0.15299122035503387,
+          "min": 0.0,
+          "max": 13.165071487426758
+        },
+        "x_oint": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -0.3143485486507416,
+          "std": 2.9575679302215576,
+          "min": -106.32183837890625,
+          "max": 740.3399047851562
+        },
+        "logits": {
+          "shape": [
+            20000,
+            1,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -28.386823654174805,
+          "std": 77.8138427734375,
+          "min": -236.40306091308594,
+          "max": 5033.796875
+        },
+        "pt_kde": {
+          "shape": [
+            20000,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.004004562273621559,
+          "std": 0.07445523887872696,
+          "min": 0.0,
+          "max": 5.033797264099121
+        }
+      },
+      "tiers": {
+        "fp32_noise": false,
+        "tight": false,
+        "acceptable": false,
+        "loose": false
+      },
+      "best_tier": null,
+      "signal_region_under_1e-4": false,
+      "threshold": 0.001,
+      "status": "FAIL"
+    },
+    "model": {
+      "n_events": 500,
+      "empty_interval_fraction": 0.72565,
+      "intervals_capped_at_max_tracks": 0,
+      "max_abs_diff": 0.09452223777770996,
+      "mean_abs_diff": 2.920920236272337e-05,
+      "intervals_with_peak_above_1e-3": {
+        "allen": 0.12295,
+        "pytorch": 0.12305
+      },
+      "bins_above_1e-3_per_event": {
+        "allen": 40.266,
+        "pytorch": 40.292
+      },
+      "threshold": 0.001,
+      "status": "FAIL"
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "dump_dir": "weights/out/unet16_lc4_scnone_asym5_best_bf16/dump_p6_bf16path"
+  },
+  "duration_s": 11
+}

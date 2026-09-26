@@ -3,10 +3,7 @@
 ###############################################################################
 import os
 
-from AllenCore.algorithms import (
-    pvfinder_velo_feature_extraction_t,
-    pvfinder_fc_aggregation_t
-)
+from AllenCore.algorithms import pvfinder_fc_aggregation_t
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
@@ -35,7 +32,7 @@ def pvfinder_weight_file(filename):
 
 @configurable
 def make_pvfinder_fc(velo_tracks, pv_name="", weight_file=None, dump_validation=""):
-    """PVFinder feature extraction + FC aggregation.
+    """PVFinder FC aggregation (it computes the per-track features itself).
 
     weight_file: path to fc_weights.bin; defaults to
     $PVFINDER_WEIGHTS_DIR/fc_weights.bin (see pvfinder_weight_file).
@@ -52,25 +49,15 @@ def make_pvfinder_fc(velo_tracks, pv_name="", weight_file=None, dump_validation=
 
     velo_states = run_velo_kalman_filter(velo_tracks, pv_name)
 
-    # 1. Feature Extraction (9 features per track)
-    pvfinder_feature_extraction = make_algorithm(
-        pvfinder_velo_feature_extraction_t,
-        name="pvfinder_velo_feature_extraction" + pv_name,
-        host_number_of_events_t=host_number_of_events,
-        host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
-        dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
-        dev_velo_states_view_t=velo_states["dev_velo_kalman_beamline_states_view"]
-    )
-
-    # 2. Fused FC+Aggregation - runs the full MLP per-track in registers,
-    #    accumulates directly into interval features. - No global latent buffer.
+    # FC aggregation: per-track features (9 per track, computed in its CSR
+    # build), the FC network and the sum over each interval's tracks.
     pvfinder_fc_aggregation = make_algorithm(
         pvfinder_fc_aggregation_t,
         name="pvfinder_fc_aggregation" + pv_name,
         host_number_of_events_t=host_number_of_events,
         host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
         dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
-        dev_pvfinder_track_features_t=pvfinder_feature_extraction.dev_pvfinder_track_features_t,
+        dev_velo_states_view_t=velo_states["dev_velo_kalman_beamline_states_view"],
         weight_file=weight_file,
         dump_validation=dump_validation,
     )
@@ -78,5 +65,8 @@ def make_pvfinder_fc(velo_tracks, pv_name="", weight_file=None, dump_validation=
     return {
         "dev_pvfinder_output_histogram": pvfinder_fc_aggregation.dev_pvfinder_output_histogram_t,
         "dev_pvfinder_interval_features": pvfinder_fc_aggregation.dev_pvfinder_interval_features_t,
+        "host_pvfinder_unet_rows": pvfinder_fc_aggregation.host_pvfinder_unet_rows_t,
+        "dev_pvfinder_slot_row": pvfinder_fc_aggregation.dev_pvfinder_slot_row_t,
+        "dev_pvfinder_row_slot": pvfinder_fc_aggregation.dev_pvfinder_row_slot_t,
         "host_number_of_events": host_number_of_events,
     }

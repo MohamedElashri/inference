@@ -111,6 +111,40 @@ Options:
                              (default: 450); CAUTION -- lowering this reclaims
                              T_chunk_max headroom for a larger fc_chunk_size at
                              real crash risk if set too low
+  --l6a-dtype DTYPE          Set pvfinder_fc_aggregation.l6a_dtype: auto (default:
+                             tensor cores in the fused FC when the UNet input is
+                             bfloat16), float32 or bfloat16
+  --fc-fused-per-warp BOOL   Set pvfinder_fc_aggregation.fc_fused_per_warp
+                             (default: true); one warp per slot in the fused FC
+  --fc-hidden-dtype DTYPE    Set pvfinder_fc_aggregation.fc_hidden_dtype: auto
+                             (default: tensor cores for FC layers 2-5 when L6A
+                             is on them), float32 or bfloat16
+  --fc-grid-fraction F       Set pvfinder_fc_aggregation.fused_grid_fraction (default 0.125)
+  --unet-grid-fraction F     Set pvfinder_unet.fused_grid_fraction (default 0.25)
+  --canonical-track-order BOOL
+                             Set pvfinder_fc_aggregation.canonical_track_order
+                             (default: true); reproducible sums over tracks
+  --fc-fused BOOL            Set pvfinder_fc_aggregation.fc_fused true/false
+                             (default: true); the whole FC stage in one kernel
+  --skip-empty-intervals BOOL
+                             Set pvfinder_fc_aggregation.skip_empty_intervals
+                             true/false (default: true); the UNet then runs
+                             only on intervals with tracks (exact)
+  --unet-fused-kernel BOOL   Set pvfinder_unet.fused_kernel (default: true); the
+                             channels-last BF16 UNet as one tensor-core kernel
+                             (only used on that path, cuDNN otherwise)
+  --bf16-layout LAYOUT       Set pvfinder_unet.bf16_layout: nwc (default; channels
+                             last, cuDNN graph-API fused convolutions) or ncw;
+                             only used with --use-bf16 true
+  --unet-input-layout L      Set pvfinder_fc_aggregation.unet_input_layout: ncw,
+                             nwc, or auto (default: nwc when the UNet input is
+                             bfloat16 and --bf16-layout nwc, ncw otherwise)
+  --unet-input-dtype TYPE    Set pvfinder_fc_aggregation.unet_input_dtype:
+                             float32, bfloat16, or auto (default: bfloat16
+                             when --use-bf16 true, float32 otherwise)
+  --min-interval-tracks N    Set pvfinder_fc_aggregation.min_interval_tracks
+                             (default: 1); with --skip-empty-intervals, also
+                             skip intervals with fewer tracks (NOT exact when > 1)
   --profile                  Run each sequence under nsys; the record gets
                              the per-sequence kernel summary
   --result-root DIR          Directory for batches (default: benchmark_results)
@@ -163,6 +197,19 @@ L1_L5_HIDDEN_WIDTH=20
 L6A_ACTIVE_CHANNELS=""    # unset default: leaves Allen's own build-derived N_LATENT_CHANNELS in effect
 USE_PRECOMPUTED_CSR_OFFSET=true
 SAFE_AVG_ENTRIES_PER_EVENT=450
+SKIP_EMPTY_INTERVALS=true
+FC_FUSED=true
+CANONICAL_TRACK_ORDER=true
+FC_FUSED_PER_WARP=true
+FC_GRID_FRACTION=0.125
+UNET_GRID_FRACTION=0.25
+FC_HIDDEN_DTYPE=auto
+L6A_DTYPE=auto
+UNET_INPUT_DTYPE=auto
+BF16_LAYOUT=nwc
+UNET_FUSED_KERNEL=true
+UNET_INPUT_LAYOUT=auto
+MIN_INTERVAL_TRACKS=1
 PROFILE=0
 RESULT_ROOT="${REPO_ROOT}/benchmark_results"
 RECORD=1
@@ -201,6 +248,19 @@ while [[ $# -gt 0 ]]; do
         --l6a-active-channels) L6A_ACTIVE_CHANNELS="$2"; shift 2 ;;
         --use-precomputed-csr-offset) USE_PRECOMPUTED_CSR_OFFSET="$2"; shift 2 ;;
         --safe-avg-entries-per-event) SAFE_AVG_ENTRIES_PER_EVENT="$2"; shift 2 ;;
+        --skip-empty-intervals) SKIP_EMPTY_INTERVALS="$2"; shift 2 ;;
+        --fc-fused) FC_FUSED="$2"; shift 2 ;;
+        --canonical-track-order) CANONICAL_TRACK_ORDER="$2"; shift 2 ;;
+        --fc-fused-per-warp) FC_FUSED_PER_WARP="$2"; shift 2 ;;
+        --fc-grid-fraction) FC_GRID_FRACTION="$2"; shift 2 ;;
+        --unet-grid-fraction) UNET_GRID_FRACTION="$2"; shift 2 ;;
+        --fc-hidden-dtype) FC_HIDDEN_DTYPE="$2"; shift 2 ;;
+        --l6a-dtype) L6A_DTYPE="$2"; shift 2 ;;
+        --min-interval-tracks) MIN_INTERVAL_TRACKS="$2"; shift 2 ;;
+        --unet-input-dtype) UNET_INPUT_DTYPE="$2"; shift 2 ;;
+        --bf16-layout) BF16_LAYOUT="$2"; shift 2 ;;
+        --unet-fused-kernel) UNET_FUSED_KERNEL="$2"; shift 2 ;;
+        --unet-input-layout) UNET_INPUT_LAYOUT="$2"; shift 2 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --no-record) RECORD=0; shift 1 ;;
@@ -310,6 +370,68 @@ esac
 
 if ! [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" =~ ^[0-9]+$ ]] || [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" -lt 1 ]]; then
     echo "ERROR: --safe-avg-entries-per-event must be a positive integer" >&2
+    exit 1
+fi
+
+case "${UNET_FUSED_KERNEL}" in
+    true|false) ;;
+    *) echo "ERROR: --unet-fused-kernel must be true or false" >&2; exit 1 ;;
+esac
+
+case "${BF16_LAYOUT}" in
+    ncw|nwc) ;;
+    *) echo "ERROR: --bf16-layout must be ncw or nwc" >&2; exit 1 ;;
+esac
+
+case "${UNET_INPUT_DTYPE}" in
+    auto) [[ "${USE_BF16}" == true ]] && UNET_INPUT_DTYPE=bfloat16 || UNET_INPUT_DTYPE=float32 ;;
+    float32|bfloat16) ;;
+    *) echo "ERROR: --unet-input-dtype must be float32, bfloat16 or auto" >&2; exit 1 ;;
+esac
+if [[ "${UNET_INPUT_DTYPE}" == bfloat16 && "${USE_BF16}" != true ]]; then
+    echo "ERROR: --unet-input-dtype bfloat16 needs --use-bf16 true" >&2
+    exit 1
+fi
+case "${UNET_INPUT_LAYOUT}" in
+    auto) [[ "${UNET_INPUT_DTYPE}" == bfloat16 && "${BF16_LAYOUT}" == nwc ]] && UNET_INPUT_LAYOUT=nwc || UNET_INPUT_LAYOUT=ncw ;;
+    ncw) ;;
+    nwc) [[ "${UNET_INPUT_DTYPE}" == bfloat16 && "${BF16_LAYOUT}" == nwc ]] || {
+             echo "ERROR: --unet-input-layout nwc needs bfloat16 input and --bf16-layout nwc" >&2; exit 1; } ;;
+    *) echo "ERROR: --unet-input-layout must be ncw, nwc or auto" >&2; exit 1 ;;
+esac
+
+case "${L6A_DTYPE}" in
+    auto|float32|bfloat16) ;;
+    *) echo "ERROR: --l6a-dtype must be auto, float32 or bfloat16" >&2; exit 1 ;;
+esac
+
+case "${FC_HIDDEN_DTYPE}" in
+    auto|float32|bfloat16) ;;
+    *) echo "ERROR: --fc-hidden-dtype must be auto, float32 or bfloat16" >&2; exit 1 ;;
+esac
+
+case "${FC_FUSED_PER_WARP}" in
+    true|false) ;;
+    *) echo "ERROR: --fc-fused-per-warp must be true or false" >&2; exit 1 ;;
+esac
+
+case "${CANONICAL_TRACK_ORDER}" in
+    true|false) ;;
+    *) echo "ERROR: --canonical-track-order must be true or false" >&2; exit 1 ;;
+esac
+
+case "${FC_FUSED}" in
+    true|false) ;;
+    *) echo "ERROR: --fc-fused must be true or false" >&2; exit 1 ;;
+esac
+
+case "${SKIP_EMPTY_INTERVALS}" in
+    true|false) ;;
+    *) echo "ERROR: --skip-empty-intervals must be true or false" >&2; exit 1 ;;
+esac
+
+if ! [[ "${MIN_INTERVAL_TRACKS}" =~ ^[0-9]+$ ]] || [[ "${MIN_INTERVAL_TRACKS}" -lt 1 ]]; then
+    echo "ERROR: --min-interval-tracks must be a positive integer" >&2
     exit 1
 fi
 
@@ -427,11 +549,11 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_BF16" "$USE_MERGED_UP1" "$USE_FUSED_BIAS_RELU_POOL" "$UNET_BATCH_EVENTS" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_BF16" "$USE_MERGED_UP1" "$USE_FUSED_BIAS_RELU_POOL" "$UNET_BATCH_EVENTS" "$BF16_LAYOUT" "$UNET_FUSED_KERNEL" "$UNET_GRID_FRACTION" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_bf16_raw, use_merged_up1_raw, use_fused_brp_raw, unet_batch_events_raw = sys.argv[1:]
+path, weights, use_fp16_raw, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_bf16_raw, use_merged_up1_raw, use_fused_brp_raw, unet_batch_events_raw, bf16_layout, unet_fused_kernel_raw, unet_grid_fraction = sys.argv[1:]
 use_fp16 = use_fp16_raw == "true"
 use_bf16 = use_bf16_raw == "true"
 use_merged_up1 = use_merged_up1_raw == "true"
@@ -455,6 +577,9 @@ pvfinder_unet["use_fused_rcbn3"] = use_fused_rcbn3
 if use_fused_brp_raw:            # only touch builds that have the property
     pvfinder_unet["use_fused_bias_relu_pool"] = use_fused_brp_raw == "true"
 pvfinder_unet["unet_batch_events"] = int(unet_batch_events_raw)
+pvfinder_unet["bf16_layout"] = bf16_layout
+pvfinder_unet["fused_kernel"] = unet_fused_kernel_raw == "true"
+pvfinder_unet["fused_grid_fraction"] = float(unet_grid_fraction)
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -470,7 +595,8 @@ patch_fc_config() {
         "$USE_GRID_STRIDE_REDUCE" "$FC_SINGLE_HIDDEN_LAYER" \
         "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" \
         "$L1_L5_HIDDEN_WIDTH" "$L6A_ACTIVE_CHANNELS" "$FC_WEIGHTS_ABS" \
-        "$UNET_BATCH_EVENTS" <<'PY'
+        "$UNET_BATCH_EVENTS" "$SKIP_EMPTY_INTERVALS" "$MIN_INTERVAL_TRACKS" "$UNET_INPUT_DTYPE" \
+        "$UNET_INPUT_LAYOUT" "$FC_FUSED" "$CANONICAL_TRACK_ORDER" "$L6A_DTYPE" "$FC_FUSED_PER_WARP" "$FC_HIDDEN_DTYPE" "$FC_GRID_FRACTION" <<'PY'
 import json
 import sys
 
@@ -478,7 +604,9 @@ import sys
  use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw,
  fc_single_hidden_layer_raw, use_precomputed_csr_offset_raw,
  safe_avg_entries_per_event_raw, l1_l5_hidden_width_raw,
- l6a_active_channels_raw, fc_weights_abs, unet_batch_events_raw) = sys.argv[1:]
+ l6a_active_channels_raw, fc_weights_abs, unet_batch_events_raw,
+ skip_empty_intervals_raw, min_interval_tracks_raw, unet_input_dtype,
+ unet_input_layout, fc_fused_raw, canonical_raw, l6a_dtype, per_warp_raw, hidden_dtype, fc_grid_fraction) = sys.argv[1:]
 
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -508,6 +636,16 @@ fc_agg["safe_avg_entries_per_event"] = int(safe_avg_entries_per_event_raw)
 fc_agg["l1_l5_hidden_width"] = int(l1_l5_hidden_width_raw)
 if l6a_active_channels_raw != "":
     fc_agg["l6a_active_channels"] = int(l6a_active_channels_raw)
+fc_agg["skip_empty_intervals"] = skip_empty_intervals_raw == "true"
+fc_agg["min_interval_tracks"] = int(min_interval_tracks_raw)
+fc_agg["unet_input_dtype"] = unet_input_dtype
+fc_agg["unet_input_layout"] = unet_input_layout
+fc_agg["fc_fused"] = fc_fused_raw == "true"
+fc_agg["canonical_track_order"] = canonical_raw == "true"
+fc_agg["l6a_dtype"] = l6a_dtype
+fc_agg["fc_fused_per_warp"] = per_warp_raw == "true"
+fc_agg["fc_hidden_dtype"] = hidden_dtype
+fc_agg["fused_grid_fraction"] = float(fc_grid_fraction)
 
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
@@ -648,6 +786,19 @@ run_sequence() {
     echo "l6a_active_channels=${L6A_ACTIVE_CHANNELS:-<build-default N_LATENT_CHANNELS>}"
     echo "use_precomputed_csr_offset=${USE_PRECOMPUTED_CSR_OFFSET}"
     echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
+    echo "skip_empty_intervals=${SKIP_EMPTY_INTERVALS}"
+    echo "min_interval_tracks=${MIN_INTERVAL_TRACKS}"
+    echo "unet_input_dtype=${UNET_INPUT_DTYPE}"
+    echo "bf16_layout=${BF16_LAYOUT}"
+    echo "unet_fused_kernel=${UNET_FUSED_KERNEL}"
+    echo "unet_input_layout=${UNET_INPUT_LAYOUT}"
+    echo "fc_fused=${FC_FUSED}"
+    echo "canonical_track_order=${CANONICAL_TRACK_ORDER}"
+    echo "l6a_dtype=${L6A_DTYPE}"
+    echo "fc_fused_per_warp=${FC_FUSED_PER_WARP}"
+    echo "fc_hidden_dtype=${FC_HIDDEN_DTYPE}"
+    echo "fc_grid_fraction=${FC_GRID_FRACTION}"
+    echo "unet_grid_fraction=${UNET_GRID_FRACTION}"
     echo "mdf=${MDF}"
     echo "geometry=${GEO}"
     echo "sequences=${SEQUENCES[*]}"

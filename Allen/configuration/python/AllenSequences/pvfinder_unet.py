@@ -11,7 +11,7 @@ from AllenCore.generator import generate
 decoded_velo = decode_velo()
 velo_tracks = make_velo_tracks(decoded_velo)
 
-# FC chain: feature extraction -> FC engine -> track aggregation
+# FC chain: per-track features, FC network and sum over each interval's tracks (one algorithm)
 pvfinder_fc_output = make_pvfinder_fc(velo_tracks)
 
 # UNet chain: NCW layout -> UNet inference
