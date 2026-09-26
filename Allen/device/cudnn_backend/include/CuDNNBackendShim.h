@@ -1,8 +1,7 @@
 #pragma once
 
-// This header provides compile-time backend selection.
-// Currently: cuDNN (CUDA), MIOpen stub (HIP), no-op (CPU).
-// To add MIOpen: implement the HIP branch.
+// Compile-time backend selection: cuDNN for CUDA, a MIOpen stub for HIP,
+// and a no-op backend for CPU builds.
 
 #if defined(ALLEN_WITH_CUDNN) && defined(TARGET_DEVICE_CUDA)
 #  define ALLEN_CUDNN_BACKEND_CUDA 1

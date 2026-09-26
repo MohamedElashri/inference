@@ -9,8 +9,8 @@ namespace Allen::CuDNN {
   /**
    * @brief RAII wrapper around cudnnHandle_t.
    *
-   * Legacy per-instance handle — kept for backward compatibility.
-   * Prefer get_thread_local_handle() for new code.
+   * Compatibility wrapper for callers that own one handle per instance.
+   * Stream-oriented callers use get_thread_local_handle().
    */
   struct Handle {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA

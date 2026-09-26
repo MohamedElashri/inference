@@ -11,10 +11,10 @@ from AllenCore.generator import generate
 decoded_velo = decode_velo()
 velo_tracks = make_velo_tracks(decoded_velo)
 
-# FC chain: per-track features, FC network and sum over each interval's tracks (one algorithm)
+# FC chain: per-track features, FC network and sum over each interval's tracks (one algorithm).
 pvfinder_fc_output = make_pvfinder_fc(velo_tracks)
 
-# UNet chain: NCW layout -> UNet inference
+# UNet inference consumes the FC interval features directly.
 # Set dump_validation to a directory path to write allen_ncw_input.bin and
 # allen_kde_output.bin on the first processed slice (for numerical validation).
 import os

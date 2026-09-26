@@ -10,7 +10,7 @@ from AllenCore.generator import generate
 decoded_velo = decode_velo()
 velo_tracks = make_velo_tracks(decoded_velo)
 
-# Execute PVFinder Feature Extraction -> FC Engine -> Track Aggregation
+# Execute PVFinder feature extraction and FC aggregation.
 pvfinder_fc_output = make_pvfinder_fc(velo_tracks)
 
 # Isolate the final algorithm producer
