@@ -32,6 +32,10 @@ constexpr unsigned INTERVAL_FEATURES_STRIDE = N_INTERVALS * L6A_WIDTH;
 struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
     HOST_INPUT(host_number_of_reconstructed_velo_tracks_t, unsigned) host_number_of_reconstructed_velo_tracks;
+    // Events that passed the node's prefilters (the HLT1 physics prefilters in
+    // the PVFinder sequences). Only these get tracks; every other event's
+    // intervals are empty.
+    MASK_INPUT(dev_event_list_t) dev_event_list;
     
     DEVICE_INPUT(dev_velo_tracks_view_t, Allen::Views::Velo::Consolidated::Tracks) dev_velo_tracks_view;
     DEVICE_INPUT(dev_velo_states_view_t, Allen::Views::Physics::KalmanStates) dev_velo_states_view;

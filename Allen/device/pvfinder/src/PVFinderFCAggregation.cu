@@ -127,7 +127,7 @@ __global__ void pvfinder_build_csr_kernel(
     pvfinder_fc_aggregation_t::Parameters parameters,
     bool canonical_order)   // see m_canonical_track_order
 {
-    const unsigned event_number      = blockIdx.x;
+    const unsigned event_number      = parameters.dev_event_list[blockIdx.x];
     const unsigned thread_id         = threadIdx.x;
     const auto     velo_tracks_view  = parameters.dev_velo_tracks_view[event_number];
     const unsigned num_tracks        = velo_tracks_view.size();
@@ -274,6 +274,27 @@ __global__ void pvfinder_build_csr_kernel(
             }
             g_idx[s_start[iv] + rank] = me;
         }
+    }
+}
+
+// Validation dump only: each track's VELO Kalman state at the beamline, in the
+// order of dev_pvfinder_track_features (x, y, z, tx, ty, c00), and the
+// beamline (pos x, y, z, tx x, y), so weights/scripts/validate_features.py can
+// recompute the features independently. One block per event.
+__global__ void pvfinder_dump_states_kernel(
+    pvfinder_fc_aggregation_t::Parameters parameters, float* states, float* beamline)
+{
+    const unsigned event_number = blockIdx.x;
+    const auto tracks = parameters.dev_velo_tracks_view[event_number];
+    const auto kalman = parameters.dev_velo_states_view[event_number];
+    for (unsigned i = threadIdx.x; i < tracks.size(); i += blockDim.x) {
+        const auto st = kalman.state(tracks.track(i).track_index());
+        float* o = states + (size_t) (tracks.offset() + i) * 6;
+        o[0] = st.x(); o[1] = st.y(); o[2] = st.z(); o[3] = st.tx(); o[4] = st.ty(); o[5] = st.c00();
+    }
+    if (event_number == 0 && threadIdx.x == 0) {
+        beamline[0] = dev_beamline.pos.x; beamline[1] = dev_beamline.pos.y; beamline[2] = dev_beamline.pos.z;
+        beamline[3] = dev_beamline.tx.x;  beamline[4] = dev_beamline.tx.y;
     }
 }
 
@@ -1926,11 +1947,18 @@ void pvfinder_fc_aggregation_t::operator()(
     const unsigned n_events = first<host_number_of_events_t>(arguments);
 
     // -----------------------------------------------------------------------
-    // Step 1: Build the CSR index.
+    // Step 1: Build the CSR index, for the events in the event list. Every
+    // other event keeps an all-zero CSR row: no tracks, so empty intervals.
     // -----------------------------------------------------------------------
-    global_function(pvfinder_build_csr_kernel)(
-        dim3(n_events), m_block_dim, context)(
-        arguments, m_canonical_track_order.value());
+    const unsigned n_selected = size<dev_event_list_t>(arguments);
+    if (n_selected < n_events) {
+        Allen::memset_async<dev_pvfinder_interval_start_t>(arguments, 0, context);
+    }
+    if (n_selected > 0) {
+        global_function(pvfinder_build_csr_kernel)(
+            dim3(n_selected), m_block_dim, context)(
+            arguments, m_canonical_track_order.value());
+    }
 
     // -----------------------------------------------------------------------
     // Step 2: Zero the interval feature and histogram output buffers.
@@ -2599,6 +2627,22 @@ void pvfinder_fc_aggregation_t::operator()(
         write_dump("allen_fc_track_features.bin", h_feat.data(), h_feat.size() * sizeof(float));
         write_dump("allen_fc_interval_features.bin", h_ifeat.data(), h_ifeat.size() * sizeof(float));
         write_dump("allen_fc_histogram.bin", h_hist.data(), h_hist.size() * sizeof(float));
+        {
+            // Track states and beamline, for weights/scripts/validate_features.py.
+            float *d_states = nullptr, *d_beamline = nullptr;
+            cudaCheck(cudaMalloc(&d_states, std::max<size_t>(n_trk, 1) * 6 * sizeof(float)));
+            cudaCheck(cudaMalloc(&d_beamline, 5 * sizeof(float)));
+            global_function(pvfinder_dump_states_kernel)(dim3(n_ev), dim3(128), context)(
+                arguments, d_states, d_beamline);
+            cudaStreamSynchronize(context.stream());
+            std::vector<float> h_states((size_t) n_trk * 6), h_beamline(5);
+            cudaMemcpy(h_states.data(), d_states, h_states.size() * sizeof(float), cudaMemcpyDeviceToHost);
+            cudaMemcpy(h_beamline.data(), d_beamline, 5 * sizeof(float), cudaMemcpyDeviceToHost);
+            cudaFree(d_states);
+            cudaFree(d_beamline);
+            write_dump("allen_fc_track_states.bin", h_states.data(), h_states.size() * sizeof(float));
+            write_dump("allen_fc_beamline.bin", h_beamline.data(), h_beamline.size() * sizeof(float));
+        }
         printf("[pvfinder_fc_aggregation] validation dump written to %s (%u events, %u tracks)\n",
                dump_dir.c_str(), n_ev, n_trk);
         m_dump_done = true;

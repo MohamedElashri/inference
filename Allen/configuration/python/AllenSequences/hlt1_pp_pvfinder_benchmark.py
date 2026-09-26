@@ -7,7 +7,7 @@ from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
-from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc
+from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc, pvfinder_node
 from PyConf.control_flow import NodeLogic, CompositeNode
 
 def hook_pvfinder_to_hlt1():
@@ -22,14 +22,15 @@ def hook_pvfinder_to_hlt1():
         with_fullKF=True,
     )
     
-    # Append the aggregation producer directly to the top-level control-flow node.
+    # Add the aggregation producer to the top-level control-flow node, behind the
+    # HLT1 physics prefilters (see pvfinder_node).
     hlt1_graph = hlt1_node_dict['control_flow_node']
     reco = hlt1_node_dict['reconstruction']
     
     pvfinder_fc_output = make_pvfinder_fc(reco['velo_tracks'])
     aggregation_producer = pvfinder_fc_output["dev_pvfinder_output_histogram"].producer
     
-    hlt1_graph.children = tuple(list(hlt1_graph.children) + [aggregation_producer])
+    hlt1_graph.children = tuple(list(hlt1_graph.children) + [pvfinder_node(aggregation_producer)])
     return hlt1_graph
 
 with make_velo_scifi_matches.bind(

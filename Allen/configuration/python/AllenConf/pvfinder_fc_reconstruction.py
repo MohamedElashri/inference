@@ -7,7 +7,28 @@ from AllenCore.algorithms import pvfinder_fc_aggregation_t
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 from AllenConf.utils import initialize_number_of_events
 from AllenCore.generator import make_algorithm
+from AllenConf.odin import make_bxtype, make_event_type, odin_error_filter
+from AllenConf.filters import make_gec
+from PyConf.control_flow import NodeLogic, CompositeNode
 from PyConf.tonic import configurable
+
+
+def pvfinder_node(producer):
+    """PVFinder behind the HLT1 physics prefilters.
+
+    The same filters, built with the same arguments, as setup_hlt1_node's
+    physics lines (ODIN errors, beam-beam crossings, VELO closed, GEC), so they
+    are the same algorithm instances. PVFinder then runs on the events whose
+    VELO tracks HLT1 reconstructs for its lines, and the shared VELO chain keeps
+    the event lists it has in hlt1_pp_default.
+    """
+    prefilters = [
+        odin_error_filter("odin_error_filter"),
+        make_bxtype(bx_type=3),
+        make_event_type(name="ODIN_EvenType_VeloClosed", event_type="VeloOpen", invert=True),
+        make_gec(count_ut=False, count_velo=True, max_scifi_clusters=20000, max_velo_clusters=35000),
+    ]
+    return CompositeNode("PVFinderWithPrefilter", prefilters + [producer], NodeLogic.LAZY_AND, force_order=True)
 
 def pvfinder_weight_file(filename):
     """Absolute path of a PVFinder weight file inside $PVFINDER_WEIGHTS_DIR.

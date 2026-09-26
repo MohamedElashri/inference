@@ -140,7 +140,10 @@ list|show|compare` reads the records; see `results/README.md`.
 
 - the FC stage, per track and interval;
 - the UNet, from Allen's FC output;
-- the full model, from Allen's raw track features.
+- the full model, from Allen's raw track features;
+- the track features themselves, recomputed per track from Allen's track states,
+  with the training team's ellipsoid code (and the rules checked against the
+  training sample when `/share/lazy/sokoloff/...` is readable).
 
 It writes a run record.
 
@@ -149,6 +152,9 @@ make -C weights BUILD=mybuild DEVICE=0 dump validate MODEL=unet16_lc4_scnone_asy
     DUMP_SET="pvfinder_unet.use_bf16=true pvfinder_fc_aggregation.unet_input_dtype=bfloat16 pvfinder_fc_aggregation.unet_input_layout=nwc"
 ```
 
-The FP32 path agrees with PyTorch to float32 precision. The BF16 path differs by
-up to about 0.2 in the output density, with the same peaks. See `weights/README.md`
+The FP32 path must agree with PyTorch to float32 precision (max difference below
+1e-3). The BF16 path differs by up to about 0.2 in the output density, so it is
+judged on the peaks instead: under 1% of bins off by more than 0.01, median peak
+height change under 2%, and the highest bin moving by more than one bin in under
+1% of intervals (today 0.21%, 0.6% and 0.1%). See `weights/README.md`
 for the whole weights pipeline.

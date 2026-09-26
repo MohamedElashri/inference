@@ -8,7 +8,8 @@
 #   make build    MODEL=<name>       build the Allen variant the model needs (../ballen)
 #   make dump     MODEL=<name>       run Allen on one slice with the FC (and UNet) dumps enabled
 #   make validate MODEL=<name>       recompute FC and UNet from the checkpoint, and the full model from
-#                                    Allen's track features, compare with the dump, write a run record
+#                                    Allen's track features, compare with the dump; recompute the track
+#                                    features from Allen's track states; write a run record
 #   make verify-all                  fetch + convert + verify every model
 #   make env      MODEL=<name>       print the PVFINDER_WEIGHTS_DIR export Allen configs need
 #   make clean    MODEL=<name>       remove out/<name>
@@ -107,6 +108,8 @@ validate: check-model
 >     --report $(DUMP)/validate_unet.json | tee $(DUMP)/validate_unet.txt || rc=1; \
 > $(PY) $(SCRIPTS)/validate_model.py --dump-dir $(DUMP) --weights $(CKPT) \
 >     --report $(DUMP)/validate_model.json 2>&1 | grep -v '^DEBUG' | tee $(DUMP)/validate_model.txt || rc=1; \
+> $(PY) $(SCRIPTS)/validate_features.py --dump-dir $(DUMP) \
+>     --report $(DUMP)/validate_features.json | tee $(DUMP)/validate_features.txt || rc=1; \
 > $(PY) $(RUNS) validation --model $(MODEL) --build-dir $(REPO)/Allen/$(BUILD)gpu --dump-dir $(DUMP) \
 >     --device $(DEVICE) --events $(EVENTS) --sequence $(SEQUENCE) --label $(LABEL) \
 >     --fc-report $(DUMP)/validate_fc.json --unet-report $(DUMP)/validate_unet.json \

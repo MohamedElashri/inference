@@ -2,8 +2,8 @@
 # (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration
 #
 # HLT1 + PVFinder full pipeline benchmark sequence.
-# Appends the complete PVFinder chain (FC + UNet) after standard HLT1 reco,
-# sharing the VELO tracks already reconstructed by HLT1.
+# Adds the complete PVFinder chain (FC + UNet) to standard HLT1, behind the
+# HLT1 physics prefilters, sharing the VELO tracks reconstructed by HLT1.
 #
 # Pipeline:
 #   HLT1 default reco
@@ -16,7 +16,7 @@ from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
-from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc
+from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc, pvfinder_node
 from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet
 from PyConf.control_flow import NodeLogic, CompositeNode
 import os
@@ -46,11 +46,11 @@ def hook_pvfinder_unet_to_hlt1():
         dump_validation=_dump_dir,
     )
 
-    # Append the final UNet producer as an extra child of the HLT1 top node.
-    # Allen evaluates children sequentially; appending here means PVFinder
-    # runs after all HLT1 lines have been evaluated.
+    # Add PVFinder to the HLT1 top node, behind the HLT1 physics prefilters
+    # (see pvfinder_node). Allen schedules it by its data dependencies: right
+    # after the VELO Kalman filter, not after the lines.
     unet_producer = pvfinder_unet_output["unet_producer"]
-    hlt1_graph.children = tuple(list(hlt1_graph.children) + [unet_producer])
+    hlt1_graph.children = tuple(list(hlt1_graph.children) + [pvfinder_node(unet_producer)])
 
     return hlt1_graph
 
