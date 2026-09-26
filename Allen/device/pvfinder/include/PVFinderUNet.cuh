@@ -51,8 +51,18 @@ static constexpr float KDE_SCALE = 0.001f;
 struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
 
-    // Interval features from aggregation: [n_events, 40, C=8, W=100]
+    // Interval features from aggregation: [n_events, 40, C=8, W=100], or
+    // compact rows, one per interval the UNet runs on (see
+    // pvfinder_fc_aggregation's skip_empty_intervals).
     DEVICE_INPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
+    // Row layout of the features, from pvfinder_fc_aggregation: [0] 0 dense /
+    // 1 compact, [1] compact rows in use; and each (event, interval)'s row,
+    // -1 when skipped (compact only).
+    HOST_INPUT(host_pvfinder_unet_rows_t, unsigned) host_pvfinder_unet_rows;
+    DEVICE_INPUT(dev_pvfinder_slot_row_t, int) dev_pvfinder_slot_row;
+    // Inverse of dev_pvfinder_slot_row (row -> slot), for the fused kernel's
+    // direct KDE writes.
+    DEVICE_INPUT(dev_pvfinder_row_slot_t, int) dev_pvfinder_row_slot;
 
     // Scratch intermediate buffers (Allen pool, sized for one unet_batch_events batch, reused per batch)
     DEVICE_OUTPUT(dev_unet_x1_t,      float) dev_unet_x1;    // [N, N_FEAT, 100] (also oint)
@@ -62,6 +72,9 @@ struct Parameters {
     DEVICE_OUTPUT(dev_unet_up2_t,     float) dev_unet_up2;   // [N, N_FEAT, 100]
     // conv_ws: IMPLICIT_GEMM needs 0 workspace; allocate 1 float as Allen requires non-zero size.
     DEVICE_OUTPUT(dev_unet_conv_ws_t, float) dev_unet_conv_ws;
+    // Compact rows only: KDE of each row the UNet ran on, [rows padded to a batch, 100],
+    // spread back to dev_pvfinder_kde_output afterwards. 1 float otherwise.
+    DEVICE_OUTPUT(dev_unet_kde_rows_t, float) dev_unet_kde_rows;
 
     // Final KDE output: [n_events * 40 * 100] floats
     DEVICE_OUTPUT(dev_pvfinder_kde_output_t, float) dev_pvfinder_kde_output;
@@ -190,6 +203,41 @@ private:
         this, "use_merged_up1", false,
         "eager FP32 path only: replace up1's ConvTranspose+Conv+BiasReLU "
         "sequence with a single merged kernel (exact, incl. boundary)"};
+
+    // Memory layout of the BF16 path's activations. "nwc" (default): channels
+    // last, every CBR layer one cuDNN graph-API fused Conv+Bias+ReLU plan
+    // (runtime-compiled tensor-core engines, compiled in init(); see
+    // PVFinderConvGraph.cuh). "ncw": channels first, legacy cuDNN
+    // convolutions with the bias + ReLU folds. Only read when use_bf16 is true.
+    Allen::Property<std::string> m_bf16_layout {
+        this, "bf16_layout", "nwc",
+        "BF16 path activation layout: nwc (default; cuDNN graph-API fused Conv+Bias+ReLU, "
+        "channels last) or ncw (legacy cuDNN convolutions, channels first)"};
+
+    // Channels-last BF16 path only: run the whole UNet in one kernel
+    // (PVFinderUNetFused.cuh), activations in shared memory, convolutions on
+    // BF16 tensor cores, one launch for all of a slice's rows, instead of the
+    // cuDNN plans and the separate pooling, ConvTranspose and output kernels.
+    // Same rounding points. Used when it can run (compute capability 8.0 or
+    // newer, 16 feature maps and 4 input channels); the cuDNN plans otherwise.
+    Allen::Property<bool> m_fused_kernel {
+        this, "fused_kernel", true,
+        "with use_bf16 and bf16_layout = nwc: run the UNet as one fused tensor-core kernel"};
+
+    // Fraction of the full-occupancy grid the fused kernel is launched with
+    // (one 4-warp block of about 59 KB per SM at full occupancy); below 1,
+    // other streams' kernels keep SMs while it runs. 1/4 (about 20 blocks of
+    // 4 warps on the RTX 3090) is the best measured at 16 streams (see
+    // pvfinder_fc_aggregation's fused_grid_fraction and
+    // docs/pvfinder/pvfinder_16_streams.md).
+    Allen::Property<float> m_fused_grid_fraction {
+        this, "fused_grid_fraction", 0.25f,
+        "fraction of the full-occupancy grid for the fused UNet kernel"};
+
+    Allen::Property<unsigned> m_bf16_nwc_candidates {
+        this, "bf16_nwc_candidates", 1u,
+        "with bf16_layout = nwc: engine configurations to compile and time per convolution "
+        "at initialisation (1 = the cuDNN heuristic's first choice; each costs about 1 s)"};
 
     // CUDA graph capture: captures the per-chunk pipeline once (thread_local) and
     // replays it via cudaGraphLaunch instead of ~15-20 separate host API calls per

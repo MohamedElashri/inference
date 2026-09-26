@@ -7,8 +7,7 @@
 #
 # Pipeline:
 #   HLT1 default reco
-#     └─> pvfinder_velo_feature_extraction
-#     └─> pvfinder_fc_aggregation
+#     └─> pvfinder_fc_aggregation (computes the per-track features in its CSR build)
 #     └─> pvfinder_unet (consumes dev_pvfinder_interval_features directly)
 ###############################################################################
 from AllenConf.HLT1 import setup_hlt1_node
@@ -37,7 +36,7 @@ def hook_pvfinder_unet_to_hlt1():
     hlt1_graph = hlt1_node_dict["control_flow_node"]
     reco = hlt1_node_dict["reconstruction"]
 
-    # FC chain: feature extraction -> FC aggregation.
+    # FC chain: per-track features, FC network and sum over each interval's tracks (one algorithm).
     pvfinder_fc_output = make_pvfinder_fc(reco["velo_tracks"])
 
     # UNet inference consumes the FC interval features directly.

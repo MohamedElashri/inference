@@ -119,6 +119,27 @@ __global__ void squeeze_copy_kernel(
 }
 
 // ---------------------------------------------------------------------------
+// Compact KDE rows back to [slot = event * 40 + interval][100]: a slot the
+// UNet ran on copies its row, a skipped slot (slot_row < 0) gets the UNet's
+// zero-input response `empty`. One thread per float4 (100 bins = 25 float4).
+// ---------------------------------------------------------------------------
+__global__ void expand_kde_rows_kernel(
+    const float* __restrict__ rows,
+    const int* __restrict__ slot_row,
+    const float* __restrict__ empty,
+    float* __restrict__ kde,
+    int n_slots)
+{
+    constexpr int Q = 100 / 4;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n_slots * Q) return;
+    const int slot = i / Q;
+    const int row = slot_row[slot];
+    const float* src = row >= 0 ? rows + (size_t)row * 100 : empty;
+    reinterpret_cast<float4*>(kde + (size_t)slot * 100)[i % Q] = reinterpret_cast<const float4*>(src)[i % Q];
+}
+
+// ---------------------------------------------------------------------------
 // Bias add + ReLU: y = relu(tensor + bias[c])
 // Used after BN-folded convolutions — BN absorbed into weights at init,
 // so only bias + ReLU remain at runtime.

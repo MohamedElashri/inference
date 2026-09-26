@@ -1,5 +1,8 @@
 #include "PVFinderUNet.cuh"
 #include "PVFinderUNetKernels.cuh"
+#include "PVFinderUNetLowPrecision.cuh"
+#include "PVFinderConvGraph.cuh"
+#include "PVFinderUNetFused.cuh"
 
 #include <cstdio>
 #include <cstring>
@@ -75,6 +78,10 @@ struct GlobalDescriptors {
     // thread-local GraphScratchPoolBF16 below because BF16 is supported only
     // by the eager path and concurrent streams require independent storage.
     Allen::CuDNN::ConvDescriptors rcbn1_bf, rcbn2_bf, rcbn3_bf, up1c_bf, up2c_bf;
+    // Reduced-precision output stage: out_intermediate and outc composed
+    // into one convolution (OutputStage<N_FEAT> layout, see
+    // PVFinderUNetLowPrecision.cuh).
+    float* output_stage_params = nullptr;
     __nv_bfloat16* rcbn1_w_bf = nullptr; __nv_bfloat16* rcbn1_b_bf = nullptr;
     __nv_bfloat16* rcbn2_w_bf = nullptr; __nv_bfloat16* rcbn2_b_bf = nullptr;
     __nv_bfloat16* rcbn3_w_bf = nullptr; __nv_bfloat16* rcbn3_b_bf = nullptr;
@@ -342,6 +349,21 @@ struct pvfinder_unet_t::UNetState {
     WeightBlob        wb {};
     GlobalDescriptors desc;
     std::once_flag    desc_init_flag;
+    // The UNet's output for an all-zero interval ([W_IN] floats, device),
+    // written to every interval it skips when the features come in compact
+    // rows. Computed once, by the configured path, on the first compact call.
+    float*            empty_response = nullptr;
+    std::once_flag    empty_response_flag;
+    // BF16 path, channels last (bf16_layout = "nwc"): one fused
+    // Conv+Bias+ReLU graph per CBR layer (rcbn1, rcbn2, rcbn3, up1c, up2c)
+    // and its BN-folded weights as BF16 [K][R][C]. Built on the first such call.
+    ConvBiasReluGraphNWC nwc_conv[5];
+    __nv_bfloat16*    nwc_w[5] = {};
+    std::once_flag    nwc_flag;
+    // fused_kernel: the whole channels-last BF16 UNet in one kernel
+    // (PVFinderUNetFused.cuh), from this shared-memory image of its weights.
+    unsigned char*    fused_blob = nullptr;
+    int               fused_grid = 0;
 };
 
 static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, const WeightBlob& wb, size_t fwd_ws_budget_bytes, int N)
@@ -521,6 +543,21 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
                             {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
     desc.outc.create(     handle, {N, N_FEAT, 1, W_IN},  {1,      N_FEAT, 1, 5}, {0, 2},
                             {1,1}, {1,1}, CUDNN_DATA_FLOAT, fwd_ws_budget_bytes);
+
+    // Reduced-precision output stage parameters, composed once in double
+    // precision from the same FP32 weights (only the BF16 path reads them).
+    {
+        std::vector<float> w_oint(N_FEAT * N_FEAT * 5), b_oint(N_FEAT), w_outc(N_FEAT * 5);
+        float b_outc = 0.f;
+        cudaMemcpy(w_oint.data(), wb.w_oint_w, w_oint.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(b_oint.data(), wb.w_oint_b, b_oint.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(w_outc.data(), wb.w_outc_w, w_outc.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&b_outc, wb.w_outc_b, sizeof(float), cudaMemcpyDeviceToHost);
+        const std::vector<float> params = make_output_stage_params<N_FEAT>(w_oint, b_oint, w_outc, b_outc);
+        cudaCheck(cudaMalloc(&desc.output_stage_params, params.size() * sizeof(float)));
+        cudaCheck(cudaMemcpy(desc.output_stage_params, params.data(), params.size() * sizeof(float),
+                             cudaMemcpyHostToDevice));
+    }
 
     // Report the selected algorithms and workspace sizes. A zero budget pins
     // IMPLICIT_GEMM; a nonzero budget enables bounded heuristic selection.
@@ -843,6 +880,24 @@ void pvfinder_unet_t::init()
     }
     auto state = std::make_shared<UNetState>();
     state->wb = load_weights(m_weight_file.value());
+    // BF16 channels-last path: build the fused convolution plans here, at
+    // start-up, since their runtime-compiled engines take about a second
+    // each to compile. The BF16 weights they run on are prepared on the
+    // first call (they need the BN folding done with the descriptors).
+    if (m_use_bf16.value() && m_bf16_layout.value() == "nwc") {
+        cudnnHandle_t handle = Allen::CuDNN::get_thread_local_handle(nullptr);
+        const int N = (int) m_unet_batch_events.value() * N_INTERVALS;
+        struct Layer { int C_in, R, pad, W; const char* name; };
+        const Layer layers[5] = {{N_BATCH_CHANNELS, 25, 12, W_IN, "rcbn1"}, {N_FEAT, 7, 3, W_IN, "rcbn2"},
+                                 {N_FEAT, 5, 2, W_HALF, "rcbn3"}, {N_FEAT, 5, 2, W_HALF, "up1c"},
+                                 {N_FEAT, 5, 2, W_IN, "up2c"}};
+        for (int l = 0; l < 5; ++l) {
+            const Layer& L = layers[l];
+            const std::string chosen = state->nwc_conv[l].create(handle, nullptr, CUDNN_DATA_BFLOAT16, N, L.C_in, N_FEAT,
+                                                                 L.W, L.R, L.pad, (int) m_bf16_nwc_candidates.value());
+            printf("[pvfinder_unet] BF16 NWC %s: fused Conv+Bias+ReLU graph plan, %s\n", L.name, chosen.c_str());
+        }
+    }
     m_state = std::move(state);
 #endif
 }
@@ -864,6 +919,9 @@ void pvfinder_unet_t::set_arguments_size(
     }
     const unsigned padded_events = ((n_events + batch_events - 1) / batch_events) * batch_events;
     const unsigned N_batch = batch_events * N_INTERVALS;
+    const unsigned* unet_rows = data<host_pvfinder_unet_rows_t>(arguments);
+    const bool compact = unet_rows[0] == 1u;
+    const unsigned padded_rows = compact ? (unet_rows[1] + N_batch - 1) / N_batch * N_batch : 0u;
 
     set_size<dev_unet_x1_t>   (arguments, N_batch * N_FEAT * W_IN);       
     set_size<dev_unet_x2_t>   (arguments, N_batch * N_FEAT * W_HALF);     
@@ -871,6 +929,7 @@ void pvfinder_unet_t::set_arguments_size(
     set_size<dev_unet_up1_t>  (arguments, N_batch * N_FEAT * W_HALF);     
     set_size<dev_unet_up2_t>  (arguments, N_batch * N_FEAT * W_IN); 
     set_size<dev_unet_conv_ws_t>(arguments, 1u);                    
+    set_size<dev_unet_kde_rows_t>(arguments, padded_rows > 0 ? padded_rows * W_IN : 1u);
     set_size<dev_pvfinder_kde_output_t>(arguments, padded_events * N_INTERVALS * W_IN);
 }
 
@@ -1293,12 +1352,22 @@ void pvfinder_unet_t::operator()(
     cudnnTensorDescriptor_t td_up2_out     = td.td_up2_out;
 
     const float* ncw_base = data<dev_pvfinder_interval_features_t>(arguments);
+    const char*  ncw_bytes = reinterpret_cast<const char*>(ncw_base);
     float*       kde_base = data<dev_pvfinder_kde_output_t>(arguments);
 
     const unsigned padded_events = ((n_events + batch_events - 1) / batch_events) * batch_events;
+    const unsigned* unet_rows = data<host_pvfinder_unet_rows_t>(arguments);
+    const bool compact = unet_rows[0] == 1u;
+    const unsigned n_rows = compact ? unet_rows[1] : padded_events * N_INTERVALS;
+    const unsigned padded_rows = (n_rows + N - 1) / N * N;
+    // Storage type of the interval features (pvfinder_fc_aggregation's
+    // unet_input_dtype): float32, or bfloat16 for the BF16 path to read directly.
+    const bool input_bf16 = unet_rows[2] == 1u;
+    const bool input_nwc = unet_rows[3] == 1u;   // bfloat16 rows stored [bin][channel]
+    const size_t input_elem_bytes = input_bf16 ? sizeof(__nv_bfloat16) : sizeof(float);
     // FC pads the interval features to its own unet_batch_events; if the two
     // disagree the last batch would read past that buffer.
-    if (size<dev_pvfinder_interval_features_t>(arguments) < (size_t)padded_events * ncw_stride) {
+    if (size<dev_pvfinder_interval_features_t>(arguments) < (size_t)padded_rows * N_BATCH_CHANNELS * W_IN) {
         throw std::runtime_error(
             "pvfinder_unet: interval features are not padded to unet_batch_events; "
             "set pvfinder_fc_aggregation.unet_batch_events to the same value");
@@ -1307,6 +1376,93 @@ void pvfinder_unet_t::operator()(
     // BF16 takes precedence if both reduced-precision options are set.
     const bool use_bf16 = m_use_bf16.value();
     const bool use_fp16 = m_use_fp16.value() && !use_bf16;
+    const std::string& bf16_layout = m_bf16_layout.value();
+    if (bf16_layout != "ncw" && bf16_layout != "nwc") {
+        throw std::runtime_error("pvfinder_unet: bf16_layout must be ncw or nwc, got '" + bf16_layout + "'");
+    }
+    const bool bf16_nwc = use_bf16 && bf16_layout == "nwc";
+    if (input_nwc && !bf16_nwc) {
+        throw std::runtime_error(
+            "pvfinder_unet: pvfinder_fc_aggregation.unet_input_layout is nwc, which only the channels-last "
+            "BF16 path reads; set pvfinder_unet.use_bf16 = true and bf16_layout = nwc, or unet_input_layout = ncw");
+    }
+    // The fused kernel is written for this build's shapes (16 feature maps,
+    // 4 input channels) and BF16 tensor cores.
+    // Otherwise the channels-last BF16 path runs on the cuDNN plans.
+    thread_local int tl_cc_major = -1;
+    if (tl_cc_major < 0) {
+        int device_id = 0;
+        cudaGetDevice(&device_id);
+        cudaDeviceGetAttribute(&tl_cc_major, cudaDevAttrComputeCapabilityMajor, device_id);
+    }
+    const bool use_fused_unet = m_fused_kernel.value() && bf16_nwc && N_FEAT == fused::C &&
+                                N_BATCH_CHANNELS == fused::CIN && tl_cc_major >= 8;
+    if (bf16_nwc) {
+        // Channels-last fused convolutions (plans built in init()): the
+        // BN-folded weights transposed to [K][R][C] and rounded to BF16.
+        std::call_once(state.nwc_flag, [&]() {
+            struct Layer { const float* w; int C_in, R; };
+            const Layer layers[5] = {{desc.rcbn1_w_f, N_BATCH_CHANNELS, 25}, {desc.rcbn2_w_f, N_FEAT, 7},
+                                     {desc.rcbn3_w_f, N_FEAT, 5}, {desc.up1c_w_f, N_FEAT, 5},
+                                     {desc.up2c_w_f, N_FEAT, 5}};
+            for (int l = 0; l < 5; ++l) {
+                const Layer& L = layers[l];
+                std::vector<float> w((size_t)N_FEAT * L.C_in * L.R);
+                cudaCheck(cudaMemcpy(w.data(), L.w, w.size() * sizeof(float), cudaMemcpyDeviceToHost));
+                std::vector<__nv_bfloat16> t(w.size());
+                for (int k = 0; k < N_FEAT; ++k)
+                    for (int c = 0; c < L.C_in; ++c)
+                        for (int r = 0; r < L.R; ++r)
+                            t[((size_t)k * L.R + r) * L.C_in + c] = __float2bfloat16(w[((size_t)k * L.C_in + c) * L.R + r]);
+                cudaCheck(cudaMalloc(&state.nwc_w[l], t.size() * sizeof(__nv_bfloat16)));
+                cudaCheck(cudaMemcpy(state.nwc_w[l], t.data(), t.size() * sizeof(__nv_bfloat16), cudaMemcpyHostToDevice));
+            }
+            if (use_fused_unet) {
+                // The fused kernel's weight image: the same BF16 [K][R][C]
+                // convolution weights and BF16 biases the cuDNN plans use.
+                std::vector<float> conv_w[5], conv_b[5], ct_w[2], ct_b[2];
+                const __nv_bfloat16* biases[5] = {desc.rcbn1_b_bf, desc.rcbn2_b_bf, desc.rcbn3_b_bf, desc.up1c_b_bf,
+                                                  desc.up2c_b_bf};
+                for (int l = 0; l < 5; ++l) {
+                    const size_t n = (size_t) N_FEAT * layers[l].C_in * layers[l].R;
+                    std::vector<__nv_bfloat16> wb16(n), bb16(N_FEAT);
+                    cudaCheck(cudaMemcpy(wb16.data(), state.nwc_w[l], n * sizeof(__nv_bfloat16), cudaMemcpyDeviceToHost));
+                    cudaCheck(cudaMemcpy(bb16.data(), biases[l], N_FEAT * sizeof(__nv_bfloat16), cudaMemcpyDeviceToHost));
+                    conv_w[l].resize(n);
+                    for (size_t i = 0; i < n; ++i) conv_w[l][i] = __bfloat162float(wb16[i]);
+                    conv_b[l].resize(N_FEAT);
+                    for (int i = 0; i < N_FEAT; ++i) conv_b[l][i] = __bfloat162float(bb16[i]);
+                }
+                const float* ctw[2] = {wb.w_up1t_w, wb.w_up2t_w};
+                const float* ctb[2] = {wb.w_up1t_b, wb.w_up2t_b};
+                for (int t = 0; t < 2; ++t) {
+                    ct_w[t].resize((size_t) N_FEAT * N_FEAT * 2);
+                    ct_b[t].resize(N_FEAT);
+                    cudaCheck(cudaMemcpy(ct_w[t].data(), ctw[t], ct_w[t].size() * sizeof(float), cudaMemcpyDeviceToHost));
+                    cudaCheck(cudaMemcpy(ct_b[t].data(), ctb[t], N_FEAT * sizeof(float), cudaMemcpyDeviceToHost));
+                }
+                std::vector<float> out_params(OutputStage<N_FEAT>::n_params);
+                cudaCheck(cudaMemcpy(out_params.data(), desc.output_stage_params, out_params.size() * sizeof(float),
+                                     cudaMemcpyDeviceToHost));
+                const std::vector<unsigned char> blob = fused::make_fused_unet_blob(conv_w, conv_b, ct_w, ct_b, out_params);
+                cudaCheck(cudaMalloc(&state.fused_blob, blob.size()));
+                cudaCheck(cudaMemcpy(state.fused_blob, blob.data(), blob.size(), cudaMemcpyHostToDevice));
+                cudaCheck(cudaFuncSetAttribute(fused::fused_unet_bf16_kernel,
+                                               cudaFuncAttributeMaxDynamicSharedMemorySize, fused::SMEM_BYTES));
+                int device_id = 0, sm_count = 0, per_sm = 0;
+                cudaCheck(cudaGetDevice(&device_id));
+                cudaCheck(cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, device_id));
+                cudaCheck(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&per_sm, fused::fused_unet_bf16_kernel,
+                                                                        fused::THREADS, fused::SMEM_BYTES));
+                state.fused_grid = sm_count * std::max(per_sm, 1);
+            }
+        });
+    }
+    if (input_bf16 && !use_bf16) {
+        throw std::runtime_error(
+            "pvfinder_unet: pvfinder_fc_aggregation.unet_input_dtype is bfloat16, which only the BF16 "
+            "path reads; set pvfinder_unet.use_bf16 = true or unet_input_dtype = float32");
+    }
     // CUDA graph path. BF16 has no CUDA-graph-capture variant (eager-path-only) --
     // excluded here so a use_bf16=true call always takes the eager branch
     // below, never the FP32 graph path (which use_fp16=false alone, forced
@@ -1382,9 +1538,10 @@ void pvfinder_unet_t::operator()(
     __nv_bfloat16* bf16_up1  = use_bf16 ? bf16_pool_tl->up1  : nullptr;
     __nv_bfloat16* bf16_up2  = use_bf16 ? bf16_pool_tl->up2  : nullptr;
 
-    for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += batch_events) {
-        const float* ncw = ncw_base + chunk_start * ncw_stride;
-        float*       kde = kde_base + chunk_start * kde_stride;
+    // One cuDNN batch: N rows of features at ncw -> N rows of KDE at kde.
+    // ncw_in is float, or __nv_bfloat16 when input_bf16 (only the BF16 branch reads it then).
+    auto run_batch = [&](const void* ncw_in, float* kde) {
+        const float* ncw = static_cast<const float*>(ncw_in);
 
         if (use_graph_fp32) {
             // ---- CUDA graph path (FP32) ----
@@ -1427,7 +1584,7 @@ void pvfinder_unet_t::operator()(
             cudaCheck(cudaGraphLaunch(graphExec, context.stream()));
             // Graph already applies softplus_scale + copy-out into the real kde
             // buffer internally — skip the shared eager-path tail below.
-            continue;
+            return;
         } else if (use_graph_fp16) {
             // ---- CUDA graph path (FP16) ----
             // Same replay pattern as the FP32 graph, but the copy-in node is the
@@ -1470,55 +1627,89 @@ void pvfinder_unet_t::operator()(
             cudaCheck(cudaGraphExecKernelNodeSetParams(graphExec, copyOutNode, &copy_out_params));
 
             cudaCheck(cudaGraphLaunch(graphExec, context.stream()));
-            continue;
+            return;
         } else if (use_bf16) {
-            // ---- BF16 path ----
-            // Structurally identical to the FP16 path below: CBR layers run
-            // as Tensor Core BF16 convs; ConvTranspose and the output stage
-            // stay FP32, with explicit F32<->BF16 conversions at the
-            // boundaries. BF16's FP32-sized exponent accommodates input values
-            // that exceed FP16's maximum finite value. This path does not use
-            // CUDA graph capture (see graph_eligible above).
+            // ---- BF16 path, no FP32 <-> BF16 conversion passes ----
+            // Every activation stays BF16 and all arithmetic is FP32: cuDNN's
+            // BF16 convolutions accumulate in FP32, and so do the two
+            // hand-written stages (PVFinderUNetLowPrecision.cuh). The input
+            // arrives in BF16 when pvfinder_fc_aggregation.unet_input_dtype
+            // is "bfloat16"; otherwise it is converted once here. Both
+            // ConvTransposes run in conv_transpose_k2s2_kernel, and
+            // output_stage_kernel does out_intermediate, outc, softplus and
+            // the FP32 KDE write in one pass, so the shared FP32 tail below
+            // is skipped (out_intermediate and outc are applied as their exact
+            // composition, one 9-tap convolution). Eager path only (no CUDA
+            // graph variant).
+            if (bf16_nwc) {
+                // Channels last: every CBR layer is one fused cuDNN graph plan
+                // (bias + ReLU included); max-pools, ConvTransposes and the
+                // output stage run in NWC. The FC stage writes the input
+                // channels last (unet_input_layout = nwc); otherwise it is
+                // transposed (and converted) once here.
+                const __nv_bfloat16* const* w = state.nwc_w;
+                const __nv_bfloat16* in_nwc = bf16_ncw;
+                if (input_nwc) {
+                    in_nwc = static_cast<const __nv_bfloat16*>(ncw_in);
+                }
+                else if (input_bf16) {
+                    launch_ncw_to_nwc(static_cast<const __nv_bfloat16*>(ncw_in), bf16_ncw, N, N_BATCH_CHANNELS, W_IN, context);
+                }
+                else {
+                    launch_ncw_to_nwc(ncw, bf16_ncw, N, N_BATCH_CHANNELS, W_IN, context);
+                }
+                if (use_fused_unet) {
+                    fused::fused_unet_bf16_kernel<<<std::min(state.fused_grid, (N + fused::WARPS - 1) / fused::WARPS),
+                                                    fused::THREADS, fused::SMEM_BYTES, context.stream()>>>(
+                        in_nwc, state.fused_blob, kde, KDE_SCALE, N, nullptr, nullptr, nullptr, 0);
+                    return;
+                }
+                state.nwc_conv[0].execute(handle, in_nwc, w[0], desc.rcbn1_b_bf, bf16_x1);
+                state.nwc_conv[1].execute(handle, bf16_x1, w[1], desc.rcbn2_b_bf, bf16_up2);
+                launch_maxpool2_nwc(bf16_up2, bf16_x2, N, N_FEAT, W_IN, context);
+                state.nwc_conv[2].execute(handle, bf16_x2, w[2], desc.rcbn3_b_bf, bf16_up2);
+                launch_maxpool2_nwc(bf16_up2, bf16_x3, N, N_FEAT, W_HALF, context);
+                launch_conv_transpose_k2s2_nwc<__nv_bfloat16, N_FEAT>(bf16_x3, bf16_up2, wb.w_up1t_w, wb.w_up1t_b,
+                    N, W_QTR, context);
+                state.nwc_conv[3].execute(handle, bf16_up2, w[3], desc.up1c_b_bf, bf16_up1);
+                launch_conv_transpose_k2s2_nwc<__nv_bfloat16, N_FEAT>(bf16_up1, bf16_up2, wb.w_up2t_w, wb.w_up2t_b,
+                    N, W_HALF, context);
+                state.nwc_conv[4].execute(handle, bf16_up2, w[4], desc.up2c_b_bf, bf16_x1);
+                launch_output_stage_nwc<__nv_bfloat16, N_FEAT, W_IN>(bf16_x1, desc.output_stage_params,
+                    kde, KDE_SCALE, N, context);
+                return;
+            }
+            const __nv_bfloat16* in_bf = static_cast<const __nv_bfloat16*>(ncw_in);
+            if (!input_bf16) {
+                launch_f32_to_bf16(bf16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
+                in_bf = bf16_ncw;
+            }
 
+            // Only rcbn1 keeps a separate bias + ReLU pass (its consumer is a
+            // cuDNN convolution). rcbn2 and rcbn3 fold theirs into the
+            // max-pool, up1c into the second ConvTranspose's input load and
+            // up2c into the output stage's, so those convolutions write
+            // their raw output.
             // Encoder
-            launch_f32_to_bf16(bf16_ncw, ncw, N * N_BATCH_CHANNELS * W_IN, block, context);
-            run_convbnrelu_bf16(desc.rcbn1_bf, bf16_ncw, bf16_x1,
+            run_convbnrelu_bf16(desc.rcbn1_bf, in_bf, bf16_x1,
                 desc.rcbn1_w_bf, desc.rcbn1_b_bf, N_FEAT, W_IN, N, handle, block, context);
-            run_convbnrelu_bf16(desc.rcbn2_bf, bf16_x1, bf16_up2,
-                desc.rcbn2_w_bf, desc.rcbn2_b_bf, N_FEAT, W_IN, N, handle, block, context);
-            launch_maxpool_bf16(bf16_up2, bf16_x2, N, N_FEAT, W_IN, block, context);
+            desc.rcbn2_bf.forward_bf16(handle, 1.f, 0.f, bf16_x1, desc.rcbn2_w_bf, bf16_up2);
+            launch_bias_relu_maxpool2(bf16_up2, bf16_x2, desc.rcbn2_b_bf, N, N_FEAT, W_IN, context);
+            desc.rcbn3_bf.forward_bf16(handle, 1.f, 0.f, bf16_x2, desc.rcbn3_w_bf, bf16_up2);
+            launch_bias_relu_maxpool2(bf16_up2, bf16_x3, desc.rcbn3_b_bf, N, N_FEAT, W_HALF, context);
 
-            run_convbnrelu_bf16(desc.rcbn3_bf, bf16_x2, bf16_up2,
-                desc.rcbn3_w_bf, desc.rcbn3_b_bf, N_FEAT, W_HALF, N, handle, block, context);
-            launch_maxpool_bf16(bf16_up2, bf16_x3, N, N_FEAT, W_HALF, block, context);
+            // Decoder: ConvTranspose (W_QTR -> W_HALF), conv, ConvTranspose (W_HALF -> W_IN), conv
+            launch_conv_transpose_k2s2<__nv_bfloat16, N_FEAT>(bf16_x3, bf16_up2, wb.w_up1t_w, wb.w_up1t_b, nullptr,
+                N, W_QTR, context);
+            desc.up1c_bf.forward_bf16(handle, 1.f, 0.f, bf16_up2, desc.up1c_w_bf, bf16_up1);
+            launch_conv_transpose_k2s2<__nv_bfloat16, N_FEAT>(bf16_up1, bf16_up2, wb.w_up2t_w, wb.w_up2t_b, desc.up1c_b_bf,
+                N, W_HALF, context);
+            desc.up2c_bf.forward_bf16(handle, 1.f, 0.f, bf16_up2, desc.up2c_w_bf, bf16_x1);
 
-            // ConvTranspose1: needs FP32. Convert bf16_x3 → x3.
-            launch_bf16_to_f32(x3, bf16_x3, N * N_FEAT * W_QTR, block, context);
-            run_conv_transpose(x3, up2,
-                desc.filter_up1_t, desc.conv_up1_t, td_up1_in, td_up1_out,
-                wb.w_up1t_w, wb.w_up1t_b,
-                N, N_FEAT, W_HALF, block, context, handle,
-                desc.algo_up1_t, desc.ws_up1_t, desc.ws_up1_bytes);
-
-            // up1_c BF16: convert FP32 up2 → bf16_up2, then conv.
-            launch_f32_to_bf16(bf16_up2, up2, N * N_FEAT * W_HALF, block, context);
-            run_convbnrelu_bf16(desc.up1c_bf, bf16_up2, bf16_up1,
-                desc.up1c_w_bf, desc.up1c_b_bf, N_FEAT, W_HALF, N, handle, block, context);
-
-            // ConvTranspose2: needs FP32. Convert bf16_up1 → up1.
-            launch_bf16_to_f32(up1, bf16_up1, N * N_FEAT * W_HALF, block, context);
-            run_conv_transpose(up1, logits,
-                desc.filter_up2_t, desc.conv_up2_t, td_up2_in, td_up2_out,
-                wb.w_up2t_w, wb.w_up2t_b,
-                N, N_FEAT, W_IN, block, context, handle,
-                desc.algo_up2_t, desc.ws_up2_t, desc.ws_up2_bytes);
-
-            // up2_c BF16: convert FP32 logits → bf16_up2, conv → bf16_x1 (free
-            // once rcbn2 has read it), then back to FP32 up2 for the output stage.
-            launch_f32_to_bf16(bf16_up2, logits, N * N_FEAT * W_IN, block, context);
-            run_convbnrelu_bf16(desc.up2c_bf, bf16_up2, bf16_x1,
-                desc.up2c_w_bf, desc.up2c_b_bf, N_FEAT, W_IN, N, handle, block, context);
-            launch_bf16_to_f32(up2, bf16_x1, N * N_FEAT * W_IN, block, context);
+            // Output stage (with up2c's bias + ReLU), straight to the FP32 KDE rows
+            launch_output_stage<__nv_bfloat16, N_FEAT, W_IN>(bf16_x1, desc.up2c_b_bf, desc.output_stage_params,
+                kde, KDE_SCALE, N, context);
+            return;
         } else if (!use_fp16) {
             // ---- FP32 path ----
             if (use_fused_cbr) {
@@ -1633,6 +1824,58 @@ void pvfinder_unet_t::operator()(
         squeeze_copy_kernel<<<
             ((unsigned)(N * W_IN) + block.x - 1) / block.x, block,
             0, context.stream()>>>(oint, kde, N * W_IN);
+    };
+
+    if (!compact) {
+        for (unsigned chunk_start = 0; chunk_start < padded_events; chunk_start += batch_events) {
+            run_batch(ncw_bytes + (size_t)chunk_start * ncw_stride * input_elem_bytes,
+                      kde_base + chunk_start * kde_stride);
+        }
+    } else {
+        // The UNet's response to an all-zero interval, through exactly the
+        // path configured for the real batches, so skipped intervals get
+        // bit-for-bit what running them would have produced. Once per
+        // instance; other threads wait in call_once until it is on the device.
+        std::call_once(state.empty_response_flag, [&]() {
+            float* zeros = nullptr;
+            float* out = nullptr;
+            cudaCheck(cudaMalloc(&zeros, (size_t)N * N_BATCH_CHANNELS * W_IN * sizeof(float)));
+            cudaCheck(cudaMalloc(&out, (size_t)N * W_IN * sizeof(float)));
+            cudaCheck(cudaMemsetAsync(zeros, 0, (size_t)N * N_BATCH_CHANNELS * W_IN * sizeof(float), context.stream()));
+            run_batch(zeros, out);
+            cudaCheck(cudaStreamSynchronize(context.stream()));
+            cudaCheck(cudaFree(zeros));
+            state.empty_response = out;   // row 0; never freed, like the scratch pools
+        });
+
+        float* kde_rows = data<dev_unet_kde_rows_t>(arguments);
+        const unsigned row_stride = N_BATCH_CHANNELS * W_IN;
+        const int n_slots = (int)(n_events * N_INTERVALS);
+        if (use_fused_unet && input_nwc) {
+            // Every row in one launch (the kernel has no batch size), each
+            // row's KDE straight to its slot, and the empty-interval response
+            // to the slots without a row: no expansion pass.
+            if (n_slots > 0) {
+                // See m_fused_grid_fraction: leave room for other streams' kernels.
+                const int grid = std::max(1, (int) (state.fused_grid * m_fused_grid_fraction.value()));
+                const int blocks = std::max(1, std::min(grid, (int) (n_rows + fused::WARPS - 1) / fused::WARPS));
+                fused::fused_unet_bf16_kernel<<<std::max(blocks, std::min(grid, n_slots / fused::THREADS + 1)),
+                                                fused::THREADS, fused::SMEM_BYTES, context.stream()>>>(
+                    static_cast<const __nv_bfloat16*>(static_cast<const void*>(ncw_base)), state.fused_blob, kde_base,
+                    KDE_SCALE, (int) n_rows, data<dev_pvfinder_row_slot_t>(arguments),
+                    data<dev_pvfinder_slot_row_t>(arguments), state.empty_response, n_slots);
+            }
+        }
+        else {
+            for (unsigned row = 0; row < n_rows; row += N) {
+                run_batch(ncw_bytes + (size_t)row * row_stride * input_elem_bytes, kde_rows + (size_t)row * W_IN);
+            }
+            const unsigned threads = n_slots * (W_IN / 4);
+            if (threads > 0) {
+                expand_kde_rows_kernel<<<(threads + 255) / 256, 256, 0, context.stream()>>>(
+                    kde_rows, data<dev_pvfinder_slot_row_t>(arguments), state.empty_response, kde_base, n_slots);
+            }
+        }
     }
 
     // ConvTranspose tensor descriptors are thread_local (see
@@ -1648,8 +1891,43 @@ void pvfinder_unet_t::operator()(
         const unsigned ncw_elems = n_events * N_INTERVALS * N_BATCH_CHANNELS * W_IN;
         const unsigned kde_elems = n_events * N_INTERVALS * W_IN;
         std::vector<float> h_ncw(ncw_elems), h_kde(kde_elems);
-        cudaMemcpy(h_ncw.data(), data<dev_pvfinder_interval_features_t>(arguments),
-                   ncw_elems * sizeof(float), cudaMemcpyDeviceToHost);
+        // Interval features as float, whatever their storage type (a BF16
+        // value is the upper half of the float with the same value).
+        auto copy_features = [&](float* dst, size_t count) {
+            if (input_bf16) {
+                std::vector<uint16_t> raw(count);
+                cudaMemcpy(raw.data(), data<dev_pvfinder_interval_features_t>(arguments),
+                           count * sizeof(uint16_t), cudaMemcpyDeviceToHost);
+                constexpr size_t row = N_BATCH_CHANNELS * W_IN;
+                for (size_t i = 0; i < count; ++i) {
+                    // channels-last rows back to [channel][bin]
+                    const size_t r = i / row, e = i % row;
+                    const size_t src = input_nwc ? r * row + (e % W_IN) * N_BATCH_CHANNELS + e / W_IN : i;
+                    const uint32_t bits = (uint32_t)raw[src] << 16;
+                    std::memcpy(dst + i, &bits, sizeof(float));
+                }
+            } else {
+                cudaMemcpy(dst, data<dev_pvfinder_interval_features_t>(arguments),
+                           count * sizeof(float), cudaMemcpyDeviceToHost);
+            }
+        };
+        if (compact) {
+            // Compact rows back to [event][interval]; skipped intervals as zeros.
+            std::vector<int> h_slot_row(n_events * N_INTERVALS);
+            std::vector<float> h_rows((size_t)n_rows * N_BATCH_CHANNELS * W_IN);
+            cudaMemcpy(h_slot_row.data(), data<dev_pvfinder_slot_row_t>(arguments),
+                       h_slot_row.size() * sizeof(int), cudaMemcpyDeviceToHost);
+            copy_features(h_rows.data(), h_rows.size());
+            constexpr size_t row_floats = N_BATCH_CHANNELS * W_IN;
+            for (size_t slot = 0; slot < h_slot_row.size(); ++slot) {
+                if (h_slot_row[slot] >= 0) {
+                    std::memcpy(h_ncw.data() + slot * row_floats,
+                                h_rows.data() + (size_t)h_slot_row[slot] * row_floats, row_floats * sizeof(float));
+                }
+            }
+        } else {
+            copy_features(h_ncw.data(), ncw_elems);
+        }
         cudaMemcpy(h_kde.data(), data<dev_pvfinder_kde_output_t>(arguments),
                    kde_elems * sizeof(float), cudaMemcpyDeviceToHost);
         const uint32_t magic = 0xAB1EU;

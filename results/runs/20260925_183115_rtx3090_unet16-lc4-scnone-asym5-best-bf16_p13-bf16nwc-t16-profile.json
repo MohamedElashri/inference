@@ -1,0 +1,1040 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "profile",
+  "id": "20260925_183115_p13_bf16nwc_t16_profile",
+  "label": "p13_bf16nwc_t16_profile",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-25T18:31:20-04:00",
+  "finished_at": "2026-09-25T18:34:40-04:00",
+  "command": "/data/home/melashri/iris/inference-p3/benchmarks/benchmark_pvfinder_batch.sh --label p13_bf16nwc_t16_profile -B buildp3_16chL4gpu -d 2 --model unet16_lc4_scnone_asym5_best_bf16 --use-bf16 true -n 500 -m 500 -r 50 -t 16 --repeats 1 --profile",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "e077c17e1aefe6e2c1ba2ccb1d6edf80f9dedf61",
+    "branch": "feat/skip-empty-intervals",
+    "subject": "results: skip_empty_intervals throughput at the production point",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/device/pvfinder/include/PVFinderFCAggregation.cuh",
+      "Allen/device/pvfinder/include/PVFinderUNet.cuh",
+      "Allen/device/pvfinder/include/VeloFeatureExtraction.cuh",
+      "Allen/device/pvfinder/src/PVFinderFCAggregation.cu",
+      "Allen/device/pvfinder/src/PVFinderUNet.cu",
+      "Allen/device/pvfinder/src/VeloFeatureExtraction.cu",
+      "benchmarks/benchmark_pvfinder_batch.sh",
+      "benchmarks/runs.py",
+      "weights/Makefile",
+      "weights/README.md",
+      "weights/scripts/validate_fc.py",
+      "Allen/device/pvfinder/include/PVFinderConvGraph.cuh",
+      "Allen/device/pvfinder/include/PVFinderUNetLowPrecision.cuh",
+      "weights/scripts/validate_model.py"
+    ],
+    "diff_sha256": "55312405caa2334350fef091fb808424c038c5f2e2afabbc37e91e004fc72008"
+  },
+  "build": {
+    "name": "buildp3_16chL4gpu",
+    "dir": "Allen/buildp3_16chL4gpu",
+    "cmake": {
+      "BUILD_TESTING": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-25T17:19:25-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "cnn": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/cnn_weights.bin",
+        "sha256": "6ce42daaa24536b65bf0137a5314827f790ce75ebe0fdad28a45d940bea41def"
+      },
+      "fc": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin",
+        "sha256": "8f7904905d734ac4f6c043ee5dc40a58bfc1d8497e3016ce5300f8e65c7e07a9"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 50,
+    "threads": 16,
+    "repeats": 1,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "bf16_layout": "nwc",
+    "fc_chunk_size": 130,
+    "fc_single_hidden_layer": false,
+    "fwd_algo_ws_budget_mb": 0,
+    "l1_l5_hidden_width": 20,
+    "l6a_active_channels": null,
+    "l6a_m": null,
+    "min_interval_tracks": 1,
+    "safe_avg_entries_per_event": 450,
+    "skip_empty_intervals": true,
+    "skip_redundant_memset": true,
+    "unet_batch_events": 20,
+    "unet_input_dtype": "bfloat16",
+    "unet_input_layout": "nwc",
+    "use_bf16": true,
+    "use_cuda_graph": false,
+    "use_fp16": false,
+    "use_fused_bias_relu_pool": null,
+    "use_fused_bias_relu_reduce": true,
+    "use_fused_cbr": false,
+    "use_fused_rcbn3": false,
+    "use_grid_stride_reduce": true,
+    "use_merged_up1": false,
+    "use_nonatomic_l6a_reduce": false,
+    "use_precomputed_csr_offset": true,
+    "use_warp_parallel_reduce": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "e970873aac790c0c801a7a6718e8b07fd53d8627aa4d918251491b828c48b659",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "01a92d4a14319280c72171d6530897238277d335aa2a39c17806bc8deee95b08",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fc_chunk_size": 130,
+          "fc_single_hidden_layer": false,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": true,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "unet_input_dtype": "bfloat16",
+          "unet_input_layout": "nwc",
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin"
+        },
+        "pvfinder_velo_feature_extraction": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "c4f6cdaad30a8fc47d0b58456e927ddce53d2814f66fa13338e9adf3d13cc714",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fc_chunk_size": 130,
+          "fc_single_hidden_layer": false,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": true,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "unet_input_dtype": "bfloat16",
+          "unet_input_layout": "nwc",
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin"
+        },
+        "pvfinder_unet": {
+          "bf16_layout": "nwc",
+          "bf16_nwc_candidates": 1,
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_repetition": 0,
+          "dump_validation": "",
+          "fwd_algo_ws_budget_bytes": 0,
+          "unet_batch_events": 20,
+          "use_bf16": true,
+          "use_cuda_graph": false,
+          "use_fp16": false,
+          "use_fused_bias_relu_pool": false,
+          "use_fused_cbr": false,
+          "use_fused_rcbn3": false,
+          "use_merged_up1": false,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/cnn_weights.bin"
+        },
+        "pvfinder_velo_feature_extraction": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 83194.07555,
+          "fc": 64397.238238,
+          "unet": 59066.595697
+        },
+        "fc_overhead_pct": 22.593961394165643,
+        "unet_overhead_pct": 29.001439938471673,
+        "unet_retention_pct": 70.99856006152832
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 83194.07555,
+        "fc": 64397.238238,
+        "unet": 59066.595697
+      },
+      "median_fc_overhead_pct": 22.593961394165643,
+      "median_unet_overhead_pct": 29.001439938471673,
+      "median_unet_retention_pct": 70.99856006152832,
+      "baseline_spread_pct": 0.0,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": {
+    "tool": "nsys",
+    "report": "cuda_gpu_kern_sum",
+    "sequences": {
+      "baseline": {
+        "profiled_repeats": 1,
+        "gpu_kernel_time_ns": 24360769425,
+        "n_kernel_names": 170,
+        "kernels": [
+          {
+            "name": "gather_selections::run_lines(gather_selections::Parameters, unsigned int, unsigned int)",
+            "total_ns": 1962487715,
+            "instances": 800,
+            "avg_ns": 2453109.6,
+            "time_pct": 8.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "velo_search_by_triplet::velo_search_by_triplet(velo_search_by_triplet::Parameters, const VeloGeometry *, float, float, unsigned int, unsigned int)",
+            "total_ns": 1886624905,
+            "instances": 800,
+            "avg_ns": 2358281.1,
+            "time_pct": 7.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "seed_xz::seed_xz(seed_xz::Parameters)",
+            "total_ns": 1716392271,
+            "instances": 800,
+            "avg_ns": 2145490.3,
+            "time_pct": 7.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "is_muon::is_muon(is_muon::Parameters, const Muon::Constants::FieldOfInterest *, const float *, Allen::Monitoring::DeviceNDHistogram<unsigned int, Allen::Monitoring::Axis<float>>, Allen::Monitoring::DeviceNDHistogram<unsigned int, Allen::Mon",
+            "total_ns": 1220089195,
+            "instances": 1600,
+            "avg_ns": 762555.7,
+            "time_pct": 5.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "lf_triplet_seeding::lf_triplet_seeding(lf_triplet_seeding::Parameters, const LookingForward::Constants *, unsigned int, float, float, Allen::Monitoring::DeviceCounter<unsigned int>)",
+            "total_ns": 694667106,
+            "instances": 800,
+            "avg_ns": 868333.9,
+            "time_pct": 2.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void seed_confirmTracks::seed_confirmTracks<(bool)0>(seed_confirmTracks::Parameters, int, float, float)",
+            "total_ns": 684633083,
+            "instances": 800,
+            "avg_ns": 855791.4,
+            "time_pct": 2.8,
+            "repeats_seen": 1
+          },
+          {
+            "name": "FilterSVTrack::filter_sv_track(FilterSVTrack::Parameters, float, float, float, float, float, float, float, float, float, float, float, float, float, float, bool, bool)",
+            "total_ns": 669641634,
+            "instances": 5600,
+            "avg_ns": 119578.9,
+            "time_pct": 2.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "PrefixSum::prefix_sum_single_warp_x4(unsigned int *, unsigned int, unsigned int *)",
+            "total_ns": 663254882,
+            "instances": 64000,
+            "avg_ns": 10363.4,
+            "time_pct": 2.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "build_cone_jets::build_jets(build_cone_jets::Parameters, unsigned int, float, unsigned int *)",
+            "total_ns": 467424825,
+            "instances": 800,
+            "avg_ns": 584281.0,
+            "time_pct": 1.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void track_matching::track_matching_veloSciFi<Allen::MVAModels::DeviceSingleLayerFCNN<(unsigned int)8, (unsigned int)32>>(track_matching::Parameters, const float *, const T1 *, std::array<float, (unsigned long)16>, std::array<float, (unsign",
+            "total_ns": 467246894,
+            "instances": 800,
+            "avg_ns": 584058.6,
+            "time_pct": 1.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_0(downstream_v2_find_tracks::Parameters, const UT::Constants::UTLayerGeometry *, bool, float, float, float, float)",
+            "total_ns": 413043912,
+            "instances": 800,
+            "avg_ns": 516304.9,
+            "time_pct": 1.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void calo_decode_dispatch<(bool)0, (int)5>(calo_decode::Parameters, const char *, unsigned int, short, short)",
+            "total_ns": 397881766,
+            "instances": 800,
+            "avg_ns": 497352.2,
+            "time_pct": 1.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void muon_add_coords_crossing_maps_kernel<(int)3>(muon_add_coords_crossing_maps::Parameters, const Muon::MuonTables *)",
+            "total_ns": 379069594,
+            "instances": 800,
+            "avg_ns": 473837.0,
+            "time_pct": 1.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "compress_array(const unsigned int *, const unsigned int *, unsigned int, unsigned int *)",
+            "total_ns": 366916416,
+            "instances": 1600,
+            "avg_ns": 229322.8,
+            "time_pct": 1.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "FilterTracks::filter_tracks(FilterTracks::Parameters, bool, bool, float, float, float, float, float, float)",
+            "total_ns": 364780267,
+            "instances": 4800,
+            "avg_ns": 75995.9,
+            "time_pct": 1.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "lf_create_tracks::lf_extend_tracks(lf_create_tracks::Parameters, const LookingForward::Constants *, unsigned int, float, float, float)",
+            "total_ns": 325400490,
+            "instances": 800,
+            "avg_ns": 406750.6,
+            "time_pct": 1.3,
+            "repeats_seen": 1
+          },
+          {
+            "name": "kalman_filter::kalman_filter(kalman_filter::Parameters, const float *, const ParKalmanFilter::KalmanParametrizations *)",
+            "total_ns": 303260971,
+            "instances": 800,
+            "avg_ns": 379076.2,
+            "time_pct": 1.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pv_beamline_multi_fitter::pv_beamline_multi_fitter(pv_beamline_multi_fitter::Parameters, float, unsigned int, unsigned int, unsigned int, float, float, float, float, float, float, float)",
+            "total_ns": 302081413,
+            "instances": 800,
+            "avg_ns": 377601.8,
+            "time_pct": 1.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void scifi_pre_decode_kernel<(int)8, (bool)0>(scifi_pre_decode::Parameters, unsigned int, const char *)",
+            "total_ns": 295022912,
+            "instances": 800,
+            "avg_ns": 368778.6,
+            "time_pct": 1.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "electronid_nn::electronid_nn(electronid_nn::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)6, (unsigned int)12, (unsigned int)12, (unsigned int)12, (unsigned int)12, (unsigned int)1> *)",
+            "total_ns": 280880090,
+            "instances": 800,
+            "avg_ns": 351100.1,
+            "time_pct": 1.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void SegSort::segsort_dispatch<unsigned long>(const unsigned int *, unsigned int, unsigned int *, const T1 *, unsigned int *)",
+            "total_ns": 276769137,
+            "instances": 800,
+            "avg_ns": 345961.4,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "PrefixSum::prefix_sum_reduce(unsigned int *, unsigned int *, unsigned int)",
+            "total_ns": 276752518,
+            "instances": 17600,
+            "avg_ns": 15724.6,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "two_track_mva_evaluator::two_track_mva_evaluator(two_track_mva_evaluator::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)4, (unsigned int)20, (unsigned int)20, (unsigned int)1> *)",
+            "total_ns": 276199799,
+            "instances": 800,
+            "avg_ns": 345249.7,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "muonid_nn::muonid_nn(muonid_nn::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)5, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)1> *)",
+            "total_ns": 273001508,
+            "instances": 800,
+            "avg_ns": 341251.9,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "track_digit_selective_matching::track_digit_selective_matching(track_digit_selective_matching::Parameters, const char *)",
+            "total_ns": 267116809,
+            "instances": 1600,
+            "avg_ns": 166948.0,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          }
+        ]
+      },
+      "fc": {
+        "profiled_repeats": 1,
+        "gpu_kernel_time_ns": 26995672229,
+        "n_kernel_names": 176,
+        "kernels": [
+          {
+            "name": "gather_selections::run_lines(gather_selections::Parameters, unsigned int, unsigned int)",
+            "total_ns": 2335117722,
+            "instances": 800,
+            "avg_ns": 2918897.2,
+            "time_pct": 8.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "velo_search_by_triplet::velo_search_by_triplet(velo_search_by_triplet::Parameters, const VeloGeometry *, float, float, unsigned int, unsigned int)",
+            "total_ns": 1755358002,
+            "instances": 800,
+            "avg_ns": 2194197.5,
+            "time_pct": 6.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "seed_xz::seed_xz(seed_xz::Parameters)",
+            "total_ns": 1638173693,
+            "instances": 800,
+            "avg_ns": 2047717.1,
+            "time_pct": 6.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "is_muon::is_muon(is_muon::Parameters, const Muon::Constants::FieldOfInterest *, const float *, Allen::Monitoring::DeviceNDHistogram<unsigned int, Allen::Monitoring::Axis<float>>, Allen::Monitoring::DeviceNDHistogram<unsigned int, Allen::Mon",
+            "total_ns": 1220583389,
+            "instances": 1600,
+            "avg_ns": 762864.6,
+            "time_pct": 4.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void pvfinder_fc_aggregation::pvfinder_reduce_l6a_kernel<(bool)1, (bool)1, (bool)1, (bool)1, (bool)1>(pvfinder_fc_aggregation::Parameters, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, const float *, unsigned int *, ",
+            "total_ns": 1040204197,
+            "instances": 3200,
+            "avg_ns": 325063.8,
+            "time_pct": 3.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "FilterSVTrack::filter_sv_track(FilterSVTrack::Parameters, float, float, float, float, float, float, float, float, float, float, float, float, float, float, bool, bool)",
+            "total_ns": 725013801,
+            "instances": 5600,
+            "avg_ns": 129466.8,
+            "time_pct": 2.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_fc_aggregation::pvfinder_l1_to_l5_kernel(pvfinder_fc_aggregation::Parameters, const float *, unsigned int, unsigned int, unsigned int, unsigned int, bool, unsigned int)",
+            "total_ns": 683385204,
+            "instances": 3200,
+            "avg_ns": 213557.9,
+            "time_pct": 2.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "PrefixSum::prefix_sum_single_warp_x4(unsigned int *, unsigned int, unsigned int *)",
+            "total_ns": 673997263,
+            "instances": 64000,
+            "avg_ns": 10531.2,
+            "time_pct": 2.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "lf_triplet_seeding::lf_triplet_seeding(lf_triplet_seeding::Parameters, const LookingForward::Constants *, unsigned int, float, float, Allen::Monitoring::DeviceCounter<unsigned int>)",
+            "total_ns": 671954175,
+            "instances": 800,
+            "avg_ns": 839942.7,
+            "time_pct": 2.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void seed_confirmTracks::seed_confirmTracks<(bool)0>(seed_confirmTracks::Parameters, int, float, float)",
+            "total_ns": 638684318,
+            "instances": 800,
+            "avg_ns": 798355.4,
+            "time_pct": 2.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void calo_decode_dispatch<(bool)0, (int)5>(calo_decode::Parameters, const char *, unsigned int, short, short)",
+            "total_ns": 483318891,
+            "instances": 800,
+            "avg_ns": 604148.6,
+            "time_pct": 1.8,
+            "repeats_seen": 1
+          },
+          {
+            "name": "build_cone_jets::build_jets(build_cone_jets::Parameters, unsigned int, float, unsigned int *)",
+            "total_ns": 446032973,
+            "instances": 800,
+            "avg_ns": 557541.2,
+            "time_pct": 1.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void track_matching::track_matching_veloSciFi<Allen::MVAModels::DeviceSingleLayerFCNN<(unsigned int)8, (unsigned int)32>>(track_matching::Parameters, const float *, const T1 *, std::array<float, (unsigned long)16>, std::array<float, (unsign",
+            "total_ns": 436497216,
+            "instances": 800,
+            "avg_ns": 545621.5,
+            "time_pct": 1.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_0(downstream_v2_find_tracks::Parameters, const UT::Constants::UTLayerGeometry *, bool, float, float, float, float)",
+            "total_ns": 417050644,
+            "instances": 800,
+            "avg_ns": 521313.3,
+            "time_pct": 1.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void muon_add_coords_crossing_maps_kernel<(int)3>(muon_add_coords_crossing_maps::Parameters, const Muon::MuonTables *)",
+            "total_ns": 412181895,
+            "instances": 800,
+            "avg_ns": 515227.4,
+            "time_pct": 1.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "FilterTracks::filter_tracks(FilterTracks::Parameters, bool, bool, float, float, float, float, float, float)",
+            "total_ns": 397158223,
+            "instances": 4800,
+            "avg_ns": 82741.3,
+            "time_pct": 1.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "compress_array(const unsigned int *, const unsigned int *, unsigned int, unsigned int *)",
+            "total_ns": 362215961,
+            "instances": 1600,
+            "avg_ns": 226385.0,
+            "time_pct": 1.3,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void scifi_pre_decode_kernel<(int)8, (bool)0>(scifi_pre_decode::Parameters, unsigned int, const char *)",
+            "total_ns": 337374873,
+            "instances": 800,
+            "avg_ns": 421718.6,
+            "time_pct": 1.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "kalman_filter::kalman_filter(kalman_filter::Parameters, const float *, const ParKalmanFilter::KalmanParametrizations *)",
+            "total_ns": 303920638,
+            "instances": 800,
+            "avg_ns": 379900.8,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "two_track_mva_evaluator::two_track_mva_evaluator(two_track_mva_evaluator::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)4, (unsigned int)20, (unsigned int)20, (unsigned int)1> *)",
+            "total_ns": 303760690,
+            "instances": 800,
+            "avg_ns": 379700.9,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "lf_create_tracks::lf_extend_tracks(lf_create_tracks::Parameters, const LookingForward::Constants *, unsigned int, float, float, float)",
+            "total_ns": 293668702,
+            "instances": 800,
+            "avg_ns": 367085.9,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pv_beamline_multi_fitter::pv_beamline_multi_fitter(pv_beamline_multi_fitter::Parameters, float, unsigned int, unsigned int, unsigned int, float, float, float, float, float, float, float)",
+            "total_ns": 293222936,
+            "instances": 800,
+            "avg_ns": 366528.7,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "electronid_nn::electronid_nn(electronid_nn::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)6, (unsigned int)12, (unsigned int)12, (unsigned int)12, (unsigned int)12, (unsigned int)1> *)",
+            "total_ns": 281548727,
+            "instances": 800,
+            "avg_ns": 351935.9,
+            "time_pct": 1.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "PrefixSum::prefix_sum_reduce(unsigned int *, unsigned int *, unsigned int)",
+            "total_ns": 275822954,
+            "instances": 17600,
+            "avg_ns": 15671.8,
+            "time_pct": 1.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "muonid_nn::muonid_nn(muonid_nn::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)5, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)1> *)",
+            "total_ns": 275768643,
+            "instances": 800,
+            "avg_ns": 344710.8,
+            "time_pct": 1.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "ampere_sgemm_32x128_tn",
+            "total_ns": 243262319,
+            "instances": 2400,
+            "avg_ns": 101359.3,
+            "time_pct": 0.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "ampere_sgemm_128x32_tn",
+            "total_ns": 107267699,
+            "instances": 800,
+            "avg_ns": 134084.6,
+            "time_pct": 0.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_fc_aggregation::pvfinder_build_csr_kernel(pvfinder_fc_aggregation::Parameters)",
+            "total_ns": 33648116,
+            "instances": 800,
+            "avg_ns": 42060.1,
+            "time_pct": 0.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_velo_feature_extraction::pvfinder_velo_feature_extraction_kernel(pvfinder_velo_feature_extraction::Parameters)",
+            "total_ns": 30839393,
+            "instances": 800,
+            "avg_ns": 38549.2,
+            "time_pct": 0.1,
+            "repeats_seen": 1
+          }
+        ]
+      },
+      "unet": {
+        "profiled_repeats": 1,
+        "gpu_kernel_time_ns": 28978961498,
+        "n_kernel_names": 185,
+        "kernels": [
+          {
+            "name": "gather_selections::run_lines(gather_selections::Parameters, unsigned int, unsigned int)",
+            "total_ns": 2543047459,
+            "instances": 800,
+            "avg_ns": 3178809.3,
+            "time_pct": 8.8,
+            "repeats_seen": 1
+          },
+          {
+            "name": "velo_search_by_triplet::velo_search_by_triplet(velo_search_by_triplet::Parameters, const VeloGeometry *, float, float, unsigned int, unsigned int)",
+            "total_ns": 1837448782,
+            "instances": 800,
+            "avg_ns": 2296811.0,
+            "time_pct": 6.3,
+            "repeats_seen": 1
+          },
+          {
+            "name": "seed_xz::seed_xz(seed_xz::Parameters)",
+            "total_ns": 1670217808,
+            "instances": 800,
+            "avg_ns": 2087772.3,
+            "time_pct": 5.8,
+            "repeats_seen": 1
+          },
+          {
+            "name": "is_muon::is_muon(is_muon::Parameters, const Muon::Constants::FieldOfInterest *, const float *, Allen::Monitoring::DeviceNDHistogram<unsigned int, Allen::Monitoring::Axis<float>>, Allen::Monitoring::DeviceNDHistogram<unsigned int, Allen::Mon",
+            "total_ns": 1228839910,
+            "instances": 1600,
+            "avg_ns": 768024.9,
+            "time_pct": 4.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void pvfinder_fc_aggregation::pvfinder_reduce_l6a_kernel<(bool)1, (bool)1, (bool)1, (bool)1, (bool)1>(pvfinder_fc_aggregation::Parameters, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, const float *, unsigned int *, ",
+            "total_ns": 1047245033,
+            "instances": 3200,
+            "avg_ns": 327264.1,
+            "time_pct": 3.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "cudnn_generated_fort_native_sm80_convFwd_pointwise_pointwise_knob_29_128x16x16_1_0",
+            "total_ns": 732271782,
+            "instances": 28005,
+            "avg_ns": 26147.9,
+            "time_pct": 2.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "FilterSVTrack::filter_sv_track(FilterSVTrack::Parameters, float, float, float, float, float, float, float, float, float, float, float, float, float, float, bool, bool)",
+            "total_ns": 731981291,
+            "instances": 5600,
+            "avg_ns": 130710.9,
+            "time_pct": 2.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_fc_aggregation::pvfinder_l1_to_l5_kernel(pvfinder_fc_aggregation::Parameters, const float *, unsigned int, unsigned int, unsigned int, unsigned int, bool, unsigned int)",
+            "total_ns": 709671623,
+            "instances": 3200,
+            "avg_ns": 221772.4,
+            "time_pct": 2.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "lf_triplet_seeding::lf_triplet_seeding(lf_triplet_seeding::Parameters, const LookingForward::Constants *, unsigned int, float, float, Allen::Monitoring::DeviceCounter<unsigned int>)",
+            "total_ns": 691098902,
+            "instances": 800,
+            "avg_ns": 863873.6,
+            "time_pct": 2.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "PrefixSum::prefix_sum_single_warp_x4(unsigned int *, unsigned int, unsigned int *)",
+            "total_ns": 667497246,
+            "instances": 64000,
+            "avg_ns": 10429.6,
+            "time_pct": 2.3,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void seed_confirmTracks::seed_confirmTracks<(bool)0>(seed_confirmTracks::Parameters, int, float, float)",
+            "total_ns": 657764859,
+            "instances": 800,
+            "avg_ns": 822206.1,
+            "time_pct": 2.3,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void calo_decode_dispatch<(bool)0, (int)5>(calo_decode::Parameters, const char *, unsigned int, short, short)",
+            "total_ns": 488371966,
+            "instances": 800,
+            "avg_ns": 610465.0,
+            "time_pct": 1.7,
+            "repeats_seen": 1
+          },
+          {
+            "name": "build_cone_jets::build_jets(build_cone_jets::Parameters, unsigned int, float, unsigned int *)",
+            "total_ns": 466382698,
+            "instances": 800,
+            "avg_ns": 582978.4,
+            "time_pct": 1.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void track_matching::track_matching_veloSciFi<Allen::MVAModels::DeviceSingleLayerFCNN<(unsigned int)8, (unsigned int)32>>(track_matching::Parameters, const float *, const T1 *, std::array<float, (unsigned long)16>, std::array<float, (unsign",
+            "total_ns": 451368628,
+            "instances": 800,
+            "avg_ns": 564210.8,
+            "time_pct": 1.6,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void muon_add_coords_crossing_maps_kernel<(int)3>(muon_add_coords_crossing_maps::Parameters, const Muon::MuonTables *)",
+            "total_ns": 444711162,
+            "instances": 800,
+            "avg_ns": 555889.0,
+            "time_pct": 1.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "downstream_v2_find_tracks::downstream_v2_find_hits_in_layer_0(downstream_v2_find_tracks::Parameters, const UT::Constants::UTLayerGeometry *, bool, float, float, float, float)",
+            "total_ns": 416369615,
+            "instances": 800,
+            "avg_ns": 520462.0,
+            "time_pct": 1.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "FilterTracks::filter_tracks(FilterTracks::Parameters, bool, bool, float, float, float, float, float, float)",
+            "total_ns": 404750003,
+            "instances": 4800,
+            "avg_ns": 84322.9,
+            "time_pct": 1.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "compress_array(const unsigned int *, const unsigned int *, unsigned int, unsigned int *)",
+            "total_ns": 373023836,
+            "instances": 1600,
+            "avg_ns": 233139.9,
+            "time_pct": 1.3,
+            "repeats_seen": 1
+          },
+          {
+            "name": "two_track_mva_evaluator::two_track_mva_evaluator(two_track_mva_evaluator::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)4, (unsigned int)20, (unsigned int)20, (unsigned int)1> *)",
+            "total_ns": 337827867,
+            "instances": 800,
+            "avg_ns": 422284.8,
+            "time_pct": 1.2,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void scifi_pre_decode_kernel<(int)8, (bool)0>(scifi_pre_decode::Parameters, unsigned int, const char *)",
+            "total_ns": 331362663,
+            "instances": 800,
+            "avg_ns": 414203.3,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "kalman_filter::kalman_filter(kalman_filter::Parameters, const float *, const ParKalmanFilter::KalmanParametrizations *)",
+            "total_ns": 318426817,
+            "instances": 800,
+            "avg_ns": 398033.5,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pv_beamline_multi_fitter::pv_beamline_multi_fitter(pv_beamline_multi_fitter::Parameters, float, unsigned int, unsigned int, unsigned int, float, float, float, float, float, float, float)",
+            "total_ns": 306997999,
+            "instances": 800,
+            "avg_ns": 383747.5,
+            "time_pct": 1.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "electronid_nn::electronid_nn(electronid_nn::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)6, (unsigned int)12, (unsigned int)12, (unsigned int)12, (unsigned int)12, (unsigned int)1> *)",
+            "total_ns": 298834636,
+            "instances": 800,
+            "avg_ns": 373543.3,
+            "time_pct": 1.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "lf_create_tracks::lf_extend_tracks(lf_create_tracks::Parameters, const LookingForward::Constants *, unsigned int, float, float, float)",
+            "total_ns": 298178183,
+            "instances": 800,
+            "avg_ns": 372722.7,
+            "time_pct": 1.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "muonid_nn::muonid_nn(muonid_nn::Parameters, const Allen::MVAModels::DeviceMultiLayerFCNN<(unsigned int)5, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)10, (unsigned int)1> *)",
+            "total_ns": 280344994,
+            "instances": 800,
+            "avg_ns": 350431.2,
+            "time_pct": 1.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void pvfinder_unet::conv_transpose_k2s2_nwc_kernel<__nv_bfloat16, (int)16>(const T1 *, T1 *, const float *, const float *, int, int)",
+            "total_ns": 270393080,
+            "instances": 11202,
+            "avg_ns": 24137.9,
+            "time_pct": 0.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "ampere_sgemm_32x128_tn",
+            "total_ns": 246749343,
+            "instances": 2400,
+            "avg_ns": 102812.2,
+            "time_pct": 0.9,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void pvfinder_unet::output_stage_nwc_kernel<__nv_bfloat16, (int)16, (int)100>(const T1 *, const float *, float *, float)",
+            "total_ns": 221531461,
+            "instances": 5601,
+            "avg_ns": 39552.1,
+            "time_pct": 0.8,
+            "repeats_seen": 1
+          },
+          {
+            "name": "void pvfinder_unet::maxpool2_nwc_kernel<__nv_bfloat16>(const T1 *, T1 *, int, int, int)",
+            "total_ns": 140442100,
+            "instances": 11202,
+            "avg_ns": 12537.2,
+            "time_pct": 0.5,
+            "repeats_seen": 1
+          },
+          {
+            "name": "ampere_sgemm_128x32_tn",
+            "total_ns": 106769941,
+            "instances": 800,
+            "avg_ns": 133462.4,
+            "time_pct": 0.4,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_fc_aggregation::pvfinder_build_csr_kernel(pvfinder_fc_aggregation::Parameters)",
+            "total_ns": 31717285,
+            "instances": 800,
+            "avg_ns": 39646.6,
+            "time_pct": 0.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_velo_feature_extraction::pvfinder_velo_feature_extraction_kernel(pvfinder_velo_feature_extraction::Parameters)",
+            "total_ns": 30890091,
+            "instances": 800,
+            "avg_ns": 38612.6,
+            "time_pct": 0.1,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_unet::expand_kde_rows_kernel(const float *, const int *, const float *, float *, int)",
+            "total_ns": 14136258,
+            "instances": 800,
+            "avg_ns": 17670.3,
+            "time_pct": 0.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_unet::f32_to_f16_kernel(__half *, const float *, int)",
+            "total_ns": 12959,
+            "instances": 10,
+            "avg_ns": 1295.9,
+            "time_pct": 0.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_unet::f32_to_bf16_kernel(__nv_bfloat16 *, const float *, int)",
+            "total_ns": 12575,
+            "instances": 10,
+            "avg_ns": 1257.5,
+            "time_pct": 0.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_unet::fold_bn_into_conv_kernel(float *, float *, const float *, const float *, const float *, const float *, const float *, const float *, float, int, int)",
+            "total_ns": 9537,
+            "instances": 5,
+            "avg_ns": 1907.4,
+            "time_pct": 0.0,
+            "repeats_seen": 1
+          },
+          {
+            "name": "pvfinder_unet::fold_up1_merge_kernel(float *, float *, float *, const float *, const float *, const float *, const float *, int)",
+            "total_ns": 4608,
+            "instances": 1,
+            "avg_ns": 4608.0,
+            "time_pct": 0.0,
+            "repeats_seen": 1
+          }
+        ]
+      }
+    }
+  },
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260925_183115_p13_bf16nwc_t16_profile"
+  },
+  "duration_s": 200
+}

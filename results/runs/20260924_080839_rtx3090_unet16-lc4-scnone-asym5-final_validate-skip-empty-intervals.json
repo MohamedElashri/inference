@@ -1,0 +1,341 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "validation",
+  "id": "20260924_080839_validate-skip-empty-intervals",
+  "label": "validate_skip_empty_intervals",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-24T08:04:55-04:00",
+  "finished_at": "2026-09-24T08:08:39-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "1e058d7f8aa66ed69946a44728e05634317c6c6f",
+    "branch": "feat/skip-empty-intervals",
+    "subject": "feat(weights): catalog the training team's BF16 export of asym5_best",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/configuration/python/AllenConf/pvfinder_fc_reconstruction.py",
+      "Allen/configuration/python/AllenConf/pvfinder_unet_reconstruction.py",
+      "Allen/device/pvfinder/include/PVFinderFCAggregation.cuh",
+      "Allen/device/pvfinder/include/PVFinderUNet.cuh",
+      "Allen/device/pvfinder/include/PVFinderUNetKernels.cuh",
+      "Allen/device/pvfinder/src/PVFinderFCAggregation.cu",
+      "Allen/device/pvfinder/src/PVFinderUNet.cu",
+      "benchmarks/benchmark_pvfinder_batch.sh"
+    ],
+    "diff_sha256": "6d43c5a7d08974b0004135d51aa7490d57205fc64a09f699d1e5cf440837d69a"
+  },
+  "build": {
+    "name": "buildp3_16chL4gpu",
+    "dir": "Allen/buildp3_16chL4gpu",
+    "cmake": {
+      "BUILD_TESTING": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-24T06:34:34-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_final",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_final",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_final.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "default model; asym 5, last epoch (69)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "sha256": "1ead334f6e2728b96a34084ce4b1b444f799080b14a72306022d5283c9923d38"
+    },
+    "weights": {
+      "cnn": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_final/cnn_weights.bin",
+        "sha256": "3df43fe945ce863f805c20610942bcb921336176bd62dd0a99e28e0937eec24e"
+      },
+      "fc": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_final/fc_weights.bin",
+        "sha256": "c8e229f5e66f0b81b7289328fb83f8bd32551994e05748874469d204e3797ddb"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "events": 500,
+    "threads": 1,
+    "device": 2,
+    "sequence": "hlt1_pp_pvfinder_unet_benchmark"
+  },
+  "config": {
+    "dump": {
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_final/dump_p3_fp32_skip",
+          "fc_chunk_size": 130,
+          "fc_single_hidden_layer": false,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": true,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_final/fc_weights.bin"
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_repetition": 0,
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_final/dump_p3_fp32_skip",
+          "fwd_algo_ws_budget_bytes": 0,
+          "unet_batch_events": 20,
+          "use_bf16": false,
+          "use_cuda_graph": false,
+          "use_fp16": false,
+          "use_fused_bias_relu_pool": false,
+          "use_fused_cbr": false,
+          "use_fused_rcbn3": false,
+          "use_merged_up1": false,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_final/cnn_weights.bin"
+        },
+        "pvfinder_velo_feature_extraction": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "fc": {
+      "dump_dir": "/data/home/melashri/iris/inference-p3/weights/out/unet16_lc4_scnone_asym5_final/dump_p3_fp32_skip",
+      "weights": "/data/home/melashri/iris/inference-p3/weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "max_f32_ulps": 1.0,
+      "fc_bin": {
+        "status": "OK"
+      },
+      "interval_features": {
+        "slots_compared": 19965,
+        "non_finite_slots": 35,
+        "max_abs_diff": 1.7739590075798333,
+        "max_rel_diff": 0.0333382203512258,
+        "max_f32_ulps": 0.0002487524442613426,
+        "largest_term": 606475841678.4862,
+        "status": "PASS"
+      },
+      "histogram": {
+        "slots_compared": 19965,
+        "non_finite_slots": 35,
+        "max_abs_diff": 1.724149945192039,
+        "max_rel_diff": 0.038312273918564704,
+        "max_f32_ulps": 8.468108965540843e-05,
+        "largest_term": 1639733499308.3208,
+        "status": "PASS"
+      },
+      "n_events": 500,
+      "n_tracks": 122358,
+      "latent_channels": 4,
+      "status": "PASS"
+    },
+    "unet": {
+      "dump_dir": "/data/home/melashri/iris/inference-p3/weights/out/unet16_lc4_scnone_asym5_final/dump_p3_fp32_skip",
+      "weights": "/data/home/melashri/iris/inference-p3/weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "n_events": 500,
+      "n_intervals": 20000,
+      "non_finite_input_intervals": 35,
+      "max_abs_diff": 1.7136335372924805e-07,
+      "abs_percentiles": {
+        "P50": 1.6525069089407202e-24,
+        "P90": 2.9808785597355706e-15,
+        "P95": 1.6097412194447441e-12,
+        "P99": 9.94803406317857e-11,
+        "P99.9": 1.3080281435762253e-10,
+        "Pmax": 1.7136335372924805e-07
+      },
+      "rel_percentiles": {
+        "P50": 1.6525069089407174e-15,
+        "P90": 2.9808696741250695e-06,
+        "P95": 0.0008904932097308237,
+        "P99": 0.04183635409326362,
+        "P99.9": 0.1062477623834783,
+        "Pmax": 0.12646885083866594
+      },
+      "pearson_r": 0.999999999998867,
+      "r_squared": 0.9999999999976785,
+      "signal_region": {
+        "n_bins": 107,
+        "max_abs_diff": 1.7136335372924805e-07
+      },
+      "background_region": {
+        "n_bins": 1996385,
+        "max_abs_diff": 2.2737367544323206e-09
+      },
+      "worst_event": {
+        "event": 208,
+        "interval": 39
+      },
+      "layer_stats": {
+        "x1_rcbn1": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 56000,
+          "mean": 0.6289183497428894,
+          "std": 0.7731755375862122,
+          "min": 0.0,
+          "max": 50.9660530090332
+        },
+        "x2_rcbn2_mp": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 28000,
+          "mean": 0.45871248841285706,
+          "std": 0.7526158690452576,
+          "min": 0.0,
+          "max": 50.94492721557617
+        },
+        "x3_rcbn3_mp": {
+          "shape": [
+            20000,
+            16,
+            25
+          ],
+          "non_finite": 14000,
+          "mean": 0.9053930640220642,
+          "std": 1.1770557165145874,
+          "min": 0.0,
+          "max": 97.59423065185547
+        },
+        "xu1_up1": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 28000,
+          "mean": 0.6179174184799194,
+          "std": 1.0509700775146484,
+          "min": 0.0,
+          "max": 39.956443786621094
+        },
+        "xu2_up2": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 56000,
+          "mean": 0.06061752140522003,
+          "std": 0.1483670175075531,
+          "min": 0.0,
+          "max": 4.95623254776001
+        },
+        "x_oint": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 56000,
+          "mean": -0.4454905688762665,
+          "std": 2.8867006301879883,
+          "min": -40.31065368652344,
+          "max": 67.58931732177734
+        },
+        "logits": {
+          "shape": [
+            20000,
+            1,
+            100
+          ],
+          "non_finite": 3500,
+          "mean": -47.28169631958008,
+          "std": 20.550878524780273,
+          "min": -246.62210083007812,
+          "max": 117.8631820678711
+        },
+        "pt_kde": {
+          "shape": [
+            20000,
+            100
+          ],
+          "non_finite": 3500,
+          "mean": 1.700646407698514e-06,
+          "std": 0.00031767095788381994,
+          "min": 0.0,
+          "max": 0.11786318570375443
+        }
+      },
+      "tiers": {
+        "fp32_noise": true,
+        "tight": true,
+        "acceptable": true,
+        "loose": true
+      },
+      "best_tier": "fp32_noise",
+      "signal_region_under_1e-4": true,
+      "threshold": 0.001,
+      "status": "PASS"
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "dump_dir": "weights/out/unet16_lc4_scnone_asym5_final/dump_p3_fp32_skip"
+  },
+  "duration_s": 224
+}

@@ -14,7 +14,8 @@ Sequence.json
 # Anchored with a leading "/" so they never hide files inside Allen/.
 /plan*
 /*plan*
-/docs/
+docs/ 
+/docs/archive/
 /slides/
 /benchmark_results/
 /validation_dump/
