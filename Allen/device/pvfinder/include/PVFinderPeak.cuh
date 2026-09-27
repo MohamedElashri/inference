@@ -11,20 +11,15 @@
 #pragma once
 
 #include "AlgorithmTypes.cuh"
-#include "PV_Definitions.cuh"
-#include "PVFinderConstants.cuh"
+#include "AllenMonitoring.h"
+#include "PVFinderPeakFinding.cuh"
 
 // Primary-vertex z seeds from the PVFinder KDE. The output has the layout of
 // pv_beamline_peak's, so the beamline PV track association and fit
 // (pv_beamline_calculate_denom, pv_beamline_multi_fitter, pv_beamline_cleanup)
 // run on these seeds unchanged.
 //
-// The peak finder is pv-finder's pv_locations_updated: a peak is a run of
-// consecutive bins at or above `threshold`, split in two where the KDE rises
-// again after a drop of more than split_min_drop and split_min_ratio between
-// two bins; it is kept when it has at least `min_width` bins and their sum is
-// at least `integral_threshold`. The seed is the KDE-weighted mean z of its
-// bins (bin centres).
+// The peaks are those of PVFinderPeakFinding (pv-finder's pv_locations_updated).
 namespace pvfinder_peak {
   struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
@@ -35,15 +30,13 @@ namespace pvfinder_peak {
     DEVICE_OUTPUT(dev_number_of_zpeaks_t, unsigned) dev_number_of_zpeaks;
   };
 
-  // Largest block_dim.x (size of the kernel's per-thread shared arrays).
-  static constexpr unsigned max_block_dim = 512;
-
   __global__ void pvfinder_peak(
     Parameters,
-    const float threshold,
-    const float integral_threshold,
-    const unsigned min_width,
-    const bool split_peaks);
+    const PVFinderPeakFinding::Cuts,
+    Allen::Monitoring::AveragingCounter<>::DeviceType,
+    Allen::Monitoring::Counter<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType);
 
   struct pvfinder_peak_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
@@ -88,5 +81,15 @@ namespace pvfinder_peak {
       "",
       "if non-empty, dump the seeds of the first slice to this directory"};
     mutable bool m_dump_done = false;
+
+    Allen::Monitoring::AveragingCounter<> m_seeds {this, "n_seeds"};
+    // Events with more peaks than PV::max_number_vertices (the highest in z dropped).
+    Allen::Monitoring::Counter<> m_truncated {this, "n_events_seeds_truncated"};
+    Allen::Monitoring::Histogram<> m_histogram_n_seeds {this, "n_seeds_event", "n_seeds_event", {33u, -0.5f, 32.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_seed_z {
+      this,
+      "seed_z",
+      "seed_z",
+      {400u, PVFinderConstants::KDE::z_min, PVFinderConstants::KDE::z_max}};
   };
 } // namespace pvfinder_peak

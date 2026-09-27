@@ -13,6 +13,7 @@
 
 #include "BackendCommon.h"
 #include "InputReader.h"
+#include <algorithm>
 #include <functional>
 #include <string>
 
@@ -28,6 +29,11 @@ namespace Allen::MVAModels {
     }
 
     void registerNN(MVAModelBase* nn) { m_neural_networks.push_back(nn); }
+    void unregisterNN(MVAModelBase* nn)
+    {
+      m_neural_networks.erase(
+        std::remove(m_neural_networks.begin(), m_neural_networks.end(), nn), m_neural_networks.end());
+    }
 
     void loadData(std::string parameters_path);
 
@@ -55,7 +61,10 @@ namespace Allen::MVAModels {
 
     virtual void readData(std::string) {}
 
-    virtual ~MVAModelBase() = default;
+    // A model destroyed before loadData (a test, a discarded algorithm) is not read.
+    virtual ~MVAModelBase() { MVAModelsManager::get()->unregisterNN(this); }
+    MVAModelBase(const MVAModelBase&) = delete;
+    MVAModelBase& operator=(const MVAModelBase&) = delete;
 
     // The model file. With a fixed path, parameters_path + path (the fixed
     // paths start with "/"); with a path source, an absolute path as it is and
