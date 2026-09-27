@@ -1,70 +1,99 @@
 # PVFinder weights pipeline
 
-Everything needed to turn a trained PVFinder checkpoint into the weight files
-Allen loads, and to prove Allen reproduces that checkpoint, lives here and is
-driven by `make`:
+Everything needed to turn a trained PVFinder checkpoint into the model file
+Allen reads, and to show that Allen reproduces that checkpoint, lives here and
+is driven by `make`:
 
 ```bash
-make -C weights list                                               # models in the catalog
-make -C weights all MODEL=unet16_lc4_scnone_asym5_final            # fetch -> convert -> verify -> build -> dump -> validate
-make -C weights verify-all                                         # fetch + convert + verify every model
-eval "$(make -s -C weights env MODEL=unet16_lc4_scnone_asym5_final)" # export PVFINDER_WEIGHTS_DIR for Allen configs
+make -C weights list                                             # models in the catalog
+make -C weights all MODEL=unet16_lc4_scnone_asym5_final          # fetch -> convert -> verify -> build -> dump -> validate
+make -C weights verify-all                                       # fetch + convert + verify every model
+make -s -C weights model-path MODEL=unet16_lc4_scnone_asym5_final  # the file to give Allen's "model" property
 ```
 
-`make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`, `JOBS`, `PY`,
-`DUMP_SET`, `DUMP_TAG`, `LABEL`).
+`make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`,
+`JOBS`, `PY`, `PRECISION`, `DUMP_SET`, `DUMP_TAG`, `LABEL`).
 
 ## Stages
 
 | Target | What it does | Output (`out/<MODEL>/`, ignored by git) |
 |---|---|---|
 | `fetch` | Copies the checkpoint named in `models.tsv` | `checkpoints/<MODEL>.pyt` |
-| `convert` | `scripts/convert.py`: checkpoint to Allen format | `cnn_weights.bin`, `fc_weights.bin` |
-| `verify` | `scripts/verify.py`: re-reads both files in Allen's loader order and compares every tensor bit for bit with the checkpoint | `verify.txt` |
+| `convert` | `scripts/convert.py`: checkpoint to Allen's model file | `pvfinder_model.json` |
+| `verify` | `scripts/verify.py`: re-reads the file independently of `convert.py` and compares every tensor bit for bit with the checkpoint, plus the metadata | `verify.txt` |
 | `build` | `../ballen` with the model's `--unet-feat` / `--unet-batch-channels` into `Allen/<build>gpu` | Allen build |
-| `dump` | `scripts/allen_dump.sh`: one 500-event slice with `dump_validation` on for FC and UNet, plus a `snapshot.json` of the environment | `dump/` (`dump_<DUMP_TAG>/`) |
-| `validate` | `scripts/validate_fc.py` recomputes FC from the checkpoint per (track, interval) entry and checks Allen's track-to-interval assignment against the training rules; `scripts/validate_unet.py` recomputes the UNet from Allen's FC output; `scripts/validate_model.py` builds the network input from Allen's raw track features exactly like the training arrays and runs the full PyTorch model. Writes a run record to `results/runs/` | `dump*/validate_{fc,unet,model}.{txt,json}` |
+| `dump` | `scripts/allen_dump.sh`: one 500-event slice of `hlt1_pp_pvs_pvfinder_unet_benchmark` (FC, UNet, peak finding, PV fit) with `dump_validation` on for the FC, the UNet and `pvfinder_peak`, plus a `snapshot.json` of the environment | `dump/` (`dump_<DUMP_TAG>/`) |
+| `validate` | The five validators below on the dump; writes a run record to `results/runs/` | `dump*/validate_*.{txt,json}` |
 
-To validate a non-default Allen configuration, override properties at dump
-time and keep that dump separate with a tag, for example the BF16 path:
+The validators, each checking one step against an independent reference:
+
+| Script | Checks |
+|---|---|
+| `validate_features.py` | Allen's 9 per-track input features, recomputed from each track's VELO state and the beamline with the training team's rules, and those rules against the training sample |
+| `validate_fc.py` | The FC stage, recomputed in float64 from the checkpoint and Allen's track features, and Allen's track-to-interval assignment; differences measured in float32 (or bfloat16) ulps of a propagated magnitude bound |
+| `validate_unet.py` | The UNet, run in PyTorch on Allen's own FC output |
+| `validate_model.py` | The whole network: builds the input from Allen's raw track features exactly as the training arrays were built and runs the full PyTorch model; also prints physics-level numbers (intervals with a KDE peak, peaks per event) |
+| `validate_peaks.py` | `pvfinder_peak` against pv-finder's own peak finder on Allen's KDE, with the settings Allen ran with |
+
+`validate_fc.py` and `validate_unet.py` prove the arithmetic of one stage from
+that stage's input; `validate_model.py` is the check that Allen feeds the
+network what it was trained on. `validate` fails (non-zero exit) on any
+mismatch, after writing its run record (see `results/README.md`).
+
+The reduced-precision path is validated the same way:
 
 ```bash
-make -C weights dump validate MODEL=<name> DUMP_TAG=bf16 \
-    DUMP_SET="pvfinder_unet.use_bf16=true pvfinder_fc_aggregation.unet_input_dtype=bfloat16 pvfinder_fc_aggregation.unet_input_layout=nwc"
+make -C weights dump validate MODEL=unet16_lc4_scnone_asym5_best_bf16 PRECISION=bfloat16
 ```
 
-`validate_fc.py` and `validate_unet.py` each check one Allen stage against its
-own dumped input, so they prove the arithmetic but not that Allen feeds the
-network what it was trained on; `validate_model.py` is the check for that,
-and also prints physics-level numbers (fraction of intervals with a KDE peak,
-peaks per event) to compare with the training sample. Allen's input
-definition is documented in `docs/pvfinder/pvfinder_input_features.md`.
+`PRECISION=bfloat16` sets `precision` on both algorithms and keeps the dump in
+`dump_bfloat16/`. With it, the validators judge the KDE at peak level
+(`scripts/peak_agreement.py`) instead of float32 agreement. Other property
+overrides go through `DUMP_SET="ALG.PROP=VALUE ..."`, with a `DUMP_TAG` to keep
+that dump apart.
 
-(The BF16 path runs channels last by default, `pvfinder_unet.bf16_layout = nwc`;
-`unet_input_layout = nwc` has the FC stage write its BF16 output in that
-layout. The dumps convert back to the channels-first float layout the
-validators read. See `docs/pvfinder/bf16.md`.)
+Primary-vertex physics (efficiency, false rate, resolution against the
+beamline PV finder on MC) is not part of this pipeline:
+`benchmarks/pv_comparison.sh` runs it with `scripts/compare_pvs.py` and
+`scripts/validate_peaks.py`.
 
-`validate` fails (non-zero exit) on any mismatch, after writing its run record
-(see `results/README.md`). `validate_fc.py` also checks
-that the `.bin` Allen loaded is the checkpoint in Allen's layout, and names a
-transposed layer 6A explicitly.
+## The model file
 
-## How Allen gets the weights
+One JSON file holds the FC network and the UNet. It is an Allen tensor model
+file (`Allen::MVAModels::TensorModel`,
+`Allen/device/utils/mva_models/include/TensorModel.h`; format described in
+`Allen/doc/develop/add_mva_model.rst`) of kind `pvfinder`:
 
-Allen has no built-in weight location. `pvfinder_fc_aggregation.weight_file`
-and `pvfinder_unet.weight_file` default to empty, and Allen stops with an error
-if either is unset. AllenConf (`pvfinder_weight_file()` in
-`Allen/configuration/python/AllenConf/pvfinder_fc_reconstruction.py`) fills
-them in from `$PVFINDER_WEIGHTS_DIR/{fc,cnn}_weights.bin` when a sequence
-configuration is generated, and raises if the variable is unset or the files
-are missing. `make env` prints the export, `make dump` sets it itself, and
-`benchmarks/benchmark_pvfinder_batch.sh --model <name>` sets it from
-`weights/out/<name>/`.
+```json
+{"format": "allen-tensors/1", "kind": "pvfinder", "name": "...", "source": "...", "sha256": "...",
+ "metadata": {"latent_channels": 4, "unet_features": 16, "bn_eps": 1e-05},
+ "tensors": {"layer1.weight": {"shape": [20, 9], "data": [...]}, ...}}
+```
 
-The Allen build must match the model: `N_FEAT` and `latentChannels` are
-compile-time constants. The catalog's `build` column names the `ballen -b`
-base; `make build` passes the right flags.
+Tensors keep their PyTorch state-dict names and shapes, data row major. Each
+value is written as the shortest decimal that reads back as the same float32,
+so the file is exact; `source` and `sha256` identify the checkpoint.
+
+## How Allen gets the model
+
+`pvfinder_fc_aggregation` and `pvfinder_unet` read the file through their
+`model` property (`PVFinder::Model`, `Allen/device/pvfinder/include/PVFinderModel.h`).
+A relative path is taken in Allen's parameters directory (`--params`); the
+default is `pvfinder/unet16_lc4_scnone_asym5_final.json`, for when the models
+are in the ParamFiles package. Until then, pass an absolute path:
+
+- AllenConf: `make_pvfinder_fc(velo_tracks, model="/abs/path/pvfinder_model.json")`;
+  `make_pvfinder_unet` takes the same file from it.
+- `benchmarks/benchmark_pvfinder_batch.sh --model <name>` uses
+  `weights/out/<name>/pvfinder_model.json` (or `--model-file PATH`);
+  `benchmarks/pv_comparison.sh --model <name>` likewise.
+- `scripts/allen_dump.sh --model-file PATH` for any other sequence.
+
+Allen reads the file once, before the algorithms' `init()`, and each
+algorithm checks every tensor's shape against its build there. The Allen build
+must match the model: `N_FEAT` (`--unet-feat`) and latentChannels
+(`--unet-batch-channels`) are compile-time constants. The catalog's `build`
+column names the `ballen -b` base; `make build` passes the right flags.
 
 ## Model architecture
 
@@ -73,15 +102,15 @@ Allen's UNet (`pvfinder_unet`) and the PyTorch reference
 (trained with `sc_mode=none`): rcbn1 -> rcbn2 -> pool -> rcbn3 -> pool -> up1
 -> up2 -> out_intermediate -> outc, where up2's ConvTranspose and
 out_intermediate take `N_FEAT` channels. `convert.py` and `verify.py` reject a
-checkpoint trained with skip connections (`2*N_FEAT` inputs at those layers),
-and Allen's loader checks every layer's shape against its build.
+checkpoint trained with skip connections (`2*N_FEAT` inputs at those layers).
 
 ## Catalog (`models.tsv`)
 
 Tab-separated: `name`, `source` checkpoint, `unet_feat`, `latent`, `build`,
 `notes`, `precision` (the dtype of the checkpoint's conv and linear weights:
-`fp32`, or `bf16` for the training team's reduced-precision exports). Add a
-model by adding a row. Every run record carries the model's full row. All current models are `N_FEAT=16`,
+`fp32`, or `bf16` for the training team's reduced-precision exports; this is
+not Allen's `precision` property). Add a model by adding a row. Every run
+record carries the model's full row. All current models are `N_FEAT=16`,
 latentChannels 4, with five 20-wide FC hidden layers and 100 bins per
 interval, and build into `buildgpu16chL4gpu`. Sources are the training team's
 outputs under `/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/`,
@@ -94,25 +123,28 @@ Training-side metrics recorded with the checkpoints (from the training team's
 |---|---:|---:|---|
 | `unet16_lc4_scnone_asym5_final` | 0.9654 | 0.0214 | **default**; epoch 69, the last epoch |
 | `unet16_lc4_scnone_asym5_best` | 0.9671 | 0.0241 | epoch 5 of 70, the lowest validation loss of that run |
+| `unet16_lc4_scnone_asym5_best_bf16` | | | the training team's BF16 export of `asym5_best` (conv and linear weights rounded to bfloat16, BatchNorm float32) |
 | `unet16_lc4_scnone_asym1_best` / `_final` | 0.9383 / 0.9378 | 0.0042 / 0.0042 | epochs 82 / 86 |
 | `unet16_lc4_scnone_asym2.5_best` | 0.9566 | 0.0130 | from the last `stats.csv` row, approximate |
 | `unet16_lc4_scnone_asym17_final` | 0.9766 | 0.0842 | epoch 131 |
 | `unet16_lc4_scnone_asym19_best` | 0.9767 | 0.0807 | upstream stats have a single epoch; likely incomplete |
 
-## Limitations and history
+## History
 
-- **Skip connections removed 2026-09-15.** Earlier the catalog defaulted to
+- **2026-09-27: one model file.** Allen used to load two raw binaries
+  (`fc_weights.bin`, `cnn_weights.bin`) found through `PVFINDER_WEIGHTS_DIR`.
+  They are replaced by `pvfinder_model.json`, read through Allen's model
+  mechanism, and the environment variable is gone.
+- **2026-09-15: skip connections removed.** Earlier the catalog defaulted to
   `unet16_lc8_iter9` and held latentChannels-4 models with concatenated or
-  added skip connections; Allen only ran the concat architecture, so the
-  no-skip models were validated on their FC stage alone. Those models and all
-  skip-connection code paths (concat kernels, `skip_mode`,
-  `use_merged_oint_outc`) are gone.
-- **`legacy/`** (ignored) keeps files whose source checkpoint no longer exists:
-  `unet16_lc4_scnone_asym17_best` (the upstream `weights_best.pyt` was
+  added skip connections. Those models and all skip-connection code paths are
+  gone.
+- **2026-09-14: layer 6A layout bug fixed.** Allen's FC loader transposed
+  layer 6A for every build, although only the plain kernel needed that; the
+  cuBLAS path (since removed) read the checkpoint's own layout. The converter
+  also wrote layer 6A transposed. FC results from cuBLAS builds between
+  2026-03-09 and 2026-09-14 did not reproduce the trained model.
+  `validate_fc.py` catches both forms.
+- **`legacy/`** (ignored) keeps files whose source checkpoint no longer
+  exists: `unet16_lc4_scnone_asym17_best` (the upstream `weights_best.pyt` was
   overwritten on 2026-08-28 after conversion) and the 64-channel model's files.
-- **Layer 6A layout bug, fixed 2026-09-14.** Allen's FC loader transposed
-  layer 6A for every build, but the cuBLAS path reads the checkpoint's own
-  `[latent*100 x 20]` row-major layout; only the non-cuBLAS kernel needs the
-  transpose. In addition the converter wrote layer 6A transposed. FC results
-  from cuBLAS builds before the fix (since 2026-03-09) did not reproduce the
-  trained model. `validate_fc.py` catches both forms.

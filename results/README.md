@@ -15,6 +15,7 @@ under `artifacts`.
 |---|---|
 | `benchmarks/benchmark_pvfinder_batch.sh` | `benchmark` (or `profile` with `--profile`) |
 | `make -C weights dump validate` | `validation` |
+| `benchmarks/pv_comparison.sh` | `physics` (PVFinder vs the beamline PV finder on MC, one point per configuration) |
 | `benchmarks/runs.py import <batch_dir>` | an older batch, marked `"imported": true` |
 
 Failed and interrupted benchmark batches are recorded too (`status` is
@@ -52,7 +53,7 @@ benchmarks/runs.py compare <run_a> <run_b>           # throughput ratio + every 
 | `workload` | input MDF, geometry, `events` (-n), `memory_mb` (-m), `repetitions` (-r), `threads` (-t), `repeats`, `device`, sequences |
 | `options` | every benchmark-script option (precision, fusions, batch sizes, ...) |
 | `config` | the `pvfinder_*` algorithm blocks of each sequence's effective Allen configuration, the ground truth for what Allen ran |
-| `results` | benchmark: per-repeat events/s for `baseline`, `fc`, `unet`, overheads, slice splits, and medians with baseline spread. Validation: the `validate_fc.py`, `validate_unet.py` and `validate_model.py` JSON reports (`fc`, `unet`, `model`) |
+| `results` | benchmark: per-repeat events/s for `baseline`, `fc`, `unet`, overheads, slice splits, and medians with baseline spread. Validation: the validators' JSON reports: `validate_fc.py`, `validate_unet.py`, `validate_model.py`, `validate_features.py` and `validate_peaks.py` (`fc`, `unet`, `model`, `features`, `peaks`) |
 | `profile` | with `--profile`: per sequence, the nsys `cuda_gpu_kern_sum` merged over repeats (median), top 25 kernels plus every PVFinder/cuDNN/cuBLAS kernel |
 | `artifacts` | where the raw output lives on the machine that ran it |
 

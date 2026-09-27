@@ -3,10 +3,11 @@
 #
 # Generates the sequence configuration, points pvfinder_fc_aggregation and
 # pvfinder_unet at the model file (their "model" property), switches on
-# pvfinder_fc_aggregation.dump_validation (and
-# pvfinder_unet.dump_validation when the sequence has the UNet), and runs one
-# stream for two repetitions of the same slice. The dumps are read by
-# validate_fc.py and validate_unet.py.
+# dump_validation for every PVFinder algorithm in the sequence (FC, UNet, and
+# pvfinder_peak when the sequence finds PVs), and runs one stream for two
+# repetitions of the same slice. The dumps are read by the validators in this
+# directory (validate_fc, validate_unet, validate_model, validate_features,
+# validate_peaks).
 #
 # --set ALG.PROPERTY=VALUE (repeatable) overrides one algorithm property in the
 # generated configuration, e.g. --set pvfinder_unet.precision=bfloat16; VALUE is
@@ -64,10 +65,12 @@ fi
 import json, sys
 src, dst, dump, model, *sets = sys.argv[1:]
 cfg = json.load(open(src))
-for alg in ("pvfinder_fc_aggregation", "pvfinder_unet"):
-    if alg in cfg:
+for alg in cfg:
+    if alg in ("pvfinder_fc_aggregation", "pvfinder_unet"):
         cfg[alg]["dump_validation"] = dump
         cfg[alg]["model"] = model
+    elif alg.startswith("pvfinder_peak"):
+        cfg[alg]["dump_validation"] = dump
 for item in sets:
     key, _, raw = item.partition("=")
     alg, _, prop = key.partition(".")

@@ -135,7 +135,8 @@ def main():
     ok = count_mismatch == 0 and max_dz < MAX_DZ
     report = {"settings": settings, "events": len(kde), "seeds": n_seeds, "events_with_different_number_of_seeds": count_mismatch,
               "max_abs_dz_mm": max_dz, "events_over_seed_cap": capped,
-              "events_with_first_bin_above_threshold": first_bin_on, "passed": ok}
+              "events_with_first_bin_above_threshold": first_bin_on,
+              "status": "PASS" if ok else "FAIL"}
     print(f"pvfinder_peak vs pv-finder {finder.__name__} (threshold {settings['threshold']:g}, integral "
           f"{settings['integral_threshold']:g}, min width {settings['min_width']}): {len(kde)} events, {n_seeds} seeds, "
           f"{count_mismatch} events with a different number of seeds, max |dz| {max_dz:.2e} mm "

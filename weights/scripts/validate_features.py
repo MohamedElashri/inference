@@ -176,8 +176,10 @@ if os.path.isfile(args.training_h5):
                                                   t["recon_tx"], t["recon_ty"])
     l1, l2, l3 = (np.linalg.norm(u, axis=1) for u in (u1, u2, u3))
     good = (l1 > 0) & (l2 > 0) & (l3 > 0)
-    angle = lambda u, l, e: np.degrees(np.arccos(np.clip(  # noqa: E731
-        np.abs((u * e).sum(1)) / np.where(l > 0, l, 1.0), 0.0, 1.0)))
+
+    def angle(u, length, e):
+        return np.degrees(np.arccos(np.clip(np.abs((u * e).sum(1)) / np.where(length > 0, length, 1.0), 0.0, 1.0)))
+
     d_poca = np.max(np.abs(np.stack([qx - t["poca_x"], qy - t["poca_y"], qz - t["poca_z"]], 1)), 1)
 
     def matrix(a):

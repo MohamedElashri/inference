@@ -89,7 +89,9 @@ def summarise(events, zrange=None):
             dz.append(float(rec_sel[mc_rec[j], 2]) - mc_sel[j, 2])
             sigma_z.append(np.sqrt(float(rec_sel[mc_rec[j], 5])))
     dz = np.array(dz)
-    ratio = lambda a, b: a / b if b else 0.0
+    def ratio(a, b):
+        return a / b if b else 0.0
+
     return {
         "efficiency": ratio(tot["found"], tot["mc"]), "found": tot["found"], "mc": tot["mc"],
         "efficiency_isolated": ratio(tot["found_isolated"], tot["mc_isolated"]),

@@ -15,8 +15,10 @@ benchmark_results/ batch directory the record points to.
       Same as record for batches that predate snapshots (best effort,
       marked "imported").
   runs.py validation --model NAME --build-dir DIR --dump-dir DIR --device N
-                     --fc-report F --unet-report U [--label L]
-      Record a validation (dump + validate_fc/validate_unet) run.
+                     [--fc-report F] [--unet-report U] [--model-report M]
+                     [--features-report T] [--peaks-report P] [--label L]
+      Record a validation run (make -C weights validate: one dump and the
+      validators' reports).
   runs.py physics --model NAME --build-dir DIR --device N --run-dir D [--run-dir D2 ...]
                   [--label L]
       Record primary-vertex comparisons (sequence pvfinder_pv_validation,
@@ -475,7 +477,8 @@ def legacy_snapshot(batch_dir, meta):
     if m:
         gpu["driver"] = m.group(1)
     head = (read_text(os.path.join(batch_dir, "git_head.txt")) or "").strip() or None
-    dirty = [l[3:] for l in (read_text(os.path.join(batch_dir, "git_status_short.txt")) or "").splitlines() if l.strip()]
+    status_lines = (read_text(os.path.join(batch_dir, "git_status_short.txt")) or "").splitlines()
+    dirty = [line[3:] for line in status_lines if line.strip()]
     build_dir = meta.get("build_dir")
     build = build_info(build_dir) if build_dir and os.path.isdir(build_dir) else {"name": meta.get("build_name")}
     build.pop("sources_newer_than_build", None)  # about today's tree, not the batch's
@@ -596,6 +599,8 @@ def cmd_validation(args):
     fc = read_json(args.fc_report) if args.fc_report else None
     unet = read_json(args.unet_report) if args.unet_report else None
     model = read_json(args.model_report) if args.model_report else None
+    features = read_json(args.features_report) if args.features_report else None
+    peaks = read_json(args.peaks_report) if args.peaks_report else None
     if unet:
         unet.pop("per_event_max_abs_diff", None)   # 500 numbers; the batch dir keeps them
     cfg = read_json(os.path.join(args.dump_dir, "config.json")) or {}
@@ -606,7 +611,8 @@ def cmd_validation(args):
         "build": build_info(args.build_dir), "model": model_info(args.model)}
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     label = args.label or "validate"
-    ok = all(r is None or r.get("status") == "PASS" for r in (fc, unet, model)) and (fc or unet or model)
+    reports = (fc, unet, model, features, peaks)
+    ok = all(r is None or r.get("status") == "PASS" for r in reports) and any(reports)
     record = {
         "schema": SCHEMA,
         "kind": "validation",
@@ -624,7 +630,7 @@ def cmd_validation(args):
         "workload": {"events": args.events, "threads": 1, "device": args.device,
                      "sequence": args.sequence},
         "config": {"dump": {"algorithms": relativize({k: v for k, v in sorted(cfg.items()) if k.startswith("pvfinder")})}},
-        "results": {"fc": fc, "unet": unet, "model": model},
+        "results": {"fc": fc, "unet": unet, "model": model, "features": features, "peaks": peaks},
         "profile": None,
         "artifacts": {"dump_dir": rel(args.dump_dir)},
     }
@@ -715,9 +721,13 @@ def headline(r):
         u = (r.get("results") or {}).get("unet") or {}
         f = (r.get("results") or {}).get("fc") or {}
         m = (r.get("results") or {}).get("model") or {}
+        extra = {k: ((r.get("results") or {}).get(k) or {}).get("status") for k in ("features", "peaks")}
         return (f"fc {f.get('status', '-')}, unet {u.get('status', '-')} max|d| {u.get('max_abs_diff', float('nan')):.2e}"
-                + (f", model {m.get('status')} peaks {m['intervals_with_peak_above_1e-3']['allen']:.3f}" if m else ""))
-    fmt = lambda v: f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
+                + (f", model {m.get('status')} peaks {m['intervals_with_peak_above_1e-3']['allen']:.3f}" if m else "")
+                + "".join(f", {k} {v}" for k, v in extra.items() if v))
+    def fmt(v):
+        return f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
+
     return f"base {fmt(m.get('baseline'))}  fc {fmt(m.get('fc'))}  unet {fmt(m.get('unet'))}"
 
 
@@ -769,7 +779,7 @@ def cmd_show(args):
     ws = m.get("weights") or {}
     files = "  ".join(f"{k} {str((ws.get(k) or {}).get('sha256'))[:12]}" for k in ("model", "cnn", "fc") if ws.get(k))
     print(f"  model     {m.get('name')}  {files}")
-    print(f"  workload  " + ", ".join(f"{k}={v}" for k, v in w.items() if v is not None and k not in ("mdf", "geometry")))
+    print("  workload  " + ", ".join(f"{k}={v}" for k, v in w.items() if v is not None and k not in ("mdf", "geometry")))
     opts = r.get("options") or {}
     if opts:
         print("  options   " + ", ".join(f"{k}={v}" for k, v in opts.items() if v is not None))
@@ -868,6 +878,8 @@ def main():
     s.add_argument("--fc-report", default=None)
     s.add_argument("--unet-report", default=None)
     s.add_argument("--model-report", default=None, help="validate_model.py JSON (full model from Allen's track features)")
+    s.add_argument("--features-report", default=None, help="validate_features.py JSON (per-track input features)")
+    s.add_argument("--peaks-report", default=None, help="validate_peaks.py JSON (pvfinder_peak vs pv-finder)")
     s.add_argument("--label", default=None)
     s.set_defaults(func=cmd_validation)
 

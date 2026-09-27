@@ -24,8 +24,7 @@ def bf16_path(dump_dir):
         return False
     with open(cfg) as fp:
         unet = json.load(fp).get("pvfinder_unet", {})
-    # precision since 2026-09-27; use_bf16 in older dumps
-    return unet.get("precision") == "bfloat16" or bool(unet.get("use_bf16", False))
+    return unet.get("precision") == "bfloat16"
 
 
 def peak_agreement(allen, ref):
