@@ -123,13 +123,21 @@ __global__ void pvfinder_peak::pvfinder_peak(
 {
   using namespace PVFinderConstants;
   const unsigned event_number = parameters.dev_event_list[blockIdx.x];
-  const float* kde = parameters.dev_pvfinder_kde_output + event_number * KDE::n_bins;
+  const float* event_kde = parameters.dev_pvfinder_kde_output + event_number * KDE::n_bins;
   float* zpeaks = parameters.dev_zpeaks + event_number * PV::max_number_vertices;
 
   // Each thread owns the runs that start in its contiguous share of the bins.
   // First pass: count their peaks; second pass: write them after the peaks of
   // the threads before it, so the seeds come out in increasing z.
-  __shared__ unsigned peak_offset[max_block_dim + 1];
+  __shared__ unsigned peak_offset[max_block_dim];
+
+  // The event's KDE in shared memory (16 KB), loaded coalesced: each thread
+  // scans its bins, and runs past them, twice.
+  __shared__ float kde[KDE::n_bins];
+  for (unsigned i = threadIdx.x; i < KDE::n_bins; i += blockDim.x) {
+    kde[i] = event_kde[i];
+  }
+  __syncthreads();
 
   const unsigned bins_per_thread = (KDE::n_bins + blockDim.x - 1) / blockDim.x;
   const unsigned first_bin = threadIdx.x * bins_per_thread;
@@ -146,20 +154,22 @@ __global__ void pvfinder_peak::pvfinder_peak(
 
   unsigned number_of_peaks = 0;
   for_each_run([&](float) { ++number_of_peaks; });
-  peak_offset[threadIdx.x + 1] = number_of_peaks;
-  __syncthreads();
 
-  if (threadIdx.x == 0) {
-    peak_offset[0] = 0;
-    for (unsigned i = 1; i <= blockDim.x; ++i) {
-      peak_offset[i] += peak_offset[i - 1];
-    }
-    // At most PV::max_number_vertices seeds, the lowest in z, like pv_beamline_peak.
-    parameters.dev_number_of_zpeaks[event_number] = min(peak_offset[blockDim.x], PV::max_number_vertices);
+  // Inclusive prefix sum of the threads' peak counts (log-step scan).
+  peak_offset[threadIdx.x] = number_of_peaks;
+  __syncthreads();
+  for (unsigned stride = 1; stride < blockDim.x; stride *= 2) {
+    const unsigned add = threadIdx.x >= stride ? peak_offset[threadIdx.x - stride] : 0u;
+    __syncthreads();
+    peak_offset[threadIdx.x] += add;
+    __syncthreads();
   }
-  __syncthreads();
+  if (threadIdx.x == 0) {
+    // At most PV::max_number_vertices seeds, the lowest in z, like pv_beamline_peak.
+    parameters.dev_number_of_zpeaks[event_number] = min(peak_offset[blockDim.x - 1], PV::max_number_vertices);
+  }
 
-  unsigned index = peak_offset[threadIdx.x];
+  unsigned index = peak_offset[threadIdx.x] - number_of_peaks;
   for_each_run([&](float z) {
     if (index < PV::max_number_vertices) zpeaks[index] = z;
     ++index;

@@ -1948,6 +1948,10 @@ void pvfinder_unet_t::operator()(
         info_cout << "[pvfinder_unet] Validation dump written to " << dump_dir << " (" << n_events << " events)\n";
         m_dump_done = true;
     }
+#else
+    // Not reached: init() refuses to run without cuDNN.
+    static_cast<void>(arguments);
+    static_cast<void>(context);
 #endif
 }
 
