@@ -1,15 +1,20 @@
 ###############################################################################
-# (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration
-# Apache-2.0 License
+# (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           #
+#                                                                             #
+# This software is distributed under the terms of the Apache License          #
+# version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
+#                                                                             #
+# In applying this licence, CERN does not waive the privileges and immunities #
+# granted to it by virtue of its status as an Intergovernmental Organization  #
+# or submit itself to any jurisdiction.                                       #
 ###############################################################################
-
-# AllenCuDNN: translational layer between Allen and cuDNN.
+# AllenCuDNN: cuDNN graph API (graphs, plans, CNN layers) for Allen algorithms.
 # Only built when WITH_CUDNN=ON and TARGET_DEVICE=CUDA.
 
 allen_add_host_library(AllenCuDNN SHARED
-  src/CuDNNWeightRegistry.cpp
   src/CuDNNHandle.cpp
-  src/CuDNNFusedOps.cu)
+  src/CuDNNGraph.cpp
+  src/CuDNNLayers.cu)
 
 target_include_directories(AllenCuDNN
   PUBLIC

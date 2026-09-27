@@ -333,8 +333,11 @@ int allen(
   // Instantiate and configure sequence once to get dependencies
   Allen::ScheduledSequence sched_seq {config_reader.configured_sequence()};
 
-  // Configure the algorithms according to the properties' values
+  // Configure the algorithms according to the properties' values, read their
+  // models (which may depend on the properties), then initialize them (which
+  // may use the models).
   sched_seq.configure_algorithms(configuration);
+  Allen::MVAModels::MVAModelsManager::get()->loadData(folder_parameters.c_str());
   sched_seq.initialize_algorithms();
 
   std::vector<std::unique_ptr<Stream>> streams;
@@ -354,8 +357,6 @@ int allen(
 
   // Init monitoring
   Allen::Monitoring::AccumulatorManager::get()->initAccumulators(number_of_threads);
-
-  Allen::MVAModels::MVAModelsManager::get()->loadData(folder_parameters.c_str());
 
   // Interrogate stream configured sequence for validation algorithms
   const auto sequence_contains_validation_algorithms = streams.front()->contains_validation_algorithms();

@@ -1,0 +1,236 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260927_115511_pvs_monitoring_bf16_t16",
+  "label": "pvs_monitoring_bf16_t16",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-27T11:55:16-04:00",
+  "finished_at": "2026-09-27T12:13:36-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label pvs_monitoring_bf16_t16 -B build16chL4finalgpu -d 2 --model unet16_lc4_scnone_asym5_best_bf16 --use-bf16 true -n 500 -m 500 -r 1000 -t 16 --repeats 3",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "47c0d9bbdbcf2e7ac362b766fe1dfdd4f6e8b936",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Remove old json run files.",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/device/pvfinder/CMakeLists.txt",
+      "Allen/device/pvfinder/include/PVFinderPeak.cuh",
+      "Allen/device/pvfinder/src/PVFinderPeak.cu",
+      "Allen/main/include/MVAModelsManager.h",
+      "Allen/test/unit_tests/CMakeLists.txt",
+      "Allen/device/pvfinder/include/PVFinderPeakFinding.cuh",
+      "Allen/test/unit_tests/generic/src/TestPVFinder.cu"
+    ],
+    "diff_sha256": "8d18b4d6f0b1207588809462acc59251bbe5c803cec3727c8799c726da342dbf"
+  },
+  "build": {
+    "name": "build16chL4finalgpu",
+    "dir": "Allen/build16chL4finalgpu",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T11:53:38-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "e05e6e97c4293c011130601a899a94e857bb01b335338f184f014523321d36ca"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvs_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "fc_grid_fraction": 0.125,
+    "precision": "bfloat16",
+    "unet_batch_events": 20,
+    "unet_grid_fraction": 0.25,
+    "use_bf16": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "a0bc8e8ffadf0d39d1d6fecf0f31e5d8b9fb6618367a0cc731ed6b2da2df5f30",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "80737b0b3bd5afe033e6cae588627c471b3076258a011b59257ca776de123676",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "0401e47db3b3e6f7d9e4d8d02b53618f8b596e2c6cd66f20fbf50e0c0e97af53",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_peak_pvfinder": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "integral_threshold": 0.699999988079071,
+          "min_width": 0,
+          "split_peaks": true,
+          "threshold": 0.07000000029802322,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.25,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 86959.091266,
+          "fc": 84735.43689,
+          "unet": 82774.239276
+        },
+        "fc_overhead_pct": 2.5571269704257236,
+        "unet_overhead_pct": 4.812437583091715,
+        "unet_retention_pct": 95.18756241690829
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 86793.34115,
+          "fc": 84996.422647,
+          "unet": 82522.860515
+        },
+        "fc_overhead_pct": 2.0703414330996677,
+        "unet_overhead_pct": 4.920286024730366,
+        "unet_retention_pct": 95.07971397526963
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 86545.370431,
+          "fc": 84600.868827,
+          "unet": 82781.052609
+        },
+        "fc_overhead_pct": 2.2468002555379862,
+        "unet_overhead_pct": 4.349531122523964,
+        "unet_retention_pct": 95.65046887747603
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 86793.34115,
+        "fc": 84735.43689,
+        "unet": 82774.239276
+      },
+      "median_fc_overhead_pct": 2.2468002555379862,
+      "median_unet_overhead_pct": 4.812437583091715,
+      "median_unet_retention_pct": 95.18756241690829,
+      "baseline_spread_pct": 0.4766734746217339,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260927_115511_pvs_monitoring_bf16_t16"
+  },
+  "duration_s": 1100
+}

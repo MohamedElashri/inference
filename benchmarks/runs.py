@@ -15,8 +15,15 @@ benchmark_results/ batch directory the record points to.
       Same as record for batches that predate snapshots (best effort,
       marked "imported").
   runs.py validation --model NAME --build-dir DIR --dump-dir DIR --device N
-                     --fc-report F --unet-report U [--label L]
-      Record a validation (dump + validate_fc/validate_unet) run.
+                     [--fc-report F] [--unet-report U] [--model-report M]
+                     [--features-report T] [--peaks-report P] [--label L]
+      Record a validation run (make -C weights validate: one dump and the
+      validators' reports).
+  runs.py physics --model NAME --build-dir DIR --device N --run-dir D [--run-dir D2 ...]
+                  [--label L]
+      Record primary-vertex comparisons (sequence pvfinder_pv_validation,
+      weights/scripts/compare_pvs.py, compare.json in each run directory):
+      one point per run directory, e.g. the points of a parameter scan.
   runs.py list [--kind K] [--model M] [--gpu G] [--label S] [--all]
   runs.py show RUN
   runs.py compare RUN_A RUN_B
@@ -249,10 +256,12 @@ def catalog_row(model):
     return None
 
 
-def model_info(model, cnn_weights=None, fc_weights=None):
+def model_info(model, cnn_weights=None, fc_weights=None, model_file=None):
+    """The model's catalog row, checkpoint and weight files. Since 2026-09-27
+    Allen reads one model file (pvfinder_model.json); cnn/fc (the older
+    fc_weights.bin, cnn_weights.bin) only appear for records that name them."""
     out_dir = os.path.join(REPO_ROOT, "weights", "out", model) if model else None
-    cnn = cnn_weights or (os.path.join(out_dir, "cnn_weights.bin") if out_dir else None)
-    fc = fc_weights or (os.path.join(out_dir, "fc_weights.bin") if out_dir else None)
+    mfile = model_file or (os.path.join(out_dir, "pvfinder_model.json") if out_dir else None)
     ckpt = os.path.join(REPO_ROOT, "weights", "checkpoints", f"{model}.pyt") if model else None
     verify = read_text(os.path.join(out_dir, "verify.txt")) if out_dir else None
     return {
@@ -260,8 +269,9 @@ def model_info(model, cnn_weights=None, fc_weights=None):
         "catalog": catalog_row(model) if model else None,
         "checkpoint": {"path": rel(ckpt), "sha256": sha256_file(ckpt)},
         "weights": {
-            "cnn": {"path": rel(cnn), "sha256": sha256_file(cnn)},
-            "fc": {"path": rel(fc), "sha256": sha256_file(fc)},
+            "model": {"path": rel(mfile), "sha256": sha256_file(mfile)},
+            **({"cnn": {"path": rel(cnn_weights), "sha256": sha256_file(cnn_weights)}} if cnn_weights else {}),
+            **({"fc": {"path": rel(fc_weights), "sha256": sha256_file(fc_weights)}} if fc_weights else {}),
         },
         "verified": bool(verify) and "FAIL" not in verify,
     }
@@ -274,7 +284,7 @@ def cmd_snapshot(args):
         "gpu": gpu_info(args.device),
         "git": git_info(),
         "build": build_info(args.build_dir),
-        "model": model_info(args.model, args.cnn_weights, args.fc_weights),
+        "model": model_info(args.model, args.cnn_weights, args.fc_weights, args.model_file),
     }
     with open(os.path.join(args.batch_dir, "snapshot.json"), "w") as fp:
         json.dump(snap, fp, indent=2)
@@ -450,7 +460,7 @@ def workload_block(meta):
 
 WORKLOAD_KEYS = {"events", "memory", "repetitions", "threads", "repeats", "device", "mdf", "geometry",
                  "sequences", "label", "timestamp", "build_name", "build_dir", "profile", "model",
-                 "cnn_weights", "fc_weights"}
+                 "cnn_weights", "fc_weights", "model_file"}
 
 
 def legacy_snapshot(batch_dir, meta):
@@ -467,12 +477,14 @@ def legacy_snapshot(batch_dir, meta):
     if m:
         gpu["driver"] = m.group(1)
     head = (read_text(os.path.join(batch_dir, "git_head.txt")) or "").strip() or None
-    dirty = [l[3:] for l in (read_text(os.path.join(batch_dir, "git_status_short.txt")) or "").splitlines() if l.strip()]
+    status_lines = (read_text(os.path.join(batch_dir, "git_status_short.txt")) or "").splitlines()
+    dirty = [line[3:] for line in status_lines if line.strip()]
     build_dir = meta.get("build_dir")
     build = build_info(build_dir) if build_dir and os.path.isdir(build_dir) else {"name": meta.get("build_name")}
     build.pop("sources_newer_than_build", None)  # about today's tree, not the batch's
     build.pop("lib_mtime", None)
-    model = model_info(meta.get("model"), meta.get("cnn_weights"), meta.get("fc_weights")) if meta.get("model") else None
+    model = (model_info(meta.get("model"), meta.get("cnn_weights"), meta.get("fc_weights"), meta.get("model_file"))
+             if meta.get("model") else None)
     # weights.sha256 was written at run time; prefer it over today's files.
     for line in (read_text(os.path.join(batch_dir, "weights.sha256")) or "").splitlines():
         parts = line.split()
@@ -587,6 +599,8 @@ def cmd_validation(args):
     fc = read_json(args.fc_report) if args.fc_report else None
     unet = read_json(args.unet_report) if args.unet_report else None
     model = read_json(args.model_report) if args.model_report else None
+    features = read_json(args.features_report) if args.features_report else None
+    peaks = read_json(args.peaks_report) if args.peaks_report else None
     if unet:
         unet.pop("per_event_max_abs_diff", None)   # 500 numbers; the batch dir keeps them
     cfg = read_json(os.path.join(args.dump_dir, "config.json")) or {}
@@ -597,7 +611,8 @@ def cmd_validation(args):
         "build": build_info(args.build_dir), "model": model_info(args.model)}
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     label = args.label or "validate"
-    ok = all(r is None or r.get("status") == "PASS" for r in (fc, unet, model)) and (fc or unet or model)
+    reports = (fc, unet, model, features, peaks)
+    ok = all(r is None or r.get("status") == "PASS" for r in reports) and any(reports)
     record = {
         "schema": SCHEMA,
         "kind": "validation",
@@ -615,12 +630,51 @@ def cmd_validation(args):
         "workload": {"events": args.events, "threads": 1, "device": args.device,
                      "sequence": args.sequence},
         "config": {"dump": {"algorithms": relativize({k: v for k, v in sorted(cfg.items()) if k.startswith("pvfinder")})}},
-        "results": {"fc": fc, "unet": unet, "model": model},
+        "results": {"fc": fc, "unet": unet, "model": model, "features": features, "peaks": peaks},
         "profile": None,
         "artifacts": {"dump_dir": rel(args.dump_dir)},
     }
     t0 = dt.datetime.fromisoformat(record["started_at"])
     record["duration_s"] = round((dt.datetime.fromisoformat(record["finished_at"]) - t0).total_seconds())
+    print(f"run record: {rel(write_record(record))}")
+    return 0
+
+
+def cmd_physics(args):
+    started = now_iso()
+    points = []
+    for run_dir in args.run_dir:
+        report = read_json(os.path.join(run_dir, "compare.json"))
+        if report is None:
+            raise SystemExit(f"{run_dir}: no compare.json (run weights/scripts/compare_pvs.py --report)")
+        cfg = read_json(os.path.join(run_dir, "Sequence.json")) or {}
+        algorithms = {k: v for k, v in sorted(cfg.items()) if k.startswith("pvfinder")}
+        points.append({"run_dir": rel(run_dir), "config": relativize(algorithms), "compare": report,
+                       "peaks": read_json(os.path.join(run_dir, "validate_peaks.json"))})
+    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    label = args.label or "physics"
+    record = {
+        "schema": SCHEMA,
+        "kind": "physics",
+        "id": f"{stamp}_{slug(label)}",
+        "label": label,
+        "status": "ok",
+        "imported": False,
+        "started_at": started,
+        "finished_at": now_iso(),
+        "host": host_info(),
+        "gpu": gpu_info(args.device),
+        "git": git_info(),
+        "build": build_info(args.build_dir),
+        "model": model_info(args.model),
+        "workload": {"events": points[0]["compare"].get("events"), "threads": 1, "device": args.device,
+                     "sequence": "pvfinder_pv_validation"},
+        "config": None,
+        "results": {"points": points},
+        "profile": None,
+        "artifacts": {"run_dirs": [p["run_dir"] for p in points]},
+        "duration_s": 0,
+    }
     print(f"run record: {rel(write_record(record))}")
     return 0
 
@@ -656,13 +710,24 @@ def find_record(key):
 def headline(r):
     s = (r.get("results") or {}).get("summary") or {}
     m = s.get("median_events_per_s") or {}
+    if r["kind"] == "physics":
+        pts = (r.get("results") or {}).get("points") or []
+        if len(pts) != 1:
+            return f"{len(pts)} points"
+        c = pts[0]["compare"]["in_range"]
+        return (f"in range: pvfinder eff {100 * c['pvfinder']['efficiency']:.2f}% false {100 * c['pvfinder']['false_rate']:.2f}%"
+                f", beamline eff {100 * c['beamline']['efficiency']:.2f}% false {100 * c['beamline']['false_rate']:.2f}%")
     if r["kind"] == "validation":
         u = (r.get("results") or {}).get("unet") or {}
         f = (r.get("results") or {}).get("fc") or {}
         m = (r.get("results") or {}).get("model") or {}
+        extra = {k: ((r.get("results") or {}).get(k) or {}).get("status") for k in ("features", "peaks")}
         return (f"fc {f.get('status', '-')}, unet {u.get('status', '-')} max|d| {u.get('max_abs_diff', float('nan')):.2e}"
-                + (f", model {m.get('status')} peaks {m['intervals_with_peak_above_1e-3']['allen']:.3f}" if m else ""))
-    fmt = lambda v: f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
+                + (f", model {m.get('status')} peaks {m['intervals_with_peak_above_1e-3']['allen']:.3f}" if m else "")
+                + "".join(f", {k} {v}" for k, v in extra.items() if v))
+    def fmt(v):
+        return f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
+
     return f"base {fmt(m.get('baseline'))}  fc {fmt(m.get('fc'))}  unet {fmt(m.get('unet'))}"
 
 
@@ -683,7 +748,7 @@ def cmd_list(args):
             continue
         w = r.get("workload") or {}
         point = f"n{w.get('events')} m{w.get('memory_mb')} r{w.get('repetitions')} t{w.get('threads')}" \
-            if r["kind"] != "validation" else f"n{w.get('events')}"
+            if r["kind"] not in ("validation", "physics") else f"n{w.get('events')}"
         rows.append((r["id"], r["kind"], r.get("status"), gpu_slug(gpu), model, point, headline(r)))
     if not rows:
         print("no matching records")
@@ -711,9 +776,10 @@ def cmd_show(args):
           f"cuDNN={cm.get('CUDNN_VERSION')} cuBLAS={cm.get('WITH_CUBLAS')} CUDA={cm.get('CMAKE_CUDA_COMPILER_VERSION')} arch={cm.get('CUDA_ARCH')}")
     if b.get("sources_newer_than_build"):
         print(f"  WARNING   {len(b['sources_newer_than_build'])} tracked Allen source(s) newer than the build")
-    print(f"  model     {m.get('name')}  cnn {str(((m.get('weights') or {}).get('cnn') or {}).get('sha256'))[:12]}"
-          f"  fc {str(((m.get('weights') or {}).get('fc') or {}).get('sha256'))[:12]}")
-    print(f"  workload  " + ", ".join(f"{k}={v}" for k, v in w.items() if v is not None and k not in ("mdf", "geometry")))
+    ws = m.get("weights") or {}
+    files = "  ".join(f"{k} {str((ws.get(k) or {}).get('sha256'))[:12]}" for k in ("model", "cnn", "fc") if ws.get(k))
+    print(f"  model     {m.get('name')}  {files}")
+    print("  workload  " + ", ".join(f"{k}={v}" for k, v in w.items() if v is not None and k not in ("mdf", "geometry")))
     opts = r.get("options") or {}
     if opts:
         print("  options   " + ", ".join(f"{k}={v}" for k, v in opts.items() if v is not None))
@@ -789,6 +855,7 @@ def main():
     s.add_argument("--model", default=None)
     s.add_argument("--cnn-weights", default=None)
     s.add_argument("--fc-weights", default=None)
+    s.add_argument("--model-file", default=None)
     s.set_defaults(func=cmd_snapshot)
 
     s = sub.add_parser("record")
@@ -811,11 +878,21 @@ def main():
     s.add_argument("--fc-report", default=None)
     s.add_argument("--unet-report", default=None)
     s.add_argument("--model-report", default=None, help="validate_model.py JSON (full model from Allen's track features)")
+    s.add_argument("--features-report", default=None, help="validate_features.py JSON (per-track input features)")
+    s.add_argument("--peaks-report", default=None, help="validate_peaks.py JSON (pvfinder_peak vs pv-finder)")
     s.add_argument("--label", default=None)
     s.set_defaults(func=cmd_validation)
 
+    s = sub.add_parser("physics")
+    s.add_argument("--model", required=True)
+    s.add_argument("--build-dir", required=True)
+    s.add_argument("--device", type=int, required=True)
+    s.add_argument("--run-dir", action="append", required=True)
+    s.add_argument("--label", default=None)
+    s.set_defaults(func=cmd_physics)
+
     s = sub.add_parser("list")
-    s.add_argument("--kind", choices=["benchmark", "profile", "validation"])
+    s.add_argument("--kind", choices=["benchmark", "profile", "validation", "physics"])
     s.add_argument("--model")
     s.add_argument("--gpu")
     s.add_argument("--label")

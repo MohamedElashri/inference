@@ -1,346 +1,168 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 
 #include "AlgorithmTypes.cuh"
+#include "PVFinderConstants.cuh"
+#include "PVFinderModel.h"
+#include <atomic>
 #include <memory>
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
 #include "AllenCuDNN.h"
-#include <cuda_fp16.h>
-#include <cuda_bf16.h>
 #endif
 
 // ---------------------------------------------------------------------------
-// PVFinderUNet: cuDNN-backed UNet inference algorithm.
+// pvfinder_unet: the UNet from the FC stage's interval features to the KDE.
 //
-// Input:  dev_pvfinder_interval_features  [n_events, 40, C=8, W=100]
-// Output: dev_pvfinder_kde_output  [n_events, 40, 100]  (flat: n_events*4000)
+// Input:  dev_pvfinder_interval_features, one row per interval with tracks
+//         (see pvfinder_fc_aggregation), N_BATCH_CHANNELS x W_IN per row.
+// Output: dev_pvfinder_kde_output [n_events, 40, 100]: each row's KDE at its
+//         (event, interval), the UNet's response to an all-zero input at every
+//         interval without tracks.
 //
-// cuDNN integration design:
-//   - Tensor shapes are fixed per algorithm instance (N = unet_batch_events * 40).
-//   - One thread_local cudnnHandle_t per OS thread, created lazily via
-//     Allen::CuDNN::get_thread_local_handle(stream) — no per-instance handle.
-//   - IMPLICIT_GEMM algorithm pinned everywhere → zero workspace.
-//   - Weights and descriptors are owned per algorithm instance (UNetState in the .cu), so
-//     several pvfinder_unet algorithms with different weight files can share a sequence.
+// Two precisions (precision, must match pvfinder_fc_aggregation's):
+//   float32   Allen::CuDNN layers (exact float32 engines, deterministic),
+//             batches of unet_batch_events * 40 rows; reproduces the trained
+//             model to float32 rounding. Any CUDA GPU.
+//   bfloat16  the whole UNet in one kernel (PVFinderUNetFused.cuh):
+//             activations in shared memory, convolutions on BF16 tensor cores
+//             with FP32 accumulation. Compute capability 8.0 or newer, and the
+//             shapes it is written for (16 feature maps, 4 input channels).
 // ---------------------------------------------------------------------------
 
 namespace pvfinder_unet {
 
 // UNet architecture constants. The UNet has no skip connections: the decoder
 // only sees the upsampled main path (rcbn1-3 -> up1 -> up2 -> out_intermediate
-// -> outc), matching checkpoints trained with sc_mode=none.
-// Override N_FEAT at build time with -DPVFINDER_UNET_N_FEAT=<n> (e.g. 16 for the lighter model).
-// Override N_BATCH_CHANNELS (the FC/UNet handoff's latentChannels) at build
-// time with -DPVFINDER_UNET_N_BATCH_CHANNELS=<n> to run a model trained
-// with a different latent-channel count.
+// -> outc), matching checkpoints trained with sc_mode=none. N_FEAT and
+// N_BATCH_CHANNELS (the FC/UNet handoff's latentChannels) are fixed by the
+// build (-DPVFINDER_UNET_N_FEAT, -DPVFINDER_UNET_N_BATCH_CHANNELS).
+// Defaults: the default model's (see CMakeLists.txt).
 #ifdef PVFINDER_UNET_N_BATCH_CHANNELS
-static constexpr int N_BATCH_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
+  static constexpr int N_BATCH_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
 #else
-static constexpr int N_BATCH_CHANNELS = 8;   // input latent channels
+  static constexpr int N_BATCH_CHANNELS = 4; // input latent channels
 #endif
 #ifdef PVFINDER_UNET_N_FEAT
-static constexpr int N_FEAT    = PVFINDER_UNET_N_FEAT;
+  static constexpr int N_FEAT = PVFINDER_UNET_N_FEAT;
 #else
-static constexpr int N_FEAT    = 64;          // feature maps throughout
+  static constexpr int N_FEAT = 16;          // feature maps throughout
 #endif
-static constexpr int W_IN      = 100;         // input width
-static constexpr int W_HALF    = 50;          // after first MaxPool
-static constexpr int W_QTR     = 25;          // after second MaxPool
-static constexpr int N_INTERVALS = 40;
-static constexpr float KDE_SCALE = 0.001f;
+  static constexpr int W_IN = PVFinderConstants::KDE::n_bins_per_interval; // input width
+  static constexpr int W_HALF = W_IN / 2;                                  // after first MaxPool
+  static constexpr int W_QTR = W_IN / 4;                                   // after second MaxPool
+  static constexpr int N_INTERVALS = PVFinderConstants::KDE::n_intervals;
+  static constexpr float KDE_SCALE = 0.001f;
 
-struct Parameters {
+  struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
 
-    // Interval features from aggregation: [n_events, 40, C=8, W=100], or
-    // compact rows, one per interval the UNet runs on (see
-    // pvfinder_fc_aggregation's skip_empty_intervals).
+    // From pvfinder_fc_aggregation: the rows, their layout
+    // (host_pvfinder_unet_rows: [1] rows in use, [2] bfloat16), each
+    // (event, interval)'s row (-1 without tracks) and each row's (event, interval).
     DEVICE_INPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
-    // Row layout of the features, from pvfinder_fc_aggregation: [0] 0 dense /
-    // 1 compact, [1] compact rows in use; and each (event, interval)'s row,
-    // -1 when skipped (compact only).
     HOST_INPUT(host_pvfinder_unet_rows_t, unsigned) host_pvfinder_unet_rows;
     DEVICE_INPUT(dev_pvfinder_slot_row_t, int) dev_pvfinder_slot_row;
-    // Inverse of dev_pvfinder_slot_row (row -> slot), for the fused kernel's
-    // direct KDE writes.
     DEVICE_INPUT(dev_pvfinder_row_slot_t, int) dev_pvfinder_row_slot;
 
-    // Scratch intermediate buffers (Allen pool, sized for one unet_batch_events batch, reused per batch)
-    DEVICE_OUTPUT(dev_unet_x1_t,      float) dev_unet_x1;    // [N, N_FEAT, 100] (also oint)
-    DEVICE_OUTPUT(dev_unet_x2_t,      float) dev_unet_x2;    // [N, N_FEAT, 50]
-    DEVICE_OUTPUT(dev_unet_x3_t,      float) dev_unet_x3;    // [N, N_FEAT, 100] (also logits)
-    DEVICE_OUTPUT(dev_unet_up1_t,     float) dev_unet_up1;   // [N, N_FEAT, 50]
-    DEVICE_OUTPUT(dev_unet_up2_t,     float) dev_unet_up2;   // [N, N_FEAT, 100]
-    // conv_ws: IMPLICIT_GEMM needs 0 workspace; allocate 1 float as Allen requires non-zero size.
-    DEVICE_OUTPUT(dev_unet_conv_ws_t, float) dev_unet_conv_ws;
-    // Compact rows only: KDE of each row the UNet ran on, [rows padded to a batch, 100],
-    // spread back to dev_pvfinder_kde_output afterwards. 1 float otherwise.
+    // float32 only: activations of one batch of N = unet_batch_events * 40 rows
+    // (reused by every batch) and the KDE of each row, [rows][W_IN], spread to
+    // dev_pvfinder_kde_output afterwards. Empty for bfloat16.
+    DEVICE_OUTPUT(dev_unet_x1_t, float) dev_unet_x1;   // [N, N_FEAT, W_IN]
+    DEVICE_OUTPUT(dev_unet_x2_t, float) dev_unet_x2;   // [N, N_FEAT, W_HALF]
+    DEVICE_OUTPUT(dev_unet_x3_t, float) dev_unet_x3;   // [N, N_FEAT, W_IN]
+    DEVICE_OUTPUT(dev_unet_up1_t, float) dev_unet_up1; // [N, N_FEAT, W_HALF]
+    DEVICE_OUTPUT(dev_unet_up2_t, float) dev_unet_up2; // [N, N_FEAT, W_IN]
     DEVICE_OUTPUT(dev_unet_kde_rows_t, float) dev_unet_kde_rows;
+    // float32: the cuDNN layers' workspace (the largest any layer needs).
+    DEVICE_OUTPUT(dev_unet_workspace_t, float) dev_unet_workspace;
 
-    // Final KDE output: [n_events * 40 * 100] floats
+    // The KDE: [n_events * 40 * 100] floats
     DEVICE_OUTPUT(dev_pvfinder_kde_output_t, float) dev_pvfinder_kde_output;
-};
+  };
 
-struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
-    void set_arguments_size(
-        ArgumentReferences<Parameters> arguments,
-        const RuntimeOptions&,
-        const Constants&) const;
+  struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
+    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 
     void operator()(
-        const ArgumentReferences<Parameters>& arguments,
-        const RuntimeOptions& runtime_options,
-        const Constants& constants,
-        const Allen::Context& context) const;
+      const ArgumentReferences<Parameters>& arguments,
+      const RuntimeOptions&,
+      const Constants&,
+      const Allen::Context& context) const;
 
+    // Loads the weights and prepares the configured precision's path.
     void init();
 
-    ~pvfinder_unet_t() = default;
+  private:
+    // The trained model (PVFinderModel.h): relative to the parameters
+    // directory (--params), or absolute. Must be pvfinder_fc_aggregation's
+    // (AllenConf sets both).
+    Allen::Property<std::string> m_model_file {
+      this,
+      "model",
+      "pvfinder/unet16_lc4_scnone_asym5_final.json",
+      "PVFinder model file, relative to the parameters directory or absolute; must match "
+      "pvfinder_fc_aggregation.model"};
+    PVFinder::Model m_model {"pvfinder_unet", [this] { return m_model_file.value(); }};
 
-private:
-    // Required, no default: Allen does not assume where weights live. The
-    // repository's weights/ pipeline produces cnn_weights.bin
-    // (make -C weights convert MODEL=<name>), and AllenConf fills this in from
-    // PVFINDER_WEIGHTS_DIR when the sequence configuration is generated.
-    Allen::Property<std::string> m_weight_file {
-        this, "weight_file", "",
-        "path to cnn_weights.bin (required; produced by the weights/ pipeline, "
-        "set by AllenConf from PVFINDER_WEIGHTS_DIR)"};
+    Allen::Property<std::string> m_precision {
+      this,
+      "precision",
+      "float32",
+      "float32 or bfloat16; must match pvfinder_fc_aggregation.precision"};
+
+    // float32: events per cuDNN batch (N = this * 40 rows). Must match
+    // pvfinder_fc_aggregation.unet_batch_events, which pads the rows to a
+    // multiple of it (AllenConf sets both).
+    Allen::Property<unsigned> m_unet_batch_events {
+      this,
+      "unet_batch_events",
+      20u,
+      "float32: events per cuDNN batch; must match pvfinder_fc_aggregation"};
+
+    // bfloat16: fraction of the full-occupancy grid the fused kernel is
+    // launched with (one 4-warp block of about 59 KB per SM at full occupancy);
+    // below 1, other streams' kernels keep SMs while it runs. 1/4 is the best
+    // measured at 16 streams on the RTX 3090.
+    Allen::Property<float> m_fused_grid_fraction {
+      this,
+      "fused_grid_fraction",
+      0.25f,
+      "bfloat16: fraction of the full-occupancy grid for the fused UNet kernel"};
 
     Allen::Property<dim3> m_block_dim {
-        this, "block_dim", {256, 1, 1}, "CUDA block dim for element-wise kernels"};
+      this,
+      "block_dim",
+      {256, 1, 1},
+      "float32: block dimensions of the element-wise kernels"};
 
     Allen::Property<std::string> m_dump_dir {
-        this, "dump_validation", "",
-        "if non-empty, dump NCW input + KDE output of the first slice to this directory"};
+      this,
+      "dump_validation",
+      "",
+      "if non-empty, dump the input rows and the KDE of the first slice to this directory"};
+    mutable std::atomic<bool> m_dump_done {false};
 
-    // Zero-based operator() call to dump. Values greater than zero exercise
-    // CUDA-graph replay after Allen's memory manager has reassigned argument
-    // addresses, which verifies that the graph's shuttle nodes are patched.
-    Allen::Property<unsigned> m_dump_repetition {
-        this, "dump_repetition", 0u,
-        "0-indexed operator() call to dump on, when dump_validation is set"};
-
-    // Events per cuDNN batch: each UNet pass sees N = unet_batch_events * 40
-    // (event, interval) samples. Every descriptor, scratch buffer and graph
-    // pool is sized from it once per process. Set it equal to the slice size
-    // (-n) to run the whole slice in one pass. Must match
-    // pvfinder_fc_aggregation.unet_batch_events, which pads the interval
-    // features to a multiple of it.
-    Allen::Property<unsigned> m_unet_batch_events {
-        this, "unet_batch_events", 20u,
-        "events per cuDNN batch (N = this * 40); must match "
-        "pvfinder_fc_aggregation.unet_batch_events"};
-
-    Allen::Property<bool> m_use_fp16 {
-        this, "use_fp16", false,
-        "use FP16 Tensor Core path for CBR layers (physics approximate)"};
-
-    // BF16 Tensor Core path for CBR layers. ConvTranspose and the output stage
-    // remain FP32. BF16 accommodates the observed input range (up to about
-    // 109,000), which exceeds FP16's maximum finite value, but its reduced
-    // mantissa still makes this path physics-approximate. BF16 takes precedence
-    // if both reduced-precision options are set.
-    Allen::Property<bool> m_use_bf16 {
-        this, "use_bf16", false,
-        "BF16 Tensor Core path for CBR layers (physics approximate, but "
-        "avoids the FP16 path's confirmed overflow-to-NaN failure mode). "
-        "Takes precedence over use_fp16 if both are set."};
-
-    // True single-pass Conv+Bias+ReLU for rcbn1, via the cuDNN backend graph API
-    // (Allen::CuDNN::ConvBiasReluGraph), instead of a cuDNN conv followed by a
-    // separate bias_relu_kernel pass. Physics-identical (BN is already folded
-    // into the weights either way); this only changes how many times the
-    // conv output round-trips through DRAM. FP32 only — ConvBiasReluGraph has
-    // no FP16 variant, so this flag has no effect when use_fp16=true. Falls
-    // back to the two-pass path at runtime if the backend graph API
-    // finds no usable engine for this shape on the current GPU (see
-    // ConvBiasReluGraph::create()'s doc comment).
-    Allen::Property<bool> m_use_fused_cbr {
-        this, "use_fused_cbr", false,
-        "rcbn1 only, FP32 only: use single-pass cuDNN backend-graph Conv+Bias+ReLU "
-        "instead of conv + separate bias/ReLU kernel (falls back automatically if "
-        "unsupported on this GPU)"};
-
-    // Forward-conv algorithm selection, bounded to a workspace budget instead
-    // of an unrestricted Find/heur_v7 search (see CuDNNDescriptors.h's
-    // ConvDescriptors class comment for why unrestricted search is not used
-    // by default). 0 pins every forward convolution to IMPLICIT_GEMM.
-    // A nonzero value applies to ALL forward ConvDescriptors (rcbn1/2/3,
-    // up1_c, up2_c, oint, outc, and their FP16 counterparts) uniformly.
-    Allen::Property<unsigned> m_fwd_algo_ws_budget_bytes {
-        this, "fwd_algo_ws_budget_bytes", 0u,
-        "0 (default): pin IMPLICIT_GEMM everywhere (no search). Nonzero: bounded "
-        "cudnnGetConvolutionForwardAlgorithm_v7 search, adopting the top candidate "
-        "whose workspace fits this many bytes (falls back to IMPLICIT_GEMM if none "
-        "fits or the query fails)"};
-
-    // Hand-written fused Conv+Bias+ReLU for rcbn3 only (the eager FP32 path
-    // only -- not FP16, not the CUDA-graph path), replacing cuDNN + a
-    // separate bias_relu_kernel pass with one
-    // kernel that keeps the activation slice in shared memory instead of
-    // round-tripping the raw conv output through DRAM. It uses the same
-    // weights, bias and cross-correlation operation as the cuDNN path.
-    Allen::Property<bool> m_use_fused_rcbn3 {
-        this, "use_fused_rcbn3", false,
-        "rcbn3 only, eager FP32 path only: use a hand-written shared-memory "
-        "fused Conv+Bias+ReLU kernel instead of cuDNN + separate bias/ReLU kernel"};
-
-    // Fuse the bias+ReLU epilogue into the following max-pool, so the
-    // full-resolution activation is read once instead of being rewritten in
-    // place and then read again. Arithmetically identical: both pooled inputs
-    // are biased and rectified independently before the max, exactly as the
-    // unfused pair does.
-    Allen::Property<bool> m_use_fused_bias_relu_pool {
-        this, "use_fused_bias_relu_pool", false,
-        "eager FP32 path only: fuse each bias+ReLU epilogue into the max-pool "
-        "that consumes it (rcbn2 and rcbn3), removing two DRAM round trips"};
-
-    // Merge up1's ConvTranspose1d(k=2,s=2) + Conv1d(k=5,pad=2) into one
-    // parity-dependent kernel (including exact boundary handling; see
-    // up1_merge_kernel). This eager FP32 option is disabled by default because
-    // the tuned cuDNN sequence has higher measured throughput.
-    Allen::Property<bool> m_use_merged_up1 {
-        this, "use_merged_up1", false,
-        "eager FP32 path only: replace up1's ConvTranspose+Conv+BiasReLU "
-        "sequence with a single merged kernel (exact, incl. boundary)"};
-
-    // Memory layout of the BF16 path's activations. "nwc" (default): channels
-    // last, every CBR layer one cuDNN graph-API fused Conv+Bias+ReLU plan
-    // (runtime-compiled tensor-core engines, compiled in init(); see
-    // PVFinderConvGraph.cuh). "ncw": channels first, legacy cuDNN
-    // convolutions with the bias + ReLU folds. Only read when use_bf16 is true.
-    Allen::Property<std::string> m_bf16_layout {
-        this, "bf16_layout", "nwc",
-        "BF16 path activation layout: nwc (default; cuDNN graph-API fused Conv+Bias+ReLU, "
-        "channels last) or ncw (legacy cuDNN convolutions, channels first)"};
-
-    // Channels-last BF16 path only: run the whole UNet in one kernel
-    // (PVFinderUNetFused.cuh), activations in shared memory, convolutions on
-    // BF16 tensor cores, one launch for all of a slice's rows, instead of the
-    // cuDNN plans and the separate pooling, ConvTranspose and output kernels.
-    // Same rounding points. Used when it can run (compute capability 8.0 or
-    // newer, 16 feature maps and 4 input channels); the cuDNN plans otherwise.
-    Allen::Property<bool> m_fused_kernel {
-        this, "fused_kernel", true,
-        "with use_bf16 and bf16_layout = nwc: run the UNet as one fused tensor-core kernel"};
-
-    // Fraction of the full-occupancy grid the fused kernel is launched with
-    // (one 4-warp block of about 59 KB per SM at full occupancy); below 1,
-    // other streams' kernels keep SMs while it runs. 1/4 (about 20 blocks of
-    // 4 warps on the RTX 3090) is the best measured at 16 streams (see
-    // pvfinder_fc_aggregation's fused_grid_fraction and
-    // docs/pvfinder/pvfinder_16_streams.md).
-    Allen::Property<float> m_fused_grid_fraction {
-        this, "fused_grid_fraction", 0.25f,
-        "fraction of the full-occupancy grid for the fused UNet kernel"};
-
-    Allen::Property<unsigned> m_bf16_nwc_candidates {
-        this, "bf16_nwc_candidates", 1u,
-        "with bf16_layout = nwc: engine configurations to compile and time per convolution "
-        "at initialisation (1 = the cuDNN heuristic's first choice; each costs about 1 s)"};
-
-    // CUDA graph capture: captures the per-chunk pipeline once (thread_local) and
-    // replays it via cudaGraphLaunch instead of ~15-20 separate host API calls per
-    // chunk. Covers both use_fp16=false and use_fp16=true (separate captured graphs,
-    // separate thread_local scratch pools -- see get_or_capture_cuda_graph and
-    // get_or_capture_cuda_graph_fp16). BF16 has no graph variant and always runs
-    // the eager path.
-    Allen::Property<bool> m_use_cuda_graph {
-        this, "use_cuda_graph", false,
-        "capture+replay the UNet pipeline (FP32 or FP16) as a CUDA graph "
-        "(ignored when use_bf16=true)"};
-
-    // Per-instance state: BN-folded weights, cuDNN descriptors and their
-    // once-flag, defined in PVFinderUNet.cu so the cuDNN types stay out of this
-    // header. Created in init(). Owning it per instance (rather than in
-    // file-level statics) lets several pvfinder_unet algorithms with different
-    // weights run in one sequence; shared_ptr keeps the algorithm copyable.
+    // Per-instance state (weights, cuDNN layers, the fused kernel's weight
+    // image, the empty-interval response), defined in PVFinderUNet.cu so the
+    // cuDNN types stay out of this header; created in init().
     struct UNetState;
     std::shared_ptr<UNetState> m_state;
-    mutable bool m_dump_done = false;
-    mutable unsigned m_call_count = 0;
+    bool m_bf16 = false;
 
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
-    // Per-layer helpers — use this instance's descriptor set + the stream's cuDNN handle
-    void run_convbnrelu(
-        const Allen::CuDNN::ConvDescriptors& desc,
-        const float* input, float* output,
-        const float* w_fused, const float* b_fused,
-        int K, int W_out, int N,
-        cudnnHandle_t handle,
-        const dim3& block, const Allen::Context& ctx) const;
-
-    void run_convbnrelu_half(
-        const Allen::CuDNN::ConvDescriptors& desc,
-        const __half* input, __half* output,
-        const __half* w_fused, const __half* b_fused,
-        int K, int W_out, int N,
-        cudnnHandle_t handle,
-        const dim3& block, const Allen::Context& ctx) const;
-
-    // BF16 counterpart of run_convbnrelu_half.
-    void run_convbnrelu_bf16(
-        const Allen::CuDNN::ConvDescriptors& desc,
-        const __nv_bfloat16* input, __nv_bfloat16* output,
-        const __nv_bfloat16* w_fused, const __nv_bfloat16* b_fused,
-        int K, int W_out, int N,
-        cudnnHandle_t handle,
-        const dim3& block, const Allen::Context& ctx) const;
-
-    void run_conv(
-        const Allen::CuDNN::ConvDescriptors& desc,
-        const float* input,  float* output,
-        const float* w_ptr,  const float* bias_ptr,
-        int N, int C_out, int W,
-        const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle) const;
-
-    void run_conv_transpose(
-        const float* input, float* output,
-        cudnnFilterDescriptor_t filter_desc,
-        cudnnConvolutionDescriptor_t conv_desc,
-        cudnnTensorDescriptor_t in_desc,
-        cudnnTensorDescriptor_t out_desc,
-        const float* w_ptr, const float* bias_ptr,
-        int N, int C_out, int W_out,
-        const dim3& block, const Allen::Context& ctx,
-        cudnnHandle_t handle,
-        cudnnConvolutionBwdDataAlgo_t algo,
-        void* workspace, size_t ws_bytes) const;
-
-    // CUDA graph capture (thread_local, lazy): captures the FP32 pipeline
-    // once per OS thread against the fixed graph-scratch pool, and returns the
-    // graph exec + the two shuttle-kernel node handles so the caller can patch
-    // their pointer arguments before each cudaGraphLaunch. seed_ncw/seed_kde only
-    // need to be valid device pointers at capture time (the very first chunk of
-    // the very first call on this thread) -- they are unconditionally patched
-    // before every replay, including the first.
-    void get_or_capture_cuda_graph(
-        cudnnHandle_t handle,
-        const dim3& block,
-        const Allen::Context& ctx,
-        const float* seed_ncw,
-        float* seed_kde,
-        cudaGraphExec_t& out_exec,
-        cudaGraphNode_t& out_copy_in_node,
-        cudaGraphNode_t& out_copy_out_node) const;
-
-    // FP16 counterpart of get_or_capture_cuda_graph: captures the FP16 Tensor-Core
-    // op sequence (f32_to_f16 -> rcbn*_h -> ... -> outc -> softplus -> copy) against
-    // its own thread_local FP16 scratch pool. The leading f32_to_f16 conversion
-    // kernel doubles as the input shuttle (its src argument is what gets patched
-    // per replay); the output shuttle reuses the same squeeze_copy_kernel pattern
-    // as the FP32 graph.
-    void get_or_capture_cuda_graph_fp16(
-        cudnnHandle_t handle,
-        const dim3& block,
-        const Allen::Context& ctx,
-        const float* seed_ncw,
-        float* seed_kde,
-        cudaGraphExec_t& out_exec,
-        cudaGraphNode_t& out_copy_in_node,
-        cudaGraphNode_t& out_copy_out_node) const;
+#ifdef ALLEN_WITH_CUDNN
+    void compute_empty_response();
+    void run_fp32_batch(const float* rows, float* kde, float* const scratch[6], cudnnHandle_t handle) const;
+    void dump(const ArgumentReferences<Parameters>& arguments, const Allen::Context& context) const;
 #endif
-};
+  };
 
 } // namespace pvfinder_unet

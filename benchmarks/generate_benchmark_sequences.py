@@ -95,9 +95,9 @@ generate(hlt1_node)
 """
 
 PVF_IMPORTS = {
-    "fc": "from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc\nimport os\n",
+    "fc": "from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc\n",
     "unet": ("from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc\n"
-             "from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet\nimport os\n"),
+             "from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet\n"),
 }
 
 PVF_TAIL = {
@@ -106,11 +106,7 @@ PVF_TAIL = {
     hlt1_graph.children = tuple(list(hlt1_graph.children) + [producer])
 """,
     "unet": """\
-    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
-    pvfinder_unet_output = make_pvfinder_unet(
-        pvfinder_fc_output,
-        dump_validation=_dump_dir,
-    )
+    pvfinder_unet_output = make_pvfinder_unet(pvfinder_fc_output)
     unet_producer = pvfinder_unet_output["unet_producer"]
     hlt1_graph.children = tuple(list(hlt1_graph.children) + [unet_producer])
 """,

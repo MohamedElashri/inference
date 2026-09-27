@@ -35,7 +35,7 @@ a header uint32 {0xFC01, n_events, n_tracks, n_latent_channels}.
 
 Usage:
     make -C weights validate MODEL=<name>        (normal use, after make dump)
-    python3 weights/scripts/validate_fc.py --dump-dir DIR [--weights MODEL.pyt] [--fc-bin fc_weights.bin]
+    python3 weights/scripts/validate_fc.py --dump-dir DIR [--weights MODEL.pyt]
 """
 
 import argparse
@@ -54,8 +54,6 @@ parser.add_argument("--dump-dir", required=True,
 parser.add_argument("--weights",
                     default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_final.pyt"),
                     help="checkpoint (.pyt) the Allen run is supposed to implement")
-parser.add_argument("--fc-bin", default="",
-                    help="optional: the fc_weights .bin Allen loaded; checked against the checkpoint")
 parser.add_argument("--max-f32-ulps", type=float, default=1.0,
                     help="PASS limit on |Allen - reference|, in float32 rounding steps (ulps) of the "
                          "magnitude envelope feeding each output (default 1)")
@@ -93,7 +91,7 @@ print(f"dump: {n_events} events, {n_tracks} tracks, latentChannels={n_latent}")
 # ---------------------------------------------------------------------------
 # Checkpoint
 # ---------------------------------------------------------------------------
-import torch
+import torch  # noqa: E402
 
 sd = torch.load(args.weights, map_location="cpu")
 if hasattr(sd, "state_dict"):
@@ -107,33 +105,6 @@ print(f"checkpoint: {args.weights}")
 
 ok = True
 report = {"dump_dir": args.dump_dir, "weights": args.weights, "max_f32_ulps": args.max_f32_ulps}
-
-# ---------------------------------------------------------------------------
-# Optional: is the .bin Allen loaded the checkpoint, in the layout Allen expects?
-# ---------------------------------------------------------------------------
-if args.fc_bin:
-    blob = np.fromfile(args.fc_bin, dtype=np.float32)
-    expected = np.concatenate([np.concatenate([W[k].astype(np.float32).ravel(), B[k].astype(np.float32)])
-                               for k in ("1", "2", "3", "4", "5", "6A")])
-    if blob.size != expected.size:
-        print(f"fc-bin: {args.fc_bin} has {blob.size} floats, checkpoint needs {expected.size}  -> MISMATCH")
-        report["fc_bin"] = {"status": "MISMATCH", "reason": "size"}
-        ok = False
-    elif np.array_equal(blob, expected):
-        print(f"fc-bin: {args.fc_bin} == checkpoint in Allen's layout  -> OK")
-        report["fc_bin"] = {"status": "OK"}
-    else:
-        w6a = blob[1880:1880 + L6A * 20]
-        head_same = np.array_equal(blob[:1880], expected[:1880])
-        if head_same and np.array_equal(w6a, W["6A"].T.astype(np.float32).ravel()):
-            why = "layer6A is stored transposed; Allen expects PyTorch's own [latent*100 x 20] row-major layout"
-        elif not head_same:
-            why = "layers 1-5 differ: this file is from a different checkpoint"
-        else:
-            why = "layer6A differs"
-        print(f"fc-bin: {args.fc_bin} does NOT match the checkpoint: {why}  -> MISMATCH")
-        report["fc_bin"] = {"status": "MISMATCH", "reason": why}
-        ok = False
 
 # ---------------------------------------------------------------------------
 # Recompute FC per track, then aggregate with Allen's CSR
@@ -193,48 +164,37 @@ z = leaky(h @ W["6A"].T + B["6A"])                      # [n_entries, L6A]
 envelope = envelope @ np.abs(W["6A"]).T + np.abs(B["6A"])
 
 n_slots = n_events * 40
-s_sum = np.zeros((n_slots, L6A)); np.add.at(s_sum, entry_slot, z)
-e_sum = np.zeros((n_slots, L6A)); np.add.at(e_sum, entry_slot, envelope)
+s_sum = np.zeros((n_slots, L6A))
+np.add.at(s_sum, entry_slot, z)
+e_sum = np.zeros((n_slots, L6A))
+np.add.at(e_sum, entry_slot, envelope)
 n_loc = np.bincount(entry_slot, minlength=n_slots).astype(np.float64)
 nz = n_loc > 0
-ref_feat = np.zeros((n_slots, L6A)); env_feat = np.zeros((n_slots, L6A))
-ref_hist = np.zeros((n_slots, 100)); env_hist = np.zeros((n_slots, 100))
+ref_feat, env_feat = np.zeros((n_slots, L6A)), np.zeros((n_slots, L6A))
+ref_hist, env_hist = np.zeros((n_slots, 100)), np.zeros((n_slots, 100))
 ref_feat[nz] = s_sum[nz]                                  # UNet input: sum over the interval's tracks
 env_feat[nz] = e_sum[nz]
 chan = s_sum[nz].reshape(-1, n_latent, 100).sum(axis=1)
 ref_hist[nz] = np.logaddexp(0.0, chan) / n_loc[nz, None]   # exact softplus
 env_hist[nz] = e_sum[nz].reshape(-1, n_latent, 100).sum(axis=1) / n_loc[nz, None]
-ref_feat = ref_feat.reshape(n_events, 40, L6A); env_feat = env_feat.reshape(n_events, 40, L6A)
-ref_hist = ref_hist.reshape(n_events, 40, 100); env_hist = env_hist.reshape(n_events, 40, 100)
+ref_feat, env_feat = ref_feat.reshape(n_events, 40, L6A), env_feat.reshape(n_events, 40, L6A)
+ref_hist, env_hist = ref_hist.reshape(n_events, 40, 100), env_hist.reshape(n_events, 40, 100)
 
 
 F32_EPS = float(np.finfo(np.float32).eps)
 BF16_EPS = 2.0 ** -7   # bfloat16 keeps 8 significant bits
 
-# Features stored as bfloat16 (pvfinder_fc_aggregation.unet_input_dtype) are
-# rounded on purpose: measure them in bfloat16 ulps instead.
+# pvfinder_fc_aggregation.precision = bfloat16: the features are stored as
+# bfloat16 and the fused FC rounds its layer 6A inputs to bfloat16, so both
+# outputs are measured in bfloat16 ulps.
 features_eps, features_unit = F32_EPS, "float32"
-# A bfloat16 L6A (pvfinder_fc_aggregation.l6a_dtype) rounds its inputs, so
-# every per-entry term is off by bfloat16 rounding: both outputs are measured
-# in bfloat16 ulps.
 hist_eps, hist_unit = F32_EPS, "float32"
-# With skip_empty_intervals, intervals with fewer than min_interval_tracks
-# tracks get no feature row (the UNet skips them), so the dump holds zeros
-# there: leave those slots out of the feature comparison (their histogram is
-# still written and compared).
-min_tracks = 0
 cfg_path = os.path.join(args.dump_dir, "config.json")
 if os.path.isfile(cfg_path):
     import json
     with open(cfg_path) as fp:
         fc_cfg = json.load(fp).get("pvfinder_fc_aggregation", {})
-    if fc_cfg.get("skip_empty_intervals", False):
-        min_tracks = int(fc_cfg.get("min_interval_tracks", 1))
-    if fc_cfg.get("unet_input_dtype") == "bfloat16":
-        features_eps, features_unit = BF16_EPS, "bfloat16"
-    l6a = fc_cfg.get("l6a_dtype", "auto")
-    if l6a == "bfloat16" or (l6a == "auto" and fc_cfg.get("fc_fused", True)
-                             and fc_cfg.get("unet_input_dtype") == "bfloat16"):
+    if fc_cfg.get("precision") == "bfloat16":
         features_eps, features_unit = BF16_EPS, "bfloat16"
         hist_eps, hist_unit = BF16_EPS, "bfloat16"
 report["features_dtype"] = features_unit
@@ -265,13 +225,7 @@ def compare(name, allen, ref, env, eps=F32_EPS, unit="float32"):
     }
 
 
-no_row = ((n_loc > 0) & (n_loc < min_tracks)).reshape(n_events, 40)
-report["feature_slots_without_row"] = int(no_row.sum())
-if no_row.any():
-    print(f"interval features: {int(no_row.sum())} slots with 1..{min_tracks - 1} tracks have no row "
-          f"(min_interval_tracks={min_tracks}), not compared")
-feat_nan = np.where(no_row[..., None], np.nan, 0.0)   # non-finite slots are skipped by compare()
-compare("interval features", ifeat + feat_nan, ref_feat, env_feat, features_eps, features_unit)
+compare("interval features", ifeat, ref_feat, env_feat, features_eps, features_unit)
 compare("histogram        ", hist, ref_hist, env_hist, hist_eps, hist_unit)
 print("PASS" if ok else "FAIL")
 if args.report:

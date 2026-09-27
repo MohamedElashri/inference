@@ -1,18 +1,19 @@
-// (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration
-// Apache-2.0 License
-//
-// AllenCuDNN — translational layer between Allen and cuDNN.
-// Include this header in any DeviceAlgorithm that uses cuDNN.
-//
-// Link against the AllenCuDNN CMake target.
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 
-#include "CuDNNBackendShim.h"   // compile-time backend selection
-#include "CuDNNCheck.h"         // ALLEN_CUDNN_CHECK macro
-#include "CuDNNHandle.h"        // RAII logical stream routing handle
-#include "CuDNNWorkspace.h"     // Explicit external workspace handle
-#include "CuDNNDescriptors.h"   // Convolution shape configurations caching
-#include "CuDNNFusedOps.h"      // Metadata-first fused convolution API
-#include "CuDNNDeviceWeights.h" // Process-lifetime typed device weights
-#include "CuDNNWeightRegistry.h" // Compatibility facade over DeviceWeights
-#include "CuDNNLayoutTransform.cuh"// Boilerplate macros
+// Allen's cuDNN library (built with WITH_CUDNN=ON, CUDA only; defines
+// ALLEN_WITH_CUDNN): per-stream handles, graphs and plans on the cuDNN graph
+// API, and CNN layers built from them. See doc/develop/allen_cudnn.rst.
+#include "CuDNNCheck.h"
+#include "CuDNNHandle.h"
+#include "CuDNNGraph.h"
+#include "CuDNNLayers.h"

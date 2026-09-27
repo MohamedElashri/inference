@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Run Allen on one fixed slice with PVFinder's validation dumps enabled.
 #
-# Generates the sequence configuration with PVFINDER_WEIGHTS_DIR pointing at the
-# model's weight files, switches on pvfinder_fc_aggregation.dump_validation (and
-# pvfinder_unet.dump_validation when the sequence has the UNet), and runs one
-# stream for two repetitions of the same slice. The dumps are read by
-# validate_fc.py and validate_unet.py.
+# Generates the sequence configuration, points pvfinder_fc_aggregation and
+# pvfinder_unet at the model file (their "model" property), switches on
+# dump_validation for every PVFinder algorithm in the sequence (FC, UNet, and
+# pvfinder_peak when the sequence finds PVs), and runs one stream for two
+# repetitions of the same slice. The dumps are read by the validators in this
+# directory (validate_fc, validate_unet, validate_model, validate_features,
+# validate_peaks).
 #
 # --set ALG.PROPERTY=VALUE (repeatable) overrides one algorithm property in the
-# generated configuration, e.g. --set pvfinder_unet.use_bf16=true; VALUE is
+# generated configuration, e.g. --set pvfinder_unet.precision=bfloat16; VALUE is
 # read as JSON when it parses, as a string otherwise.
 #
 # Usage:
-#   allen_dump.sh --build ALLEN_BUILD_DIR --weights-dir DIR --sequence NAME --dump-dir DIR
+#   allen_dump.sh --build ALLEN_BUILD_DIR --model-file FILE --sequence NAME --dump-dir DIR
 #                 [--events N] [--memory MB] [--device N] [--set ALG.PROP=VALUE]...
 set -euo pipefail
 
@@ -21,12 +23,12 @@ PY="${PY:-${REPO}/.venv/bin/python3}"
 MDF="${REPO}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${REPO}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
 
-BUILD="" WDIR="" SEQ="" DUMP="" EVENTS=500 MEMORY=1000 DEVICE=2
+BUILD="" MODEL_FILE="" SEQ="" DUMP="" EVENTS=500 MEMORY=1000 DEVICE=2
 SETS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --build) BUILD="$2"; shift 2 ;;
-        --weights-dir) WDIR="$2"; shift 2 ;;
+        --model-file) MODEL_FILE="$2"; shift 2 ;;
         --sequence) SEQ="$2"; shift 2 ;;
         --dump-dir) DUMP="$2"; shift 2 ;;
         --events) EVENTS="$2"; shift 2 ;;
@@ -36,20 +38,19 @@ while [[ $# -gt 0 ]]; do
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
-for v in BUILD WDIR SEQ DUMP; do
+for v in BUILD MODEL_FILE SEQ DUMP; do
     [[ -n "${!v}" ]] || { echo "missing --${v,,} (see the header of $0)" >&2; exit 2; }
 done
 [[ -x "${BUILD}/Allen" ]] || { echo "no Allen binary in ${BUILD}: run 'make build'" >&2; exit 1; }
-for f in cnn_weights.bin fc_weights.bin; do
-    [[ -f "${WDIR}/${f}" ]] || { echo "missing ${WDIR}/${f}: run 'make convert'" >&2; exit 1; }
-done
+[[ -f "${MODEL_FILE}" ]] || { echo "missing ${MODEL_FILE}: run 'make convert'" >&2; exit 1; }
+MODEL_FILE="$(cd "$(dirname "${MODEL_FILE}")" && pwd)/$(basename "${MODEL_FILE}")"
 
 rm -rf "${DUMP}"
 mkdir -p "${DUMP}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "${tmp}"' EXIT
 
-if ! (cd "${tmp}" && PVFINDER_WEIGHTS_DIR="$(cd "${WDIR}" && pwd)" "${BUILD}/toolchain/wrapper" bash -c '
+if ! (cd "${tmp}" && "${BUILD}/toolchain/wrapper" bash -c '
         export ALLEN_BUILD_DIR="$1"
         export PYTHONPATH="$1/code_generation/sequences:${PYTHONPATH:-}"
         python3 "$1/code_generation/sequences/AllenCore/gen_allen_json.py" \
@@ -60,12 +61,15 @@ if ! (cd "${tmp}" && PVFINDER_WEIGHTS_DIR="$(cd "${WDIR}" && pwd)" "${BUILD}/too
     exit 1
 fi
 
-"${PY}" - "${tmp}/Sequence.json" "${DUMP}/config.json" "${DUMP}" "${SETS[@]}" <<'EOF'
+"${PY}" - "${tmp}/Sequence.json" "${DUMP}/config.json" "${DUMP}" "${MODEL_FILE}" "${SETS[@]}" <<'EOF'
 import json, sys
-src, dst, dump, *sets = sys.argv[1:]
+src, dst, dump, model, *sets = sys.argv[1:]
 cfg = json.load(open(src))
-for alg in ("pvfinder_fc_aggregation", "pvfinder_unet"):
-    if alg in cfg:
+for alg in cfg:
+    if alg in ("pvfinder_fc_aggregation", "pvfinder_unet"):
+        cfg[alg]["dump_validation"] = dump
+        cfg[alg]["model"] = model
+    elif alg.startswith("pvfinder_peak"):
         cfg[alg]["dump_validation"] = dump
 for item in sets:
     key, _, raw = item.partition("=")

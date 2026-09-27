@@ -94,24 +94,8 @@ with torch.no_grad():
 ref = ref.reshape(n_events, 40, 100)
 
 # --- comparison and physics-level summary ------------------------------------
-# With pvfinder_fc_aggregation.skip_empty_intervals, intervals with fewer than
-# min_interval_tracks tracks do not go through the UNet: Allen gives them the
-# network's response to an empty interval. With the minimum at 1 that is
-# exact; above 1 it is a deliberate approximation, so those intervals are left
-# out of the comparison and reported separately.
-min_tracks = 0
 bf16_path = pa.bf16_path(args.dump_dir)
-cfg_path = os.path.join(args.dump_dir, "config.json")
-if os.path.isfile(cfg_path):
-    with open(cfg_path) as fp:
-        cfg = json.load(fp)
-    fc_cfg = cfg.get("pvfinder_fc_aggregation", {})
-    if fc_cfg.get("skip_empty_intervals", False):
-        min_tracks = int(fc_cfg.get("min_interval_tracks", 1))
-skipped = ((n_in > 0) & (n_in < min_tracks)).reshape(n_events, 40)
 d = np.abs(allen.astype(np.float64) - ref)
-d_skipped = d[skipped]
-d[skipped] = 0.0
 worst = float(d.max())
 peaks = pa.peak_agreement(allen, ref)
 finite = bool(np.isfinite(allen).all())
@@ -132,15 +116,6 @@ summary = {
     "mean_abs_diff": float(d.mean()),
     "intervals_with_peak_above_1e-3": {"allen": float((peak_a > 1e-3).mean()), "pytorch": float((peak_r > 1e-3).mean())},
     "bins_above_1e-3_per_event": {"allen": float((allen > 1e-3).sum() / n_events), "pytorch": float((ref > 1e-3).sum() / n_events)},
-    "min_interval_tracks": min_tracks,
-    "skipped_intervals": {
-        "count": int(skipped.sum()),
-        "fraction_of_non_empty": float(skipped.sum() / max(int(non_empty.sum()), 1)),
-        "pytorch_max_kde": float(peak_r[skipped].max()) if skipped.any() else 0.0,
-        "pytorch_intervals_with_peak_above_1e-3": int((peak_r[skipped] > 1e-3).sum()),
-        "pytorch_intervals_with_peak_above_1e-3_all": int((peak_r > 1e-3).sum()),
-        "max_abs_diff": float(d_skipped.max()) if d_skipped.size else 0.0,
-    },
     "threshold": args.threshold,
     "bf16_path": bf16_path,
     "peaks": peaks,
@@ -155,13 +130,6 @@ print(f"intervals with a KDE peak > 1e-3: Allen {summary['intervals_with_peak_ab
       f"PyTorch {summary['intervals_with_peak_above_1e-3']['pytorch']:.4f} (training validation sample: ~0.13)")
 print(f"KDE bins > 1e-3 per event: Allen {summary['bins_above_1e-3_per_event']['allen']:.1f}, "
       f"PyTorch {summary['bins_above_1e-3_per_event']['pytorch']:.1f}")
-if min_tracks > 1:
-    sk = summary["skipped_intervals"]
-    print(f"intervals with 1..{min_tracks - 1} tracks (not run through the UNet, min_interval_tracks={min_tracks}): "
-          f"{sk['count']} ({100 * sk['fraction_of_non_empty']:.1f}% of non-empty), excluded from the diff above; "
-          f"PyTorch there: max KDE {sk['pytorch_max_kde']:.3e}, {sk['pytorch_intervals_with_peak_above_1e-3']} of "
-          f"{sk['pytorch_intervals_with_peak_above_1e-3_all']} intervals with a peak > 1e-3; "
-          f"max |Allen - PyTorch| there {sk['max_abs_diff']:.3e}")
 print(pa.describe(peaks))
 print(f"criterion ({criterion}): {status}")
 print(status)

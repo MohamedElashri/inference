@@ -23,7 +23,8 @@ def bf16_path(dump_dir):
     if not os.path.isfile(cfg):
         return False
     with open(cfg) as fp:
-        return bool(json.load(fp).get("pvfinder_unet", {}).get("use_bf16", False))
+        unet = json.load(fp).get("pvfinder_unet", {})
+    return unet.get("precision") == "bfloat16"
 
 
 def peak_agreement(allen, ref):

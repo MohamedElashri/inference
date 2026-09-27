@@ -54,15 +54,15 @@ args = parser.parse_args()
 # Load the checkpoint first: its shapes decide how the dumps are read
 # ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.join(REPO_ROOT, "pvfinder_pytorch"))
-import torch
+import torch  # noqa: E402
 
 # utils.py imports awkward which may not be installed; stub it out since
 # we only need the model class, not the data-loading helpers.
-import types
+import types  # noqa: E402
 if "awkward" not in sys.modules:
     sys.modules["awkward"] = types.ModuleType("awkward")
 
-from utils import TrackIntervalsToKDE_HDplusUNet100 as Model
+from utils import TrackIntervalsToKDE_HDplusUNet100 as Model  # noqa: E402
 
 if not os.path.exists(args.weights):
     print(f"ERROR: weight file not found: {args.weights}")
@@ -137,7 +137,7 @@ print(f"  n_events={n_events}  ncw={ncw_tensor.shape}  allen_kde={allen_kde.shap
 # We run only the UNet portion of the model (rcbn1 onward), bypassing the
 # FC layers (layer1..layer6A) that expect raw per-track features.
 # ---------------------------------------------------------------------------
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: E402
 
 def run_unet_only(model, y0):
     """Run the UNet portion of the model starting from y0 = [N, C, W=100].
@@ -306,8 +306,8 @@ if args.report:
         "n_intervals": int(finite_input.size),
         "non_finite_input_intervals": n_nan_input,
         "max_abs_diff": float(worst),
-        "abs_percentiles": {l: float(v) for l, v in zip(PCT_LABELS, abs_pcts)},
-        "rel_percentiles": {l: float(v) for l, v in zip(PCT_LABELS, rel_pcts)},
+        "abs_percentiles": {k: float(v) for k, v in zip(PCT_LABELS, abs_pcts)},
+        "rel_percentiles": {k: float(v) for k, v in zip(PCT_LABELS, rel_pcts)},
         "pearson_r": pearson_r,
         "r_squared": r_squared,
         "signal_region": {"n_bins": int(sig_mask.sum()), "max_abs_diff": sig_worst},

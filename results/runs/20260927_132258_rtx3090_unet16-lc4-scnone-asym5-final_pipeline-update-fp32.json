@@ -1,0 +1,428 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "validation",
+  "id": "20260927_132258_pipeline-update-fp32",
+  "label": "pipeline_update_fp32",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-27T13:22:12-04:00",
+  "finished_at": "2026-09-27T13:22:58-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "326247ea7c1f8b63703502731d220d60e8cd97c4",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Allen now has a general reader for trained-weight files next to the other MVA models",
+    "dirty": true,
+    "dirty_files": [
+      "benchmarks/runs.py",
+      "weights/Makefile",
+      "weights/README.md",
+      "weights/scripts/allen_dump.sh",
+      "weights/scripts/compare_pvs.py",
+      "weights/scripts/peak_agreement.py",
+      "weights/scripts/validate_fc.py",
+      "weights/scripts/validate_features.py",
+      "weights/scripts/validate_model.py",
+      "weights/scripts/validate_peaks.py",
+      "weights/scripts/validate_unet.py"
+    ],
+    "diff_sha256": "ba4ff25278999f7f4d3f8404d804e552eda7b95fa154603248065be4be189e81"
+  },
+  "build": {
+    "name": "buildgpu16chL4gpu",
+    "dir": "Allen/buildgpu16chL4gpu",
+    "cmake": {
+      "BUILD_TESTING": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T13:21:47-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_final",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_final",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_final.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "default model; asym 5, last epoch (69)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "sha256": "1ead334f6e2728b96a34084ce4b1b444f799080b14a72306022d5283c9923d38"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_final/pvfinder_model.json",
+        "sha256": "67ebc4cd53909197edbf188065439eabf2e4a38183b44cf5d3100d51cc51db9a"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "events": 500,
+    "threads": 1,
+    "device": 2,
+    "sequence": "hlt1_pp_pvs_pvfinder_unet_benchmark"
+  },
+  "config": {
+    "dump": {
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_final/dump",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_final/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_peak_pvfinder": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_final/dump",
+          "integral_threshold": 0.699999988079071,
+          "min_width": 0,
+          "split_peaks": true,
+          "threshold": 0.07000000029802322,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "weights/out/unet16_lc4_scnone_asym5_final/dump",
+          "fused_grid_fraction": 0.25,
+          "model": "weights/out/unet16_lc4_scnone_asym5_final/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "fc": {
+      "dump_dir": "/data/home/melashri/iris/inference/weights/out/unet16_lc4_scnone_asym5_final/dump",
+      "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "max_f32_ulps": 1.0,
+      "csr": {
+        "intervals_differing": 0,
+        "status": "OK"
+      },
+      "features_dtype": "float32",
+      "histogram_dtype": "float32",
+      "interval_features": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 3.9491977132856846,
+        "max_rel_diff": 0.17201915067700213,
+        "max_f32_ulps": 0.0002548155722503068,
+        "largest_term": 8806735992869.432,
+        "status": "PASS"
+      },
+      "histogram": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 1.1700705534603912,
+        "max_rel_diff": 0.017652974162758267,
+        "max_f32_ulps": 8.545569783465645e-05,
+        "largest_term": 501591050435.62933,
+        "status": "PASS"
+      },
+      "n_events": 500,
+      "n_tracks": 122358,
+      "latent_channels": 4,
+      "status": "PASS"
+    },
+    "unet": {
+      "dump_dir": "/data/home/melashri/iris/inference/weights/out/unet16_lc4_scnone_asym5_final/dump",
+      "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_final.pyt",
+      "n_events": 500,
+      "n_intervals": 20000,
+      "non_finite_input_intervals": 0,
+      "max_abs_diff": 1.0013580322265625e-05,
+      "abs_percentiles": {
+        "P50": 1.5206321927891384e-15,
+        "P90": 2.10454161042595e-11,
+        "P95": 8.229588677188796e-11,
+        "P99": 6.984919309616089e-10,
+        "P99.9": 5.364418029785156e-07,
+        "Pmax": 1.0013580322265625e-05
+      },
+      "rel_percentiles": {
+        "P50": 1.5206298804703888e-06,
+        "P90": 0.0019324490919334144,
+        "P95": 0.01665436589803322,
+        "P99": 0.06791488669094964,
+        "P99.9": 0.11341441709955002,
+        "Pmax": 0.12646655667333911
+      },
+      "pearson_r": 0.9999999999997762,
+      "r_squared": 0.9999999999995897,
+      "signal_region": {
+        "n_bins": 20077,
+        "max_abs_diff": 1.0013580322265625e-05
+      },
+      "background_region": {
+        "n_bins": 1977683,
+        "max_abs_diff": 1.955777406692505e-08
+      },
+      "worst_event": {
+        "event": 390,
+        "interval": 14
+      },
+      "layer_stats": {
+        "x1_rcbn1": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.7419934868812561,
+          "std": 1.6255114078521729,
+          "min": 0.0,
+          "max": 202.41751098632812
+        },
+        "x2_rcbn2_mp": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.5445907711982727,
+          "std": 1.3334544897079468,
+          "min": 0.0,
+          "max": 105.34911346435547
+        },
+        "x3_rcbn3_mp": {
+          "shape": [
+            20000,
+            16,
+            25
+          ],
+          "non_finite": 0,
+          "mean": 1.073994517326355,
+          "std": 1.9075002670288086,
+          "min": 0.0,
+          "max": 112.53858184814453
+        },
+        "xu1_up1": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.6340282559394836,
+          "std": 1.2990635633468628,
+          "min": 0.0,
+          "max": 58.45569610595703
+        },
+        "xu2_up2": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.06243274360895157,
+          "std": 0.15237028896808624,
+          "min": 0.0,
+          "max": 12.836161613464355
+        },
+        "x_oint": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -0.3280223608016968,
+          "std": 2.940861225128174,
+          "min": -106.17986297607422,
+          "max": 729.8860473632812
+        },
+        "logits": {
+          "shape": [
+            20000,
+            1,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -29.03936004638672,
+          "std": 76.83055877685547,
+          "min": -242.43112182617188,
+          "max": 5611.62939453125
+        },
+        "pt_kde": {
+          "shape": [
+            20000,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.0039315856993198395,
+          "std": 0.07327185571193695,
+          "min": 0.0,
+          "max": 5.611629486083984
+        }
+      },
+      "tiers": {
+        "fp32_noise": false,
+        "tight": true,
+        "acceptable": true,
+        "loose": true
+      },
+      "best_tier": "tight",
+      "signal_region_under_1e-4": true,
+      "threshold": 0.001,
+      "bf16_path": false,
+      "peaks": {
+        "bins_off_by_more_than_0.01": 0.0,
+        "n_peaks": 2531,
+        "median_rel_peak_height_change": 2.5224903134269887e-07,
+        "max_rel_peak_height_change": 8.176023717009599e-06,
+        "intervals_with_peak": 2337,
+        "highest_bin_moved": 0,
+        "highest_bin_moved_more_than_one_bin": 0
+      },
+      "criterion": "FP32 path: max |Allen - PyTorch| < 0.001",
+      "status": "PASS"
+    },
+    "model": {
+      "n_events": 500,
+      "empty_interval_fraction": 0.72565,
+      "intervals_capped_at_max_tracks": 0,
+      "max_abs_diff": 2.8133392333984375e-05,
+      "mean_abs_diff": 4.839976437589785e-09,
+      "intervals_with_peak_above_1e-3": {
+        "allen": 0.12265,
+        "pytorch": 0.12265
+      },
+      "bins_above_1e-3_per_event": {
+        "allen": 40.154,
+        "pytorch": 40.154
+      },
+      "threshold": 0.001,
+      "bf16_path": false,
+      "peaks": {
+        "bins_off_by_more_than_0.01": 0.0,
+        "n_peaks": 2531,
+        "median_rel_peak_height_change": 4.0885272450256423e-07,
+        "max_rel_peak_height_change": 9.811212417070436e-06,
+        "intervals_with_peak": 2337,
+        "highest_bin_moved": 0,
+        "highest_bin_moved_more_than_one_bin": 0
+      },
+      "criterion": "FP32 path: max |Allen - PyTorch| < 0.001",
+      "status": "PASS"
+    },
+    "features": {
+      "allen_vs_rules": {
+        "tracks": 122358,
+        "ellipsoid_source": "pv-finder_v2 tools/ellipsoid.py",
+        "poca_max_abs_diff_mm": 0.0007589991255372297,
+        "ellipsoid_max_rel_matrix_diff": 6.437877385221288e-07,
+        "tracks_without_ellipsoid": 36,
+        "status": "PASS"
+      },
+      "rules_vs_training": {
+        "tracks": 459132,
+        "events": 2000,
+        "checks": {
+          "poca_within_1um": 0.9999738637254646,
+          "major_axis_within_0.01deg_of_track": 1.0,
+          "major_minor_ratio_within_0.1pct": 0.9987345687079097,
+          "ellipsoid_matrix_within_1pct": 0.9938732216443201
+        },
+        "status": "PASS"
+      },
+      "minor_axis_quantiles": {
+        "q": [
+          0.05,
+          0.25,
+          0.5,
+          0.75,
+          0.95
+        ],
+        "training": [
+          0.030375059661439722,
+          0.037732711258438786,
+          0.04618483408333554,
+          0.06566650669740733,
+          0.15945860428939695
+        ],
+        "allen_sqrt_c00": [
+          0.027260642489201157,
+          0.03466761237951431,
+          0.04278998006017781,
+          0.06097193209021227,
+          0.13692314978845413
+        ]
+      },
+      "status": "PASS"
+    },
+    "peaks": {
+      "settings": {
+        "threshold": 0.07000000029802322,
+        "integral_threshold": 0.699999988079071,
+        "min_width": 0,
+        "split_peaks": true
+      },
+      "events": 500,
+      "seeds": 2455,
+      "events_with_different_number_of_seeds": 0,
+      "max_abs_dz_mm": 3.3569335926131316e-05,
+      "events_over_seed_cap": 0,
+      "events_with_first_bin_above_threshold": 5,
+      "status": "PASS"
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "dump_dir": "weights/out/unet16_lc4_scnone_asym5_final/dump"
+  },
+  "duration_s": 46
+}

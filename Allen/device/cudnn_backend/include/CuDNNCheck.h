@@ -1,26 +1,27 @@
-// (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration
-// Apache-2.0 License
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 
-#ifdef ALLEN_WITH_CUDNN
+#include "Common.h"
 #include <cudnn.h>
-#include <stdexcept>
 #include <string>
-#include <cstdio>
 
-#define ALLEN_CUDNN_CHECK(stmt)                                                          \
-  do {                                                                                   \
-    cudnnStatus_t _allen_cudnn_err = (stmt);                                             \
-    if (_allen_cudnn_err != CUDNN_STATUS_SUCCESS) {                                      \
-      fprintf(stderr,                                                                     \
-              "Failed to run %s\n%s (%d) at %s: %d\n",                                  \
-              #stmt,                                                                      \
-              cudnnGetErrorString(_allen_cudnn_err),                                     \
-              static_cast<int>(_allen_cudnn_err),                                        \
-              __FILE__,                                                                   \
-              __LINE__);                                                                  \
-      throw std::invalid_argument("ALLEN_CUDNN_CHECK failed");                           \
-    }                                                                                    \
+// Throws StrException with the statement, cuDNN's message and the location
+// when a cuDNN call does not succeed.
+#define ALLEN_CUDNN_CHECK(stmt)                                                                                      \
+  do {                                                                                                               \
+    const cudnnStatus_t allen_cudnn_status_ = (stmt);                                                                \
+    if (allen_cudnn_status_ != CUDNN_STATUS_SUCCESS) {                                                               \
+      throw StrException(                                                                                            \
+        std::string("cuDNN: ") + #stmt + ": " + cudnnGetErrorString(allen_cudnn_status_) + " at " + __FILE__ + ":" + \
+        std::to_string(__LINE__));                                                                                   \
+    }                                                                                                                \
   } while (0)
-
-#endif // ALLEN_WITH_CUDNN
