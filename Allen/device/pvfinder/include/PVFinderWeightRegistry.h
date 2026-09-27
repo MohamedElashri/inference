@@ -1,7 +1,18 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include "Common.h"
 #include <cstddef>
 
 namespace PVFinder {
@@ -39,7 +50,7 @@ namespace PVFinder {
           return static_cast<const T*>(entry.dev_ptr);
         }
       }
-      throw std::runtime_error("WeightRegistry: key not found: " + key);
+      throw StrException("WeightRegistry: key not found: " + key);
     }
 
     size_t size_bytes(const std::string& key) const {

@@ -1,19 +1,25 @@
 ###############################################################################
-# (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration
+# (c) Copyright 2024 CERN for the benefit of the LHCb Collaboration           #
+#                                                                             #
+# This software is distributed under the terms of the Apache License          #
+# version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
+#                                                                             #
+# In applying this licence, CERN does not waive the privileges and immunities #
+# granted to it by virtue of its status as an Intergovernmental Organization  #
+# or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import (
     pvfinder_unet_t,
 )
-from AllenConf.utils import initialize_number_of_events
-from AllenConf.pvfinder_fc_reconstruction import pvfinder_weight_file
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
+from AllenConf.pvfinder_fc_reconstruction import pvfinder_weight_file
+from AllenConf.utils import initialize_number_of_events
+
 
 @configurable
-def make_pvfinder_unet(fc_output,
-                       weight_file=None,
-                       dump_validation=""):
+def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
     """
     Wire PVFinderUNet directly downstream of the FC aggregation.
     The interval_features buffer [n_events, 40, 8, 100] has the same memory

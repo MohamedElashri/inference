@@ -1,3 +1,13 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #include "PVFinderWeightRegistry.h"
 #include <fstream>
 #include <vector>
@@ -12,7 +22,7 @@ namespace PVFinder {
 
     std::ifstream f(file_path, std::ios::binary | std::ios::ate);
     if (!f.is_open()) {
-      throw std::runtime_error("WeightRegistry: cannot open " + file_path);
+      throw StrException("WeightRegistry: cannot open " + file_path);
     }
     const size_t bytes = static_cast<size_t>(f.tellg());
     f.seekg(0);
@@ -25,7 +35,7 @@ namespace PVFinder {
                                          const void* host_data,
                                          size_t bytes) {
     if (contains(key)) {
-      throw std::runtime_error("WeightRegistry: key already registered: " + key);
+      throw StrException("WeightRegistry: key already registered: " + key);
     }
 
     void* dev_ptr = nullptr;

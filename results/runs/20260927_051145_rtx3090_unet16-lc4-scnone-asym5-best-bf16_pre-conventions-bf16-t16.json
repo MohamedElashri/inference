@@ -1,0 +1,314 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260927_051145_pre_conventions_bf16_t16",
+  "label": "pre_conventions_bf16_t16",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-27T05:11:50-04:00",
+  "finished_at": "2026-09-27T05:29:39-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label pre_conventions_bf16_t16 -B build16chL4finalgpu -d 2 --model unet16_lc4_scnone_asym5_best_bf16 --use-bf16 true -n 500 -m 500 -r 1000 -t 16 --repeats 3",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "83096b828969f3c0ea0aa83ca2875002b54db49f",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Add peak agreement validation for BF16 path and update feature validation scripts",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/device/pvfinder/CMakeLists.txt",
+      "Allen/configuration/python/AllenConf/pvfinder_pv_reconstruction.py",
+      "Allen/configuration/python/AllenSequences/pvfinder_pv_validation.py",
+      "Allen/device/pvfinder/include/PVFinderConstants.cuh",
+      "Allen/device/pvfinder/include/PVFinderPeak.cuh",
+      "Allen/device/pvfinder/include/PVFinderVertexDump.h",
+      "Allen/device/pvfinder/src/PVFinderPeak.cu",
+      "Allen/device/pvfinder/src/PVFinderVertexDump.cpp",
+      "weights/scripts/compare_pvs.py",
+      "weights/scripts/validate_peaks.py"
+    ],
+    "diff_sha256": "8a1680fe87aa34e89e28d90c050c9c714ae4c1303b53215a5354cda6a9ea6e10"
+  },
+  "build": {
+    "name": "build16chL4finalgpu",
+    "dir": "Allen/build16chL4finalgpu",
+    "cmake": {
+      "BUILD_TESTING": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T05:03:15-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "cnn": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/cnn_weights.bin",
+        "sha256": "6ce42daaa24536b65bf0137a5314827f790ce75ebe0fdad28a45d940bea41def"
+      },
+      "fc": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin",
+        "sha256": "8f7904905d734ac4f6c043ee5dc40a58bfc1d8497e3016ce5300f8e65c7e07a9"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "bf16_layout": "nwc",
+    "canonical_track_order": true,
+    "fc_chunk_size": 130,
+    "fc_fused": true,
+    "fc_fused_per_warp": true,
+    "fc_grid_fraction": 0.125,
+    "fc_hidden_dtype": "auto",
+    "fc_single_hidden_layer": false,
+    "fwd_algo_ws_budget_mb": 0,
+    "l1_l5_hidden_width": 20,
+    "l6a_active_channels": null,
+    "l6a_dtype": "auto",
+    "l6a_m": null,
+    "min_interval_tracks": 1,
+    "safe_avg_entries_per_event": 450,
+    "skip_empty_intervals": true,
+    "skip_redundant_memset": true,
+    "unet_batch_events": 20,
+    "unet_fused_kernel": true,
+    "unet_grid_fraction": 0.25,
+    "unet_input_dtype": "bfloat16",
+    "unet_input_layout": "nwc",
+    "use_bf16": true,
+    "use_cuda_graph": false,
+    "use_fp16": false,
+    "use_fused_bias_relu_pool": null,
+    "use_fused_bias_relu_reduce": true,
+    "use_fused_cbr": false,
+    "use_fused_rcbn3": false,
+    "use_grid_stride_reduce": true,
+    "use_merged_up1": false,
+    "use_nonatomic_l6a_reduce": false,
+    "use_precomputed_csr_offset": true,
+    "use_warp_parallel_reduce": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "5ba9e4417c6be1ff3c3e69ba4b28d00ac8fd4bee4f469dfe3fd9d33ab2092930",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "0946ee33d2213ac08fafebb5ca9e2b7976a4e78a0c43808fe8d54655af5ffc81",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "canonical_track_order": true,
+          "dump_validation": "",
+          "fc_chunk_size": 130,
+          "fc_fused": true,
+          "fc_fused_per_warp": true,
+          "fc_hidden_dtype": "auto",
+          "fc_largest_first": true,
+          "fc_single_hidden_layer": false,
+          "fused_grid_fraction": 0.125,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_dtype": "auto",
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": true,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "unet_input_dtype": "bfloat16",
+          "unet_input_layout": "nwc",
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin",
+          "write_histogram": false
+        }
+      }
+    },
+    "unet": {
+      "sha256": "3732dab5a83f72ebafababeefbef410a72fe09e1cb635f8de672d5bea7fcc77f",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "canonical_track_order": true,
+          "dump_validation": "",
+          "fc_chunk_size": 130,
+          "fc_fused": true,
+          "fc_fused_per_warp": true,
+          "fc_hidden_dtype": "auto",
+          "fc_largest_first": true,
+          "fc_single_hidden_layer": false,
+          "fused_grid_fraction": 0.125,
+          "l1_l5_hidden_width": 20,
+          "l6a_active_channels": 4,
+          "l6a_dtype": "auto",
+          "l6a_m": 400,
+          "min_interval_tracks": 1,
+          "safe_avg_entries_per_event": 450,
+          "skip_empty_intervals": true,
+          "skip_redundant_memset": true,
+          "unet_batch_events": 20,
+          "unet_input_dtype": "bfloat16",
+          "unet_input_layout": "nwc",
+          "use_fused_bias_relu_reduce": true,
+          "use_grid_stride_reduce": true,
+          "use_nonatomic_l6a_reduce": false,
+          "use_precomputed_csr_offset": true,
+          "use_warp_parallel_reduce": true,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/fc_weights.bin",
+          "write_histogram": false
+        },
+        "pvfinder_unet": {
+          "bf16_layout": "nwc",
+          "bf16_nwc_candidates": 1,
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_repetition": 0,
+          "dump_validation": "",
+          "fused_grid_fraction": 0.25,
+          "fused_kernel": true,
+          "fwd_algo_ws_budget_bytes": 0,
+          "unet_batch_events": 20,
+          "use_bf16": true,
+          "use_cuda_graph": false,
+          "use_fp16": false,
+          "use_fused_bias_relu_pool": false,
+          "use_fused_cbr": false,
+          "use_fused_rcbn3": false,
+          "use_merged_up1": false,
+          "verbosity": 3,
+          "weight_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/cnn_weights.bin"
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 87221.522159,
+          "fc": 85020.519803,
+          "unet": 83912.051813
+        },
+        "fc_overhead_pct": 2.5234624454130623,
+        "unet_overhead_pct": 3.7943276660169043,
+        "unet_retention_pct": 96.20567233398309
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 87161.06868,
+          "fc": 85044.264222,
+          "unet": 83867.596353
+        },
+        "fc_overhead_pct": 2.4286123266472996,
+        "unet_overhead_pct": 3.778604802439414,
+        "unet_retention_pct": 96.22139519756058
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 87093.652796,
+          "fc": 85004.139709,
+          "unet": 83892.982698
+        },
+        "fc_overhead_pct": 2.399156562986603,
+        "unet_overhead_pct": 3.674975150596723,
+        "unet_retention_pct": 96.32502484940328
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 87161.06868,
+        "fc": 85020.519803,
+        "unet": 83892.982698
+      },
+      "median_fc_overhead_pct": 2.4286123266472996,
+      "median_unet_overhead_pct": 3.778604802439414,
+      "median_unet_retention_pct": 96.22139519756058,
+      "baseline_spread_pct": 0.1467046755351982,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260927_051145_pre_conventions_bf16_t16"
+  },
+  "duration_s": 1069
+}

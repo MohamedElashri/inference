@@ -1,3 +1,13 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 
 // ---------------------------------------------------------------------------
@@ -149,7 +159,7 @@ public:
         cudaFree(sx); cudaFree(sw); cudaFree(sb); cudaFree(sy); if (sws) cudaFree(sws);
         for (auto& c : cfgs) cudnnBackendDestroyDescriptor(c);
         for (Desc d : {heur, graph, cop, aop, rop, add, relu, conv, x, w, b, y, zc, za}) cudnnBackendDestroyDescriptor(d);
-        if (!m_plan) throw std::runtime_error("ConvBiasReluGraphNWC: no engine for the fused Conv+Bias+ReLU graph");
+        if (!m_plan) throw StrException("ConvBiasReluGraphNWC: no engine for the fused Conv+Bias+ReLU graph");
         return best_note + (max_candidates > 1 ? ", " + std::to_string(best_us) + " us" : std::string()) +
                ", workspace " + std::to_string(m_ws_bytes) + " B";
     }
@@ -158,7 +168,7 @@ public:
     {
         void* ws = thread_local_workspace(this, m_ws_bytes);
         if (!run(handle, m_plan, x, w, b, y, ws)) {
-            throw std::runtime_error("ConvBiasReluGraphNWC: cudnnBackendExecute failed");
+            throw StrException("ConvBiasReluGraphNWC: cudnnBackendExecute failed");
         }
     }
 
@@ -226,7 +236,7 @@ private:
         auto& e = tl[key];
         if (e.second < bytes) {
             if (e.first) cudaFree(e.first);
-            if (cudaMalloc(&e.first, bytes) != cudaSuccess) throw std::runtime_error("ConvBiasReluGraphNWC: workspace allocation failed");
+            if (cudaMalloc(&e.first, bytes) != cudaSuccess) throw StrException("ConvBiasReluGraphNWC: workspace allocation failed");
             e.second = bytes;
         }
         return e.first;

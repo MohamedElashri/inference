@@ -1,8 +1,20 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #include "PVFinderUNet.cuh"
+#ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "PVFinderUNetKernels.cuh"
 #include "PVFinderUNetLowPrecision.cuh"
 #include "PVFinderConvGraph.cuh"
 #include "PVFinderUNetFused.cuh"
+#endif
 
 #include <cstdio>
 #include <cstring>
@@ -212,9 +224,8 @@ static const GraphScratchPool& get_thread_local_graph_scratch_pool(const void* o
         cudaMalloc(&pool.kde_out, sz_kde_out * sizeof(float));
         const size_t total_bytes =
             (sz_ncw_in + sz_x1 + sz_x2 + sz_x3 + sz_up1 + sz_up2 + sz_kde_out) * sizeof(float);
-        printf("[pvfinder_unet] CUDA-graph scratch pool allocated: %.2f MB (thread_local, "
-               "outside Allen's memory manager -- not reflected in -m budget)\n",
-               total_bytes / (1024.0 * 1024.0));
+        debug_cout << "[pvfinder_unet] CUDA-graph scratch pool allocated: " << total_bytes / (1024.0 * 1024.0)
+                   << " MB (thread_local, outside Allen's memory manager, not in the -m budget)\n";
     }
     return pool;
 }
@@ -253,8 +264,8 @@ static const GraphScratchPoolFP16& get_thread_local_graph_scratch_pool_fp16(cons
         cudaMalloc(&pool.up2,  sz_up2  * sizeof(__half));
         const size_t total_bytes =
             (sz_ncw + sz_x1 + sz_x2 + sz_x3 + sz_up1 + sz_up2) * sizeof(__half);
-        printf("[pvfinder_unet] CUDA-graph FP16 scratch pool allocated: %.2f MB (thread_local)\n",
-               total_bytes / (1024.0 * 1024.0));
+        debug_cout << "[pvfinder_unet] CUDA-graph FP16 scratch pool allocated: " << total_bytes / (1024.0 * 1024.0)
+                   << " MB (thread_local)\n";
     }
     return pool;
 }
@@ -292,8 +303,8 @@ static const GraphScratchPoolBF16& get_thread_local_graph_scratch_pool_bf16(cons
         cudaMalloc(&pool.up2,  sz_up2  * sizeof(__nv_bfloat16));
         const size_t total_bytes =
             (sz_ncw + sz_x1 + sz_x2 + sz_x3 + sz_up1 + sz_up2) * sizeof(__nv_bfloat16);
-        printf("[pvfinder_unet] eager BF16 scratch pool allocated: %.2f MB (thread_local)\n",
-               total_bytes / (1024.0 * 1024.0));
+        debug_cout << "[pvfinder_unet] eager BF16 scratch pool allocated: " << total_bytes / (1024.0 * 1024.0)
+                   << " MB (thread_local)\n";
     }
     return pool;
 }
@@ -440,8 +451,8 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
         desc.rcbn1_fused_available = true;
     } catch (const std::exception& e) {
         desc.rcbn1_fused_available = false;
-        fprintf(stderr, "[pvfinder_unet] ConvBiasReluGraph unavailable for rcbn1 (%s); "
-                "use_fused_cbr will fall back to the two-pass conv+bias/ReLU path.\n", e.what());
+        debug_cout << "[pvfinder_unet] ConvBiasReluGraph unavailable for rcbn1 (" << e.what()
+                   << "); use_fused_cbr falls back to the two-pass conv + bias/ReLU path\n";
     }
 
     fold_bn(wb.w_rcbn2_w, wb.w_rcbn2_b,
@@ -559,36 +570,27 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
                              cudaMemcpyHostToDevice));
     }
 
-    // Report the selected algorithms and workspace sizes. A zero budget pins
-    // IMPLICIT_GEMM; a nonzero budget enables bounded heuristic selection.
-    // Workspaces are thread-local. stderr is flushed so diagnostics survive an
-    // abrupt failure in a subsequent cuDNN call.
-    fprintf(stderr, "[pvfinder_unet] cuDNN batch N=%d samples (%d events)\n", N, N / N_INTERVALS);
-    fprintf(stderr, "[pvfinder_unet] fwd_algo_ws_budget_bytes=%zu\n", fwd_ws_budget_bytes);
-    fprintf(stderr, "[pvfinder_unet] ConvDescriptors workspace bytes: rcbn1=%zu rcbn2=%zu rcbn3=%zu "
-           "up1_c=%zu up2_c=%zu oint=%zu outc=%zu | algo ids: rcbn1=%d rcbn2=%d rcbn3=%d "
-           "up1_c=%d up2_c=%d oint=%d outc=%d\n",
-           desc.rcbn1.workspace_bytes(), desc.rcbn2.workspace_bytes(), desc.rcbn3.workspace_bytes(),
-           desc.up1_c.workspace_bytes(), desc.up2_c.workspace_bytes(),
-           desc.oint.workspace_bytes(), desc.outc.workspace_bytes(),
-           desc.rcbn1.algo_id(), desc.rcbn2.algo_id(), desc.rcbn3.algo_id(),
-           desc.up1_c.algo_id(), desc.up2_c.algo_id(),
-           desc.oint.algo_id(), desc.outc.algo_id());
-    // Report the FP16 descriptor choices as well. operator() allocates these
-    // thread-local workspaces before entering the chunk loop.
-    fprintf(stderr, "[pvfinder_unet] FP16 ConvDescriptors workspace bytes: rcbn1_h=%zu rcbn2_h=%zu "
-           "rcbn3_h=%zu up1c_h=%zu up2c_h=%zu | algo ids: rcbn1_h=%d rcbn2_h=%d rcbn3_h=%d "
-           "up1c_h=%d up2c_h=%d\n",
-           desc.rcbn1_h.workspace_bytes(), desc.rcbn2_h.workspace_bytes(), desc.rcbn3_h.workspace_bytes(),
-           desc.up1c_h.workspace_bytes(), desc.up2c_h.workspace_bytes(),
-           desc.rcbn1_h.algo_id(), desc.rcbn2_h.algo_id(), desc.rcbn3_h.algo_id(),
-           desc.up1c_h.algo_id(), desc.up2c_h.algo_id());
-    // Whether the fused-graph rcbn1 path is
-    // usable on this GPU/cuDNN version at all (see the try/catch around its
-    // create() call above).
-    fprintf(stderr, "[pvfinder_unet] rcbn1 ConvBiasReluGraph available: %s (workspace bytes: %zu)\n",
-           desc.rcbn1_fused_available ? "yes" : "no", desc.rcbn1_fused.workspace_bytes());
-    fflush(stderr);
+    // Report the selected algorithms and workspace sizes (-v 4). A zero budget
+    // pins IMPLICIT_GEMM; a nonzero budget enables bounded heuristic selection.
+    // Workspaces are thread-local.
+    debug_cout << "[pvfinder_unet] cuDNN batch N=" << N << " samples (" << N / N_INTERVALS << " events), "
+               << "fwd_algo_ws_budget_bytes=" << fwd_ws_budget_bytes << "\n"
+               << "[pvfinder_unet] ConvDescriptors workspace bytes: rcbn1=" << desc.rcbn1.workspace_bytes()
+               << " rcbn2=" << desc.rcbn2.workspace_bytes() << " rcbn3=" << desc.rcbn3.workspace_bytes()
+               << " up1_c=" << desc.up1_c.workspace_bytes() << " up2_c=" << desc.up2_c.workspace_bytes()
+               << " oint=" << desc.oint.workspace_bytes() << " outc=" << desc.outc.workspace_bytes()
+               << " | algo ids: rcbn1=" << desc.rcbn1.algo_id() << " rcbn2=" << desc.rcbn2.algo_id()
+               << " rcbn3=" << desc.rcbn3.algo_id() << " up1_c=" << desc.up1_c.algo_id()
+               << " up2_c=" << desc.up2_c.algo_id() << " oint=" << desc.oint.algo_id()
+               << " outc=" << desc.outc.algo_id() << "\n"
+               << "[pvfinder_unet] FP16 ConvDescriptors workspace bytes: rcbn1_h=" << desc.rcbn1_h.workspace_bytes()
+               << " rcbn2_h=" << desc.rcbn2_h.workspace_bytes() << " rcbn3_h=" << desc.rcbn3_h.workspace_bytes()
+               << " up1c_h=" << desc.up1c_h.workspace_bytes() << " up2c_h=" << desc.up2c_h.workspace_bytes()
+               << " | algo ids: rcbn1_h=" << desc.rcbn1_h.algo_id() << " rcbn2_h=" << desc.rcbn2_h.algo_id()
+               << " rcbn3_h=" << desc.rcbn3_h.algo_id() << " up1c_h=" << desc.up1c_h.algo_id()
+               << " up2c_h=" << desc.up2c_h.algo_id() << "\n"
+               << "[pvfinder_unet] rcbn1 ConvBiasReluGraph available: " << (desc.rcbn1_fused_available ? "yes" : "no")
+               << " (workspace bytes: " << desc.rcbn1_fused.workspace_bytes() << ")\n";
 
     // ConvTranspose: filter + conv descriptors only (shared, read-only after init).
     // Tensor descriptors for in/out are thread_local (see
@@ -666,12 +668,14 @@ static void init_descriptors(GlobalDescriptors& desc, cudnnHandle_t handle, cons
     }
 
     // The ConvTranspose workspaces are shared by all threads, so a nonzero
-    // size here would be a cross-thread race; log it so it is never silent.
-    fprintf(stderr, "[pvfinder_unet] ConvTranspose workspace bytes: up1=%zu up2=%zu | algo ids: "
-            "up1=%d up2=%d\n",
-            desc.ws_up1_bytes, desc.ws_up2_bytes,
-            (int)desc.algo_up1_t, (int)desc.algo_up2_t);
-    fflush(stderr);
+    // size here would be a cross-thread race; warn so it is never silent.
+    if (desc.ws_up1_bytes > 0 || desc.ws_up2_bytes > 0) {
+        warning_cout << "[pvfinder_unet] ConvTranspose workspaces are shared by all threads: up1="
+                     << desc.ws_up1_bytes << " up2=" << desc.ws_up2_bytes << " bytes\n";
+    }
+    debug_cout << "[pvfinder_unet] ConvTranspose workspace bytes: up1=" << desc.ws_up1_bytes
+               << " up2=" << desc.ws_up2_bytes << " | algo ids: up1=" << (int) desc.algo_up1_t
+               << " up2=" << (int) desc.algo_up2_t << "\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -721,7 +725,7 @@ static WeightBlob load_weights(const std::string& path)
     // Read entire file into host buffer
     FILE* fp = fopen(path.c_str(), "rb");
     if (!fp) {
-        throw std::runtime_error("PVFinderUNet: cannot open weight file: " + path);
+        throw StrException("PVFinderUNet: cannot open weight file: " + path);
     }
     fseek(fp, 0, SEEK_END);
     long file_size = ftell(fp);
@@ -737,7 +741,7 @@ static WeightBlob load_weights(const std::string& path)
     std::memcpy(&magic, buf.data(), 4);
     off += 4;
     if (magic != 0xCAFE0001u) {
-        throw std::runtime_error("PVFinderUNet: bad magic in weight file");
+        throw StrException("PVFinderUNet: bad magic in weight file");
     }
 
     auto& reg = Allen::CuDNN::WeightRegistry::instance();
@@ -753,7 +757,7 @@ static WeightBlob load_weights(const std::string& path)
     auto expect_shape = [&](const std::string& key, int in_c, int out_c, int k,
                             int want_in, int want_out, int want_k) {
         if (in_c != want_in || out_c != want_out || k != want_k) {
-            throw std::runtime_error(
+            throw StrException(
                 "PVFinderUNet: " + key + " in " + path + " has (in=" + std::to_string(in_c) +
                 ", out=" + std::to_string(out_c) + ", k=" + std::to_string(k) +
                 "), this build expects (in=" + std::to_string(want_in) + ", out=" +
@@ -790,7 +794,7 @@ static WeightBlob load_weights(const std::string& path)
         int features;
         off = read_int32(buf, off, features);
         if (features != N_FEAT) {
-            throw std::runtime_error("PVFinderUNet: " + prefix + " in " + path + " has " +
+            throw StrException("PVFinderUNet: " + prefix + " in " + path + " has " +
                                      std::to_string(features) + " features, this build expects N_FEAT=" +
                                      std::to_string(N_FEAT));
         }
@@ -819,7 +823,7 @@ static WeightBlob load_weights(const std::string& path)
         off = read_int32(buf, off, stride);
         expect_shape(key_w, in_c, out_c, k, N_FEAT, N_FEAT, 2);
         if (stride != 2) {
-            throw std::runtime_error("PVFinderUNet: " + key_w + " in " + path + " has stride " +
+            throw StrException("PVFinderUNet: " + key_w + " in " + path + " has stride " +
                                      std::to_string(stride) + ", expected 2");
         }
         size_t wcount = (size_t)in_c * out_c * k;
@@ -856,7 +860,7 @@ static WeightBlob load_weights(const std::string& path)
     load_conv("outc.w", "outc.b", wb.w_outc_w, wb.w_outc_b, N_FEAT, 1, 5);
 
     if (off != buf.size()) {
-        throw std::runtime_error("PVFinderUNet: " + std::to_string(buf.size() - off) +
+        throw StrException("PVFinderUNet: " + std::to_string(buf.size() - off) +
                                  " trailing bytes in weight file " + path);
     }
 
@@ -873,7 +877,7 @@ void pvfinder_unet_t::init()
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
     if (m_state) return;
     if (m_weight_file.value().empty()) {
-        throw std::runtime_error(
+        throw StrException(
             "pvfinder_unet: weight_file is not set. Produce weights with the repository's weights/ "
             "pipeline (make -C weights verify MODEL=<name>) and generate the sequence configuration "
             "with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
@@ -895,10 +899,12 @@ void pvfinder_unet_t::init()
             const Layer& L = layers[l];
             const std::string chosen = state->nwc_conv[l].create(handle, nullptr, CUDNN_DATA_BFLOAT16, N, L.C_in, N_FEAT,
                                                                  L.W, L.R, L.pad, (int) m_bf16_nwc_candidates.value());
-            printf("[pvfinder_unet] BF16 NWC %s: fused Conv+Bias+ReLU graph plan, %s\n", L.name, chosen.c_str());
+            debug_cout << "[pvfinder_unet] BF16 NWC " << L.name << ": fused Conv+Bias+ReLU graph plan, " << chosen << "\n";
         }
     }
     m_state = std::move(state);
+#else
+    throw StrException("pvfinder_unet needs a CUDA build with cuDNN (WITH_CUDNN=ON)");
 #endif
 }
 
@@ -915,7 +921,7 @@ void pvfinder_unet_t::set_arguments_size(
     const unsigned n_events = first<host_number_of_events_t>(arguments);
     const unsigned batch_events = m_unet_batch_events.value();
     if (batch_events == 0) {
-        throw std::runtime_error("pvfinder_unet: unet_batch_events must be >= 1");
+        throw StrException("pvfinder_unet: unet_batch_events must be >= 1");
     }
     const unsigned padded_events = ((n_events + batch_events - 1) / batch_events) * batch_events;
     const unsigned N_batch = batch_events * N_INTERVALS;
@@ -1144,7 +1150,7 @@ void pvfinder_unet_t::get_or_capture_cuda_graph(
         cudaCheck(cudaGraphInstantiate(&tl_exec, tl_template_graph, 0));
         // tl_template_graph is deliberately NOT destroyed -- see declaration comment.
 
-        printf("[pvfinder_unet] CUDA graph captured (thread_local, FP32 pipeline)\n");
+        debug_cout << "[pvfinder_unet] CUDA graph captured (thread_local, FP32 pipeline)\n";
     }
 
     out_exec          = tl_exec;
@@ -1283,7 +1289,7 @@ void pvfinder_unet_t::get_or_capture_cuda_graph_fp16(
         // tl_template_graph is deliberately NOT destroyed -- see the FP32
         // get_or_capture_cuda_graph's declaration comment for why.
 
-        printf("[pvfinder_unet] CUDA graph captured (thread_local, FP16 pipeline)\n");
+        debug_cout << "[pvfinder_unet] CUDA graph captured (thread_local, FP16 pipeline)\n";
     }
 
     out_exec          = tl_exec;
@@ -1368,7 +1374,7 @@ void pvfinder_unet_t::operator()(
     // FC pads the interval features to its own unet_batch_events; if the two
     // disagree the last batch would read past that buffer.
     if (size<dev_pvfinder_interval_features_t>(arguments) < (size_t)padded_rows * N_BATCH_CHANNELS * W_IN) {
-        throw std::runtime_error(
+        throw StrException(
             "pvfinder_unet: interval features are not padded to unet_batch_events; "
             "set pvfinder_fc_aggregation.unet_batch_events to the same value");
     }
@@ -1378,11 +1384,11 @@ void pvfinder_unet_t::operator()(
     const bool use_fp16 = m_use_fp16.value() && !use_bf16;
     const std::string& bf16_layout = m_bf16_layout.value();
     if (bf16_layout != "ncw" && bf16_layout != "nwc") {
-        throw std::runtime_error("pvfinder_unet: bf16_layout must be ncw or nwc, got '" + bf16_layout + "'");
+        throw StrException("pvfinder_unet: bf16_layout must be ncw or nwc, got '" + bf16_layout + "'");
     }
     const bool bf16_nwc = use_bf16 && bf16_layout == "nwc";
     if (input_nwc && !bf16_nwc) {
-        throw std::runtime_error(
+        throw StrException(
             "pvfinder_unet: pvfinder_fc_aggregation.unet_input_layout is nwc, which only the channels-last "
             "BF16 path reads; set pvfinder_unet.use_bf16 = true and bf16_layout = nwc, or unet_input_layout = ncw");
     }
@@ -1459,7 +1465,7 @@ void pvfinder_unet_t::operator()(
         });
     }
     if (input_bf16 && !use_bf16) {
-        throw std::runtime_error(
+        throw StrException(
             "pvfinder_unet: pvfinder_fc_aggregation.unet_input_dtype is bfloat16, which only the BF16 "
             "path reads; set pvfinder_unet.use_bf16 = true or unet_input_dtype = float32");
     }
@@ -1843,7 +1849,7 @@ void pvfinder_unet_t::operator()(
             cudaCheck(cudaMalloc(&out, (size_t)N * W_IN * sizeof(float)));
             cudaCheck(cudaMemsetAsync(zeros, 0, (size_t)N * N_BATCH_CHANNELS * W_IN * sizeof(float), context.stream()));
             run_batch(zeros, out);
-            cudaCheck(cudaStreamSynchronize(context.stream()));
+            Allen::synchronize(context);
             cudaCheck(cudaFree(zeros));
             state.empty_response = out;   // row 0; never freed, like the scratch pools
         });
@@ -1887,7 +1893,7 @@ void pvfinder_unet_t::operator()(
     const unsigned this_call = m_call_count++;
     const std::string& dump_dir = m_dump_dir.value();
     if (!dump_dir.empty() && !m_dump_done && this_call == m_dump_repetition.value()) {
-        cudaStreamSynchronize(context.stream());
+        Allen::synchronize(context);
         const unsigned ncw_elems = n_events * N_INTERVALS * N_BATCH_CHANNELS * W_IN;
         const unsigned kde_elems = n_events * N_INTERVALS * W_IN;
         std::vector<float> h_ncw(ncw_elems), h_kde(kde_elems);
@@ -1939,8 +1945,7 @@ void pvfinder_unet_t::operator()(
         };
         write_bin(dump_dir + "/allen_ncw_input.bin",  h_ncw.data(), ncw_elems);
         write_bin(dump_dir + "/allen_kde_output.bin", h_kde.data(), kde_elems);
-        printf("[pvfinder_unet] Validation dump written to %s (%u events)\n",
-               dump_dir.c_str(), n_events);
+        info_cout << "[pvfinder_unet] Validation dump written to " << dump_dir << " (" << n_events << " events)\n";
         m_dump_done = true;
     }
 #endif

@@ -1,6 +1,17 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 
 #include "AlgorithmTypes.cuh"
+#include "PVFinderConstants.cuh"
 #include <memory>
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
@@ -42,10 +53,10 @@ static constexpr int N_FEAT    = PVFINDER_UNET_N_FEAT;
 #else
 static constexpr int N_FEAT    = 64;          // feature maps throughout
 #endif
-static constexpr int W_IN      = 100;         // input width
-static constexpr int W_HALF    = 50;          // after first MaxPool
-static constexpr int W_QTR     = 25;          // after second MaxPool
-static constexpr int N_INTERVALS = 40;
+static constexpr int W_IN      = PVFinderConstants::KDE::n_bins_per_interval;  // input width
+static constexpr int W_HALF    = W_IN / 2;    // after first MaxPool
+static constexpr int W_QTR     = W_IN / 4;    // after second MaxPool
+static constexpr int N_INTERVALS = PVFinderConstants::KDE::n_intervals;
 static constexpr float KDE_SCALE = 0.001f;
 
 struct Parameters {

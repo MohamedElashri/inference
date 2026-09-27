@@ -17,6 +17,11 @@ benchmark_results/ batch directory the record points to.
   runs.py validation --model NAME --build-dir DIR --dump-dir DIR --device N
                      --fc-report F --unet-report U [--label L]
       Record a validation (dump + validate_fc/validate_unet) run.
+  runs.py physics --model NAME --build-dir DIR --device N --run-dir D [--run-dir D2 ...]
+                  [--label L]
+      Record primary-vertex comparisons (sequence pvfinder_pv_validation,
+      weights/scripts/compare_pvs.py, compare.json in each run directory):
+      one point per run directory, e.g. the points of a parameter scan.
   runs.py list [--kind K] [--model M] [--gpu G] [--label S] [--all]
   runs.py show RUN
   runs.py compare RUN_A RUN_B
@@ -625,6 +630,45 @@ def cmd_validation(args):
     return 0
 
 
+def cmd_physics(args):
+    started = now_iso()
+    points = []
+    for run_dir in args.run_dir:
+        report = read_json(os.path.join(run_dir, "compare.json"))
+        if report is None:
+            raise SystemExit(f"{run_dir}: no compare.json (run weights/scripts/compare_pvs.py --report)")
+        cfg = read_json(os.path.join(run_dir, "Sequence.json")) or {}
+        algorithms = {k: v for k, v in sorted(cfg.items()) if k.startswith("pvfinder")}
+        points.append({"run_dir": rel(run_dir), "config": relativize(algorithms), "compare": report,
+                       "peaks": read_json(os.path.join(run_dir, "validate_peaks.json"))})
+    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    label = args.label or "physics"
+    record = {
+        "schema": SCHEMA,
+        "kind": "physics",
+        "id": f"{stamp}_{slug(label)}",
+        "label": label,
+        "status": "ok",
+        "imported": False,
+        "started_at": started,
+        "finished_at": now_iso(),
+        "host": host_info(),
+        "gpu": gpu_info(args.device),
+        "git": git_info(),
+        "build": build_info(args.build_dir),
+        "model": model_info(args.model),
+        "workload": {"events": points[0]["compare"].get("events"), "threads": 1, "device": args.device,
+                     "sequence": "pvfinder_pv_validation"},
+        "config": None,
+        "results": {"points": points},
+        "profile": None,
+        "artifacts": {"run_dirs": [p["run_dir"] for p in points]},
+        "duration_s": 0,
+    }
+    print(f"run record: {rel(write_record(record))}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # queries
 # ---------------------------------------------------------------------------
@@ -656,6 +700,13 @@ def find_record(key):
 def headline(r):
     s = (r.get("results") or {}).get("summary") or {}
     m = s.get("median_events_per_s") or {}
+    if r["kind"] == "physics":
+        pts = (r.get("results") or {}).get("points") or []
+        if len(pts) != 1:
+            return f"{len(pts)} points"
+        c = pts[0]["compare"]["in_range"]
+        return (f"in range: pvfinder eff {100 * c['pvfinder']['efficiency']:.2f}% false {100 * c['pvfinder']['false_rate']:.2f}%"
+                f", beamline eff {100 * c['beamline']['efficiency']:.2f}% false {100 * c['beamline']['false_rate']:.2f}%")
     if r["kind"] == "validation":
         u = (r.get("results") or {}).get("unet") or {}
         f = (r.get("results") or {}).get("fc") or {}
@@ -683,7 +734,7 @@ def cmd_list(args):
             continue
         w = r.get("workload") or {}
         point = f"n{w.get('events')} m{w.get('memory_mb')} r{w.get('repetitions')} t{w.get('threads')}" \
-            if r["kind"] != "validation" else f"n{w.get('events')}"
+            if r["kind"] not in ("validation", "physics") else f"n{w.get('events')}"
         rows.append((r["id"], r["kind"], r.get("status"), gpu_slug(gpu), model, point, headline(r)))
     if not rows:
         print("no matching records")
@@ -814,8 +865,16 @@ def main():
     s.add_argument("--label", default=None)
     s.set_defaults(func=cmd_validation)
 
+    s = sub.add_parser("physics")
+    s.add_argument("--model", required=True)
+    s.add_argument("--build-dir", required=True)
+    s.add_argument("--device", type=int, required=True)
+    s.add_argument("--run-dir", action="append", required=True)
+    s.add_argument("--label", default=None)
+    s.set_defaults(func=cmd_physics)
+
     s = sub.add_parser("list")
-    s.add_argument("--kind", choices=["benchmark", "profile", "validation"])
+    s.add_argument("--kind", choices=["benchmark", "profile", "validation", "physics"])
     s.add_argument("--model")
     s.add_argument("--gpu")
     s.add_argument("--label")

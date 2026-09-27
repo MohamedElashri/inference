@@ -1,4 +1,20 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #include "PVFinderFCAggregation.cuh"
+
+INSTANTIATE_ALGORITHM(pvfinder_fc_aggregation::pvfinder_fc_aggregation_t)
+
+// The FC kernels use CUDA-only features (bfloat16 tensor cores, warp
+// intrinsics, optionally cuBLAS); other targets build a stub that refuses to run.
+#if defined(TARGET_DEVICE_CUDA)
 #include "PVFinderWeightRegistry.h"
 #include "PVFinderTrackFeatures.cuh"
 
@@ -29,7 +45,6 @@ static inline cublasHandle_t get_cublas_handle() {
 }
 #endif  // ALLEN_WITH_CUBLAS
 
-INSTANTIATE_ALGORITHM(pvfinder_fc_aggregation::pvfinder_fc_aggregation_t)
 
 namespace pvfinder_fc_aggregation {
 
@@ -40,14 +55,14 @@ namespace pvfinder_fc_aggregation {
 // neighbouring interval (at most two intervals per track). Only tracks with
 // sigma_z < 2 mm and |x| / sigma_x, |y| / sigma_y < 4 are used, with
 // sigma = 1 / sqrt(|A|), 1 / sqrt(|B|), 1 / sqrt(|C|).
-constexpr float PVF_Z_MIN = -100.0f;
-constexpr float PVF_INTERVAL_WIDTH = 10.0f;
+constexpr float PVF_Z_MIN = PVFinderConstants::KDE::z_min;
+constexpr float PVF_INTERVAL_WIDTH = PVFinderConstants::KDE::interval_width;
 constexpr float PVF_INTERVAL_EXTENSION = 2.5f;
 
 __device__ bool pvfinder_track_selected(const float* feat) {
     const float x = feat[0], y = feat[1], z = feat[2];
     const float A = feat[3], B = feat[4], C = feat[5];
-    if (!(z > PVF_Z_MIN - PVF_INTERVAL_EXTENSION && z < PVF_Z_MIN + 40.0f * PVF_INTERVAL_WIDTH + PVF_INTERVAL_EXTENSION))
+    if (!(z > PVF_Z_MIN - PVF_INTERVAL_EXTENSION && z < PVFinderConstants::KDE::z_max + PVF_INTERVAL_EXTENSION))
         return false;
     const float sigma_x = sqrtf(fabsf(1.0f / A));
     const float sigma_y = sqrtf(fabsf(1.0f / B));
@@ -59,7 +74,7 @@ __device__ void assign_intervals(float z_poca, int* intervals, int* num_interval
     const int base = (int)floorf((z_poca - PVF_Z_MIN) / PVF_INTERVAL_WIDTH);
     int n = 0;
     for (int i = base - 1; i <= base + 1; ++i) {
-        if (i < 0 || i >= 40) continue;
+        if (i < 0 || i >= (int) N_INTERVALS) continue;
         const float lo = PVF_Z_MIN + PVF_INTERVAL_WIDTH * i;
         if (z_poca > lo - PVF_INTERVAL_EXTENSION && z_poca < lo + PVF_INTERVAL_WIDTH + PVF_INTERVAL_EXTENSION) {
             intervals[n++] = i;
@@ -112,7 +127,7 @@ __device__ __forceinline__ void pvfinder_linear_layer_reg(
 // maps each interval to a contiguous range of track indices:
 //
 //   interval_start[ev * 42 + i]          = start offset in track_idx[]
-//   interval_start[ev * 42 + 41]         = total entries (sentinel)
+//   interval_start[ev * CSR_STRIDE + CSR_TOTAL]         = total entries (sentinel)
 //   track_idx[track_idx_base + start..end] = local track indices for interval i
 //
 // Boundary tracks (assigned to 2 intervals) appear twice.
@@ -133,9 +148,9 @@ __global__ void pvfinder_build_csr_kernel(
     const unsigned num_tracks        = velo_tracks_view.size();
     const unsigned event_track_offset = velo_tracks_view.offset();
 
-    __shared__ int s_counts[40];   // histogram
-    __shared__ int s_start[41];    // exclusive prefix sum → CSR start offsets
-    __shared__ int s_cursor[40];   // per-interval fill cursors (advanced atomically)
+    __shared__ int s_counts[N_INTERVALS];   // histogram
+    __shared__ int s_start[N_INTERVALS + 1];    // exclusive prefix sum → CSR start offsets
+    __shared__ int s_cursor[N_INTERVALS];   // per-interval fill cursors (advanced atomically)
 
     // Up to CACHE tracks and entries, pass 1 keeps each track's interval
     // assignment and z in shared memory, so the features are read once; the
@@ -150,7 +165,7 @@ __global__ void pvfinder_build_csr_kernel(
     __shared__ float s_ent_z[CACHE]; // and its z
     const bool cached = num_tracks <= (unsigned) CACHE;
 
-    for (int i = thread_id; i < 40; i += blockDim.x) s_counts[i] = 0;
+    for (int i = thread_id; i < (int) N_INTERVALS; i += blockDim.x) s_counts[i] = 0;
     __syncthreads();
 
     // Pass 1 — the track's features (written for the FC kernels), and how
@@ -182,26 +197,26 @@ __global__ void pvfinder_build_csr_kernel(
     // Pass 2 — exclusive prefix sum (single-threaded; only 40 elements)
     if (thread_id == 0) {
         int acc = 0;
-        for (int i = 0; i < 40; ++i) {
+        for (int i = 0; i < (int) N_INTERVALS; ++i) {
             s_start[i]  = acc;
             s_cursor[i] = acc;
             acc += s_counts[i];
         }
-        s_start[40] = acc;  // sentinel
+        s_start[N_INTERVALS] = acc;  // sentinel
     }
     __syncthreads();
 
     // Write interval_start[] to global memory
-    int* g_start = parameters.dev_pvfinder_interval_start + event_number * 42;
-    for (int i = thread_id; i <= 40; i += blockDim.x)
+    int* g_start = parameters.dev_pvfinder_interval_start + event_number * CSR_STRIDE;
+    for (int i = thread_id; i <= (int) N_INTERVALS; i += blockDim.x)
         g_start[i] = s_start[i];
     // index 41 = total track_idx entries for this event (= s_start[40])
-    if (thread_id == 0) g_start[41] = s_start[40];
+    if (thread_id == 0) g_start[CSR_TOTAL] = s_start[N_INTERVALS];
 
     // Pass 3 — scatter: local track indices per interval, in shared memory
     // when cached (the order is fixed below), else straight to track_idx[]
     int* g_idx = parameters.dev_pvfinder_track_idx + event_track_offset * 2;
-    const int n_entries = s_start[40];
+    const int n_entries = s_start[N_INTERVALS];
     const bool in_shared = cached && n_entries <= CACHE;
     for (unsigned i = thread_id; i < num_tracks; i += blockDim.x) {
         int ivals[2]; int n = 0;
@@ -332,7 +347,7 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
     const unsigned event_track_offset = velo_tracks_view.offset();
 
     // CSR pointers for this event
-    const int* g_start  = parameters.dev_pvfinder_interval_start + event_number * 42;
+    const int* g_start  = parameters.dev_pvfinder_interval_start + event_number * CSR_STRIDE;
     const int  iv_begin = g_start[interval];
     const int  iv_end   = g_start[interval + 1];
     const int  n_local  = iv_end - iv_begin;
@@ -425,7 +440,7 @@ __global__ void pvfinder_fused_fc_aggregation_kernel(
         g_feat[i] = s_feat[i];
 
     float* g_hist = parameters.dev_pvfinder_output_histogram
-                    + event_number * 4000 + interval * 100;
+                    + event_number * KDE_BINS + interval * N_BINS_PER_CHANNEL;
     for (int i = thread_id; i < 100; i += blockDim.x)
         g_hist[i] = s_hist[i] * weight;
 }
@@ -497,7 +512,7 @@ __global__ void pvfinder_l1_to_l5_kernel(
         ev = chunk_start;
         local_t = t;
         while (ev < chunk_end) {
-            const unsigned n_entries = (unsigned)parameters.dev_pvfinder_interval_start[ev * 42 + 41];
+            const unsigned n_entries = (unsigned)parameters.dev_pvfinder_interval_start[ev * CSR_STRIDE + CSR_TOTAL];
             if (local_t < n_entries) break;
             local_t -= n_entries;
             ++ev;
@@ -506,7 +521,7 @@ __global__ void pvfinder_l1_to_l5_kernel(
     }
 
     // Recover the actual track index within this event
-    const int* g_start = parameters.dev_pvfinder_interval_start + ev * 42;
+    const int* g_start = parameters.dev_pvfinder_interval_start + ev * CSR_STRIDE;
     const auto  velo_tracks_view  = parameters.dev_velo_tracks_view[ev];
     const unsigned event_track_offset = velo_tracks_view.offset();
     const int* g_idx = parameters.dev_pvfinder_track_idx + event_track_offset * 2;
@@ -518,7 +533,7 @@ __global__ void pvfinder_l1_to_l5_kernel(
     // last such start is the non-empty interval that owns the entry).
     int iv = 0;
     {
-        int lo = 0, hi = 40;   // g_start[40] = entries in the event > local_t
+        int lo = 0, hi = (int) N_INTERVALS;   // g_start[N_INTERVALS] = entries in the event > local_t
         while (hi - lo > 1) {
             const int mid = (lo + hi) / 2;
             if (g_start[mid] <= (int)local_t) lo = mid; else hi = mid;
@@ -704,8 +719,8 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     auto load_l6a = [&](unsigned long long off) {
         return l6a_bf16 ? __bfloat162float(l6a_b16[off]) : l6a_f32[off];
     };
-    const unsigned active_neurons = active_channels * 100u;
-    const int* g_start  = parameters.dev_pvfinder_interval_start + event_number * 42;
+    const unsigned active_neurons = active_channels * N_BINS_PER_CHANNEL;
+    const int* g_start  = parameters.dev_pvfinder_interval_start + event_number * CSR_STRIDE;
     const int  iv_begin = g_start[interval];
     const int  iv_end   = g_start[interval + 1];
     const int  n_local  = iv_end - iv_begin;
@@ -729,7 +744,7 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
             for (unsigned i = thread_id; i < active_neurons; i += blockDim.x) g_feat[i] = 0.0f;
         }
         float* g_hist = parameters.dev_pvfinder_output_histogram
-                        + event_number * 4000u + interval * 100u;
+                        + event_number * KDE_BINS + interval * N_BINS_PER_CHANNEL;
         for (int i = thread_id; i < 100; i += blockDim.x) g_hist[i] = 0.0f;
         return;
     }
@@ -744,8 +759,8 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     } else {
         ev_col_offset = 0;
         for (unsigned e = chunk_start; e < event_number; ++e) {
-            const int* g = parameters.dev_pvfinder_interval_start + e * 42;
-            ev_col_offset += (unsigned)g[41];
+            const int* g = parameters.dev_pvfinder_interval_start + e * CSR_STRIDE;
+            ev_col_offset += (unsigned)g[CSR_TOTAL];
         }
     }
 
@@ -857,7 +872,7 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
         __nv_bfloat16* g_feat = reinterpret_cast<__nv_bfloat16*>(static_cast<float*>(parameters.dev_pvfinder_interval_features))
                                 + (unsigned long long)row * L6A_WIDTH;
         for (unsigned i = thread_id; i < active_neurons; i += blockDim.x) {
-            const unsigned dst = features_format == 2 ? (i % 100u) * N_LATENT_CHANNELS + i / 100u : i;
+            const unsigned dst = features_format == 2 ? (i % N_BINS_PER_CHANNEL) * N_LATENT_CHANNELS + i / N_BINS_PER_CHANNEL : i;
             g_feat[dst] = __float2bfloat16(s_feat[i]);
         }
     } else if (row >= 0) {
@@ -870,7 +885,7 @@ __device__ __forceinline__ void pvfinder_reduce_l6a_process_slot(
     }
 
     float* g_hist = parameters.dev_pvfinder_output_histogram
-                    + event_number * 4000u + interval * 100u;
+                    + event_number * KDE_BINS + interval * N_BINS_PER_CHANNEL;
     for (int i = thread_id; i < 100; i += blockDim.x)
         g_hist[i] = s_hist[i] * weight;
 }
@@ -918,15 +933,15 @@ __global__ void pvfinder_reduce_l6a_kernel(
     bool l6a_bf16)                      // the GEMM output is bfloat16 (see m_l6a_dtype)
 {
     if constexpr (UseGridStride) {
-        const unsigned total_work = (chunk_end - chunk_start) * 40u;
+        const unsigned total_work = (chunk_end - chunk_start) * N_INTERVALS;
         __shared__ unsigned s_work_item;
         while (true) {
             if (threadIdx.x == 0) s_work_item = atomicAdd(work_counter, 1u);
             __syncthreads();
             const unsigned work_item = s_work_item;
             if (work_item >= total_work) break;
-            const unsigned rel_ev    = work_item / 40u;
-            const unsigned interval  = work_item % 40u;
+            const unsigned rel_ev    = work_item / N_INTERVALS;
+            const unsigned interval  = work_item % N_INTERVALS;
             const unsigned event_number = chunk_start + rel_ev;
             pvfinder_reduce_l6a_process_slot<UseAtomic, WarpParallelTracks, FuseBiasRelu,
                 PrecomputedOffset>(
@@ -937,8 +952,8 @@ __global__ void pvfinder_reduce_l6a_kernel(
     } else {
         // blockIdx.x indexes over (relative_event, interval) in this chunk.
         const unsigned n_chunk_events = chunk_end - chunk_start;
-        const unsigned rel_ev = blockIdx.x / 40u;
-        const unsigned interval = blockIdx.x % 40u;
+        const unsigned rel_ev = blockIdx.x / N_INTERVALS;
+        const unsigned interval = blockIdx.x % N_INTERVALS;
         if (rel_ev >= n_chunk_events) return;
         const unsigned event_number = chunk_start + rel_ev;
         pvfinder_reduce_l6a_process_slot<UseAtomic, WarpParallelTracks, FuseBiasRelu,
@@ -1070,11 +1085,11 @@ __global__ void __launch_bounds__(FUSED_BLOCK) pvfinder_fused_fc_kernel(
         __syncthreads();   // everyone has read s_item before thread 0 may overwrite it
         if (slot >= total) break;
         const unsigned ev = slot / N_INTERVALS, iv = slot % N_INTERVALS;
-        const int* g_start = parameters.dev_pvfinder_interval_start + ev * 42;
+        const int* g_start = parameters.dev_pvfinder_interval_start + ev * CSR_STRIDE;
         const int a = g_start[iv], n_local = g_start[iv + 1] - a;
         long long row = slot;
         if (slot_row != nullptr) row = slot_row[slot];
-        float* g_hist = parameters.dev_pvfinder_output_histogram + ev * 4000u + iv * 100u;
+        float* g_hist = parameters.dev_pvfinder_output_histogram + ev * KDE_BINS + iv * N_BINS_PER_CHANNEL;
 
         if (n_local == 0) {
             if (row >= 0) {
@@ -1209,7 +1224,7 @@ __global__ void __launch_bounds__(FUSED_BLOCK) pvfinder_fused_fc_kernel(
             if (features_format != 0) {
                 __nv_bfloat16* g = reinterpret_cast<__nv_bfloat16*>(static_cast<float*>(parameters.dev_pvfinder_interval_features)) + (unsigned long long)row * L6A_WIDTH;
                 for (unsigned i = tid; i < L6A_WIDTH; i += FUSED_BLOCK) {
-                    const unsigned dst = features_format == 2 ? (i % 100u) * N_LATENT_CHANNELS + i / 100u : i;
+                    const unsigned dst = features_format == 2 ? (i % N_BINS_PER_CHANNEL) * N_LATENT_CHANNELS + i / N_BINS_PER_CHANNEL : i;
                     g[dst] = __float2bfloat16(s_feat[i]);
                 }
             } else {
@@ -1303,14 +1318,14 @@ __global__ void __launch_bounds__(FW_THREADS) pvfinder_fused_fc_warp_kernel(
         }
         else {
             slot = item;
-            const int* g_start = parameters.dev_pvfinder_interval_start + (slot / N_INTERVALS) * 42;
+            const int* g_start = parameters.dev_pvfinder_interval_start + (slot / N_INTERVALS) * CSR_STRIDE;
             a = g_start[slot % N_INTERVALS];
             n_local = g_start[slot % N_INTERVALS + 1] - a;
             row = slot;
             if (slot_row != nullptr) row = slot_row[slot];
         }
         const unsigned ev = slot / N_INTERVALS, iv = slot % N_INTERVALS;
-        float* g_hist = parameters.dev_pvfinder_output_histogram + ev * 4000u + iv * 100u;
+        float* g_hist = parameters.dev_pvfinder_output_histogram + ev * KDE_BINS + iv * N_BINS_PER_CHANNEL;
 
         if (n_local == 0) {
             if (row >= 0) {
@@ -1323,7 +1338,7 @@ __global__ void __launch_bounds__(FW_THREADS) pvfinder_fused_fc_warp_kernel(
                     for (unsigned i = lane; i < L6A_WIDTH; i += 32u) g[i] = 0.0f;
                 }
             }
-            if (write_histogram) for (unsigned i = lane; i < 100u; i += 32u) g_hist[i] = 0.0f;
+            if (write_histogram) for (unsigned i = lane; i < N_BINS_PER_CHANNEL; i += 32u) g_hist[i] = 0.0f;
             continue;
         }
 
@@ -1392,7 +1407,7 @@ __global__ void __launch_bounds__(FW_THREADS) pvfinder_fused_fc_warp_kernel(
             if (features_format != 0) {
                 __nv_bfloat16* g = reinterpret_cast<__nv_bfloat16*>(static_cast<float*>(parameters.dev_pvfinder_interval_features)) + (unsigned long long)row * L6A_WIDTH;
                 for (unsigned i = lane; i < L6A_WIDTH; i += 32u) {
-                    const unsigned dst = features_format == 2 ? (i % 100u) * N_LATENT_CHANNELS + i / 100u : i;
+                    const unsigned dst = features_format == 2 ? (i % N_BINS_PER_CHANNEL) * N_LATENT_CHANNELS + i / N_BINS_PER_CHANNEL : i;
                     g[dst] = __float2bfloat16(s_feat[i]);
                 }
             } else {
@@ -1402,7 +1417,7 @@ __global__ void __launch_bounds__(FW_THREADS) pvfinder_fused_fc_warp_kernel(
         }
         if (write_histogram) {
             const float weight = 1.0f / n_local;
-            for (unsigned bin = lane; bin < 100u; bin += 32u) {
+            for (unsigned bin = lane; bin < N_BINS_PER_CHANNEL; bin += 32u) {
                 float chan_sum = 0.0f;
                 for (unsigned c = 0; c < N_LATENT_CHANNELS; ++c) chan_sum += s_feat[c * 100 + bin];
                 g_hist[bin] = pvfinder_softplus(chan_sum) * weight;
@@ -1569,14 +1584,14 @@ __global__ void __launch_bounds__(FT_THREADS, 2) pvfinder_fused_fc_tc_kernel(
         }
         else {
             slot = item;
-            const int* g_start = parameters.dev_pvfinder_interval_start + (slot / N_INTERVALS) * 42;
+            const int* g_start = parameters.dev_pvfinder_interval_start + (slot / N_INTERVALS) * CSR_STRIDE;
             a = g_start[slot % N_INTERVALS];
             n_local = g_start[slot % N_INTERVALS + 1] - a;
             row = slot;
             if (slot_row != nullptr) row = slot_row[slot];
         }
         const unsigned ev = slot / N_INTERVALS, iv = slot % N_INTERVALS;
-        float* g_hist = parameters.dev_pvfinder_output_histogram + ev * 4000u + iv * 100u;
+        float* g_hist = parameters.dev_pvfinder_output_histogram + ev * KDE_BINS + iv * N_BINS_PER_CHANNEL;
 
         if (n_local == 0) {
             if (row >= 0) {
@@ -1589,7 +1604,7 @@ __global__ void __launch_bounds__(FT_THREADS, 2) pvfinder_fused_fc_tc_kernel(
                     for (unsigned i = lane; i < L6A_WIDTH; i += 32u) g[i] = 0.0f;
                 }
             }
-            if (write_histogram) for (unsigned i = lane; i < 100u; i += 32u) g_hist[i] = 0.0f;
+            if (write_histogram) for (unsigned i = lane; i < N_BINS_PER_CHANNEL; i += 32u) g_hist[i] = 0.0f;
             continue;
         }
 
@@ -1737,7 +1752,7 @@ __global__ void __launch_bounds__(FT_THREADS, 2) pvfinder_fused_fc_tc_kernel(
                 s_feat[i] = sum;
             }
             if (write_histogram) {   // the whole slot's entries, for the histogram's weight
-                const int* g_start = parameters.dev_pvfinder_interval_start + ev * 42;
+                const int* g_start = parameters.dev_pvfinder_interval_start + ev * CSR_STRIDE;
                 n_local = g_start[iv + 1] - g_start[iv];
             }
         }
@@ -1748,7 +1763,7 @@ __global__ void __launch_bounds__(FT_THREADS, 2) pvfinder_fused_fc_tc_kernel(
             if (features_format != 0) {
                 __nv_bfloat16* g = reinterpret_cast<__nv_bfloat16*>(static_cast<float*>(parameters.dev_pvfinder_interval_features)) + (unsigned long long)row * L6A_WIDTH;
                 for (unsigned i = lane; i < L6A_WIDTH; i += 32u) {
-                    const unsigned dst = features_format == 2 ? (i % 100u) * N_LATENT_CHANNELS + i / 100u : i;
+                    const unsigned dst = features_format == 2 ? (i % N_BINS_PER_CHANNEL) * N_LATENT_CHANNELS + i / N_BINS_PER_CHANNEL : i;
                     g[dst] = __float2bfloat16(s_feat[i]);
                 }
             } else {
@@ -1758,7 +1773,7 @@ __global__ void __launch_bounds__(FT_THREADS, 2) pvfinder_fused_fc_tc_kernel(
         }
         if (write_histogram) {
             const float weight = 1.0f / n_local;
-            for (unsigned bin = lane; bin < 100u; bin += 32u) {
+            for (unsigned bin = lane; bin < N_BINS_PER_CHANNEL; bin += 32u) {
                 float chan_sum = 0.0f;
                 for (unsigned c = 0; c < N_LATENT_CHANNELS; ++c) chan_sum += s_feat[c * 100 + bin];
                 g_hist[bin] = pvfinder_softplus(chan_sum) * weight;
@@ -1778,33 +1793,38 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
     const unsigned total_events = first<host_number_of_events_t>(arguments);
     const unsigned unet_batch_events = m_unet_batch_events.value();
     if (unet_batch_events == 0) {
-        throw std::runtime_error("pvfinder_fc_aggregation: unet_batch_events must be >= 1");
+        throw StrException("pvfinder_fc_aggregation: unet_batch_events must be >= 1");
     }
     const unsigned padded_events = ((total_events + unet_batch_events - 1) / unet_batch_events) * unet_batch_events;
     const unsigned total_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
-    set_size<dev_pvfinder_output_histogram_t>  (arguments, total_events * 4000);
+    set_size<dev_pvfinder_output_histogram_t>  (arguments, total_events * KDE_BINS);
     set_size<dev_pvfinder_interval_features_t> (arguments, padded_events * INTERVAL_FEATURES_STRIDE);
     set_size<host_pvfinder_unet_rows_t>(arguments, 4);
-    #ifdef ALLEN_WITH_CUBLAS
+#ifdef ALLEN_WITH_CUBLAS
     set_size<dev_pvfinder_slot_row_t>(arguments, m_skip_empty_intervals.value() ? total_events * N_INTERVALS : 0u);
+    set_size<host_pvfinder_slot_row_t>(arguments, m_skip_empty_intervals.value() ? total_events * N_INTERVALS : 0u);
     set_size<dev_pvfinder_row_slot_t>(arguments, m_skip_empty_intervals.value() ? total_events * N_INTERVALS : 0u);
     // Work list (uint4 per item) and, for split slots, partial sums and arrival counters.
     const bool work_list = m_fc_fused.value() && m_fc_fused_per_warp.value() && m_fc_largest_first.value();
     const unsigned max_entries = total_tracks * 2u;
     const unsigned max_partial = max_entries * 2u / FT_CHUNK + 1u;
-    set_size<dev_pvfinder_slot_order_t>(arguments,
-        work_list ? (total_events * N_INTERVALS + max_entries / FT_CHUNK + 1u) * 4u : 0u);
+    const unsigned slot_order_words = work_list ? (total_events * N_INTERVALS + max_entries / FT_CHUNK + 1u) * 4u : 0u;
+    set_size<dev_pvfinder_slot_order_t>(arguments, slot_order_words);
+    set_size<host_pvfinder_slot_order_t>(arguments, slot_order_words);
     set_size<dev_pvfinder_fc_partial_t>(arguments, work_list ? max_partial * L6A_WIDTH : 0u);
     set_size<dev_pvfinder_fc_arrive_t>(arguments, work_list ? max_partial : 0u);
 #else
     set_size<dev_pvfinder_slot_row_t>(arguments, 0u);
+    set_size<host_pvfinder_slot_row_t>(arguments, 0u);
     set_size<dev_pvfinder_row_slot_t>(arguments, 0u);
     set_size<dev_pvfinder_slot_order_t>(arguments, 0u);
+    set_size<host_pvfinder_slot_order_t>(arguments, 0u);
     set_size<dev_pvfinder_fc_partial_t>(arguments, 0u);
     set_size<dev_pvfinder_fc_arrive_t>(arguments, 0u);
 #endif
     // CSR index buffers
-    set_size<dev_pvfinder_interval_start_t>(arguments, total_events * 42);
+    set_size<dev_pvfinder_interval_start_t>(arguments, total_events * CSR_STRIDE);
+    set_size<host_pvfinder_interval_start_t>(arguments, total_events * CSR_STRIDE);
     set_size<dev_pvfinder_track_idx_t>     (arguments, total_tracks  * 2);
     set_size<dev_pvfinder_track_features_t>(arguments, total_tracks * 9);
 #ifdef ALLEN_WITH_CUBLAS
@@ -1846,103 +1866,110 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
 
 void pvfinder_fc_aggregation_t::update(const Constants& constants) const { updateCommon(constants); }
 
+// Loads this instance's weights. Keys are namespaced by weight file, as in
+// pvfinder_unet: instances with the same file share one device copy,
+// instances with different files never collide.
+void pvfinder_fc_aggregation_t::init()
+{
+    const std::string path = m_weight_file.value();
+    if (path.empty()) {
+        throw StrException(
+            "pvfinder_fc_aggregation: weight_file is not set. Produce weights with the repository's "
+            "weights/ pipeline (make -C weights verify MODEL=<name>) and generate the sequence "
+            "configuration with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
+    }
+    auto& registry = PVFinder::WeightRegistry::instance();
+    const std::string ns = "pvfinder_fc:" + path + ":";
+    if (!registry.contains(ns + "weights")) {
+        std::ifstream f(path, std::ios::binary | std::ios::ate);
+        if (!f.is_open()) {
+            throw StrException("Cannot open " + path);
+        }
+        const size_t bytes = static_cast<size_t>(f.tellg());
+        f.seekg(0);
+        std::vector<char> host_buf(bytes);
+        f.read(host_buf.data(), bytes);
+
+        // Validate the file size, then (non-cuBLAS builds only, see below)
+        // transpose L6A weights from [l6a_rows][20] to [20][l6a_rows].
+        // Offset to w6A is: 180+20 + 400+20 + 400+20 + 400+20 + 400+20 = 1880 floats
+        // (layer1: 9*20+20=200; layer2-5: (20*20+20)*4=1680; fixed regardless
+        // of latentChannels, only layer6A's own size varies with it).
+        //
+        // l6a_rows is intentionally NOT inferred from the file's own byte
+        // size: an inferred value could silently disagree with L6A_WIDTH,
+        // which every other kernel/buffer in this file derives at compile
+        // time from N_LATENT_CHANNELS -- reading/writing as if the file
+        // had a different row count than the build expects would
+        // corrupt or misalign downstream data. The loader validates that
+        // the file size matches this build's L6A_WIDTH exactly and reports
+        // a mismatch before transposing. A mismatch here means
+        // this build's --unet-batch-channels doesn't match the weight
+        // file's latentChannels; rebuild to match, or use a matching
+        // weight file, rather than silently running an inconsistent pair.
+        constexpr size_t kFixedFloats = 1880;      // layers 1-5, always this size
+        constexpr size_t kFloatsPerL6ARow = 21;    // 20 weight + 1 bias, per row
+        constexpr size_t kExpectedL6ARows = L6A_WIDTH;
+        constexpr size_t kExpectedTotalFloats = kFixedFloats + kExpectedL6ARows * kFloatsPerL6ARow;
+        const size_t total_floats = bytes / sizeof(float);
+        if (total_floats != kExpectedTotalFloats) {
+            throw StrException(
+                "fc_weights file " + path + " has " + std::to_string(total_floats) +
+                " floats, but this build expects " + std::to_string(kExpectedTotalFloats) +
+                " (fixed layer1-5 block of " + std::to_string(kFixedFloats) +
+                " floats + " + std::to_string(kExpectedL6ARows) + " L6A rows of " +
+                std::to_string(kFloatsPerL6ARow) + " floats each, i.e. N_LATENT_CHANNELS=" +
+                std::to_string(N_LATENT_CHANNELS) + "). This usually means the weight "
+                "file's latentChannels doesn't match this build's "
+                "PVFINDER_UNET_N_BATCH_CHANNELS (--unet-batch-channels) -- rebuild to "
+                "match the weight file, or use a weight file matching this build.");
+        }
+#ifndef ALLEN_WITH_CUBLAS
+        // The file stores W6A row-major [L6A_WIDTH x 20] (PyTorch's own
+        // layout, as written by weights/scripts/convert.py). Only the
+        // non-cuBLAS fallback kernel wants it transposed: it indexes
+        // w6A[m * L6A_WIDTH + neuron]. The cuBLAS SGEMM below
+        // (CUBLAS_OP_T, lda=20) reads the row-major file layout directly;
+        // transposing for it as well scrambles layer 6A without any size
+        // error (weights/scripts/validate_fc.py detects this).
+        const size_t l6a_rows = kExpectedL6ARows;
+        const size_t l6a_weight_floats = l6a_rows * 20;
+
+        float* floats = reinterpret_cast<float*>(host_buf.data());
+        std::vector<float> w6A_transposed(l6a_weight_floats);
+        for (size_t r = 0; r < l6a_rows; ++r) {
+            for (int c = 0; c < 20; ++c) {
+                w6A_transposed[c * l6a_rows + r] = floats[kFixedFloats + r * 20 + c];
+            }
+        }
+        std::memcpy(floats + kFixedFloats, w6A_transposed.data(), l6a_weight_floats * sizeof(float));
+#endif
+
+        registry.load_from_buffer(ns + "weights", host_buf.data(), bytes);
+#ifdef ALLEN_WITH_CUBLAS
+        // Rounded copy of W6A (row-major, as in the file) for the
+        // bfloat16 GEMM (see m_l6a_dtype); 32 KB, unused otherwise.
+        {
+            const float* w6A_host = reinterpret_cast<const float*>(host_buf.data()) + kFixedFloats;
+            std::vector<__nv_bfloat16> w6A_bf16(L6A_WEIGHT_FLOATS);
+            for (size_t i = 0; i < L6A_WEIGHT_FLOATS; ++i) w6A_bf16[i] = __float2bfloat16(w6A_host[i]);
+            registry.load_from_buffer(ns + "w6a_bf16", w6A_bf16.data(), w6A_bf16.size() * sizeof(__nv_bfloat16));
+        }
+#endif
+    }
+    m_dev_weights = registry.get<float>(ns + "weights");
+#ifdef ALLEN_WITH_CUBLAS
+    m_dev_w6a_bf16 = registry.get<__nv_bfloat16>(ns + "w6a_bf16");
+#endif
+}
+
 void pvfinder_fc_aggregation_t::operator()(
     const ArgumentReferences<Parameters>& arguments,
     const RuntimeOptions&,
     const Constants&,
     const Allen::Context& context) const
 {
-    static std::once_flag flag;
-    const std::string weight_file_path = m_weight_file.value();
-    if (weight_file_path.empty()) {
-        throw std::runtime_error(
-            "pvfinder_fc_aggregation: weight_file is not set. Produce weights with the repository's "
-            "weights/ pipeline (make -C weights verify MODEL=<name>) and generate the sequence "
-            "configuration with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
-    }
-    std::call_once(flag, [&weight_file_path]() {
-        if (!PVFinder::WeightRegistry::instance().contains("fc_weights")) {
-            std::string path = weight_file_path;
-            std::ifstream f(path, std::ios::binary | std::ios::ate);
-            if (!f.is_open()) {
-                throw std::runtime_error("Cannot open " + path);
-            }
-            const size_t bytes = static_cast<size_t>(f.tellg());
-            f.seekg(0);
-            std::vector<char> host_buf(bytes);
-            f.read(host_buf.data(), bytes);
-
-            // Validate the file size, then (non-cuBLAS builds only, see below)
-            // transpose L6A weights from [l6a_rows][20] to [20][l6a_rows].
-            // Offset to w6A is: 180+20 + 400+20 + 400+20 + 400+20 + 400+20 = 1880 floats
-            // (layer1: 9*20+20=200; layer2-5: (20*20+20)*4=1680; fixed regardless
-            // of latentChannels, only layer6A's own size varies with it).
-            //
-            // l6a_rows is intentionally NOT inferred from the file's own byte
-            // size: an inferred value could silently disagree with L6A_WIDTH,
-            // which every other kernel/buffer in this file derives at compile
-            // time from N_LATENT_CHANNELS -- reading/writing as if the file
-            // had a different row count than the build expects would
-            // corrupt or misalign downstream data. The loader validates that
-            // the file size matches this build's L6A_WIDTH exactly and reports
-            // a mismatch before transposing. A mismatch here means
-            // this build's --unet-batch-channels doesn't match the weight
-            // file's latentChannels; rebuild to match, or use a matching
-            // weight file, rather than silently running an inconsistent pair.
-            constexpr size_t kFixedFloats = 1880;      // layers 1-5, always this size
-            constexpr size_t kFloatsPerL6ARow = 21;    // 20 weight + 1 bias, per row
-            constexpr size_t kExpectedL6ARows = L6A_WIDTH;
-            constexpr size_t kExpectedTotalFloats = kFixedFloats + kExpectedL6ARows * kFloatsPerL6ARow;
-            const size_t total_floats = bytes / sizeof(float);
-            if (total_floats != kExpectedTotalFloats) {
-                throw std::runtime_error(
-                    "fc_weights file " + path + " has " + std::to_string(total_floats) +
-                    " floats, but this build expects " + std::to_string(kExpectedTotalFloats) +
-                    " (fixed layer1-5 block of " + std::to_string(kFixedFloats) +
-                    " floats + " + std::to_string(kExpectedL6ARows) + " L6A rows of " +
-                    std::to_string(kFloatsPerL6ARow) + " floats each, i.e. N_LATENT_CHANNELS=" +
-                    std::to_string(N_LATENT_CHANNELS) + "). This usually means the weight "
-                    "file's latentChannels doesn't match this build's "
-                    "PVFINDER_UNET_N_BATCH_CHANNELS (--unet-batch-channels) -- rebuild to "
-                    "match the weight file, or use a weight file matching this build.");
-            }
-#ifndef ALLEN_WITH_CUBLAS
-            // The file stores W6A row-major [L6A_WIDTH x 20] (PyTorch's own
-            // layout, as written by weights/scripts/convert.py). Only the
-            // non-cuBLAS fallback kernel wants it transposed: it indexes
-            // w6A[m * L6A_WIDTH + neuron]. The cuBLAS SGEMM below
-            // (CUBLAS_OP_T, lda=20) reads the row-major file layout directly;
-            // transposing for it as well scrambles layer 6A without any size
-            // error (weights/scripts/validate_fc.py detects this).
-            const size_t l6a_rows = kExpectedL6ARows;
-            const size_t l6a_weight_floats = l6a_rows * 20;
-
-            float* floats = reinterpret_cast<float*>(host_buf.data());
-            std::vector<float> w6A_transposed(l6a_weight_floats);
-            for (size_t r = 0; r < l6a_rows; ++r) {
-                for (int c = 0; c < 20; ++c) {
-                    w6A_transposed[c * l6a_rows + r] = floats[kFixedFloats + r * 20 + c];
-                }
-            }
-            std::memcpy(floats + kFixedFloats, w6A_transposed.data(), l6a_weight_floats * sizeof(float));
-#endif
-
-            PVFinder::WeightRegistry::instance().load_from_buffer(
-                "fc_weights", host_buf.data(), bytes);
-#ifdef ALLEN_WITH_CUBLAS
-            // Rounded copy of W6A (row-major, as in the file) for the
-            // bfloat16 GEMM (see m_l6a_dtype); 32 KB, unused otherwise.
-            {
-                const float* w6A_host = reinterpret_cast<const float*>(host_buf.data()) + kFixedFloats;
-                std::vector<__nv_bfloat16> w6A_bf16(L6A_WEIGHT_FLOATS);
-                for (size_t i = 0; i < L6A_WEIGHT_FLOATS; ++i) w6A_bf16[i] = __float2bfloat16(w6A_host[i]);
-                PVFinder::WeightRegistry::instance().load_from_buffer(
-                    "fc_w6a_bf16", w6A_bf16.data(), w6A_bf16.size() * sizeof(__nv_bfloat16));
-            }
-#endif
-        }
-    });
-    const float* dev_weights = PVFinder::WeightRegistry::instance().get<float>("fc_weights");
+    const float* dev_weights = m_dev_weights;
 
     const unsigned n_events = first<host_number_of_events_t>(arguments);
 
@@ -1976,16 +2003,16 @@ void pvfinder_fc_aggregation_t::operator()(
     // Storage type of the interval features for the UNet (see m_unet_input_dtype).
     const std::string& input_dtype = m_unet_input_dtype.value();
     if (input_dtype != "float32" && input_dtype != "bfloat16") {
-        throw std::runtime_error("pvfinder_fc_aggregation: unet_input_dtype must be float32 or bfloat16, got '" +
+        throw StrException("pvfinder_fc_aggregation: unet_input_dtype must be float32 or bfloat16, got '" +
                                  input_dtype + "'");
     }
     const std::string& input_layout = m_unet_input_layout.value();
     if (input_layout != "ncw" && input_layout != "nwc") {
-        throw std::runtime_error("pvfinder_fc_aggregation: unet_input_layout must be ncw or nwc, got '" +
+        throw StrException("pvfinder_fc_aggregation: unet_input_layout must be ncw or nwc, got '" +
                                  input_layout + "'");
     }
     if (input_layout == "nwc" && input_dtype != "bfloat16") {
-        throw std::runtime_error("pvfinder_fc_aggregation: unet_input_layout = nwc needs unet_input_dtype = bfloat16");
+        throw StrException("pvfinder_fc_aggregation: unet_input_layout = nwc needs unet_input_dtype = bfloat16");
     }
 #ifdef ALLEN_WITH_CUBLAS
     const bool features_bf16 = input_dtype == "bfloat16";
@@ -2016,7 +2043,7 @@ void pvfinder_fc_aggregation_t::operator()(
             cudaMemsetAsync(
                 data<dev_pvfinder_output_histogram_t>(arguments),
                 0,
-                n_events * 4000u * sizeof(float),
+                n_events * KDE_BINS * sizeof(float),
                 context.stream());
         }
     } else if (skip_redundant_memset) {
@@ -2042,7 +2069,7 @@ void pvfinder_fc_aggregation_t::operator()(
         cudaMemsetAsync(
             data<dev_pvfinder_output_histogram_t>(arguments),
             0,
-            n_events * 4000u * sizeof(float),
+            n_events * KDE_BINS * sizeof(float),
             context.stream());
     }
 
@@ -2056,31 +2083,18 @@ void pvfinder_fc_aggregation_t::operator()(
     // A single transfer avoids per-event synchronization.
     //
     // Flow:
-    //   1. cudaStreamSynchronize  — wait for CSR kernel (once per slice)
+    //   1. Allen::synchronize     — wait for CSR kernel (once per slice)
     //   2. cudaMemcpy DtoH        — copy all CSR offsets at once (~16 KB)
     //   3. Host arithmetic        — compute T_chunk[i] for each chunk
     //   4. Per-chunk kernel loop  — no further DtoH on the hot path
     // -----------------------------------------------------------------------
     // Single batch DtoH: copy all event CSR offset arrays to host, on this
-    // sequence's stream into pinned memory, then wait for that stream only.
-    // (A plain cudaMemcpy runs on the legacy default stream, which Allen's
-    // blocking streams all synchronise with: every slice then drained the
-    // whole device, a cost that grows with the number of streams.)
-    const unsigned csr_words = n_events * 42u;
-    thread_local int* tl_host_csr = nullptr;
-    thread_local size_t tl_host_csr_words = 0;
-    if (csr_words > tl_host_csr_words) {
-        if (tl_host_csr != nullptr) cudaFreeHost(tl_host_csr);
-        tl_host_csr_words = std::max<size_t>(csr_words, 2 * tl_host_csr_words);
-        cudaCheck(cudaMallocHost(&tl_host_csr, tl_host_csr_words * sizeof(int)));
-    }
-    cudaMemcpyAsync(tl_host_csr,
-                    data<dev_pvfinder_interval_start_t>(arguments),
-                    csr_words * sizeof(int),
-                    cudaMemcpyDeviceToHost,
-                    context.stream());
-    cudaStreamSynchronize(context.stream());
-    const int* host_csr = tl_host_csr;
+    // sequence's stream into Allen's (pinned) host memory, then wait for that
+    // stream only. (A plain cudaMemcpy runs on the legacy default stream,
+    // which Allen's blocking streams all synchronise with: every slice then
+    // drained the whole device, a cost that grows with the number of streams.)
+    Allen::copy<host_pvfinder_interval_start_t, dev_pvfinder_interval_start_t>(arguments, context);
+    const int* host_csr = data<host_pvfinder_interval_start_t>(arguments);
 
     // Compact rows for the UNet (see m_skip_empty_intervals): intervals with
     // at least min_interval_tracks tracks get consecutive rows, in (event,
@@ -2093,24 +2107,22 @@ void pvfinder_fc_aggregation_t::operator()(
     if (compact) {
         const unsigned min_tracks = m_min_interval_tracks.value();
         if (min_tracks == 0) {
-            throw std::runtime_error("pvfinder_fc_aggregation: min_interval_tracks must be >= 1");
+            throw StrException("pvfinder_fc_aggregation: min_interval_tracks must be >= 1");
         }
         const unsigned n_slots = n_events * N_INTERVALS;
-        thread_local std::vector<int> host_slot_row;
-        host_slot_row.resize(n_slots);
+        int* host_slot_row = data<host_pvfinder_slot_row_t>(arguments);
         int next_row = 0;
         for (unsigned ev = 0; ev < n_events; ++ev) {
-            const int* start = host_csr + ev * 42u;
+            const int* start = host_csr + ev * CSR_STRIDE;
             for (unsigned iv = 0; iv < N_INTERVALS; ++iv) {
                 const bool keep = (unsigned)(start[iv + 1] - start[iv]) >= min_tracks;
                 host_slot_row[ev * N_INTERVALS + iv] = keep ? next_row++ : -1;
             }
         }
         host_unet_rows[1] = (unsigned)next_row;
-        cudaMemcpyAsync(data<dev_pvfinder_slot_row_t>(arguments), host_slot_row.data(),
-                        n_slots * sizeof(int), cudaMemcpyHostToDevice, context.stream());
+        Allen::copy_async<dev_pvfinder_slot_row_t, host_pvfinder_slot_row_t>(arguments, context, n_slots);
         slot_row = data<dev_pvfinder_slot_row_t>(arguments);
-        host_slot_row_ptr = host_slot_row.data();
+        host_slot_row_ptr = host_slot_row;
 
         // The UNet reads whole batches of unet_batch_events * 40 rows: zero
         // the rows past the last one in use, so it never reads stale data.
@@ -2161,7 +2173,7 @@ void pvfinder_fc_aggregation_t::operator()(
     // when it writes bfloat16 features for the UNet and the device has them.
     const std::string& l6a_dtype = m_l6a_dtype.value();
     if (l6a_dtype != "float32" && l6a_dtype != "bfloat16" && l6a_dtype != "auto") {
-        throw std::runtime_error("pvfinder_fc_aggregation: l6a_dtype must be float32, bfloat16 or auto, got '" +
+        throw StrException("pvfinder_fc_aggregation: l6a_dtype must be float32, bfloat16 or auto, got '" +
                                  l6a_dtype + "'");
     }
     thread_local int tl_cc_major = -1;
@@ -2177,15 +2189,15 @@ void pvfinder_fc_aggregation_t::operator()(
     // Layers 2-5 on tensor cores too (see m_fc_hidden_dtype); "auto" follows L6A.
     const std::string& hidden_dtype = m_fc_hidden_dtype.value();
     if (hidden_dtype != "float32" && hidden_dtype != "bfloat16" && hidden_dtype != "auto") {
-        throw std::runtime_error("pvfinder_fc_aggregation: fc_hidden_dtype must be float32, bfloat16 or auto, got '" +
+        throw StrException("pvfinder_fc_aggregation: fc_hidden_dtype must be float32, bfloat16 or auto, got '" +
                                  hidden_dtype + "'");
     }
     const bool hidden_tensor_cores = fused_tensor_cores && m_fc_fused_per_warp.value() && hidden_dtype != "float32";
     if (l6a_bf16 && !use_fused_bias_relu) {
-        throw std::runtime_error("pvfinder_fc_aggregation: l6a_dtype = bfloat16 needs use_fused_bias_relu_reduce = true");
+        throw StrException("pvfinder_fc_aggregation: l6a_dtype = bfloat16 needs use_fused_bias_relu_reduce = true");
     }
     const __nv_bfloat16* w6A_bf16 =
-        l6a_bf16 ? PVFinder::WeightRegistry::instance().get<__nv_bfloat16>("fc_w6a_bf16") : nullptr;
+        l6a_bf16 ? static_cast<const __nv_bfloat16*>(m_dev_w6a_bf16) : nullptr;
     // Every chunk's cumulative per-event column offsets, one (B_CHUNK + 1)
     // block per chunk, uploaded in one copy now, while the stream is idle
     // after the CSR readback. (Uploading each chunk's block from pageable
@@ -2200,7 +2212,7 @@ void pvfinder_fc_aggregation_t::operator()(
             unsigned running = 0;
             const unsigned first = c * B_CHUNK, last = std::min(first + B_CHUNK, n_events);
             for (unsigned ev = first; ev < last; ++ev) {
-                running += (unsigned)host_csr[ev * 42 + 41];
+                running += (unsigned)host_csr[ev * CSR_STRIDE + CSR_TOTAL];
                 host_col_offset[(size_t)c * col_offset_stride + ev - first + 1] = running;
             }
         }
@@ -2244,30 +2256,23 @@ void pvfinder_fc_aggregation_t::operator()(
         const bool with_empty = !compact || write_histogram;
         const int chunk = fused_tensor_cores ? (int) FT_CHUNK : std::numeric_limits<int>::max();
         size_t total_entries = 0;
-        for (unsigned ev = 0; ev < n_events; ++ev) total_entries += (size_t) host_csr[ev * 42u + 41];
+        for (unsigned ev = 0; ev < n_events; ++ev) total_entries += (size_t) host_csr[ev * CSR_STRIDE + CSR_TOTAL];
         const size_t capacity = n_slots + total_entries / FT_CHUNK + 1;
         if (capacity * 4u > size<dev_pvfinder_slot_order_t>(arguments)) {
-            throw std::runtime_error("pvfinder_fc_aggregation: FC work list larger than its buffer");
+            throw StrException("pvfinder_fc_aggregation: FC work list larger than its buffer");
         }
-        thread_local uint4* tl_items = nullptr;
-        thread_local size_t tl_items_size = 0;
-        if (capacity > tl_items_size) {
-            if (tl_items != nullptr) cudaFreeHost(tl_items);
-            tl_items_size = std::max<size_t>(capacity, 2 * tl_items_size);
-            cudaCheck(cudaMallocHost(&tl_items, tl_items_size * sizeof(uint4)));
-        }
+        uint4* items = reinterpret_cast<uint4*>(data<host_pvfinder_slot_order_t>(arguments));
         // Item sizes are at most max_size; bucket by max_size - size.
         int max_size = 0;
         for (unsigned ev = 0; ev < n_events; ++ev)
             for (unsigned iv = 0; iv < N_INTERVALS; ++iv)
-                max_size = std::max(max_size, std::min(chunk, host_csr[ev * 42u + iv + 1] - host_csr[ev * 42u + iv]));
-        thread_local std::vector<unsigned> bucket;
-        bucket.assign((size_t) max_size + 2, 0u);
+                max_size = std::max(max_size, std::min(chunk, host_csr[ev * CSR_STRIDE + iv + 1] - host_csr[ev * CSR_STRIDE + iv]));
+        std::vector<unsigned> bucket((size_t) max_size + 2, 0u);
         const auto for_each_item = [&](auto&& f) {
             unsigned next_partial = 0;
             for (unsigned ev = 0; ev < n_events; ++ev) {
                 for (unsigned iv = 0; iv < N_INTERVALS; ++iv) {
-                    const int first = host_csr[ev * 42u + iv], n = host_csr[ev * 42u + iv + 1] - first;
+                    const int first = host_csr[ev * CSR_STRIDE + iv], n = host_csr[ev * CSR_STRIDE + iv + 1] - first;
                     if (n == 0 && !with_empty) continue;
                     const unsigned n_chunks = n > chunk ? (unsigned) ((n + chunk - 1) / chunk) : 1u;   // <= 32 (2047 / 64)
                     const unsigned pbase = n_chunks > 1 ? next_partial : 0u;
@@ -2286,20 +2291,19 @@ void pvfinder_fc_aggregation_t::operator()(
         const unsigned n_partial = for_each_item([&](unsigned slot, int first, int size, unsigned c, unsigned n_chunks,
                                                      unsigned pbase) {
             const int row = host_slot_row_ptr != nullptr ? host_slot_row_ptr[slot] : (int) slot;
-            tl_items[bucket[max_size - size]++] = make_uint4(
+            items[bucket[max_size - size]++] = make_uint4(
                 slot, (unsigned) first | (pbase << 11), (unsigned) size | (c << 12) | (n_chunks << 18), (unsigned) row);
         });
         for (unsigned ev = 0; ev < n_events; ++ev) {   // entries, chunks and first entry fit their fields
-            if (host_csr[ev * 42u + 41] > 0x7ff) {
-                throw std::runtime_error("pvfinder_fc_aggregation: more than 2047 CSR entries in an event");
+            if (host_csr[ev * CSR_STRIDE + CSR_TOTAL] > 0x7ff) {
+                throw StrException("pvfinder_fc_aggregation: more than 2047 CSR entries in an event");
             }
         }
         if (n_partial > (1u << 21) || (size_t) n_partial > size<dev_pvfinder_fc_arrive_t>(arguments)) {
-            throw std::runtime_error("pvfinder_fc_aggregation: too many split FC slots for the partial-sum buffer");
+            throw StrException("pvfinder_fc_aggregation: too many split FC slots for the partial-sum buffer");
         }
         if (n_items > 0) {
-            cudaMemcpyAsync(data<dev_pvfinder_slot_order_t>(arguments), tl_items, n_items * sizeof(uint4),
-                            cudaMemcpyHostToDevice, context.stream());
+            Allen::copy_async<dev_pvfinder_slot_order_t, host_pvfinder_slot_order_t>(arguments, context, n_items * 4u);
         }
         if (n_partial > 0) {
             cudaMemsetAsync(data<dev_pvfinder_fc_arrive_t>(arguments), 0, n_partial * sizeof(unsigned), context.stream());
@@ -2320,7 +2324,7 @@ void pvfinder_fc_aggregation_t::operator()(
             cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, device_id);
             cudaDeviceGetAttribute(&cc_major, cudaDevAttrComputeCapabilityMajor, device_id);
             if (fused_tensor_cores && cc_major < 8) {
-                throw std::runtime_error("pvfinder_fc_aggregation: l6a_dtype = bfloat16 with fc_fused needs "
+                throw StrException("pvfinder_fc_aggregation: l6a_dtype = bfloat16 with fc_fused needs "
                                          "bfloat16 tensor cores (compute capability 8.0 or newer)");
             }
             if (fused_tensor_cores)
@@ -2402,7 +2406,7 @@ void pvfinder_fc_aggregation_t::operator()(
         // Compute T_chunk from the already-copied host array — NO device reads here.
         unsigned T_chunk = 0;
         for (unsigned ev = chunk_start; ev < chunk_end; ++ev) {
-            T_chunk += (unsigned)host_csr[ev * 42 + 41];  // sentinel = total CSR entries
+            T_chunk += (unsigned)host_csr[ev * CSR_STRIDE + CSR_TOTAL];  // sentinel = total CSR entries
         }
         if (T_chunk == 0) { csr_col_offset += T_chunk; continue; }
 
@@ -2479,7 +2483,7 @@ void pvfinder_fc_aggregation_t::operator()(
 
         // --- Kernel 3: reduce L6A → interval features + histogram ---
         const unsigned n_chunk_events = chunk_end - chunk_start;
-        const unsigned grid_blocks = n_chunk_events * 40u;
+        const unsigned grid_blocks = n_chunk_events * N_INTERVALS;
 
         if (use_grid_stride_reduce) {
             // Only supported combined with warp_parallel_reduce +
@@ -2544,7 +2548,7 @@ void pvfinder_fc_aggregation_t::operator()(
     // Step 3: Launch aggregation over all (event, interval) pairs.
     // -----------------------------------------------------------------------
     global_function(pvfinder_fused_fc_aggregation_kernel)(
-        dim3(n_events, 40), m_block_dim, context)(
+        dim3(n_events, N_INTERVALS), m_block_dim, context)(
         arguments, dev_weights);
 
 #endif  // ALLEN_WITH_CUBLAS
@@ -2558,15 +2562,15 @@ void pvfinder_fc_aggregation_t::operator()(
     // -----------------------------------------------------------------------
     const std::string& dump_dir = m_dump_dir.value();
     if (!dump_dir.empty() && !m_dump_done) {
-        cudaStreamSynchronize(context.stream());
+        Allen::synchronize(context);
         const unsigned n_ev  = first<host_number_of_events_t>(arguments);
         const unsigned n_trk = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
 
-        std::vector<int>      h_csr(n_ev * 42u);
+        std::vector<int>      h_csr(n_ev * CSR_STRIDE);
         std::vector<int>      h_idx(n_trk * 2u);
         std::vector<float>    h_feat(n_trk * 9u);
         std::vector<float>    h_ifeat((size_t)n_ev * INTERVAL_FEATURES_STRIDE);
-        std::vector<float>    h_hist(n_ev * 4000u);
+        std::vector<float>    h_hist(n_ev * KDE_BINS);
         std::vector<Allen::Views::Velo::Consolidated::Tracks> h_views(n_ev);
         cudaMemcpy(h_csr.data(), data<dev_pvfinder_interval_start_t>(arguments),
                    h_csr.size() * sizeof(int), cudaMemcpyDeviceToHost);
@@ -2634,7 +2638,7 @@ void pvfinder_fc_aggregation_t::operator()(
             cudaCheck(cudaMalloc(&d_beamline, 5 * sizeof(float)));
             global_function(pvfinder_dump_states_kernel)(dim3(n_ev), dim3(128), context)(
                 arguments, d_states, d_beamline);
-            cudaStreamSynchronize(context.stream());
+            Allen::synchronize(context);
             std::vector<float> h_states((size_t) n_trk * 6), h_beamline(5);
             cudaMemcpy(h_states.data(), d_states, h_states.size() * sizeof(float), cudaMemcpyDeviceToHost);
             cudaMemcpy(h_beamline.data(), d_beamline, 5 * sizeof(float), cudaMemcpyDeviceToHost);
@@ -2643,10 +2647,38 @@ void pvfinder_fc_aggregation_t::operator()(
             write_dump("allen_fc_track_states.bin", h_states.data(), h_states.size() * sizeof(float));
             write_dump("allen_fc_beamline.bin", h_beamline.data(), h_beamline.size() * sizeof(float));
         }
-        printf("[pvfinder_fc_aggregation] validation dump written to %s (%u events, %u tracks)\n",
-               dump_dir.c_str(), n_ev, n_trk);
+        info_cout << "[pvfinder_fc_aggregation] validation dump written to " << dump_dir << " (" << n_ev
+                  << " events, " << n_trk << " tracks)\n";
         m_dump_done = true;
     }
 }
 
 } // namespace pvfinder_fc_aggregation
+
+#else
+
+void pvfinder_fc_aggregation::pvfinder_fc_aggregation_t::set_arguments_size(
+  ArgumentReferences<Parameters>,
+  const RuntimeOptions&,
+  const Constants&) const
+{
+  throw StrException("pvfinder_fc_aggregation is only available in CUDA builds");
+}
+
+void pvfinder_fc_aggregation::pvfinder_fc_aggregation_t::operator()(
+  const ArgumentReferences<Parameters>&,
+  const RuntimeOptions&,
+  const Constants&,
+  const Allen::Context&) const
+{
+  throw StrException("pvfinder_fc_aggregation is only available in CUDA builds");
+}
+
+void pvfinder_fc_aggregation::pvfinder_fc_aggregation_t::update(const Constants&) const {}
+
+void pvfinder_fc_aggregation::pvfinder_fc_aggregation_t::init()
+{
+  throw StrException("pvfinder_fc_aggregation is only available in CUDA builds");
+}
+
+#endif // TARGET_DEVICE_CUDA

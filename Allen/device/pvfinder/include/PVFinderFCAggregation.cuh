@@ -1,8 +1,19 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
 #pragma once
 
 #include "VeloConsolidated.cuh"
 #include "AlgorithmTypes.cuh"
 #include "ParticleTypes.cuh"
+#include "PVFinderConstants.cuh"
 
 namespace pvfinder_fc_aggregation {
 
@@ -19,8 +30,14 @@ constexpr unsigned N_LATENT_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
 #else
 constexpr unsigned N_LATENT_CHANNELS = 8u;
 #endif
-constexpr unsigned N_BINS_PER_CHANNEL = 100u;
-constexpr unsigned N_INTERVALS = 40u;
+constexpr unsigned N_BINS_PER_CHANNEL = PVFinderConstants::KDE::n_bins_per_interval;
+constexpr unsigned N_INTERVALS = PVFinderConstants::KDE::n_intervals;
+// KDE bins per event (dev_pvfinder_output_histogram stride).
+constexpr unsigned KDE_BINS = PVFinderConstants::KDE::n_bins;
+// dev_pvfinder_interval_start per event: the start of each interval's entries,
+// the end of the last one, and a copy of it at CSR_TOTAL (entries in the event).
+constexpr unsigned CSR_STRIDE = N_INTERVALS + 2u;
+constexpr unsigned CSR_TOTAL = N_INTERVALS + 1u;
 // L6A's physical width: one neuron per (channel, bin) pair. 800 by default.
 constexpr unsigned L6A_WIDTH = N_LATENT_CHANNELS * N_BINS_PER_CHANNEL;
 // Layer6A's weight matrix is [L6A_WIDTH x 20]; 16000 floats by default.
@@ -55,6 +72,9 @@ struct Parameters {
     //   track_idx[total_tracks * 2]:   track indices sorted by interval (boundary tracks appear twice)
     DEVICE_OUTPUT(dev_pvfinder_interval_start_t, int) dev_pvfinder_interval_start;
     DEVICE_OUTPUT(dev_pvfinder_track_idx_t,      int) dev_pvfinder_track_idx;
+    // Host copy of dev_pvfinder_interval_start, read back once per slice to
+    // size the FC work and build the UNet's compact rows.
+    HOST_OUTPUT(host_pvfinder_interval_start_t, int) host_pvfinder_interval_start;
     // cuBLAS L6A GEMM intermediate buffers — sized per chunk, reused across chunks.
     //   dev_pvfinder_l5_output: L1-L5 hidden states, shape [T_chunk_max × 20] row-major.
     //   dev_pvfinder_l6a_output: raw L6A GEMM output, shape [L6A_WIDTH × T_chunk_max] col-major (cuBLAS layout, L6A_WIDTH=800 by default).
@@ -86,6 +106,8 @@ struct Parameters {
     //       interval's row, or -1 when the UNet skips it
     HOST_OUTPUT(host_pvfinder_unet_rows_t, unsigned) host_pvfinder_unet_rows;
     DEVICE_OUTPUT(dev_pvfinder_slot_row_t, int) dev_pvfinder_slot_row;
+    // Built on the host from host_pvfinder_interval_start, then uploaded.
+    HOST_OUTPUT(host_pvfinder_slot_row_t, int) host_pvfinder_slot_row;
     // Its inverse, compact only: dev_pvfinder_row_slot[row] = event * 40 +
     // interval, written by the FC kernels with the row's features (the fused
     // UNet writes each row's KDE straight to its slot with it).
@@ -94,6 +116,7 @@ struct Parameters {
     // uint4 {slot, first CSR entry, entries, feature row} by decreasing
     // entries, 4 words per slot.
     DEVICE_OUTPUT(dev_pvfinder_slot_order_t, unsigned) dev_pvfinder_slot_order;
+    HOST_OUTPUT(host_pvfinder_slot_order_t, unsigned) host_pvfinder_slot_order;
     // Split slots of the tensor-core fused FC: partial sums per chunk
     // [rows][L6A_WIDTH] and, per split slot, the number of chunks done.
     DEVICE_OUTPUT(dev_pvfinder_fc_partial_t, float) dev_pvfinder_fc_partial;
@@ -111,6 +134,9 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
 
     // Loads the beamline into dev_beamline (the track features are in its frame).
     void update(const Constants& constants) const;
+
+    // Loads the weights (weight_file).
+    void init();
 
 private:
     // Block of the CSR build (one per event). 512 is fastest on the RTX 3090:
@@ -340,6 +366,11 @@ private:
         "if non-empty, dump FC inputs/outputs of the first slice to this "
         "directory (read by weights/scripts/validate_fc.py)"};
     mutable bool m_dump_done = false;
+
+    // Device weights of this instance, set by init(): layers 1-6A in float32,
+    // and (cuBLAS builds) W6A rounded to bfloat16.
+    const float* m_dev_weights = nullptr;
+    const void* m_dev_w6a_bf16 = nullptr;
 
     // Nothing else reads dev_pvfinder_l6a_output between
     // pvfinder_l6a_bias_relu_kernel's in-place write and
