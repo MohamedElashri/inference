@@ -91,6 +91,12 @@ __device__ inline void calculate_ellipsoid_params(
     const float3 e2 = cross(track_dir, e1);
     const float3 e3 = track_dir;
 
+    // A non-positive x variance (about 0.03% of the VELO Kalman states in 2024
+    // minimum bias) has no ellipsoid: zeros, which fail the FC track selection.
+    if (!(state.c00() > 0.0f)) {
+        for (int i = 0; i < 6; ++i) ellipsoid_params[i] = 0.0f;
+        return;
+    }
     const float road_error = sqrtf(state.c00());
     const float ratio = sin_t > 0.0f ? fminf(cos_t / sin_t, 2048.0f) : 2048.0f;
     const float w12 = 1.0f / (road_error * road_error);        // 1 / |minor axis|^2

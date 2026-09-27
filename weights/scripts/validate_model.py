@@ -31,19 +31,14 @@ REPO_ROOT = os.path.dirname(WEIGHTS_DIR)
 sys.path.insert(0, os.path.join(REPO_ROOT, "pvfinder_pytorch"))
 from utils import TrackIntervalsToKDE_HDplusUNet100 as Model  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import peak_agreement as pa  # noqa: E402
+
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
 parser.add_argument("--dump-dir", required=True)
 parser.add_argument("--weights", required=True)
 parser.add_argument("--max-tracks", type=int, default=250, help="tracks per interval in the training arrays")
 parser.add_argument("--threshold", type=float, default=1e-3, help="PASS limit on max |Allen - PyTorch| KDE (FP32 path)")
-# The BF16 path rounds weights and activations to bfloat16 (8-bit mantissa), so
-# float32-level agreement is not expected. It passes on peak-level limits instead:
-parser.add_argument("--bf16-max-bins-off", type=float, default=0.01,
-                    help="BF16 path: max fraction of bins with |Allen - PyTorch| > 0.01")
-parser.add_argument("--bf16-max-median-peak-change", type=float, default=0.02,
-                    help="BF16 path: max median relative change of peak height (peaks: local maxima above 0.07)")
-parser.add_argument("--bf16-max-peak-moves", type=float, default=0.01,
-                    help="BF16 path: max fraction of intervals with a peak whose highest bin moves by more than one bin")
 parser.add_argument("--report", default="")
 args = parser.parse_args()
 
@@ -105,7 +100,7 @@ ref = ref.reshape(n_events, 40, 100)
 # exact; above 1 it is a deliberate approximation, so those intervals are left
 # out of the comparison and reported separately.
 min_tracks = 0
-bf16_path = False
+bf16_path = pa.bf16_path(args.dump_dir)
 cfg_path = os.path.join(args.dump_dir, "config.json")
 if os.path.isfile(cfg_path):
     with open(cfg_path) as fp:
@@ -113,38 +108,16 @@ if os.path.isfile(cfg_path):
     fc_cfg = cfg.get("pvfinder_fc_aggregation", {})
     if fc_cfg.get("skip_empty_intervals", False):
         min_tracks = int(fc_cfg.get("min_interval_tracks", 1))
-    bf16_path = bool(cfg.get("pvfinder_unet", {}).get("use_bf16", False))
 skipped = ((n_in > 0) & (n_in < min_tracks)).reshape(n_events, 40)
 d = np.abs(allen.astype(np.float64) - ref)
 d_skipped = d[skipped]
 d[skipped] = 0.0
 worst = float(d.max())
-# Peak-level agreement: the numbers a peak finder would see.
-a2, r2 = allen.reshape(-1, 100).astype(np.float64), ref.reshape(-1, 100)
-bins_off = float((d > 0.01).mean())
-is_peak = (r2[:, 1:-1] > r2[:, :-2]) & (r2[:, 1:-1] >= r2[:, 2:]) & (r2[:, 1:-1] > 0.07)
-pk_iv, pk_bin = np.nonzero(is_peak)
-pk_bin = pk_bin + 1
-rel = np.abs(a2[pk_iv, pk_bin] - r2[pk_iv, pk_bin]) / r2[pk_iv, pk_bin]
-with_peak = r2.max(1) > 0.07
-moved = np.abs(np.argmax(a2[with_peak], 1) - np.argmax(r2[with_peak], 1))
-peaks = {
-    "bins_off_by_more_than_0.01": bins_off,
-    "n_peaks": int(len(rel)),
-    "median_rel_peak_height_change": float(np.median(rel)) if len(rel) else 0.0,
-    "max_rel_peak_height_change": float(rel.max()) if len(rel) else 0.0,
-    "intervals_with_peak": int(with_peak.sum()),
-    "highest_bin_moved": int((moved > 0).sum()),
-    "highest_bin_moved_more_than_one_bin": int((moved > 1).sum()),
-}
+peaks = pa.peak_agreement(allen, ref)
 finite = bool(np.isfinite(allen).all())
 if bf16_path:
-    criterion = (f"BF16 path: bins off by > 0.01 < {args.bf16_max_bins_off:.1%}, median peak height change "
-                 f"< {args.bf16_max_median_peak_change:.1%}, highest bin moved > 1 bin < {args.bf16_max_peak_moves:.1%} "
-                 f"of intervals with a peak")
-    ok = (bins_off < args.bf16_max_bins_off
-          and peaks["median_rel_peak_height_change"] < args.bf16_max_median_peak_change
-          and peaks["highest_bin_moved_more_than_one_bin"] < args.bf16_max_peak_moves * max(peaks["intervals_with_peak"], 1))
+    criterion = pa.CRITERION
+    ok = pa.passes(peaks)
 else:
     criterion = f"FP32 path: max |Allen - PyTorch| < {args.threshold:g}"
     ok = worst < args.threshold
@@ -189,10 +162,7 @@ if min_tracks > 1:
           f"PyTorch there: max KDE {sk['pytorch_max_kde']:.3e}, {sk['pytorch_intervals_with_peak_above_1e-3']} of "
           f"{sk['pytorch_intervals_with_peak_above_1e-3_all']} intervals with a peak > 1e-3; "
           f"max |Allen - PyTorch| there {sk['max_abs_diff']:.3e}")
-print(f"bins with |Allen - PyTorch| > 0.01: {100 * bins_off:.2f}%; peaks > 0.07: {peaks['n_peaks']}, height change "
-      f"median {100 * peaks['median_rel_peak_height_change']:.2f}%, max {100 * peaks['max_rel_peak_height_change']:.1f}%; "
-      f"highest bin moved in {peaks['highest_bin_moved']} of {peaks['intervals_with_peak']} intervals with a peak "
-      f"({peaks['highest_bin_moved_more_than_one_bin']} by more than one bin)")
+print(pa.describe(peaks))
 print(f"criterion ({criterion}): {status}")
 print(status)
 if args.report:

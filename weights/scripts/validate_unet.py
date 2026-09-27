@@ -270,7 +270,18 @@ TIERS = [("fp32_noise  (< 1e-5, ideal)", 1e-5),
          ("loose       (< 1e-2, marginal)", 1e-2)]
 threshold = 1e-3
 worst = abs_diff.max()
-status = "PASS" if (worst < threshold and nonfinite_out == 0) else "FAIL"
+# The BF16 path is judged on peak-level agreement instead (see peak_agreement.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import peak_agreement as pa  # noqa: E402
+bf16_path = pa.bf16_path(args.dump_dir)
+peaks = pa.peak_agreement(allen_kde, pt_kde)
+if bf16_path:
+    criterion = pa.CRITERION
+    ok = pa.passes(peaks)
+else:
+    criterion = f"FP32 path: max |Allen - PyTorch| < {threshold:g}"
+    ok = worst < threshold
+status = "PASS" if (ok and nonfinite_out == 0) else "FAIL"
 print()
 tier_results, best_tier = {}, None
 for label, thr in TIERS:
@@ -280,7 +291,9 @@ for label, thr in TIERS:
     if ok and best_tier is None:
         best_tier = label.split()[0]
 tier_note = f", best tier {best_tier}" if best_tier else ", exceeds every tier"
-print(f"\n  Threshold: {threshold:.0e}  →  {status}  (worst={worst:.3e}{tier_note})")
+print(f"\n  Float32 threshold: {threshold:.0e}  (worst={worst:.3e}{tier_note})")
+print(f"  {pa.describe(peaks)}")
+print(f"  criterion ({criterion}): {status}")
 sig_under_tight = bool(sig_worst < 1e-4)
 print(f"  Signal region (worst {sig_worst:.3e}) under 1e-4: {'yes' if sig_under_tight else 'no'}")
 
@@ -306,6 +319,9 @@ if args.report:
         "signal_region_under_1e-4": sig_under_tight,
         "per_event_max_abs_diff": per_event_max.tolist(),
         "threshold": threshold,
+        "bf16_path": bf16_path,
+        "peaks": peaks,
+        "criterion": criterion,
         "status": status,
     }
     with open(args.report, "w") as fp:

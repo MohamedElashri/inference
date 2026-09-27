@@ -38,7 +38,9 @@ parser.add_argument("--training-repo", default="/data/home/melashri/iris/model_w
 parser.add_argument("--training-h5", default="/share/lazy/sokoloff/ML-data_AA/pv_HLT1CPU_MinBiasMagDown_14Nov.h5",
                     help="raw training file, for parts 2 and 3 (skipped if absent)")
 parser.add_argument("--training-events", type=int, default=2000)
-parser.add_argument("--rtol", type=float, default=1e-3, help="PASS limit, relative, on Allen vs recomputed features")
+parser.add_argument("--rtol", type=float, default=1e-4,
+                    help="PASS limit on Allen vs recomputed ellipsoid (relative matrix difference)")
+parser.add_argument("--poca-tol", type=float, default=1e-3, help="PASS limit on Allen vs recomputed POCA, mm")
 parser.add_argument("--report", default="")
 args = parser.parse_args()
 report = {}
@@ -110,25 +112,38 @@ bx = beam[0] + beam[3] * (z - beam[2])
 by = beam[1] + beam[4] * (z - beam[2])
 px, py, pz, e1, e2, e3, ratio = poca_and_axes(x - bx, y - by, z, tx - beam[3], ty - beam[4])
 valid = np.hypot(px, py) < 1000.0
-road = np.sqrt(c00)
+road = np.sqrt(np.where(c00 > 0, c00, 1.0))
 abcdef, source = ellipsoid_ABCDEF(e1 * road[:, None], e2 * road[:, None], e3 * (road * ratio)[:, None])
+abcdef[~(c00 > 0)] = 0.0   # no ellipsoid: zeros, which fail the FC track selection
 ref = np.concatenate([np.stack([px, py, pz], 1), abcdef], 1)
 ref[~valid] = 0.0
-# Relative difference per feature, against the feature's typical size in the
-# sample (the POCA offsets pass through zero, so a pure relative test is not
-# meaningful there).
-scale = np.maximum(np.abs(ref), np.median(np.abs(ref), axis=0) + 1e-30)
-rel = np.abs(feats - ref) / scale
-worst_per_feature = rel.max(0)
-names = ["x", "y", "z", "A", "B", "C", "D", "E", "F"]
-part1_ok = bool(np.isfinite(feats).all() and worst_per_feature.max() < args.rtol)
+
+
+def ellipsoid_matrix(a):
+    A, B, C, D, E, F = a.T
+    return np.stack([np.stack([A, D, E], -1), np.stack([D, B, F], -1), np.stack([E, F, C], -1)], -2)
+
+
+# POCA: absolute difference in mm. Ellipsoid: difference of the whole matrix
+# relative to its size (its off-diagonal terms pass through zero, so a
+# per-element relative test is not meaningful).
+has_ellipsoid = valid & (c00 > 0)
+poca_diff = np.abs(feats[:, :3] - ref[:, :3]).max(1)
+m_ref = ellipsoid_matrix(ref[has_ellipsoid, 3:])
+m_rel = np.linalg.norm(ellipsoid_matrix(feats[has_ellipsoid, 3:]) - m_ref, axis=(1, 2)) / np.linalg.norm(m_ref, axis=(1, 2))
+no_ellipsoid_zero = bool((feats[~has_ellipsoid, 3:] == 0).all())
+part1_ok = bool(np.isfinite(feats).all() and poca_diff.max() < args.poca_tol and m_rel.max() < args.rtol
+                and no_ellipsoid_zero)
 print(f"1. Allen features vs the rules recomputed in double precision ({len(feats)} tracks, "
       f"{int(hdr[1])} events; A..F from {source}):")
-print("   worst relative difference per feature: " +
-      ", ".join(f"{n} {v:.1e}" for n, v in zip(names, worst_per_feature)))
-print(f"   {'PASS' if part1_ok else 'FAIL'} (limit {args.rtol:g})")
+print(f"   POCA: max |diff| {poca_diff.max():.2e} mm (limit {args.poca_tol:g}); ellipsoid A..F: max relative "
+      f"matrix difference {m_rel.max():.2e} (limit {args.rtol:g}); tracks without an ellipsoid (c00 <= 0): "
+      f"{int((~(c00 > 0)).sum())}, A..F zero: {no_ellipsoid_zero}; all finite: {bool(np.isfinite(feats).all())}")
+print(f"   {'PASS' if part1_ok else 'FAIL'}")
 report["allen_vs_rules"] = {"tracks": int(len(feats)), "ellipsoid_source": source,
-                            "worst_rel_diff": dict(zip(names, map(float, worst_per_feature))),
+                            "poca_max_abs_diff_mm": float(poca_diff.max()),
+                            "ellipsoid_max_rel_matrix_diff": float(m_rel.max()),
+                            "tracks_without_ellipsoid": int((~(c00 > 0)).sum()),
                             "status": "PASS" if part1_ok else "FAIL"}
 
 
@@ -192,7 +207,7 @@ if os.path.isfile(args.training_h5):
           f" 99% {np.quantile(m_rel, 0.99):.1e})")
     print(f"   {'PASS' if part2_ok else 'FAIL'} (each above 99%)")
     q = [0.05, 0.25, 0.5, 0.75, 0.95]
-    tq, aq = np.quantile(l1[good], q), np.quantile(road[valid], q)
+    tq, aq = np.quantile(l1[good], q), np.quantile(road[has_ellipsoid], q)
     print("3. minor-axis length (mm), training |minor axis| vs Allen sqrt(c00), quantiles 5/25/50/75/95%:")
     print("   training " + " ".join(f"{v:.4f}" for v in tq))
     print("   Allen    " + " ".join(f"{v:.4f}" for v in aq))
