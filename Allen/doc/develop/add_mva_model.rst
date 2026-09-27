@@ -137,3 +137,32 @@ Call the evaluation function in global function:
     }
 
 
+
+When models are read
+^^^^^^^^^^^^^^^^^^^^^
+``MVAModelsManager::loadData`` reads every registered model once, after the
+algorithms' properties are set and before their ``init()``. An algorithm can
+therefore use its model's data in ``init()`` (to prepare device copies in the
+layout its kernels want, for example), and the model file can depend on a
+property.
+
+Model file from a property
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The second constructor of ``MVAModelBase`` takes a function that gives the
+file when the model is read, instead of a fixed path. Relative paths are in
+the parameters directory (``--params``), absolute paths are taken as they are;
+``file_path(parameters_path)`` resolves either:
+
+.. code-block:: c++
+
+    Allen::Property<std::string> m_model_file {this, "model", "my_algorithm/model.json", "model file"};
+    MyModel m_model {"my_model", [this] { return m_model_file.value(); }};
+
+    void MyModel::readData(std::string parameters_path)
+    {
+        std::ifstream in {file_path(parameters_path)};
+        // ...
+    }
+
+``pvfinder_fc_aggregation`` and ``pvfinder_unet`` (``PVFinder::Model``,
+``device/pvfinder/include/PVFinderModel.h``) read their network this way.

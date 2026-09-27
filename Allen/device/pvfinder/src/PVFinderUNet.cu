@@ -9,7 +9,7 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "PVFinderUNet.cuh"
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
 #include "PVFinderUNetKernels.cuh"
 #include "PVFinderUNetFused.cuh"
 #include <cuda_bf16.h>
@@ -26,7 +26,7 @@ INSTANTIATE_ALGORITHM(pvfinder_unet::pvfinder_unet_t)
 
 namespace pvfinder_unet {
 
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
   // Weight blob: device pointers per layer (filled in init(), used in operator()).
   struct WeightBlob {
     const float* w_rcbn1_w;
@@ -89,15 +89,14 @@ namespace pvfinder_unet {
     float* w_f[5] = {};
     float* b_f[5] = {};
 
-    // float32: cuDNN convolutions (IMPLICIT_GEMM pinned, no workspace).
-    Allen::CuDNN::ConvDescriptors conv[5]; // CBR layers, as w_f
-    Allen::CuDNN::ConvDescriptors oint;    // out_intermediate, Conv(C -> C, k 5)
-    Allen::CuDNN::ConvDescriptors outc;    // outc, Conv(C -> 1, k 5)
-    // ConvTranspose (k 2, stride 2): filter and convolution descriptors, and
-    // the backward-data algorithm chosen at init (workspace-free).
-    cudnnFilterDescriptor_t ct_filter[2] = {};
-    cudnnConvolutionDescriptor_t ct_conv[2] = {};
-    cudnnConvolutionBwdDataAlgo_t ct_algo[2] = {CUDNN_CONVOLUTION_BWD_DATA_ALGO_0, CUDNN_CONVOLUTION_BWD_DATA_ALGO_0};
+    // float32: the layers on the cuDNN graph API, for batches of N rows
+    // (exact float32, deterministic engines), and the largest workspace.
+    Allen::CuDNN::ConvolutionLayer cbr[5]; // Conv + bias + ReLU, as w_f
+    Allen::CuDNN::PoolingLayer pool[2];    // MaxPool(2): W_IN -> W_HALF -> W_QTR
+    Allen::CuDNN::ConvolutionLayer up[2];  // ConvTranspose(k 2, stride 2) + bias
+    Allen::CuDNN::ConvolutionLayer oint;   // out_intermediate: Conv + bias
+    Allen::CuDNN::ConvolutionLayer outc;   // outc: Conv + bias, softplus, * KDE_SCALE
+    size_t workspace_bytes = 0;
 
     // bfloat16: the fused kernel's image of all weights, and its full grid.
     unsigned char* fused_blob = nullptr;
@@ -111,43 +110,6 @@ namespace pvfinder_unet {
   };
 
   namespace {
-    // ---------------------------------------------------------------------------
-    // Thread-local ConvTranspose tensor descriptors.
-    // Shapes are compile-time constants (N, N_FEAT, W_QTR/W_HALF/W_IN never
-    // change), so each OS thread creates its set exactly once — lazily, on first
-    // use — and reuses it for the thread's lifetime, matching the lifetime of
-    // Allen::CuDNN::get_thread_local_handle (CuDNNHandle.h): null-check-then-create,
-    // never explicitly destroyed, and released by process teardown.
-    // ---------------------------------------------------------------------------
-    struct ConvTransposeTensorDescs {
-      cudnnTensorDescriptor_t td_up1_in = nullptr;
-      cudnnTensorDescriptor_t td_up1_out = nullptr;
-      cudnnTensorDescriptor_t td_up2_in = nullptr;
-      cudnnTensorDescriptor_t td_up2_out = nullptr;
-    };
-
-    static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(const void* owner, int N)
-    {
-      // One per (thread, algorithm instance): shapes and contents belong to one instance.
-      thread_local std::unordered_map<const void*, ConvTransposeTensorDescs> cache;
-      ConvTransposeTensorDescs& descs = cache[owner];
-      if (descs.td_up1_in == nullptr) {
-        ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up1_in));
-        ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up1_out));
-        ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up2_in));
-        ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&descs.td_up2_out));
-        ALLEN_CUDNN_CHECK(
-          cudnnSetTensor4dDescriptor(descs.td_up1_in, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_QTR));
-        ALLEN_CUDNN_CHECK(
-          cudnnSetTensor4dDescriptor(descs.td_up1_out, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_HALF));
-        ALLEN_CUDNN_CHECK(
-          cudnnSetTensor4dDescriptor(descs.td_up2_in, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_HALF));
-        ALLEN_CUDNN_CHECK(
-          cudnnSetTensor4dDescriptor(descs.td_up2_out, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, W_IN));
-      }
-      return descs;
-    }
-
     // CBR layers: input channels, kernel size, padding, width.
     struct CBRShape {
       int c_in, r, pad, w;
@@ -212,14 +174,14 @@ namespace pvfinder_unet {
     return wb;
   }
 
-#endif // ALLEN_CUDNN_BACKEND_CUDA
+#endif // ALLEN_WITH_CUDNN
 
   // ---------------------------------------------------------------------------
   // init(): weights, BatchNorm folding, and the configured precision's path.
   // ---------------------------------------------------------------------------
   void pvfinder_unet_t::init()
   {
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
     if (m_state) return;
     const std::string& precision = m_precision.value();
     if (precision != "float32" && precision != "bfloat16") {
@@ -310,50 +272,75 @@ namespace pvfinder_unet {
       state->fused_grid = sm_count * std::max(per_sm, 1);
     }
     else {
-      // cuDNN descriptors for batches of N rows.
-      cudnnHandle_t handle = Allen::CuDNN::get_thread_local_handle(nullptr);
-      const int N = (int) m_unet_batch_events.value() * N_INTERVALS;
+      // The layers for batches of N rows, NCW (NCHW with H = 1).
+      cudnnHandle_t handle = Allen::CuDNN::handle(nullptr);
+      const int64_t N = (int64_t) m_unet_batch_events.value() * N_INTERVALS;
+      using Allen::CuDNN::Activation;
       for (int l = 0; l < 5; ++l) {
-        const CBRShape& s = cbr_shapes[l];
-        state->conv[l].create(
-          handle, {N, s.c_in, 1, s.w}, {N_FEAT, s.c_in, 1, s.r}, {0, s.pad}, {1, 1}, {1, 1}, CUDNN_DATA_FLOAT, 0);
+        const CBRShape& c = cbr_shapes[l];
+        state->cbr[l].create(
+          handle,
+          {.batch = N,
+           .in_channels = c.c_in,
+           .out_channels = N_FEAT,
+           .input_size = {c.w},
+           .kernel_size = {c.r},
+           .padding = {c.pad},
+           .bias = true,
+           .activation = Activation::Relu});
+      }
+      const int64_t pool_in[2] = {W_IN, W_HALF};
+      for (int p = 0; p < 2; ++p) {
+        state->pool[p].create(handle, {N, N_FEAT, 1, pool_in[p]}, {Allen::CuDNN::PoolingMode::Max, {2}, {2}, {0}});
+      }
+      const int64_t up_in[2] = {W_QTR, W_HALF};
+      for (int t = 0; t < 2; ++t) {
+        state->up[t].create(
+          handle,
+          {.batch = N,
+           .in_channels = N_FEAT,
+           .out_channels = N_FEAT,
+           .input_size = {up_in[t]},
+           .kernel_size = {2},
+           .stride = {2},
+           .transposed = true,
+           .bias = true});
       }
       state->oint.create(
-        handle, {N, N_FEAT, 1, W_IN}, {N_FEAT, N_FEAT, 1, 5}, {0, 2}, {1, 1}, {1, 1}, CUDNN_DATA_FLOAT, 0);
-      state->outc.create(handle, {N, N_FEAT, 1, W_IN}, {1, N_FEAT, 1, 5}, {0, 2}, {1, 1}, {1, 1}, CUDNN_DATA_FLOAT, 0);
-      // ConvTranspose1d(k 2, stride 2) as cudnnConvolutionBackwardData:
-      // up1 W_QTR -> W_HALF, up2 W_HALF -> W_IN. The first workspace-free
-      // algorithm of cuDNN's heuristic.
-      const int w_in[2] = {W_QTR, W_HALF}, w_out[2] = {W_HALF, W_IN};
-      for (int t = 0; t < 2; ++t) {
-        ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&state->ct_filter[t]));
-        ALLEN_CUDNN_CHECK(
-          cudnnSetFilter4dDescriptor(state->ct_filter[t], CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, N_FEAT, N_FEAT, 1, 2));
-        ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&state->ct_conv[t]));
-        ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-          state->ct_conv[t], 0, 0, 1, 2, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
-        ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(state->ct_conv[t], CUDNN_TENSOR_OP_MATH));
-        cudnnTensorDescriptor_t dy, dx;
-        ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&dy));
-        ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&dx));
-        ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(dy, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, w_in[t]));
-        ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(dx, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, N, N_FEAT, 1, w_out[t]));
-        constexpr int max_algos = 8;
-        cudnnConvolutionBwdDataAlgoPerf_t perf[max_algos];
-        int returned = 0;
-        ALLEN_CUDNN_CHECK(cudnnGetConvolutionBackwardDataAlgorithm_v7(
-          handle, state->ct_filter[t], dy, state->ct_conv[t], dx, max_algos, &returned, perf));
-        bool found = false;
-        for (int i = 0; i < returned && !found; ++i) {
-          if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory == 0) {
-            state->ct_algo[t] = perf[i].algo;
-            found = true;
-          }
-        }
-        ALLEN_CUDNN_CHECK(cudnnDestroyTensorDescriptor(dy));
-        ALLEN_CUDNN_CHECK(cudnnDestroyTensorDescriptor(dx));
-        if (!found) throw StrException("pvfinder_unet: no workspace-free cuDNN algorithm for the ConvTranspose");
+        handle,
+        {.batch = N,
+         .in_channels = N_FEAT,
+         .out_channels = N_FEAT,
+         .input_size = {W_IN},
+         .kernel_size = {5},
+         .padding = {2},
+         .bias = true});
+      state->outc.create(
+        handle,
+        {.batch = N,
+         .in_channels = N_FEAT,
+         .out_channels = 1,
+         .input_size = {W_IN},
+         .kernel_size = {5},
+         .padding = {2},
+         .bias = true,
+         .activation = Activation::Softplus,
+         .output_scale = KDE_SCALE});
+      for (const Allen::CuDNN::ConvolutionLayer* layer :
+           {&state->cbr[0],
+            &state->cbr[1],
+            &state->cbr[2],
+            &state->cbr[3],
+            &state->cbr[4],
+            &state->up[0],
+            &state->up[1],
+            &state->oint,
+            &state->outc}) {
+        state->workspace_bytes = std::max(state->workspace_bytes, layer->workspace_size());
+        debug_cout << "[pvfinder_unet] " << layer->describe() << "\n";
       }
+      for (const auto& p : state->pool)
+        state->workspace_bytes = std::max(state->workspace_bytes, p.workspace_size());
     }
     m_state = std::move(state);
 #else
@@ -382,75 +369,40 @@ namespace pvfinder_unet {
     set_size<dev_unet_up1_t>(arguments, fp32 * N * N_FEAT * W_HALF);
     set_size<dev_unet_up2_t>(arguments, fp32 * N * N_FEAT * W_IN);
     set_size<dev_unet_kde_rows_t>(arguments, fp32 * padded_rows * W_IN);
+#ifdef ALLEN_WITH_CUDNN
+    const size_t workspace_bytes = m_bf16 ? 0 : m_state->workspace_bytes;
+#else
+    const size_t workspace_bytes = 0;
+#endif
+    set_size<dev_unet_workspace_t>(arguments, (unsigned) ((workspace_bytes + 3) / 4));
     set_size<dev_pvfinder_kde_output_t>(arguments, padded_events * N_INTERVALS * W_IN);
   }
 
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
   // One float32 batch: N rows of features [N][N_BATCH_CHANNELS][W_IN] -> their
   // KDE [N][W_IN]. scratch: x1, x2, x3, up1, up2 (see Parameters).
-  void pvfinder_unet_t::run_fp32_batch(
-    const float* rows,
-    float* kde,
-    float* const scratch[5],
-    cudnnHandle_t handle,
-    const Allen::Context& context) const
+  void pvfinder_unet_t::run_fp32_batch(const float* rows, float* kde, float* const scratch[6], cudnnHandle_t handle)
+    const
   {
     const UNetState& s = *m_state;
-    const int N = (int) m_unet_batch_events.value() * N_INTERVALS;
-    const dim3 block = m_block_dim;
-    float *x1 = scratch[0], *x2 = scratch[1], *x3 = scratch[2], *up1 = scratch[3], *up2 = scratch[4];
-    float* oint = x1;   // x1 is last read by rcbn2, long before oint is written
-    float* logits = x3; // x3 is consumed by up1's ConvTranspose before it is reused
-    const auto grid = [&block](int total) { return dim3(((unsigned) total + block.x - 1) / block.x); };
-    // Convolution, then bias (+ ReLU): BN is folded into the CBR weights.
-    const auto cbr = [&](int l, const float* in, float* out, int w) {
-      s.conv[l].forward(handle, 1.f, 0.f, in, s.w_f[l], out);
-      global_function(bias_relu_kernel)(grid(N * N_FEAT * w), block, context)(out, s.b_f[l], N_FEAT, w, N * N_FEAT * w);
-    };
-    const auto maxpool = [&](const float* in, float* out, int w_in) {
-      global_function(maxpool1d_2_kernel)(grid(N * N_FEAT * (w_in / 2)), block, context)(in, out, N, N_FEAT, w_in);
-    };
-    const ConvTransposeTensorDescs& td = get_thread_local_conv_transpose_descs(m_state.get(), N);
-    const auto conv_transpose = [&](int t, const float* in, float* out, const float* w, const float* b, int w_out) {
-      const float alpha = 1.f, beta = 0.f;
-      ALLEN_CUDNN_CHECK(cudnnConvolutionBackwardData(
-        handle,
-        &alpha,
-        s.ct_filter[t],
-        w,
-        t == 0 ? td.td_up1_in : td.td_up2_in,
-        in,
-        s.ct_conv[t],
-        s.ct_algo[t],
-        nullptr,
-        0,
-        &beta,
-        t == 0 ? td.td_up1_out : td.td_up2_out,
-        out));
-      global_function(bias_add_kernel)(grid(N * N_FEAT * w_out), block, context)(
-        out, b, N_FEAT, w_out, N * N_FEAT * w_out);
-    };
     const WeightBlob& wb = s.wb;
-
-    // Encoder
-    cbr(0, rows, x1, W_IN);
-    cbr(1, x1, up2, W_IN);
-    maxpool(up2, x2, W_IN);
-    cbr(2, x2, up2, W_HALF);
-    maxpool(up2, x3, W_HALF);
+    float *x1 = scratch[0], *x2 = scratch[1], *x3 = scratch[2], *up1 = scratch[3], *up2 = scratch[4];
+    void* workspace = scratch[5];
+    // Encoder (BN folded into the CBR weights)
+    s.cbr[0].forward(handle, rows, s.w_f[0], s.b_f[0], x1, workspace);
+    s.cbr[1].forward(handle, x1, s.w_f[1], s.b_f[1], up2, workspace);
+    s.pool[0].forward(handle, up2, x2, workspace);
+    s.cbr[2].forward(handle, x2, s.w_f[2], s.b_f[2], up2, workspace);
+    s.pool[1].forward(handle, up2, x3, workspace);
     // Decoder
-    conv_transpose(0, x3, up2, wb.w_up1t_w, wb.w_up1t_b, W_HALF);
-    cbr(3, up2, up1, W_HALF);
-    conv_transpose(1, up1, logits, wb.w_up2t_w, wb.w_up2t_b, W_IN);
-    cbr(4, logits, up2, W_IN);
-    // Output: out_intermediate, outc, softplus, scale
-    s.oint.forward(handle, 1.f, 0.f, up2, wb.w_oint_w, logits);
-    global_function(bias_add_kernel)(grid(N * N_FEAT * W_IN), block, context)(
-      logits, wb.w_oint_b, N_FEAT, W_IN, N * N_FEAT * W_IN);
-    s.outc.forward(handle, 1.f, 0.f, logits, wb.w_outc_w, oint);
-    global_function(bias_add_kernel)(grid(N * W_IN), block, context)(oint, wb.w_outc_b, 1, W_IN, N * W_IN);
-    global_function(softplus_scale_kernel)(grid(N * W_IN), block, context)(oint, KDE_SCALE, N * W_IN);
-    global_function(squeeze_copy_kernel)(grid(N * W_IN), block, context)(oint, kde, N * W_IN);
+    s.up[0].forward(handle, x3, wb.w_up1t_w, wb.w_up1t_b, up2, workspace);
+    s.cbr[3].forward(handle, up2, s.w_f[3], s.b_f[3], up1, workspace);
+    s.up[1].forward(handle, up1, wb.w_up2t_w, wb.w_up2t_b, x3, workspace);
+    s.cbr[4].forward(handle, x3, s.w_f[4], s.b_f[4], up2, workspace);
+    // Output: out_intermediate, then outc with softplus and the scale, straight
+    // to the KDE rows ([N][1][W_IN] is [N][W_IN])
+    s.oint.forward(handle, up2, wb.w_oint_w, wb.w_oint_b, x1, workspace);
+    s.outc.forward(handle, x1, wb.w_outc_w, wb.w_outc_b, kde, workspace);
   }
 #endif
 
@@ -460,7 +412,7 @@ namespace pvfinder_unet {
     const Constants&,
     const Allen::Context& context) const
   {
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
     UNetState& state = *m_state;
     const unsigned n_events = first<host_number_of_events_t>(arguments);
     const unsigned* unet_rows = data<host_pvfinder_unet_rows_t>(arguments);
@@ -479,13 +431,14 @@ namespace pvfinder_unet {
     }
     const float* rows = data<dev_pvfinder_interval_features_t>(arguments);
     float* kde = data<dev_pvfinder_kde_output_t>(arguments);
-    cudnnHandle_t handle = m_bf16 ? nullptr : Allen::CuDNN::get_thread_local_handle(context.stream());
-    float* const scratch[5] = {
+    cudnnHandle_t handle = m_bf16 ? nullptr : Allen::CuDNN::handle(context);
+    float* const scratch[6] = {
       data<dev_unet_x1_t>(arguments),
       data<dev_unet_x2_t>(arguments),
       data<dev_unet_x3_t>(arguments),
       data<dev_unet_up1_t>(arguments),
-      data<dev_unet_up2_t>(arguments)};
+      data<dev_unet_up2_t>(arguments),
+      data<dev_unet_workspace_t>(arguments)};
 
     // The UNet's response to an all-zero interval, through the configured
     // path, so intervals without tracks get bit for bit what running them
@@ -514,7 +467,7 @@ namespace pvfinder_unet {
           0);
       }
       else {
-        run_fp32_batch(zeros, out, scratch, handle, context);
+        run_fp32_batch(zeros, out, scratch, handle);
       }
       Allen::synchronize(context);
       Allen::free(zeros);
@@ -548,7 +501,7 @@ namespace pvfinder_unet {
       float* kde_rows = data<dev_unet_kde_rows_t>(arguments);
       constexpr unsigned row_floats = N_BATCH_CHANNELS * W_IN;
       for (unsigned row = 0; row < n_rows; row += N) {
-        run_fp32_batch(rows + (size_t) row * row_floats, kde_rows + (size_t) row * W_IN, scratch, handle, context);
+        run_fp32_batch(rows + (size_t) row * row_floats, kde_rows + (size_t) row * W_IN, scratch, handle);
       }
       const unsigned threads = n_slots * (W_IN / 4);
       if (threads > 0) {
@@ -568,7 +521,7 @@ namespace pvfinder_unet {
 #endif
   }
 
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
   // Validation dump (first call): the UNet's input in the dense
   // [event][interval] float32 [channel][bin] layout (intervals without tracks as
   // zeros) and its KDE. Each file: uint32 magic 0xAB1E, uint32 n_events, floats.

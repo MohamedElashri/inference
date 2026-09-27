@@ -14,7 +14,7 @@
 #include "PVFinderConstants.cuh"
 #include "PVFinderModel.h"
 #include <memory>
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
+#ifdef ALLEN_WITH_CUDNN
 #include "AllenCuDNN.h"
 #endif
 
@@ -80,6 +80,8 @@ namespace pvfinder_unet {
     DEVICE_OUTPUT(dev_unet_up1_t, float) dev_unet_up1; // [N, N_FEAT, W_HALF]
     DEVICE_OUTPUT(dev_unet_up2_t, float) dev_unet_up2; // [N, N_FEAT, W_IN]
     DEVICE_OUTPUT(dev_unet_kde_rows_t, float) dev_unet_kde_rows;
+    // float32: the cuDNN layers' workspace (the largest any layer needs).
+    DEVICE_OUTPUT(dev_unet_workspace_t, float) dev_unet_workspace;
 
     // The KDE: [n_events * 40 * 100] floats
     DEVICE_OUTPUT(dev_pvfinder_kde_output_t, float) dev_pvfinder_kde_output;
@@ -154,13 +156,8 @@ namespace pvfinder_unet {
     std::shared_ptr<UNetState> m_state;
     bool m_bf16 = false;
 
-#ifdef ALLEN_CUDNN_BACKEND_CUDA
-    void run_fp32_batch(
-      const float* rows,
-      float* kde,
-      float* const scratch[5],
-      cudnnHandle_t handle,
-      const Allen::Context& context) const;
+#ifdef ALLEN_WITH_CUDNN
+    void run_fp32_batch(const float* rows, float* kde, float* const scratch[6], cudnnHandle_t handle) const;
     void dump(const ArgumentReferences<Parameters>& arguments, const Allen::Context& context) const;
 #endif
   };

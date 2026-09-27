@@ -1,0 +1,243 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260927_105321_cudnn_graph_fp32_t16",
+  "label": "cudnn_graph_fp32_t16",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-27T10:53:26-04:00",
+  "finished_at": "2026-09-27T11:14:03-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label cudnn_graph_fp32_t16 -B build16chL4finalgpu -d 2 --model unet16_lc4_scnone_asym5_best --use-bf16 false -n 500 -m 500 -r 1000 -t 16 --repeats 3",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "78926c48f03fd598e2b3fc4e655cb2d006fc9e4d",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Refactor PVFinder model weight handling and update benchmark scripts",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/device/cudnn_backend/CMakeLists.txt",
+      "Allen/device/cudnn_backend/include/AllenCuDNN.h",
+      "Allen/device/cudnn_backend/include/CuDNNBackendShim.h",
+      "Allen/device/cudnn_backend/include/CuDNNCheck.h",
+      "Allen/device/cudnn_backend/include/CuDNNDescriptors.h",
+      "Allen/device/cudnn_backend/include/CuDNNDeviceWeights.h",
+      "Allen/device/cudnn_backend/include/CuDNNFusedOps.h",
+      "Allen/device/cudnn_backend/include/CuDNNGraph.h",
+      "Allen/device/cudnn_backend/include/CuDNNHandle.h",
+      "Allen/device/cudnn_backend/include/CuDNNLayers.h",
+      "Allen/device/cudnn_backend/include/CuDNNLayoutTransform.cuh",
+      "Allen/device/cudnn_backend/include/CuDNNWeightRegistry.h",
+      "Allen/device/cudnn_backend/include/CuDNNWorkspace.h",
+      "Allen/device/cudnn_backend/src/CuDNNFusedOps.cu",
+      "Allen/device/cudnn_backend/src/CuDNNGraph.cpp",
+      "Allen/device/cudnn_backend/src/CuDNNHandle.cpp",
+      "Allen/device/cudnn_backend/src/CuDNNLayers.cu",
+      "Allen/device/cudnn_backend/src/CuDNNWeightRegistry.cpp",
+      "Allen/device/pvfinder/CMakeLists.txt",
+      "Allen/device/pvfinder/include/PVFinderUNet.cuh",
+      "Allen/device/pvfinder/include/PVFinderUNetKernels.cuh",
+      "Allen/device/pvfinder/src/PVFinderUNet.cu",
+      "Allen/doc/develop/add_mva_model.rst",
+      "Allen/doc/develop/allen_cudnn.rst",
+      "Allen/test/unit_tests/generic/src/TestCuDNNDescriptors.cu",
+      "Allen/test/unit_tests/generic/src/TestCuDNNGraph.cu",
+      "weights/scripts/validate_fc.py"
+    ],
+    "diff_sha256": "226466414c0feb4d6982a53359e0cef90b70dd776df747ddd83ead61fb969875"
+  },
+  "build": {
+    "name": "build16chL4finalgpu",
+    "dir": "Allen/build16chL4finalgpu",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T10:52:10-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_best.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "asym 5, best val loss (epoch 5 of 70)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+      "sha256": "480f7a2bd6f7637b1f4e245be478803eccc99f7f003333824b1ec0ed0678bcbc"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+        "sha256": "590b8daa3136ae4ff9ed22f371b3cc3b3f3704314df507d6a8122cb559bc9a3a"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "fc_grid_fraction": 0.125,
+    "precision": "float32",
+    "unet_batch_events": 20,
+    "unet_grid_fraction": 0.25,
+    "use_bf16": false
+  },
+  "config": {
+    "baseline": {
+      "sha256": "465cd0e08a2a6e203d32ae5cff6d1c42c0b988c88e67098575631bb8d8a9787c",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "08868bc3b4894b8a2eaf6b2ed5bbebcb9a85083ed589ee9160c8bcd4726a4707",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "c82e83ec65813a3f31d90b923ad733c174384f9cd9663b31313a598b76a9182e",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.25,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 87155.040748,
+          "fc": 81700.246315,
+          "unet": 56590.672067
+        },
+        "fc_overhead_pct": 6.258725125001077,
+        "unet_overhead_pct": 35.068962642532384,
+        "unet_retention_pct": 64.93103735746762
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 86684.798142,
+          "fc": 81972.777995,
+          "unet": 56643.020715
+        },
+        "fc_overhead_pct": 5.435809101477233,
+        "unet_overhead_pct": 34.65633890937601,
+        "unet_retention_pct": 65.34366109062398
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 86220.787954,
+          "fc": 81508.264801,
+          "unet": 56912.394737
+        },
+        "fc_overhead_pct": 5.465646121807886,
+        "unet_overhead_pct": 33.992258610112025,
+        "unet_retention_pct": 66.00774138988797
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 86684.798142,
+        "fc": 81700.246315,
+        "unet": 56643.020715
+      },
+      "median_fc_overhead_pct": 5.465646121807886,
+      "median_unet_overhead_pct": 34.65633890937601,
+      "median_unet_retention_pct": 65.34366109062398,
+      "baseline_spread_pct": 1.0777585159390726,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260927_105321_cudnn_graph_fp32_t16"
+  },
+  "duration_s": 1237
+}

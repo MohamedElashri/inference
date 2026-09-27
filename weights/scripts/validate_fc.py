@@ -35,7 +35,7 @@ a header uint32 {0xFC01, n_events, n_tracks, n_latent_channels}.
 
 Usage:
     make -C weights validate MODEL=<name>        (normal use, after make dump)
-    python3 weights/scripts/validate_fc.py --dump-dir DIR [--weights MODEL.pyt] [--fc-bin fc_weights.bin]
+    python3 weights/scripts/validate_fc.py --dump-dir DIR [--weights MODEL.pyt]
 """
 
 import argparse
@@ -54,8 +54,6 @@ parser.add_argument("--dump-dir", required=True,
 parser.add_argument("--weights",
                     default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_final.pyt"),
                     help="checkpoint (.pyt) the Allen run is supposed to implement")
-parser.add_argument("--fc-bin", default="",
-                    help="optional: the fc_weights .bin Allen loaded; checked against the checkpoint")
 parser.add_argument("--max-f32-ulps", type=float, default=1.0,
                     help="PASS limit on |Allen - reference|, in float32 rounding steps (ulps) of the "
                          "magnitude envelope feeding each output (default 1)")
@@ -107,33 +105,6 @@ print(f"checkpoint: {args.weights}")
 
 ok = True
 report = {"dump_dir": args.dump_dir, "weights": args.weights, "max_f32_ulps": args.max_f32_ulps}
-
-# ---------------------------------------------------------------------------
-# Optional: is the .bin Allen loaded the checkpoint, in the layout Allen expects?
-# ---------------------------------------------------------------------------
-if args.fc_bin:
-    blob = np.fromfile(args.fc_bin, dtype=np.float32)
-    expected = np.concatenate([np.concatenate([W[k].astype(np.float32).ravel(), B[k].astype(np.float32)])
-                               for k in ("1", "2", "3", "4", "5", "6A")])
-    if blob.size != expected.size:
-        print(f"fc-bin: {args.fc_bin} has {blob.size} floats, checkpoint needs {expected.size}  -> MISMATCH")
-        report["fc_bin"] = {"status": "MISMATCH", "reason": "size"}
-        ok = False
-    elif np.array_equal(blob, expected):
-        print(f"fc-bin: {args.fc_bin} == checkpoint in Allen's layout  -> OK")
-        report["fc_bin"] = {"status": "OK"}
-    else:
-        w6a = blob[1880:1880 + L6A * 20]
-        head_same = np.array_equal(blob[:1880], expected[:1880])
-        if head_same and np.array_equal(w6a, W["6A"].T.astype(np.float32).ravel()):
-            why = "layer6A is stored transposed; Allen expects PyTorch's own [latent*100 x 20] row-major layout"
-        elif not head_same:
-            why = "layers 1-5 differ: this file is from a different checkpoint"
-        else:
-            why = "layer6A differs"
-        print(f"fc-bin: {args.fc_bin} does NOT match the checkpoint: {why}  -> MISMATCH")
-        report["fc_bin"] = {"status": "MISMATCH", "reason": why}
-        ok = False
 
 # ---------------------------------------------------------------------------
 # Recompute FC per track, then aggregate with Allen's CSR

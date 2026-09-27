@@ -9,4 +9,25 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "CuDNNHandle.h"
-// Translation unit for the cuDNN handle interface.
+
+#include <mutex>
+#include <unordered_map>
+
+cudnnHandle_t Allen::CuDNN::handle(cudaStream_t stream)
+{
+  thread_local cudaStream_t cached_stream = nullptr;
+  thread_local cudnnHandle_t cached_handle = nullptr;
+  if (cached_handle == nullptr || cached_stream != stream) {
+    static std::mutex mutex;
+    static std::unordered_map<cudaStream_t, cudnnHandle_t> handles;
+    std::lock_guard<std::mutex> lock {mutex};
+    auto [it, inserted] = handles.try_emplace(stream, nullptr);
+    if (inserted) {
+      ALLEN_CUDNN_CHECK(cudnnCreate(&it->second));
+      ALLEN_CUDNN_CHECK(cudnnSetStream(it->second, stream));
+    }
+    cached_handle = it->second;
+    cached_stream = stream;
+  }
+  return cached_handle;
+}

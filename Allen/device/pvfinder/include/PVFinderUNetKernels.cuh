@@ -13,66 +13,11 @@
 #include <cmath>
 
 // ---------------------------------------------------------------------------
-// Lightweight CUDA kernels for UNet layer primitives.
+// Small kernels of the UNet outside cuDNN.
 // All tensors use NCW layout (cuDNN NCHW with H=1).
 // ---------------------------------------------------------------------------
 
 namespace pvfinder_unet {
-
-  // ---------------------------------------------------------------------------
-  // Bias add: output[n,c,w] += bias[c]
-  // Operates flat: elem = n*C*W + c*W + w
-  // ---------------------------------------------------------------------------
-  __global__ void bias_add_kernel(float* __restrict__ tensor, const float* __restrict__ bias, int C, int W, int total)
-  {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    int c = (i / W) % C;
-    tensor[i] += bias[c];
-  }
-
-  // ---------------------------------------------------------------------------
-  // MaxPool1d(kernel=2, stride=2): [N, C, W] -> [N, C, W/2]
-  // ---------------------------------------------------------------------------
-  __global__ void maxpool1d_2_kernel(const float* __restrict__ src, float* __restrict__ dst, int N, int C, int W_in)
-  {
-    // dst has W_out = W_in/2
-    int W_out = W_in / 2;
-    int total = N * C * W_out;
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    int w_out = i % W_out;
-    int c = (i / W_out) % C;
-    int n = i / (C * W_out);
-    int base = (n * C + c) * W_in + w_out * 2;
-    dst[i] = fmaxf(src[base], src[base + 1]);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Softplus * scale: y = log(1 + exp(x)) * scale, in-place
-  // Uses numerically stable form: log(1+exp(x)) = x + log(1+exp(-x)) for x>0
-  // ---------------------------------------------------------------------------
-  __global__ void softplus_scale_kernel(float* __restrict__ x, float scale, int total)
-  {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    float v = x[i];
-    // Branchless stable softplus. Same floating-point operations as
-    // v > 0 ? v + log(1 + exp(-v)) : log(1 + exp(v)) for every input
-    // (for v <= 0 it only adds +0), so the output is bit-identical.
-    x[i] = (fmaxf(v, 0.f) + logf(1.f + expf(-fabsf(v)))) * scale;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Squeeze channel dim: copy [N, 1, W] -> [N, W] (flat, no-op on data)
-  // Used to write final output KDE tensor.
-  // ---------------------------------------------------------------------------
-  __global__ void squeeze_copy_kernel(const float* __restrict__ src, float* __restrict__ dst, int total)
-  {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    dst[i] = src[i];
-  }
 
   // ---------------------------------------------------------------------------
   // Compact KDE rows back to [slot = event * 40 + interval][100]: a slot the
@@ -96,20 +41,6 @@ namespace pvfinder_unet {
   }
 
   // ---------------------------------------------------------------------------
-  // Bias add + ReLU: y = relu(tensor + bias[c])
-  // Used after BN-folded convolutions — BN absorbed into weights at init,
-  // so only bias + ReLU remain at runtime.
-  // ---------------------------------------------------------------------------
-  __global__ void bias_relu_kernel(float* __restrict__ tensor, const float* __restrict__ bias, int C, int W, int total)
-  {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= total) return;
-    int c = (i / W) % C;
-    float v = tensor[i] + bias[c];
-    tensor[i] = v > 0.f ? v : 0.f;
-  }
-
-  // ---------------------------------------------------------------------------
   // BN weight folding: fuse BN into conv weights + bias at init time.
   // After folding, inference is y = relu(conv(x, w_fused) + b_fused) — no
   // separate BN kernel needed at runtime.
@@ -118,7 +49,7 @@ namespace pvfinder_unet {
   // w_fused[k,...] = scale[k] * w[k,...]
   // b_fused[k]     = scale[k] * (b[k] - mean[k]) + beta[k]
   //
-  // Launch: <<<K, 256>>> where K = number of output channels.
+  // Launch: one block per output channel (K blocks).
   // ---------------------------------------------------------------------------
   __global__ void fold_bn_into_conv_kernel(
     float* __restrict__ w_fused,
