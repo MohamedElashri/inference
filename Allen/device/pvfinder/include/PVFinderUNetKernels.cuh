@@ -13,8 +13,8 @@
 #include <cmath>
 
 // ---------------------------------------------------------------------------
-// Small kernels of the UNet outside cuDNN.
-// All tensors use NCW layout (cuDNN NCHW with H=1).
+// Small kernels of pvfinder_unet: BatchNorm folding (init(), both
+// precisions) and the float32 path's KDE expansion. Plain CUDA, no cuDNN.
 // ---------------------------------------------------------------------------
 
 namespace pvfinder_unet {

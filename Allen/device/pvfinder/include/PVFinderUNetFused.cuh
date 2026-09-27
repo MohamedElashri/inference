@@ -10,7 +10,10 @@
 \*****************************************************************************/
 #pragma once
 
-// The whole BF16 channels-last UNet in one kernel (pvfinder_unet.fused_kernel).
+// The whole UNet in one kernel, for pvfinder_unet with precision = bfloat16.
+// It uses no cuDNN: the convolutions are written directly with the BF16
+// tensor-core instructions (mma.sync, ldmatrix; compute capability 8.0 or
+// newer), for exactly these shapes (16 feature maps, 4 input channels).
 //
 // One warp takes one interval (a row of the channels-last BF16 input, W_IN
 // bins x N_BATCH_CHANNELS) through every layer with its activations in shared
@@ -18,13 +21,18 @@
 // memory. Each convolution is an implicit GEMM on BF16 tensor cores
 // (mma.sync m16n8k16, FP32 accumulation): out[w][k] = sum over taps r and
 // channels c of act[w + r - pad][c] * W[k][r][c], i.e. for 16 channels one
-// 16-deep k-step per tap over the activation shifted by r - pad. Bias, ReLU
-// and the BF16 rounding of every activation happen where the channels-last
-// cuDNN path does them (a fused Conv+Bias+ReLU writes BF16), max-pooling is
-// done on the rounded values (the same, rounding being monotonic), the
-// ConvTransposes multiply BF16 activations by BF16 weights (exact for the
-// BF16 model, whose weights are BF16) and the output stage is the same exact
-// 9-tap composition in FP32 as output_stage_nwc_kernel.
+// 16-deep k-step per tap over the activation shifted by r - pad.
+//
+// Numerics, against the float32 model: the BatchNorm-folded convolution
+// weights and every activation are rounded to BF16 (8 significant bits);
+// bias and ReLU are applied in FP32 before an activation is rounded; sums
+// accumulate in FP32. Max-pooling works on the rounded values (the same
+// result, rounding being monotonic). The ConvTransposes multiply BF16
+// activations by BF16 weights (exact for a checkpoint whose weights are BF16).
+// The output stage (out_intermediate and outc composed into one 9-tap filter,
+// PVFinderUNetOutputStage.cuh) runs the interior bins on tensor cores with
+// the filter split into BF16 hi + lo parts (about 16 significant bits) and the
+// four edge bins in FP32.
 //
 // Shared memory: the block's weights (staged once, as one image prepared on
 // the host, see make_fused_unet_blob) and, per warp, two activation buffers
@@ -310,8 +318,8 @@ namespace pvfinder_unet {
       __syncwarp();
     }
 
-    // The output stage of output_stage_nwc_kernel: one 9-tap filter over the 16
-    // channels, bias, softplus. For the interior bins (the 5 filter sets differ
+    // The output stage (PVFinderUNetOutputStage.cuh): one 9-tap filter over
+    // the 16 channels, bias, softplus. For the interior bins (the 5 filter sets differ
     // only at the 4 edge bins), Y[w][t] = sum_c act[w][c] F[c][t] on tensor cores,
     // with F split into BF16 hi + lo parts (about 16 significant bits, as good as
     // FP32 here), staged in FP32 in the free buffer, then out[j] = bias +
@@ -448,7 +456,7 @@ namespace pvfinder_unet {
     }
 
     // Host side: the kernel's shared-memory image from the layers' weights.
-    //   conv_w[l]: BN-folded, [C][R][C_in] (the channels-last cuDNN layout), FP32 values
+    //   conv_w[l]: BN-folded, [C][R][C_in] (taps outer, channels inner), FP32 values
     //   conv_b[l]: [C]; ct_w[t]: PyTorch ConvTranspose1d layout [C_in][C_out][2]; ct_b[t]: [C]
     //   out_params: OutputStage<C> parameter block
     inline std::vector<unsigned char> make_fused_unet_blob(
