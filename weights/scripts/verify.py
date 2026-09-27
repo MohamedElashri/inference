@@ -1,145 +1,75 @@
 #!/usr/bin/env python3
-"""verify.py - Check Allen weight files against the checkpoint they came from.
+"""verify.py - Check an Allen PVFinder model file against the checkpoint it came from.
 
-Reads fc_weights.bin and cnn_weights.bin independently of convert.py, in the
-order and layout Allen's loaders read them (PVFinderFCAggregation.cu and
-load_weights in PVFinderUNet.cu), and compares every tensor bit for bit with
-the checkpoint (as float32). Also checks that the UNet has no skip connections
-(the only architecture Allen implements) and reports the Allen build it needs.
+Reads the model file (pvfinder_model.json, format pvfinder-model/1) as Allen
+does, independently of convert.py: every tensor it holds, parsed and rounded
+to float32, must equal the checkpoint's bit for bit, with the checkpoint's
+shape. Also checks the metadata (latent channels, UNet features, no skip
+connections, BatchNorm epsilon) and reports the Allen build the model needs.
 
 Usage (normally through the pipeline: make -C weights verify MODEL=<name>):
-    python3 weights/scripts/verify.py --checkpoint MODEL.pyt --fc fc_weights.bin --cnn cnn_weights.bin
+    python3 weights/scripts/verify.py --checkpoint MODEL.pyt --model-file pvfinder_model.json
 
-Exit status 0 only if both files match the checkpoint exactly.
+Exit status 0 only if the file matches the checkpoint exactly.
 """
 import argparse
-import struct
+import json
 import sys
 
 import numpy as np
 import torch
 
-parser = argparse.ArgumentParser(description="Verify Allen weight files against a checkpoint")
+from convert import BN_EPS, FC_TENSORS, UNET_TENSORS
+
+parser = argparse.ArgumentParser(description="Verify an Allen PVFinder model file against a checkpoint")
 parser.add_argument("--checkpoint", required=True)
-parser.add_argument("--fc", required=True, help="fc_weights.bin")
-parser.add_argument("--cnn", required=True, help="cnn_weights.bin")
+parser.add_argument("--model-file", required=True, help="pvfinder_model.json")
 args = parser.parse_args()
 
 sd = torch.load(args.checkpoint, map_location="cpu")
 if hasattr(sd, "state_dict"):
     sd = sd.state_dict()
-
-
-def tensor(key):
-    return sd[key].float().cpu().numpy()
-
+with open(args.model_file) as fp:
+    model = json.load(fp)
 
 problems = []
+if model.get("format") != "pvfinder-model/1":
+    problems.append(f"format is {model.get('format')!r}, not 'pvfinder-model/1'")
+n_feat = int(sd["rcbn1.0.weight"].shape[0])
+n_latent = int(sd["layer6A.bias"].shape[0]) // 100
+if model.get("unet_features") != n_feat:
+    problems.append(f"unet_features {model.get('unet_features')} != checkpoint {n_feat}")
+if model.get("latent_channels") != n_latent:
+    problems.append(f"latent_channels {model.get('latent_channels')} != checkpoint {n_latent}")
+if np.float32(model.get("bn_eps", 0.0)) != np.float32(BN_EPS):
+    problems.append(f"bn_eps {model.get('bn_eps')} != {BN_EPS}")
+if int(sd["up2.0.weight"].shape[0]) != n_feat or int(sd["out_intermediate.weight"].shape[1]) != n_feat:
+    problems.append("the checkpoint has skip connections, which Allen's UNet does not implement")
 
+tensors = model.get("tensors", {})
+for key in FC_TENSORS + UNET_TENSORS:
+    want = sd[key].float().cpu().numpy()
+    if key not in tensors:
+        problems.append(f"{key}: missing")
+        continue
+    t = tensors[key]
+    if list(t["shape"]) != list(want.shape):
+        problems.append(f"{key}: shape {t['shape']} != checkpoint {list(want.shape)}")
+        continue
+    got = np.asarray(t["data"], dtype=np.float64).astype(np.float32).reshape(want.shape)
+    if not np.array_equal(got.view(np.uint32), want.view(np.uint32)):
+        n_bad = int((got.view(np.uint32) != want.view(np.uint32)).sum())
+        problems.append(f"{key}: {n_bad} of {want.size} values differ from the checkpoint")
+extra = sorted(set(tensors) - set(FC_TENSORS + UNET_TENSORS))
+if extra:
+    problems.append(f"unexpected tensors: {', '.join(extra)}")
 
-def check(label, got, want):
-    if got.shape != want.shape or not np.array_equal(got, want):
-        problems.append(label)
-        print(f"  MISMATCH {label}: file {got.shape} vs checkpoint {want.shape}")
-
-
-# ---------------------------------------------------------------------------
-# FC: flat float32, per layer W (out x in, row-major) then b; layer6A included.
-# ---------------------------------------------------------------------------
-fc = np.fromfile(args.fc, dtype=np.float32)
-off = 0
-for k in ("1", "2", "3", "4", "5", "6A"):
-    w, b = tensor(f"layer{k}.weight"), tensor(f"layer{k}.bias")
-    if off + w.size + b.size > fc.size:
-        problems.append(f"fc layer{k}: file too short")
-        break
-    check(f"fc layer{k}.weight", fc[off:off + w.size].reshape(w.shape), w)
-    off += w.size
-    check(f"fc layer{k}.bias", fc[off:off + b.size], b)
-    off += b.size
-if off != fc.size:
-    problems.append(f"fc: {fc.size - off} trailing floats")
-latent = tensor("layer6A.bias").size // 100
-print(f"fc_weights.bin : {fc.size} floats, latentChannels={latent}, "
-      f"hidden={[tensor(f'layer{k}.weight').shape[0] for k in '12345']}")
-
-
-# ---------------------------------------------------------------------------
-# CNN: magic 0xCAFE0001 then, in load_weights order,
-#   conv   int32 in, out, k   | float32 W[out,in,k] | b[out]
-#   bn     int32 n | float32 eps | gamma, beta, mean, var [n]
-#   convT  int32 in, out, k, stride | float32 W[in,out,k] | b[out]
-# ---------------------------------------------------------------------------
-class Reader:
-    def __init__(self, path):
-        self.buf = open(path, "rb").read()
-        self.pos = 0
-
-    def ints(self, n):
-        vals = struct.unpack_from(f"<{n}i", self.buf, self.pos)
-        self.pos += 4 * n
-        return vals
-
-    def floats(self, n):
-        arr = np.frombuffer(self.buf, dtype=np.float32, count=n, offset=self.pos)
-        self.pos += 4 * n
-        return arr
-
-
-cnn = Reader(args.cnn)
-(magic,) = struct.unpack_from("<I", cnn.buf, 0)
-cnn.pos = 4
-if magic != 0xCAFE0001:
-    sys.exit(f"cnn_weights.bin: bad magic {magic:#x}")
-
-
-def conv(prefix):
-    cin, cout, k = cnn.ints(3)
-    check(f"cnn {prefix}.weight", cnn.floats(cout * cin * k).reshape(cout, cin, k), tensor(f"{prefix}.weight"))
-    check(f"cnn {prefix}.bias", cnn.floats(cout), tensor(f"{prefix}.bias"))
-    return cin, cout
-
-
-def bn(prefix):
-    (n,) = cnn.ints(1)
-    eps = cnn.floats(1)[0]
-    if not np.isclose(eps, 1e-5):
-        problems.append(f"cnn {prefix}: eps {eps} != 1e-5")
-    for name, key in (("gamma", "weight"), ("beta", "bias"), ("mean", "running_mean"), ("var", "running_var")):
-        check(f"cnn {prefix}.{name}", cnn.floats(n), tensor(f"{prefix}.{key}"))
-
-
-def convt(prefix):
-    cin, cout, k, stride = cnn.ints(4)
-    if stride != 2:
-        problems.append(f"cnn {prefix}: stride {stride} != 2")
-    check(f"cnn {prefix}.weight", cnn.floats(cin * cout * k).reshape(cin, cout, k), tensor(f"{prefix}.weight"))
-    check(f"cnn {prefix}.bias", cnn.floats(cout), tensor(f"{prefix}.bias"))
-    return cin
-
-
-try:
-    in_ch, n_feat = conv("rcbn1.0"); bn("rcbn1.1")
-    conv("rcbn2.0"); bn("rcbn2.1")
-    conv("rcbn3.0"); bn("rcbn3.1")
-    convt("up1.0"); conv("up1.1.0"); bn("up1.1.1")
-    up2_in = convt("up2.0"); conv("up2.1.0"); bn("up2.1.1")
-    oint_in, _ = conv("out_intermediate")
-    conv("outc")
-except (struct.error, ValueError) as exc:
-    sys.exit(f"cnn_weights.bin: truncated or malformed ({exc})")
-if cnn.pos != len(cnn.buf):
-    problems.append(f"cnn: {len(cnn.buf) - cnn.pos} trailing bytes")
-if in_ch != latent:
-    problems.append(f"cnn input channels {in_ch} != FC latentChannels {latent}")
-
-if up2_in != n_feat or oint_in != n_feat:
-    problems.append(f"cnn up2 takes {up2_in} and out_intermediate {oint_in} input channels, expected "
-                    f"N_FEAT={n_feat} (checkpoint has skip connections; Allen's UNet has none)")
-print(f"cnn_weights.bin: N_FEAT={n_feat}, input channels={in_ch}")
-print(f"Allen build flags: --unet-feat {n_feat} --unet-batch-channels {latent}")
-
+n_values = sum(len(t["data"]) for t in tensors.values())
+print(f"{args.model_file}: {len(tensors)} tensors, {n_values:,} floats; N_FEAT={n_feat}, latentChannels={n_latent}")
+print(f"Allen build: ./ballen -a gpu --cudnn --unet-feat {n_feat} --unet-batch-channels {n_latent}")
 if problems:
-    print(f"FAIL: {len(problems)} problem(s): {', '.join(problems[:6])}{' ...' if len(problems) > 6 else ''}")
+    for p in problems:
+        print(f"  MISMATCH {p}")
+    print("FAIL")
     sys.exit(1)
-print(f"OK: both files match {args.checkpoint} bit for bit")
+print("every tensor equals the checkpoint bit for bit: PASS")

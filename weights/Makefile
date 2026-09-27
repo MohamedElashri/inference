@@ -3,15 +3,15 @@
 #   make list                        models in models.tsv
 #   make all      MODEL=<name>       every stage below, in order
 #   make fetch    MODEL=<name>       copy the checkpoint into checkpoints/<name>.pyt
-#   make convert  MODEL=<name>       write out/<name>/cnn_weights.bin and fc_weights.bin
-#   make verify   MODEL=<name>       re-read both files the way Allen does, compare with the checkpoint
+#   make convert  MODEL=<name>       write out/<name>/pvfinder_model.json, the file Allen reads
+#   make verify   MODEL=<name>       re-read it the way Allen does, compare with the checkpoint bit for bit
 #   make build    MODEL=<name>       build the Allen variant the model needs (../ballen)
 #   make dump     MODEL=<name>       run Allen on one slice with the FC (and UNet) dumps enabled
 #   make validate MODEL=<name>       recompute FC and UNet from the checkpoint, and the full model from
 #                                    Allen's track features, compare with the dump; recompute the track
 #                                    features from Allen's track states; write a run record
 #   make verify-all                  fetch + convert + verify every model
-#   make env      MODEL=<name>       print the PVFINDER_WEIGHTS_DIR export Allen configs need
+#   make model-path MODEL=<name>     print the model file's path (for Allen's "model" property)
 #   make clean    MODEL=<name>       remove out/<name>
 #
 # MODEL defaults to unet16_lc4_scnone_asym5_final. Optional: DEVICE (GPU index, default 2),
@@ -55,7 +55,7 @@ DUMP := $(OUT)/dump$(if $(DUMP_TAG),_$(DUMP_TAG))
 RUNS := $(REPO)/benchmarks/runs.py
 SEQUENCE := hlt1_pp_pvfinder_unet_benchmark
 
-.PHONY: help list check-model fetch convert verify build dump validate all verify-all env clean
+.PHONY: help list check-model fetch convert verify build dump validate all verify-all model-path clean
 
 help:
 > @sed -n '2,17s/^# \{0,1\}//p' $(firstword $(MAKEFILE_LIST))
@@ -78,21 +78,21 @@ convert: fetch $(OUT)/.converted
 
 $(OUT)/.converted: $(CKPT) $(SCRIPTS)/convert.py
 > @mkdir -p $(OUT)
-> $(PY) $(SCRIPTS)/convert.py --model $(CKPT) --fc-out $(OUT)/fc_weights.bin --cnn-out $(OUT)/cnn_weights.bin
+> $(PY) $(SCRIPTS)/convert.py --model $(CKPT) --name $(MODEL) --out $(OUT)/pvfinder_model.json
 > @touch $@
 
 # ---- verify -----------------------------------------------------------------
 verify: convert $(OUT)/verify.txt
 
 $(OUT)/verify.txt: $(OUT)/.converted $(SCRIPTS)/verify.py
-> $(PY) $(SCRIPTS)/verify.py --checkpoint $(CKPT) --cnn $(OUT)/cnn_weights.bin --fc $(OUT)/fc_weights.bin | tee $@
+> $(PY) $(SCRIPTS)/verify.py --checkpoint $(CKPT) --model-file $(OUT)/pvfinder_model.json | tee $@
 
 # ---- Allen build, dump, validate ---------------------------------------------
 build: check-model
 > cd $(REPO) && ./ballen -a gpu --cudnn --unet-feat $(UNET_FEAT) --unet-batch-channels $(LATENT) -b $(BUILD) -j $(JOBS)
 
 dump: verify build
-> $(SCRIPTS)/allen_dump.sh --build $(REPO)/Allen/$(BUILD)gpu --weights-dir $(OUT) \
+> $(SCRIPTS)/allen_dump.sh --build $(REPO)/Allen/$(BUILD)gpu --model-file $(OUT)/pvfinder_model.json \
 >     --sequence $(SEQUENCE) --dump-dir $(DUMP) --events $(EVENTS) --device $(DEVICE) \
 >     $(foreach s,$(DUMP_SET),--set $(s))
 > $(PY) $(RUNS) snapshot $(DUMP) --device $(DEVICE) --build-dir $(REPO)/Allen/$(BUILD)gpu --model $(MODEL)
@@ -102,7 +102,7 @@ dump: verify build
 validate: check-model
 > @test -f $(DUMP)/allen_fc_csr.bin || { echo "no dump for $(MODEL): run 'make dump MODEL=$(MODEL)'" >&2; exit 1; }
 > @rc=0; \
-> $(PY) $(SCRIPTS)/validate_fc.py --dump-dir $(DUMP) --weights $(CKPT) --fc-bin $(OUT)/fc_weights.bin \
+> $(PY) $(SCRIPTS)/validate_fc.py --dump-dir $(DUMP) --weights $(CKPT) \
 >     --report $(DUMP)/validate_fc.json | tee $(DUMP)/validate_fc.txt || rc=1; \
 > $(PY) $(SCRIPTS)/validate_unet.py --dump-dir $(DUMP) --weights $(CKPT) \
 >     --report $(DUMP)/validate_unet.json | tee $(DUMP)/validate_unet.txt || rc=1; \
@@ -125,9 +125,8 @@ verify-all:
 > @for m in $(MODELS); do $(MAKE) --no-print-directory verify MODEL=$$m || exit 1; done
 
 # ---- helpers ------------------------------------------------------------------
-env: check-model
-> @test -f $(OUT)/verify.txt || { echo "$(MODEL) is not converted and verified yet: make verify MODEL=$(MODEL)" >&2; exit 1; }
-> @echo "export PVFINDER_WEIGHTS_DIR=$(OUT)"
+model-path: check-model
+> @echo $(OUT)/pvfinder_model.json
 
 clean: check-model
 > rm -rf $(OUT)

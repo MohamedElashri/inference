@@ -15,7 +15,6 @@
 #   HLT1 default reco
 #     └─> pvfinder_fc_aggregation (computes the per-track features in its CSR build)
 #     └─> pvfinder_unet (consumes dev_pvfinder_interval_features directly)
-import os
 
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
@@ -46,11 +45,7 @@ def hook_pvfinder_unet_to_hlt1():
     pvfinder_fc_output = make_pvfinder_fc(reco["velo_tracks"])
 
     # UNet inference consumes the FC interval features directly.
-    _dump_dir = os.environ.get("PVFINDER_DUMP_DIR", "")
-    pvfinder_unet_output = make_pvfinder_unet(
-        pvfinder_fc_output,
-        dump_validation=_dump_dir,
-    )
+    pvfinder_unet_output = make_pvfinder_unet(pvfinder_fc_output)
 
     # Add PVFinder to the HLT1 top node, behind the HLT1 physics prefilters
     # (see pvfinder_node). Allen schedules it by its data dependencies: right

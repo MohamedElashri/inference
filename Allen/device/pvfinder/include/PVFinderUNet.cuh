@@ -12,6 +12,7 @@
 
 #include "AlgorithmTypes.cuh"
 #include "PVFinderConstants.cuh"
+#include "PVFinderModel.h"
 #include <memory>
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
 #include "AllenCuDNN.h"
@@ -97,14 +98,14 @@ struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
     void init();
 
 private:
-    // Required, no default: Allen does not assume where weights live. The
-    // repository's weights/ pipeline produces cnn_weights.bin
-    // (make -C weights convert MODEL=<name>), and AllenConf fills this in from
-    // PVFINDER_WEIGHTS_DIR when the sequence configuration is generated.
-    Allen::Property<std::string> m_weight_file {
-        this, "weight_file", "",
-        "path to cnn_weights.bin (required; produced by the weights/ pipeline, "
-        "set by AllenConf from PVFINDER_WEIGHTS_DIR)"};
+    // The trained model (PVFinderModel.h): relative to the parameters
+    // directory (--params), or absolute. Must be pvfinder_fc_aggregation's
+    // (AllenConf sets both).
+    Allen::Property<std::string> m_model_file {
+        this, "model", "pvfinder/unet16_lc4_scnone_asym5_final.json",
+        "PVFinder model file, relative to the parameters directory or absolute; must match "
+        "pvfinder_fc_aggregation.model"};
+    PVFinder::Model m_model {"pvfinder_unet", [this] { return m_model_file.value(); }};
 
     Allen::Property<std::string> m_precision {
         this, "precision", "float32", "float32 or bfloat16; must match pvfinder_fc_aggregation.precision"};

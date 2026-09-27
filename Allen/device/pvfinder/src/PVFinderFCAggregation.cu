@@ -15,7 +15,6 @@ INSTANTIATE_ALGORITHM(pvfinder_fc_aggregation::pvfinder_fc_aggregation_t)
 // The FC kernels use CUDA-only features (bfloat16 tensor cores, warp
 // intrinsics); other targets build a stub that refuses to run.
 #if defined(TARGET_DEVICE_CUDA)
-#include "PVFinderWeightRegistry.h"
 #include "PVFinderTrackFeatures.cuh"
 
 #include <cuda_bf16.h>
@@ -851,9 +850,8 @@ void pvfinder_fc_aggregation_t::set_arguments_size(
 
 void pvfinder_fc_aggregation_t::update(const Constants& constants) const { updateCommon(constants); }
 
-// Loads this instance's weights, keys namespaced by weight file as in
-// pvfinder_unet (instances with the same file share one device copy), and
-// sizes the FC kernel's grid for this device.
+// Copies this instance's weights (from its model, read before init()) to the
+// device and sizes the FC kernel's grid for this device.
 void pvfinder_fc_aggregation_t::init()
 {
     const std::string& precision = m_precision.value();
@@ -862,38 +860,25 @@ void pvfinder_fc_aggregation_t::init()
     }
     m_bf16 = precision == "bfloat16";
 
-    const std::string path = m_weight_file.value();
-    if (path.empty()) {
-        throw StrException(
-            "pvfinder_fc_aggregation: weight_file is not set. Produce weights with the repository's "
-            "weights/ pipeline (make -C weights verify MODEL=<name>) and generate the sequence "
-            "configuration with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
+    // One device array in the kernels' layout: per layer weights [out][in]
+    // then biases, layers 1-5 (FC_L15_FLOATS) then 6A.
+    std::vector<float> weights;
+    weights.reserve(FC_L15_FLOATS + L6A_WEIGHT_FLOATS + L6A_WIDTH);
+    const struct {
+        const char* name;
+        int out, in;
+    } layers[6] = {{"layer1", 20, 9}, {"layer2", 20, 20}, {"layer3", 20, 20}, {"layer4", 20, 20},
+                   {"layer5", 20, 20}, {"layer6A", (int) L6A_WIDTH, 20}};
+    for (const auto& l : layers) {
+        const auto& w = m_model.tensor(std::string(l.name) + ".weight", {l.out, l.in});
+        const auto& b = m_model.tensor(std::string(l.name) + ".bias", {l.out});
+        weights.insert(weights.end(), w.begin(), w.end());
+        weights.insert(weights.end(), b.begin(), b.end());
     }
-    auto& registry = PVFinder::WeightRegistry::instance();
-    const std::string key = "pvfinder_fc:" + path + ":weights";
-    if (!registry.contains(key)) {
-        std::ifstream f(path, std::ios::binary | std::ios::ate);
-        if (!f.is_open()) {
-            throw StrException("pvfinder_fc_aggregation: cannot open " + path);
-        }
-        const size_t bytes = static_cast<size_t>(f.tellg());
-        f.seekg(0);
-        std::vector<char> host_buf(bytes);
-        f.read(host_buf.data(), bytes);
-        // Layers 1-5 (FC_L15_FLOATS: 9x20 + 20, then 4 x (20x20 + 20)), then
-        // W6A row-major [L6A_WIDTH][20] and b6A [L6A_WIDTH]. L6A_WIDTH is fixed
-        // by the build (--unet-batch-channels); the file must match it.
-        constexpr size_t expected_floats = FC_L15_FLOATS + L6A_WEIGHT_FLOATS + L6A_WIDTH;
-        if (bytes != expected_floats * sizeof(float)) {
-            throw StrException(
-                "pvfinder_fc_aggregation: " + path + " has " + std::to_string(bytes / sizeof(float)) +
-                " floats, this build expects " + std::to_string(expected_floats) + " (N_LATENT_CHANNELS = " +
-                std::to_string(N_LATENT_CHANNELS) + "); the model's latentChannels and the build's "
-                "--unet-batch-channels must match");
-        }
-        registry.load_from_buffer(key, host_buf.data(), bytes);
-    }
-    m_dev_weights = registry.get<float>(key);
+    float* dev_weights = nullptr;
+    Allen::malloc(reinterpret_cast<void**>(&dev_weights), weights.size() * sizeof(float));
+    Allen::memcpy(dev_weights, weights.data(), weights.size() * sizeof(float), Allen::memcpyHostToDevice);
+    m_dev_weights = dev_weights;
 
     int device = 0, sm_count = 0, cc_major = 0, per_sm = 0;
     cudaCheck(cudaGetDevice(&device));

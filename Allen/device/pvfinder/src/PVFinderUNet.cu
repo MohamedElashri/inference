@@ -148,192 +148,42 @@ static const ConvTransposeTensorDescs& get_thread_local_conv_transpose_descs(con
   }
 } // namespace
 
-// ---------------------------------------------------------------------------
-// Binary weight file parser
-// Layout (written by write_cnn_weights in weights/scripts/convert.py):
-//   uint32  magic = 0xCAFE0001
-//   conv(C→F,k=25):  int32 in,out,k | float[out*in*k] weights | float[out] bias
-//   bn(F):           int32 features | float eps | float[f] gamma,beta,mean,var
-//   ... repeated for rcbn2, rcbn3
-//   convT(F→F,k=2,s=2): int32 in,out,k,stride | float[in*out*k] | float[out]
-//   conv+bn for up1.convbnrelu, up2.convbnrelu
-//   conv(F→F,k=5):   out_intermediate
-//   conv(F→1,k=5):   outc
-// with C = N_BATCH_CHANNELS and F = N_FEAT. No skip connections, so up2's
-// ConvTranspose and out_intermediate take F channels, not 2F.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Read a block of floats from a host buffer at a given byte offset.
-// Returns updated offset.
-// ---------------------------------------------------------------------------
-static size_t read_float_block(
-    const std::vector<char>& buf, size_t offset,
-    float* dst, size_t count)
+// The weights on the device, from the model (tensors named as in the PyTorch
+// state dict, shapes checked against this build: C = N_BATCH_CHANNELS input
+// channels, F = N_FEAT feature maps, no skip connections).
+static WeightBlob weights_from_model(PVFinder::Model& model)
 {
-    std::memcpy(dst, buf.data() + offset, count * sizeof(float));
-    return offset + count * sizeof(float);
-}
-
-static size_t read_int32(const std::vector<char>& buf, size_t offset, int& v)
-{
-    std::memcpy(&v, buf.data() + offset, 4);
-    return offset + 4;
-}
-
-static size_t read_float32(const std::vector<char>& buf, size_t offset, float& v)
-{
-    std::memcpy(&v, buf.data() + offset, 4);
-    return offset + 4;
-}
-
-// ---------------------------------------------------------------------------
-// Load weights from binary file into WeightRegistry and fill WeightBlob.
-// ---------------------------------------------------------------------------
-static WeightBlob load_weights(const std::string& path)
-{
-    // Read entire file into host buffer
-    FILE* fp = fopen(path.c_str(), "rb");
-    if (!fp) {
-        throw StrException("PVFinderUNet: cannot open weight file: " + path);
-    }
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    std::vector<char> buf(file_size);
-    fread(buf.data(), 1, file_size, fp);
-    fclose(fp);
-
-    size_t off = 0;
-
-    // Magic
-    uint32_t magic = 0;
-    std::memcpy(&magic, buf.data(), 4);
-    off += 4;
-    if (magic != 0xCAFE0001u) {
-        throw StrException("PVFinderUNet: bad magic in weight file");
-    }
-
-    auto& reg = Allen::CuDNN::WeightRegistry::instance();
-    // Keys are namespaced by weight file: instances loading the same file share
-    // one device copy, instances with different files never collide.
-    const std::string ns = "pvfinder_unet:" + path + ":";
     WeightBlob wb {};
-
-    // Every layer's shape is fixed by this build (N_BATCH_CHANNELS, N_FEAT) and
-    // by the no-skip architecture, so check it instead of trusting the file: a
-    // checkpoint trained with skip connections has 2*N_FEAT inputs at up2's
-    // ConvTranspose and at out_intermediate.
-    auto expect_shape = [&](const std::string& key, int in_c, int out_c, int k,
-                            int want_in, int want_out, int want_k) {
-        if (in_c != want_in || out_c != want_out || k != want_k) {
-            throw StrException(
-                "PVFinderUNet: " + key + " in " + path + " has (in=" + std::to_string(in_c) +
-                ", out=" + std::to_string(out_c) + ", k=" + std::to_string(k) +
-                "), this build expects (in=" + std::to_string(want_in) + ", out=" +
-                std::to_string(want_out) + ", k=" + std::to_string(want_k) +
-                "); check --unet-feat/--unet-batch-channels and that the model has no skip connections");
-        }
+    const auto conv = [&](const std::string& p, int in, int out, int k, const float*& w, const float*& b) {
+        w = model.device_tensor(p + ".weight", {out, in, k});
+        b = model.device_tensor(p + ".bias", {out});
     };
-
-    // Helper lambdas
-    auto load_conv = [&](const std::string& key_w, const std::string& key_b,
-                          const float*& out_w, const float*& out_b,
-                          int want_in, int want_out, int want_k) {
-        int in_c, out_c, k;
-        off = read_int32(buf, off, in_c);
-        off = read_int32(buf, off, out_c);
-        off = read_int32(buf, off, k);
-        expect_shape(key_w, in_c, out_c, k, want_in, want_out, want_k);
-        size_t wcount = (size_t)out_c * in_c * k;
-        // Load weight block
-        std::vector<float> w_host(wcount);
-        off = read_float_block(buf, off, w_host.data(), wcount);
-        if (!reg.contains(ns + key_w)) reg.load_from_buffer(ns + key_w, w_host.data(), wcount * sizeof(float));
-        out_w = reg.get<float>(ns + key_w);
-        // Load bias block
-        std::vector<float> b_host(out_c);
-        off = read_float_block(buf, off, b_host.data(), out_c);
-        if (!reg.contains(ns + key_b)) reg.load_from_buffer(ns + key_b, b_host.data(), out_c * sizeof(float));
-        out_b = reg.get<float>(ns + key_b);
+    const auto bn = [&](const std::string& p, const float*& gamma, const float*& beta, const float*& mean,
+                        const float*& var, float& eps) {
+        gamma = model.device_tensor(p + ".weight", {N_FEAT});
+        beta = model.device_tensor(p + ".bias", {N_FEAT});
+        mean = model.device_tensor(p + ".running_mean", {N_FEAT});
+        var = model.device_tensor(p + ".running_var", {N_FEAT});
+        eps = model.bn_eps();
     };
-
-    auto load_bn = [&](const std::string& prefix,
-                        const float*& gamma, const float*& beta,
-                        const float*& mean,  const float*& var, float& eps) {
-        int features;
-        off = read_int32(buf, off, features);
-        if (features != N_FEAT) {
-            throw StrException("PVFinderUNet: " + prefix + " in " + path + " has " +
-                                     std::to_string(features) + " features, this build expects N_FEAT=" +
-                                     std::to_string(N_FEAT));
-        }
-        off = read_float32(buf, off, eps);
-        std::vector<float> g(features), b(features), m(features), v(features);
-        off = read_float_block(buf, off, g.data(), features);
-        off = read_float_block(buf, off, b.data(), features);
-        off = read_float_block(buf, off, m.data(), features);
-        off = read_float_block(buf, off, v.data(), features);
-        auto ld = [&](const std::string& k, const std::vector<float>& d, const float*& ptr) {
-            if (!reg.contains(ns + k)) reg.load_from_buffer(ns + k, d.data(), d.size() * sizeof(float));
-            ptr = reg.get<float>(ns + k);
-        };
-        ld(prefix + ".gamma", g, gamma);
-        ld(prefix + ".beta",  b, beta);
-        ld(prefix + ".mean",  m, mean);
-        ld(prefix + ".var",   v, var);
+    const auto conv_transpose = [&](const std::string& p, const float*& w, const float*& b) {
+        w = model.device_tensor(p + ".weight", {N_FEAT, N_FEAT, 2}); // [in][out][k]
+        b = model.device_tensor(p + ".bias", {N_FEAT});
     };
-
-    auto load_convt = [&](const std::string& key_w, const std::string& key_b,
-                           const float*& out_w, const float*& out_b) {
-        int in_c, out_c, k, stride;
-        off = read_int32(buf, off, in_c);
-        off = read_int32(buf, off, out_c);
-        off = read_int32(buf, off, k);
-        off = read_int32(buf, off, stride);
-        expect_shape(key_w, in_c, out_c, k, N_FEAT, N_FEAT, 2);
-        if (stride != 2) {
-            throw StrException("PVFinderUNet: " + key_w + " in " + path + " has stride " +
-                                     std::to_string(stride) + ", expected 2");
-        }
-        size_t wcount = (size_t)in_c * out_c * k;
-        std::vector<float> w_host(wcount);
-        off = read_float_block(buf, off, w_host.data(), wcount);
-        if (!reg.contains(ns + key_w)) reg.load_from_buffer(ns + key_w, w_host.data(), wcount * sizeof(float));
-        out_w = reg.get<float>(ns + key_w);
-        std::vector<float> b_host(out_c);
-        off = read_float_block(buf, off, b_host.data(), out_c);
-        if (!reg.contains(ns + key_b)) reg.load_from_buffer(ns + key_b, b_host.data(), out_c * sizeof(float));
-        out_b = reg.get<float>(ns + key_b);
-    };
-
-    // rcbn1
-    load_conv("rcbn1.w", "rcbn1.b", wb.w_rcbn1_w, wb.w_rcbn1_b, N_BATCH_CHANNELS, N_FEAT, 25);
-    load_bn("rcbn1.bn", wb.w_rcbn1_gamma, wb.w_rcbn1_beta, wb.w_rcbn1_mean, wb.w_rcbn1_var, wb.rcbn1_eps);
-    // rcbn2
-    load_conv("rcbn2.w", "rcbn2.b", wb.w_rcbn2_w, wb.w_rcbn2_b, N_FEAT, N_FEAT, 7);
-    load_bn("rcbn2.bn", wb.w_rcbn2_gamma, wb.w_rcbn2_beta, wb.w_rcbn2_mean, wb.w_rcbn2_var, wb.rcbn2_eps);
-    // rcbn3
-    load_conv("rcbn3.w", "rcbn3.b", wb.w_rcbn3_w, wb.w_rcbn3_b, N_FEAT, N_FEAT, 5);
-    load_bn("rcbn3.bn", wb.w_rcbn3_gamma, wb.w_rcbn3_beta, wb.w_rcbn3_mean, wb.w_rcbn3_var, wb.rcbn3_eps);
-    // up1: ConvTranspose + ConvBNrelu
-    load_convt("up1t.w", "up1t.b", wb.w_up1t_w, wb.w_up1t_b);
-    load_conv("up1c.w", "up1c.b", wb.w_up1c_w, wb.w_up1c_b, N_FEAT, N_FEAT, 5);
-    load_bn("up1c.bn", wb.w_up1c_gamma, wb.w_up1c_beta, wb.w_up1c_mean, wb.w_up1c_var, wb.up1c_eps);
-    // up2: ConvTranspose + ConvBNrelu
-    load_convt("up2t.w", "up2t.b", wb.w_up2t_w, wb.w_up2t_b);
-    load_conv("up2c.w", "up2c.b", wb.w_up2c_w, wb.w_up2c_b, N_FEAT, N_FEAT, 5);
-    load_bn("up2c.bn", wb.w_up2c_gamma, wb.w_up2c_beta, wb.w_up2c_mean, wb.w_up2c_var, wb.up2c_eps);
-    // out_intermediate: Conv(N_FEAT→N_FEAT, k=5)
-    load_conv("oint.w", "oint.b", wb.w_oint_w, wb.w_oint_b, N_FEAT, N_FEAT, 5);
-    // outc: Conv(N_FEAT→1, k=5)
-    load_conv("outc.w", "outc.b", wb.w_outc_w, wb.w_outc_b, N_FEAT, 1, 5);
-
-    if (off != buf.size()) {
-        throw StrException("PVFinderUNet: " + std::to_string(buf.size() - off) +
-                                 " trailing bytes in weight file " + path);
-    }
-
+    conv("rcbn1.0", N_BATCH_CHANNELS, N_FEAT, 25, wb.w_rcbn1_w, wb.w_rcbn1_b);
+    bn("rcbn1.1", wb.w_rcbn1_gamma, wb.w_rcbn1_beta, wb.w_rcbn1_mean, wb.w_rcbn1_var, wb.rcbn1_eps);
+    conv("rcbn2.0", N_FEAT, N_FEAT, 7, wb.w_rcbn2_w, wb.w_rcbn2_b);
+    bn("rcbn2.1", wb.w_rcbn2_gamma, wb.w_rcbn2_beta, wb.w_rcbn2_mean, wb.w_rcbn2_var, wb.rcbn2_eps);
+    conv("rcbn3.0", N_FEAT, N_FEAT, 5, wb.w_rcbn3_w, wb.w_rcbn3_b);
+    bn("rcbn3.1", wb.w_rcbn3_gamma, wb.w_rcbn3_beta, wb.w_rcbn3_mean, wb.w_rcbn3_var, wb.rcbn3_eps);
+    conv_transpose("up1.0", wb.w_up1t_w, wb.w_up1t_b);
+    conv("up1.1.0", N_FEAT, N_FEAT, 5, wb.w_up1c_w, wb.w_up1c_b);
+    bn("up1.1.1", wb.w_up1c_gamma, wb.w_up1c_beta, wb.w_up1c_mean, wb.w_up1c_var, wb.up1c_eps);
+    conv_transpose("up2.0", wb.w_up2t_w, wb.w_up2t_b);
+    conv("up2.1.0", N_FEAT, N_FEAT, 5, wb.w_up2c_w, wb.w_up2c_b);
+    bn("up2.1.1", wb.w_up2c_gamma, wb.w_up2c_beta, wb.w_up2c_mean, wb.w_up2c_var, wb.up2c_eps);
+    conv("out_intermediate", N_FEAT, N_FEAT, 5, wb.w_oint_w, wb.w_oint_b);
+    conv("outc", N_FEAT, 1, 5, wb.w_outc_w, wb.w_outc_b);
     return wb;
 }
 
@@ -351,14 +201,8 @@ void pvfinder_unet_t::init()
         throw StrException("pvfinder_unet: precision must be float32 or bfloat16, got '" + precision + "'");
     }
     m_bf16 = precision == "bfloat16";
-    if (m_weight_file.value().empty()) {
-        throw StrException(
-            "pvfinder_unet: weight_file is not set. Produce weights with the repository's weights/ "
-            "pipeline (make -C weights verify MODEL=<name>) and generate the sequence configuration "
-            "with PVFINDER_WEIGHTS_DIR pointing at them (make -C weights env MODEL=<name>).");
-    }
     auto state = std::make_shared<UNetState>();
-    state->wb = load_weights(m_weight_file.value());
+    state->wb = weights_from_model(m_model);
     const WeightBlob& wb = state->wb;
 
     // Fold BatchNorm into the CBR layers' weights and biases, on the device:

@@ -14,12 +14,9 @@ from AllenCore.algorithms import (
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
-from AllenConf.pvfinder_fc_reconstruction import pvfinder_weight_file
-from AllenConf.utils import initialize_number_of_events
-
 
 @configurable
-def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
+def make_pvfinder_unet(fc_output, dump_validation=""):
     """
     The UNet, downstream of the FC aggregation: its rows (one per interval with
     tracks) to the KDE.
@@ -28,11 +25,8 @@ def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
     ----------
     fc_output : dict
         Return value of make_pvfinder_fc(): the rows and their layout, the
-        number of events, and the precision and batch size, which the UNet
-        takes from it so the two algorithms always agree.
-    weight_file : str, optional
-        Path to cnn_weights.bin. Defaults to $PVFINDER_WEIGHTS_DIR/cnn_weights.bin,
-        produced by the repository's weights/ pipeline (see pvfinder_weight_file).
+        number of events, and the model, precision and batch size, which the
+        UNet takes from it so the two algorithms always agree.
     dump_validation : str
         Directory for the validation dumps, "" = off.
 
@@ -42,22 +36,19 @@ def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
       - "dev_pvfinder_kde_output"  : final KDE float array [n_events*40*100]
       - "unet_producer"            : the pvfinder_unet algorithm node
     """
-    if weight_file is None:
-        weight_file = pvfinder_weight_file("cnn_weights.bin")
-    host_number_of_events = fc_output["host_number_of_events"]
-
+    model_property = {} if fc_output["model"] is None else {"model": fc_output["model"]}
     pvfinder_unet = make_algorithm(
         pvfinder_unet_t,
         name="pvfinder_unet",
-        host_number_of_events_t=host_number_of_events,
+        host_number_of_events_t=fc_output["host_number_of_events"],
         dev_pvfinder_interval_features_t=fc_output["dev_pvfinder_interval_features"],
         host_pvfinder_unet_rows_t=fc_output["host_pvfinder_unet_rows"],
         dev_pvfinder_slot_row_t=fc_output["dev_pvfinder_slot_row"],
         dev_pvfinder_row_slot_t=fc_output["dev_pvfinder_row_slot"],
-        weight_file=weight_file,
         precision=fc_output["precision"],
         unet_batch_events=fc_output["unet_batch_events"],
         dump_validation=dump_validation,
+        **model_property,
     )
 
     return {

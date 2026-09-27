@@ -1,192 +1,106 @@
 """
-Convert PVFinder .pyt weights to binary format for the Allen C++ implementation.
+Convert a PVFinder .pyt checkpoint to the model file Allen reads.
 
-Produces two files:
-  fc_weights.bin  — FC MLP layers 1-6A (used by pvfinder_fc_aggregation)
-  cnn_weights.bin — UNet CNN layers     (used by pvfinder_unet)
+Produces one JSON file (format "pvfinder-model/1"), read by the Allen
+algorithms pvfinder_fc_aggregation and pvfinder_unet through their "model"
+property (see Allen/device/pvfinder/include/PVFinderModel.h):
+
+  {"format": "pvfinder-model/1", "name": ..., "source": ..., "sha256": ...,
+   "latent_channels": 4, "unet_features": 16, "bn_eps": 1e-05,
+   "tensors": {"layer1.weight": {"shape": [20, 9], "data": [...]}, ...}}
+
+Tensors keep their PyTorch state-dict names and shapes, data row major; each
+value is written as the shortest decimal that reads back as the same float32,
+so the file is exact.
 
 Usage (normally through the pipeline: make -C weights convert MODEL=<name>):
-  python weights/scripts/convert.py --model <path/to/model.pyt> \\
-      [--fc-out fc_weights.bin] [--cnn-out cnn_weights.bin]
+  python weights/scripts/convert.py --model <path/to/model.pyt> --out pvfinder_model.json [--name NAME]
 
-The script detects the UNet feature count (N_FEAT) and latentChannels from the
-state dict. The FC architecture is 9→20→20→20→20→20→(latentChannels*100). The
-UNet has no skip connections; a checkpoint trained with them is rejected.
-
-Allen must be built to match the model, e.g. for the 16-channel latentChannels-4 model:
-  ./ballen -a gpu --cudnn --cublas --unet-feat 16 --unet-batch-channels 4
-(ballen defaults when the flags are omitted: N_FEAT=64, latentChannels=8).
+The UNet has no skip connections; a checkpoint trained with them is rejected.
+Allen must be built to match the model's widths, e.g. for the 16-feature,
+latentChannels-4 model:
+  ./ballen -a gpu --cudnn --unet-feat 16 --unet-batch-channels 4
 """
 
 import argparse
+import hashlib
+import json
+import os
 import sys
-import struct
+
 import numpy as np
 import torch
 
-
-# ---------------------------------------------------------------------------
-# Helpers shared by FC and CNN converters
-# ---------------------------------------------------------------------------
-
-def _w32(f, arr):
-    f.write(arr.astype(np.float32).tobytes())
-
-def _i32(f, val):
-    f.write(struct.pack('<i', int(val)))
-
-
-# ---------------------------------------------------------------------------
-# FC converter  (layers 1-6A, layout identical regardless of UNet width)
-# ---------------------------------------------------------------------------
-
-FC_LAYOUT = [
-    ("layer1",  9,  None),   # 9→nOut1
-    ("layer2",  None, None), # nOut1→nOut2
-    ("layer3",  None, None),
-    ("layer4",  None, None),
-    ("layer5",  None, None),
-    ("layer6A", None, None), # nOut5 → latentChannels*100
-]
-
-def write_fc_weights(f, state_dict):
-    """Write FC weight binary (flat floats, no header).
-
-    Layout per layer: W (out×in) then b (out), row-major -- layer6A included.
-    Allen's FC loader (PVFinderFCAggregation.cu) transposes layer6A itself for
-    cuBLAS, so it must NOT be transposed here: doing both scrambles layer6A
-    without any size error.
-    """
-    layer_names = ["layer1", "layer2", "layer3", "layer4", "layer5", "layer6A"]
-    for name in layer_names:
-        w = state_dict[f"{name}.weight"].float().cpu().numpy()
-        b = state_dict[f"{name}.bias"].float().cpu().numpy()
-        out_c, in_c = w.shape
-        print(f"  FC {name}: [{in_c} → {out_c}]")
-        f.write(w.tobytes())
-        f.write(b.tobytes())
+# The tensors Allen reads, by state-dict name.
+FC_TENSORS = [f"{layer}.{kind}" for layer in ("layer1", "layer2", "layer3", "layer4", "layer5", "layer6A")
+              for kind in ("weight", "bias")]
+BN = ("weight", "bias", "running_mean", "running_var")
+UNET_TENSORS = (
+    ["rcbn1.0.weight", "rcbn1.0.bias"] + [f"rcbn1.1.{k}" for k in BN]
+    + ["rcbn2.0.weight", "rcbn2.0.bias"] + [f"rcbn2.1.{k}" for k in BN]
+    + ["rcbn3.0.weight", "rcbn3.0.bias"] + [f"rcbn3.1.{k}" for k in BN]
+    + ["up1.0.weight", "up1.0.bias", "up1.1.0.weight", "up1.1.0.bias"] + [f"up1.1.1.{k}" for k in BN]
+    + ["up2.0.weight", "up2.0.bias", "up2.1.0.weight", "up2.1.0.bias"] + [f"up2.1.1.{k}" for k in BN]
+    + ["out_intermediate.weight", "out_intermediate.bias", "outc.weight", "outc.bias"]
+)
+BN_EPS = 1e-5  # PyTorch's BatchNorm1d default, as in training
 
 
-# ---------------------------------------------------------------------------
-# CNN converter  (UNet, arbitrary N_FEAT)
-# ---------------------------------------------------------------------------
-
-def _write_conv1d(f, key_w, key_b, state_dict, label):
-    w = state_dict[key_w].float().cpu().numpy()  # [out, in, k]
-    b = state_dict[key_b].float().cpu().numpy()  # [out]
-    out_c, in_c, k = w.shape
-    print(f"  CNN {label}: Conv1d({in_c}→{out_c}, k={k})")
-    _i32(f, in_c); _i32(f, out_c); _i32(f, k)
-    _w32(f, w); _w32(f, b)
-
-def _write_bn1d(f, prefix, state_dict, label):
-    gamma = state_dict[f"{prefix}.weight"].float().cpu().numpy()
-    beta  = state_dict[f"{prefix}.bias"].float().cpu().numpy()
-    mean  = state_dict[f"{prefix}.running_mean"].float().cpu().numpy()
-    var   = state_dict[f"{prefix}.running_var"].float().cpu().numpy()
-    eps   = float(1e-5)  # PyTorch default
-    n     = len(gamma)
-    print(f"  CNN {label}: BN1d(features={n})")
-    _i32(f, n)
-    f.write(struct.pack('<f', eps))
-    _w32(f, gamma); _w32(f, beta); _w32(f, mean); _w32(f, var)
-
-def _write_convt1d(f, key_w, key_b, state_dict, label):
-    w = state_dict[key_w].float().cpu().numpy()  # [in, out, k]
-    b = state_dict[key_b].float().cpu().numpy()  # [out]
-    in_c, out_c, k = w.shape
-    stride = 2
-    print(f"  CNN {label}: ConvTranspose1d({in_c}→{out_c}, k={k}, s={stride})")
-    _i32(f, in_c); _i32(f, out_c); _i32(f, k); _i32(f, stride)
-    _w32(f, w); _w32(f, b)
-
-def write_cnn_weights(f, state_dict):
-    """Write CNN weight binary with magic 0xCAFE0001."""
-    f.write(struct.pack('<I', 0xCAFE0001))
-
-    # rcbn1: Conv(N_BATCH_CHANNELS→N_FEAT, k=25) + BN
-    _write_conv1d(f, "rcbn1.0.weight", "rcbn1.0.bias", state_dict, "rcbn1.conv")
-    _write_bn1d(f, "rcbn1.1", state_dict, "rcbn1.bn")
-
-    # rcbn2: Conv(N_FEAT→N_FEAT, k=7) + BN
-    _write_conv1d(f, "rcbn2.0.weight", "rcbn2.0.bias", state_dict, "rcbn2.conv")
-    _write_bn1d(f, "rcbn2.1", state_dict, "rcbn2.bn")
-
-    # rcbn3: Conv(N_FEAT→N_FEAT, k=5) + BN
-    _write_conv1d(f, "rcbn3.0.weight", "rcbn3.0.bias", state_dict, "rcbn3.conv")
-    _write_bn1d(f, "rcbn3.1", state_dict, "rcbn3.bn")
-
-    # up1: ConvTranspose(N_FEAT→N_FEAT, k=2, s=2) + Conv(N_FEAT→N_FEAT, k=5) + BN
-    _write_convt1d(f, "up1.0.weight", "up1.0.bias", state_dict, "up1.convt")
-    _write_conv1d(f, "up1.1.0.weight", "up1.1.0.bias", state_dict, "up1.conv")
-    _write_bn1d(f, "up1.1.1", state_dict, "up1.bn")
-
-    # up2: ConvTranspose(N_FEAT→N_FEAT, k=2, s=2) + Conv(N_FEAT→N_FEAT, k=5) + BN
-    _write_convt1d(f, "up2.0.weight", "up2.0.bias", state_dict, "up2.convt")
-    _write_conv1d(f, "up2.1.0.weight", "up2.1.0.bias", state_dict, "up2.conv")
-    _write_bn1d(f, "up2.1.1", state_dict, "up2.bn")
-
-    # out_intermediate: Conv(N_FEAT→N_FEAT, k=5)
-    _write_conv1d(f, "out_intermediate.weight", "out_intermediate.bias", state_dict, "out_intermediate")
-
-    # outc: Conv(N_FEAT→1, k=5)
-    _write_conv1d(f, "outc.weight", "outc.bias", state_dict, "outc")
+def float32_list(array):
+    """Values as Python floats; json writes the shortest repr, which reads back as the same float32."""
+    return [float(v) for v in np.asarray(array, dtype=np.float32).ravel()]
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+def load_state_dict(path):
+    sd = torch.load(path, map_location="cpu")
+    if hasattr(sd, "state_dict"):
+        sd = sd.state_dict()
+    return sd
 
-def detect_n_feat(state_dict):
-    """Infer N_FEAT from the first conv layer weight shape."""
-    w = state_dict["rcbn1.0.weight"]
-    return w.shape[0]  # out_channels of rcbn1
+
+def model_json(state_dict, name, source):
+    n_feat = int(state_dict["rcbn1.0.weight"].shape[0])
+    n_latent = int(state_dict["layer6A.bias"].shape[0]) // 100
+    up2_in = int(state_dict["up2.0.weight"].shape[0])              # ConvTranspose1d: [in, out, k]
+    oint_in = int(state_dict["out_intermediate.weight"].shape[1])  # Conv1d: [out, in, k]
+    if up2_in != n_feat or oint_in != n_feat:
+        sys.exit(f"ERROR: up2 takes {up2_in} and out_intermediate {oint_in} input channels, expected "
+                 f"{n_feat}: this checkpoint has skip connections, which Allen's UNet does not implement")
+    tensors = {}
+    for key in FC_TENSORS + UNET_TENSORS:
+        t = state_dict[key].float().cpu().numpy()
+        tensors[key] = {"shape": list(t.shape), "data": float32_list(t)}
+    sha = hashlib.sha256(open(source, "rb").read()).hexdigest()
+    return {
+        "format": "pvfinder-model/1",
+        "name": name,
+        "source": os.path.abspath(source),
+        "sha256": sha,
+        "latent_channels": n_latent,
+        "unet_features": n_feat,
+        "bn_eps": BN_EPS,
+        "tensors": tensors,
+    }
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--model", required=True, help="Path to .pyt state dict")
-    p.add_argument("--fc-out",  default="fc_weights.bin",  help="Output FC binary [fc_weights.bin]")
-    p.add_argument("--cnn-out", default="cnn_weights.bin", help="Output CNN binary [cnn_weights.bin]")
-    p.add_argument("--fc-only",  action="store_true", help="Only write FC weights")
-    p.add_argument("--cnn-only", action="store_true", help="Only write CNN weights")
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--model", required=True, help="path to the .pyt state dict")
+    p.add_argument("--out", default="pvfinder_model.json", help="output model file [pvfinder_model.json]")
+    p.add_argument("--name", default=None, help="model name recorded in the file [checkpoint file name]")
     args = p.parse_args()
 
-    print(f"Loading model from: {args.model}")
-    state_dict = torch.load(args.model, map_location="cpu")
-    if hasattr(state_dict, "state_dict"):
-        state_dict = state_dict.state_dict()
-
-    n_feat = detect_n_feat(state_dict)
-    n_latent = state_dict["layer6A.bias"].shape[0] // 100  # latentChannels
-    print(f"Detected: N_FEAT={n_feat}, latentChannels={n_latent}")
-
-    up2_in = state_dict["up2.0.weight"].shape[0]             # ConvTranspose1d: [in, out, k]
-    oint_in = state_dict["out_intermediate.weight"].shape[1]  # Conv1d: [out, in, k]
-    if not args.fc_only and (up2_in != n_feat or oint_in != n_feat):
-        sys.exit(f"ERROR: up2 takes {up2_in} and out_intermediate {oint_in} input channels, expected "
-                 f"N_FEAT={n_feat}: this checkpoint has skip connections, which Allen's UNet does not implement")
-
-    print(f"\nAllen must be built to match this model:")
-    print(f"  ./ballen -a gpu --cudnn --cublas --unet-feat {n_feat} --unet-batch-channels {n_latent}\n")
-
-    if not args.cnn_only:
-        print(f"\nWriting FC weights → {args.fc_out}")
-        with open(args.fc_out, "wb") as f:
-            write_fc_weights(f, state_dict)
-        size = sum(state_dict[k].numel() for k in state_dict if k.startswith("layer"))
-        print(f"  Total FC floats: {size:,}  ({size*4/1024:.1f} KB)")
-
-    if not args.fc_only:
-        print(f"\nWriting CNN weights → {args.cnn_out}")
-        with open(args.cnn_out, "wb") as f:
-            write_cnn_weights(f, state_dict)
-        import os
-        sz = os.path.getsize(args.cnn_out)
-        print(f"  File size: {sz/1024:.1f} KB")
-
-    print("\nDone.")
+    print(f"Loading {args.model}")
+    state_dict = load_state_dict(args.model)
+    name = args.name or os.path.splitext(os.path.basename(args.model))[0]
+    model = model_json(state_dict, name, args.model)
+    with open(args.out, "w") as f:
+        json.dump(model, f, separators=(",", ":"))
+    n = sum(len(t["data"]) for t in model["tensors"].values())
+    print(f"Wrote {args.out}: {len(model['tensors'])} tensors, {n:,} floats, "
+          f"N_FEAT={model['unet_features']}, latentChannels={model['latent_channels']}")
+    print(f"Allen build for this model: ./ballen -a gpu --cudnn --unet-feat {model['unet_features']} "
+          f"--unet-batch-channels {model['latent_channels']}")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@
 
 #include "BackendCommon.h"
 #include "InputReader.h"
+#include <functional>
+#include <string>
 
 namespace Allen::MVAModels {
 
@@ -32,8 +34,21 @@ namespace Allen::MVAModels {
     std::vector<MVAModelBase*> m_neural_networks;
   };
 
+  // A model of an algorithm, a member of it. It registers itself on
+  // construction; MVAModelsManager::loadData reads every model once, after the
+  // algorithms' properties are set and before their init(), so init() can use
+  // the model's data.
   struct MVAModelBase {
+    // path: the model file, relative to the parameters directory (--params).
     MVAModelBase(std::string name, std::string path) : m_name(name), m_path(path)
+    {
+      MVAModelsManager::get()->registerNN(this);
+    }
+
+    // path_source: gives the model file when the model is read, so that it can
+    // come from a property of the algorithm (the properties are set by then).
+    MVAModelBase(std::string name, std::function<std::string()> path_source) :
+      m_name(name), m_path_source(std::move(path_source))
     {
       MVAModelsManager::get()->registerNN(this);
     }
@@ -42,9 +57,20 @@ namespace Allen::MVAModels {
 
     virtual ~MVAModelBase() = default;
 
+    // The model file. With a fixed path, parameters_path + path (the fixed
+    // paths start with "/"); with a path source, an absolute path as it is and
+    // a relative one in the parameters directory.
+    std::string file_path(const std::string& parameters_path) const
+    {
+      if (!m_path_source) return parameters_path + m_path;
+      const std::string path = m_path_source();
+      return !path.empty() && path.front() == '/' ? path : parameters_path + "/" + path;
+    }
+
     bool data_was_read_before = false;
     std::string m_name;
     std::string m_path;
+    std::function<std::string()> m_path_source;
   };
 
 } // namespace Allen::MVAModels

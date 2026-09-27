@@ -9,7 +9,7 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 allen_add_device_library(PVFinder
-    src/PVFinderWeightRegistry.cpp
+    src/PVFinderModel.cpp
     src/PVFinderFCAggregation.cu
     src/PVFinderUNet.cu
     src/PVFinderPeak.cu

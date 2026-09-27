@@ -14,6 +14,7 @@
 #include "AlgorithmTypes.cuh"
 #include "ParticleTypes.cuh"
 #include "PVFinderConstants.cuh"
+#include "PVFinderModel.h"
 
 namespace pvfinder_fc_aggregation {
 
@@ -135,7 +136,7 @@ struct pvfinder_fc_aggregation_t : public DeviceAlgorithm, Parameters {
     // Loads the beamline into dev_beamline (the track features are in its frame).
     void update(const Constants& constants) const;
 
-    // Loads the weights (weight_file) and sizes the FC kernel's grid.
+    // Copies the weights to the device and sizes the FC kernel's grid.
     void init();
 
 private:
@@ -144,14 +145,13 @@ private:
     // threads shorten it (256: 6.0 ms, 512: 5.0, 1024: 7.3 per 100 slices).
     Allen::Property<dim3> m_block_dim {this, "block_dim", {512, 1, 1}, "block dimensions"};
 
-    // Required, no default, like pvfinder_unet's weight_file: the
-    // repository's weights/ pipeline produces fc_weights.bin
-    // (make -C weights convert MODEL=<name>), and AllenConf fills this in from
-    // PVFINDER_WEIGHTS_DIR when the sequence configuration is generated.
-    Allen::Property<std::string> m_weight_file {
-        this, "weight_file", "",
-        "path to fc_weights.bin (required; produced by the weights/ pipeline, "
-        "set by AllenConf from PVFINDER_WEIGHTS_DIR)"};
+    // The trained model (PVFinderModel.h): relative to the parameters
+    // directory (--params), or absolute. Must be pvfinder_unet's (AllenConf
+    // sets both).
+    Allen::Property<std::string> m_model_file {
+        this, "model", "pvfinder/unet16_lc4_scnone_asym5_final.json",
+        "PVFinder model file, relative to the parameters directory or absolute; must match pvfinder_unet.model"};
+    PVFinder::Model m_model {"pvfinder_fc_aggregation", [this] { return m_model_file.value(); }};
 
     // "float32": FP32 throughout, features stored float32 [channel][bin], for
     // pvfinder_unet with precision = float32; exact. "bfloat16": layers 2-5 and
