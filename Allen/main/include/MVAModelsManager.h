@@ -64,7 +64,9 @@ namespace Allen::MVAModels {
     {
       if (!m_path_source) return parameters_path + m_path;
       const std::string path = m_path_source();
-      return !path.empty() && path.front() == '/' ? path : parameters_path + "/" + path;
+      if (!path.empty() && path.front() == '/') return path;
+      const bool separated = !parameters_path.empty() && parameters_path.back() == '/';
+      return parameters_path + (separated ? "" : "/") + path;
     }
 
     bool data_was_read_before = false;

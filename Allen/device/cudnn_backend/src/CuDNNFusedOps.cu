@@ -56,13 +56,7 @@ namespace Allen::CuDNN::detail {
     constexpr int threads = 256;
     const auto blocks = static_cast<unsigned>((elements + threads - 1) / threads);
     fused_conv_post_ops_float_kernel<<<blocks, threads, 0, stream>>>(
-      output,
-      bias,
-      elements,
-      shape.c,
-      spatial_size,
-      add_bias,
-      activation);
+      output, bias, elements, shape.c, spatial_size, add_bias, activation);
   }
 } // namespace Allen::CuDNN::detail
 

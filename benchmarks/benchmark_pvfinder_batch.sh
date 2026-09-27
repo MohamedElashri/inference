@@ -29,8 +29,8 @@ Options:
   --model NAME               Weights from the weights/ pipeline:
                              weights/out/NAME/{cnn,fc}_weights.bin
                              (default: unet16_lc4_scnone_asym5_final; see make -C weights list)
-  --cnn-weights PATH         Override pvfinder_unet weight_file (default: from --model)
-  --fc-weights PATH          Override pvfinder_fc_aggregation weight_file (default: from --model)
+  --model-file PATH          The model file for both algorithms' "model" property
+                             (default: weights/out/<--model>/pvfinder_model.json)
   --use-bf16 BOOL            precision = bfloat16 for pvfinder_fc_aggregation and
                              pvfinder_unet (default: false, i.e. float32)
   --unet-batch-events N      Set pvfinder_unet.unet_batch_events and
@@ -67,8 +67,7 @@ MEMORY=300
 REPS=500
 REPEATS=3
 MODEL=unet16_lc4_scnone_asym5_final
-CNN_WEIGHTS_OVERRIDE=""
-FC_WEIGHTS_OVERRIDE=""
+MODEL_FILE_OVERRIDE=""
 USE_BF16=false
 UNET_BATCH_EVENTS=20
 FC_GRID_FRACTION=0.125
@@ -88,8 +87,9 @@ while [[ $# -gt 0 ]]; do
         --repetitions|-r) REPS="$2"; shift 2 ;;
         --repeats) REPEATS="$2"; shift 2 ;;
         --model) MODEL="$2"; shift 2 ;;
-        --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
-        --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
+        --model-file) MODEL_FILE_OVERRIDE="$2"; shift 2 ;;
+        --cnn-weights|--fc-weights)
+            echo "ERROR: $1 was replaced by --model-file (one pvfinder_model.json for both algorithms)" >&2; exit 1 ;;
         --use-bf16) USE_BF16="$2"; shift 2 ;;
         --unet-batch-events) UNET_BATCH_EVENTS="$2"; shift 2 ;;
         --fc-grid-fraction) FC_GRID_FRACTION="$2"; shift 2 ;;
@@ -138,44 +138,16 @@ if [[ ! -x "${ALLEN_WRAPPER}" || ! -x "${ALLEN_BIN}" ]]; then
     exit 1
 fi
 
-# Model weights come from the weights/ pipeline. Sequence generation needs
-# PVFINDER_WEIGHTS_DIR (AllenConf has no default weight location); explicit
-# --cnn-weights / --fc-weights still override the generated configuration.
-MODEL_DIR="${REPO_ROOT}/weights/out/${MODEL}"
-for f in cnn_weights.bin fc_weights.bin; do
-    if [[ ! -f "${MODEL_DIR}/${f}" ]]; then
-        echo "ERROR: ${MODEL_DIR}/${f} not found; run: make -C weights verify MODEL=${MODEL}" >&2
-        exit 1
-    fi
-done
-export PVFINDER_WEIGHTS_DIR="${MODEL_DIR}"
-
-if [[ -n "${CNN_WEIGHTS_OVERRIDE}" ]]; then
-    if [[ "${CNN_WEIGHTS_OVERRIDE}" = /* ]]; then
-        CNN_WEIGHTS_ABS="${CNN_WEIGHTS_OVERRIDE}"
-    else
-        CNN_WEIGHTS_ABS="${REPO_ROOT}/${CNN_WEIGHTS_OVERRIDE}"
-    fi
-    if [[ ! -f "${CNN_WEIGHTS_ABS}" ]]; then
-        echo "ERROR: --cnn-weights file not found: ${CNN_WEIGHTS_ABS}" >&2
-        exit 1
-    fi
+# The model file comes from the weights/ pipeline (make -C weights verify
+# MODEL=<name>); both PVFinder algorithms read it through their "model" property.
+if [[ -n "${MODEL_FILE_OVERRIDE}" ]]; then
+    [[ "${MODEL_FILE_OVERRIDE}" = /* ]] && MODEL_FILE="${MODEL_FILE_OVERRIDE}" || MODEL_FILE="${REPO_ROOT}/${MODEL_FILE_OVERRIDE}"
 else
-    CNN_WEIGHTS_ABS="${MODEL_DIR}/cnn_weights.bin"
+    MODEL_FILE="${REPO_ROOT}/weights/out/${MODEL}/pvfinder_model.json"
 fi
-
-if [[ -n "${FC_WEIGHTS_OVERRIDE}" ]]; then
-    if [[ "${FC_WEIGHTS_OVERRIDE}" = /* ]]; then
-        FC_WEIGHTS_ABS="${FC_WEIGHTS_OVERRIDE}"
-    else
-        FC_WEIGHTS_ABS="${REPO_ROOT}/${FC_WEIGHTS_OVERRIDE}"
-    fi
-    if [[ ! -f "${FC_WEIGHTS_ABS}" ]]; then
-        echo "ERROR: --fc-weights file not found: ${FC_WEIGHTS_ABS}" >&2
-        exit 1
-    fi
-else
-    FC_WEIGHTS_ABS="${MODEL_DIR}/fc_weights.bin"
+if [[ ! -f "${MODEL_FILE}" ]]; then
+    echo "ERROR: ${MODEL_FILE} not found; run: make -C weights verify MODEL=${MODEL}" >&2
+    exit 1
 fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -236,7 +208,7 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$PRECISION" "$UNET_BATCH_EVENTS" "$UNET_GRID_FRACTION" <<'PY'
+    python3 - "$config" "$MODEL_FILE" "$PRECISION" "$UNET_BATCH_EVENTS" "$UNET_GRID_FRACTION" <<'PY'
 import json
 import sys
 
@@ -244,7 +216,7 @@ path, weights, precision, unet_batch_events, unet_grid_fraction = sys.argv[1:]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 unet = data.setdefault("pvfinder_unet", {})
-unet["weight_file"] = weights
+unet["model"] = weights
 unet["precision"] = precision
 unet["unet_batch_events"] = int(unet_batch_events)
 unet["fused_grid_fraction"] = float(unet_grid_fraction)
@@ -256,7 +228,7 @@ PY
 
 patch_fc_config() {
     local config="$1"
-    python3 - "$config" "$FC_WEIGHTS_ABS" "$PRECISION" "$UNET_BATCH_EVENTS" "$FC_GRID_FRACTION" <<'PY'
+    python3 - "$config" "$MODEL_FILE" "$PRECISION" "$UNET_BATCH_EVENTS" "$FC_GRID_FRACTION" <<'PY'
 import json
 import sys
 
@@ -264,7 +236,7 @@ path, weights, precision, unet_batch_events, fc_grid_fraction = sys.argv[1:]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 fc = data.setdefault("pvfinder_fc_aggregation", {})
-fc["weight_file"] = weights
+fc["model"] = weights
 fc["precision"] = precision
 fc["unet_batch_events"] = int(unet_batch_events)
 fc["fused_grid_fraction"] = float(fc_grid_fraction)
@@ -384,8 +356,7 @@ run_sequence() {
     echo "repeats=${REPEATS}"
     echo "profile=${PROFILE}"
     echo "model=${MODEL}"
-    echo "cnn_weights=${CNN_WEIGHTS_ABS}"
-    echo "fc_weights=${FC_WEIGHTS_ABS}"
+    echo "model_file=${MODEL_FILE}"
     echo "use_bf16=${USE_BF16}"
     echo "precision=${PRECISION}"
     echo "unet_batch_events=${UNET_BATCH_EVENTS}"
@@ -400,7 +371,7 @@ git -C "${REPO_ROOT}" rev-parse HEAD > "${BATCH_DIR}/git_head.txt"
 git -C "${REPO_ROOT}" status --short > "${BATCH_DIR}/git_status_short.txt"
 git -C "${REPO_ROOT}" log --oneline -8 --decorate > "${BATCH_DIR}/git_log_oneline.txt"
 
-sha256sum "${CNN_WEIGHTS_ABS}" "${FC_WEIGHTS_ABS}" > "${BATCH_DIR}/weights.sha256"
+sha256sum "${MODEL_FILE}" > "${BATCH_DIR}/weights.sha256"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi > "${BATCH_DIR}/nvidia_smi.txt" 2>&1 || true
@@ -415,7 +386,7 @@ RECORDED=0
 if [[ "${RECORD}" -eq 1 ]]; then
     "${RECORD_PY}" "${RUNS_PY}" snapshot "${BATCH_DIR}" --device "${DEVICE}" \
         --build-dir "${BUILD_DIR}" --model "${MODEL}" \
-        --cnn-weights "${CNN_WEIGHTS_ABS}" --fc-weights "${FC_WEIGHTS_ABS}"
+        --model-file "${MODEL_FILE}"
     # A batch that stops early still gets a record, with whatever repeats finished.
     on_exit() {
         local rc=$?

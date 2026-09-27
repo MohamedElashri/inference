@@ -21,7 +21,8 @@
 
 #if ALLEN_CUDNN_TEST_HAS_HEADER
 
-TEST_CASE("cudnn.workspace_planner.non_overlapping_and_overlapping", "[AllenCuDNN]") {
+TEST_CASE("cudnn.workspace_planner.non_overlapping_and_overlapping", "[AllenCuDNN]")
+{
   Allen::CuDNN::WorkspacePlanner planner;
   planner.add("conv_a", 100, 64);
   planner.add("conv_b", 256, 128);
@@ -43,7 +44,8 @@ TEST_CASE("cudnn.workspace_planner.non_overlapping_and_overlapping", "[AllenCuDN
   REQUIRE_THROWS(overlapping.slice("missing"));
 }
 
-TEST_CASE("cudnn.workspace_arena.validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.workspace_arena.validation", "[AllenCuDNN]")
+{
   Allen::CuDNN::WorkspacePlanner planner;
   planner.add("conv_a", 128, 64);
   planner.add("conv_b", 256, 128);
@@ -61,7 +63,8 @@ TEST_CASE("cudnn.workspace_arena.validation", "[AllenCuDNN]") {
   REQUIRE_THROWS(Allen::CuDNN::WorkspaceArena({nullptr, 0}, plan));
 }
 
-TEST_CASE("cudnn.fused_conv_plan.accepted_post_ops", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.accepted_post_ops", "[AllenCuDNN]")
+{
   Allen::CuDNN::FusedConvPlanOptions options {};
   options.conv.algorithm_policy = Allen::CuDNN::AlgorithmSelectionPolicy::ZeroWorkspace;
   options.conv.workspace_policy = Allen::CuDNN::WorkspacePolicy::ZeroOnly;
@@ -98,7 +101,8 @@ TEST_CASE("cudnn.fused_conv_plan.accepted_post_ops", "[AllenCuDNN]") {
   REQUIRE(metadata.layout == Allen::CuDNN::TensorLayout::NCHW);
 }
 
-TEST_CASE("cudnn.fused_conv_plan.post_op_validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.post_op_validation", "[AllenCuDNN]")
+{
   Allen::CuDNN::FusedConvPlan plan;
   const auto shape = Allen::CuDNN::Conv1DShape::forward(1, 2, 8, 4, 3, 1);
 
@@ -119,15 +123,11 @@ TEST_CASE("cudnn.fused_conv_plan.post_op_validation", "[AllenCuDNN]") {
   REQUIRE(std::string(Allen::CuDNN::describe_post_ops(identity_activation.post_ops)) == "Conv+Activation(Identity)");
 
   Allen::CuDNN::FusedConvPlanOptions activation_then_bias {};
-  activation_then_bias.post_ops.ops = {
-    Allen::CuDNN::PostOp::activation(),
-    Allen::CuDNN::PostOp::channel_bias()};
+  activation_then_bias.post_ops.ops = {Allen::CuDNN::PostOp::activation(), Allen::CuDNN::PostOp::channel_bias()};
   REQUIRE_THROWS(plan.create(shape, activation_then_bias));
 
   Allen::CuDNN::FusedConvPlanOptions duplicate_activation {};
-  duplicate_activation.post_ops.ops = {
-    Allen::CuDNN::PostOp::activation(),
-    Allen::CuDNN::PostOp::activation()};
+  duplicate_activation.post_ops.ops = {Allen::CuDNN::PostOp::activation(), Allen::CuDNN::PostOp::activation()};
   REQUIRE_THROWS(plan.create(shape, duplicate_activation));
 
   Allen::CuDNN::FusedConvPlanOptions residual_add {};
@@ -135,7 +135,8 @@ TEST_CASE("cudnn.fused_conv_plan.post_op_validation", "[AllenCuDNN]") {
   REQUIRE_THROWS(plan.create(shape, residual_add));
 }
 
-TEST_CASE("cudnn.fused_conv_plan.shape_and_option_validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.shape_and_option_validation", "[AllenCuDNN]")
+{
   Allen::CuDNN::FusedConvPlan plan;
 
   Allen::CuDNN::FusedConvPlanOptions bad_workspace {};
@@ -158,7 +159,8 @@ TEST_CASE("cudnn.fused_conv_plan.shape_and_option_validation", "[AllenCuDNN]") {
   REQUIRE_THROWS(plan.create(Allen::CuDNN::Conv1DShape::forward(1, 2, 8, 4, 3, 1), forced_frontend));
 }
 
-TEST_CASE("cudnn.fused_conv_plan.frontend_graph_capability_metadata", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.frontend_graph_capability_metadata", "[AllenCuDNN]")
+{
   auto shape = Allen::CuDNN::Conv1DShape::forward(1, 2, 8, 4, 3, 1);
   Allen::CuDNN::FusedConvPlanOptions options {};
   options.post_ops = Allen::CuDNN::PostOpSequence::bias_activation(Allen::CuDNN::ActivationMode::Relu);
@@ -190,10 +192,7 @@ namespace {
     return cudaGetDeviceCount(&device_count) == cudaSuccess && device_count > 0;
   }
 
-  void require_cuda(cudaError_t status)
-  {
-    REQUIRE(status == cudaSuccess);
-  }
+  void require_cuda(cudaError_t status) { REQUIRE(status == cudaSuccess); }
 
   std::vector<float> reference_conv_bias_relu_1d(
     const std::vector<float>& input,
@@ -226,12 +225,12 @@ namespace {
     return output;
   }
 
-#define REQUIRE_CUDA_DEVICE()                                                                      \
-  do {                                                                                             \
-    if (!has_cuda_device()) {                                                                      \
-      SUCCEED("Skipping CUDA/cuDNN runtime test: no CUDA-capable device is available");             \
-      return;                                                                                      \
-    }                                                                                              \
+#define REQUIRE_CUDA_DEVICE()                                                           \
+  do {                                                                                  \
+    if (!has_cuda_device()) {                                                           \
+      SUCCEED("Skipping CUDA/cuDNN runtime test: no CUDA-capable device is available"); \
+      return;                                                                           \
+    }                                                                                   \
   } while (false)
 } // namespace
 
@@ -254,11 +253,7 @@ namespace {
     void register_external_weights(const float* dev_filter, size_t filter_bytes)
     {
       m_weights.register_device_pointer(
-        "conv.weight",
-        dev_filter,
-        filter_bytes,
-        filter_bytes,
-        Allen::CuDNN::DuplicateKeyPolicy::ReplaceExisting);
+        "conv.weight", dev_filter, filter_bytes, filter_bytes, Allen::CuDNN::DuplicateKeyPolicy::ReplaceExisting);
     }
 
     void create_metadata_plan()
@@ -309,7 +304,8 @@ namespace {
   };
 } // namespace
 
-TEST_CASE("cudnn.generic_client_contract.metadata_only_example", "[AllenCuDNN]") {
+TEST_CASE("cudnn.generic_client_contract.metadata_only_example", "[AllenCuDNN]")
+{
   const float external_filter[24] {};
 
   TinyCuDNNClient client {{1, 2, 8, 4, 3, 1}};
@@ -338,7 +334,8 @@ TEST_CASE("cudnn.generic_client_contract.metadata_only_example", "[AllenCuDNN]")
   REQUIRE(log_line.find("post_ops=Conv+ChannelBias+Activation(Relu)") != std::string::npos);
 }
 
-TEST_CASE("cudnn.fused_conv_plan.legacy_conv_only_matches_forward_plan", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.legacy_conv_only_matches_forward_plan", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -364,13 +361,9 @@ TEST_CASE("cudnn.fused_conv_plan.legacy_conv_only_matches_forward_plan", "[Allen
   REQUIRE(fused_plan.selection_source() == forward_plan.selection_source());
   REQUIRE(fused_plan.metadata().algorithm == forward_plan.algorithm_id());
 
-  const std::vector<float> host_input {
-    1.f, -2.f, 3.f, -4.f, 5.f,
-    0.5f, 1.f, -1.5f, 2.f, -2.5f};
+  const std::vector<float> host_input {1.f, -2.f, 3.f, -4.f, 5.f, 0.5f, 1.f, -1.5f, 2.f, -2.5f};
   const std::vector<float> host_filter {
-    1.f, 0.f, -1.f, 0.25f, 0.5f, 0.75f,
-    -0.5f, 0.25f, 1.f, 1.5f, -1.f, 0.5f,
-    0.75f, -0.25f, 0.5f, -1.f, 1.f, 0.f};
+    1.f, 0.f, -1.f, 0.25f, 0.5f, 0.75f, -0.5f, 0.25f, 1.f, 1.5f, -1.f, 0.5f, 0.75f, -0.25f, 0.5f, -1.f, 1.f, 0.f};
   std::vector<float> forward_output(15, 0.f);
   std::vector<float> fused_output(15, 0.f);
 
@@ -386,7 +379,8 @@ TEST_CASE("cudnn.fused_conv_plan.legacy_conv_only_matches_forward_plan", "[Allen
 
   forward_plan.forward(handle, 1.f, 0.f, dev_input, dev_filter, dev_forward);
   fused_plan.execute(handle, 1.f, 0.f, dev_input, dev_filter, nullptr, dev_fused);
-  require_cuda(cudaMemcpy(forward_output.data(), dev_forward, forward_output.size() * sizeof(float), cudaMemcpyDeviceToHost));
+  require_cuda(
+    cudaMemcpy(forward_output.data(), dev_forward, forward_output.size() * sizeof(float), cudaMemcpyDeviceToHost));
   require_cuda(cudaMemcpy(fused_output.data(), dev_fused, fused_output.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
   for (size_t i = 0; i < forward_output.size(); ++i) {
@@ -399,7 +393,8 @@ TEST_CASE("cudnn.fused_conv_plan.legacy_conv_only_matches_forward_plan", "[Allen
   cudaFree(dev_fused);
 }
 
-TEST_CASE("cudnn.fused_conv_plan.frontend_preference_falls_back_to_legacy", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.frontend_preference_falls_back_to_legacy", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -422,7 +417,8 @@ TEST_CASE("cudnn.fused_conv_plan.frontend_preference_falls_back_to_legacy", "[Al
   REQUIRE_THROWS(plan.create(handle, shape, options));
 }
 
-TEST_CASE("cudnn.fused_conv_plan.legacy_bias_relu_matches_reference", "[AllenCuDNN]") {
+TEST_CASE("cudnn.fused_conv_plan.legacy_bias_relu_matches_reference", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -442,9 +438,7 @@ TEST_CASE("cudnn.fused_conv_plan.legacy_bias_relu_matches_reference", "[AllenCuD
   REQUIRE(plan.metadata().post_ops == options.post_ops);
 
   const std::vector<float> host_input {1.f, -2.f, 3.f, -4.f};
-  const std::vector<float> host_filter {
-    1.f, 0.5f, -1.f,
-    -0.25f, 1.f, 0.75f};
+  const std::vector<float> host_filter {1.f, 0.5f, -1.f, -0.25f, 1.f, 0.75f};
   const std::vector<float> host_bias {0.5f, -1.f};
   auto expected = reference_conv_bias_relu_1d(host_input, host_filter, host_bias, shape.input, shape.filter, 1);
   std::vector<float> observed(expected.size(), 0.f);
@@ -472,7 +466,8 @@ TEST_CASE("cudnn.fused_conv_plan.legacy_bias_relu_matches_reference", "[AllenCuD
   cudaFree(dev_output);
 }
 
-TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
+TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -503,7 +498,8 @@ TEST_CASE("cudnn.forward_plan.zero_workspace", "[AllenCuDNN]") {
   REQUIRE(plan.precision_policy().input_output_type == CUDNN_DATA_FLOAT);
 }
 
-TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
+TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -522,7 +518,8 @@ TEST_CASE("cudnn.backward_data_plan.zero_workspace", "[AllenCuDNN]") {
   REQUIRE(plan.metadata().layout == Allen::CuDNN::TensorLayout::NCHW);
 }
 
-TEST_CASE("cudnn.algorithm_cache.forward_plan_hit_miss_and_strict_lookup", "[AllenCuDNN]") {
+TEST_CASE("cudnn.algorithm_cache.forward_plan_hit_miss_and_strict_lookup", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
   Allen::CuDNN::clear_algorithm_cache();
@@ -568,7 +565,8 @@ TEST_CASE("cudnn.algorithm_cache.forward_plan_hit_miss_and_strict_lookup", "[All
   REQUIRE_THROWS(strict_plan.create(handle, shape, strict));
 }
 
-TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
+TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -581,7 +579,8 @@ TEST_CASE("cudnn.forward_plan.bad_shape_failure", "[AllenCuDNN]") {
   REQUIRE_THROWS(plan.create(handle, shape));
 }
 
-TEST_CASE("cudnn.precision_policy.validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.precision_policy.validation", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -599,13 +598,13 @@ TEST_CASE("cudnn.precision_policy.validation", "[AllenCuDNN]") {
   REQUIRE(fp16_plan.metadata().precision.compute_type == CUDNN_DATA_FLOAT);
   REQUIRE(fp16_plan.metadata().precision.math_type == CUDNN_TENSOR_OP_MATH);
   REQUIRE_FALSE(fp16_plan.metadata().precision.allow_tf32);
-  REQUIRE(std::string(Allen::CuDNN::describe_precision_policy(fp16_plan.metadata().precision))
-            .find("fp16_experimental=true") != std::string::npos);
+  REQUIRE(
+    std::string(Allen::CuDNN::describe_precision_policy(fp16_plan.metadata().precision))
+      .find("fp16_experimental=true") != std::string::npos);
 
   fp16_options.precision.fp16_experimental = false;
   Allen::CuDNN::ForwardConvPlan invalid_fp16_plan;
-  REQUIRE_THROWS(invalid_fp16_plan.create(
-    handle, Allen::CuDNN::Conv1DShape::forward(1, 1, 8, 1, 3, 1), fp16_options));
+  REQUIRE_THROWS(invalid_fp16_plan.create(handle, Allen::CuDNN::Conv1DShape::forward(1, 1, 8, 1, 3, 1), fp16_options));
 
   Allen::CuDNN::ConvPlanOptions no_tf32_options {};
   no_tf32_options.algorithm_policy = Allen::CuDNN::AlgorithmSelectionPolicy::ZeroWorkspace;
@@ -615,11 +614,13 @@ TEST_CASE("cudnn.precision_policy.validation", "[AllenCuDNN]") {
   no_tf32_plan.create(handle, Allen::CuDNN::Conv1DShape::forward(1, 1, 8, 1, 3, 1), no_tf32_options);
   REQUIRE(no_tf32_plan.math_type() == CUDNN_DEFAULT_MATH);
   REQUIRE_FALSE(no_tf32_plan.metadata().precision.allow_tf32);
-  REQUIRE(std::string(Allen::CuDNN::describe_precision_policy(no_tf32_plan.metadata().precision))
-            .find("tf32=false") != std::string::npos);
+  REQUIRE(
+    std::string(Allen::CuDNN::describe_precision_policy(no_tf32_plan.metadata().precision)).find("tf32=false") !=
+    std::string::npos);
 }
 
-TEST_CASE("cudnn.workspace_policy.validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.workspace_policy.validation", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
@@ -628,15 +629,15 @@ TEST_CASE("cudnn.workspace_policy.validation", "[AllenCuDNN]") {
   invalid_options.workspace_policy = Allen::CuDNN::WorkspacePolicy::ZeroOnly;
 
   Allen::CuDNN::ForwardConvPlan plan;
-  REQUIRE_THROWS(
-    plan.create(handle, Allen::CuDNN::Conv1DShape::forward(1, 1, 8, 1, 3, 1), invalid_options));
+  REQUIRE_THROWS(plan.create(handle, Allen::CuDNN::Conv1DShape::forward(1, 1, 8, 1, 3, 1), invalid_options));
 
   Allen::CuDNN::Workspace external {nullptr, 0};
   REQUIRE_NOTHROW(external.require(0, "unit"));
   REQUIRE_THROWS(external.require(1, "unit"));
 }
 
-TEST_CASE("cudnn.bias_add_plan.metadata", "[AllenCuDNN]") {
+TEST_CASE("cudnn.bias_add_plan.metadata", "[AllenCuDNN]")
+{
   const Allen::CuDNN::TensorShape tensor_shape {2, 3, 4, 5};
   const Allen::CuDNN::TensorShape bias_shape {1, 3, 1, 1};
 
@@ -656,7 +657,8 @@ TEST_CASE("cudnn.bias_add_plan.metadata", "[AllenCuDNN]") {
   REQUIRE(metadata.precision.input_output_type == CUDNN_DATA_FLOAT);
 }
 
-TEST_CASE("cudnn.activation_plan.metadata", "[AllenCuDNN]") {
+TEST_CASE("cudnn.activation_plan.metadata", "[AllenCuDNN]")
+{
   const Allen::CuDNN::TensorShape tensor_shape {2, 3, 4, 5};
   Allen::CuDNN::ActivationOptions options {};
   options.mode = Allen::CuDNN::ActivationMode::ClippedRelu;
@@ -680,7 +682,8 @@ TEST_CASE("cudnn.activation_plan.metadata", "[AllenCuDNN]") {
   REQUIRE(metadata.tensor_shape == tensor_shape);
 }
 
-TEST_CASE("cudnn.pooling_plan.metadata_and_validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.pooling_plan.metadata_and_validation", "[AllenCuDNN]")
+{
   const auto shape = Allen::CuDNN::Pooling1DShape::forward(2, 3, 100, 2, 2);
   const Allen::CuDNN::TensorShape input_shape {2, 3, 1, 100};
   const Allen::CuDNN::TensorShape output_shape {2, 3, 1, 50};
@@ -719,16 +722,15 @@ TEST_CASE("cudnn.pooling_plan.metadata_and_validation", "[AllenCuDNN]") {
   REQUIRE_THROWS(plan.create(Allen::CuDNN::Pooling1DShape::forward(1, 1, 1, 2, 2)));
 }
 
-TEST_CASE("cudnn.pooling_plan.max_pool_1d_matches_reference", "[AllenCuDNN]") {
+TEST_CASE("cudnn.pooling_plan.max_pool_1d_matches_reference", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   auto handle = Allen::CuDNN::HandleProvider::get(0);
 
   Allen::CuDNN::PoolingPlan plan;
   plan.create(Allen::CuDNN::Pooling1DShape::forward(1, 2, 6, 2, 2));
 
-  const std::vector<float> host_input {
-    1.f, 3.f, -1.f, 5.f, 2.f, 0.f,
-    -2.f, -1.f, 4.f, 3.f, 8.f, 7.f};
+  const std::vector<float> host_input {1.f, 3.f, -1.f, 5.f, 2.f, 0.f, -2.f, -1.f, 4.f, 3.f, 8.f, 7.f};
   const std::vector<float> expected {3.f, 5.f, 2.f, -1.f, 4.f, 8.f};
   std::vector<float> observed(expected.size(), 0.f);
 
@@ -749,7 +751,8 @@ TEST_CASE("cudnn.pooling_plan.max_pool_1d_matches_reference", "[AllenCuDNN]") {
   cudaFree(dev_output);
 }
 
-TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
+TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]")
+{
   REQUIRE_CUDA_DEVICE();
   Allen::CuDNN::DeviceWeights weights {"unit2"};
   const float host_values[4] = {1.f, 2.f, 3.f, 4.f};
@@ -762,11 +765,7 @@ TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
   REQUIRE(weights.get<float>("weights") != nullptr);
 
   weights.load_from_buffer(
-    "weights",
-    host_values,
-    sizeof(host_values),
-    sizeof(host_values),
-    Allen::CuDNN::DuplicateKeyPolicy::ReuseExisting);
+    "weights", host_values, sizeof(host_values), sizeof(host_values), Allen::CuDNN::DuplicateKeyPolicy::ReuseExisting);
   REQUIRE(weights.size_bytes("weights") == sizeof(host_values));
   weights.load_from_buffer(
     "weights",
@@ -782,13 +781,9 @@ TEST_CASE("cudnn.device_weights.validation", "[AllenCuDNN]") {
   REQUIRE(weights.size_bytes("external") == sizeof(host_values));
 }
 #else
-TEST_CASE("cudnn.wrapper_stubs.compile", "[AllenCuDNN]") {
-  REQUIRE(true);
-}
+TEST_CASE("cudnn.wrapper_stubs.compile", "[AllenCuDNN]") { REQUIRE(true); }
 #endif
 
 #else
-TEST_CASE("cudnn.wrapper_header_unavailable.compile", "[AllenCuDNN]") {
-  REQUIRE(true);
-}
+TEST_CASE("cudnn.wrapper_header_unavailable.compile", "[AllenCuDNN]") { REQUIRE(true); }
 #endif

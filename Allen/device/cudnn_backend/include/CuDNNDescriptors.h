@@ -33,60 +33,21 @@
 
 namespace Allen::CuDNN {
 
-  enum class AlgorithmSelectionPolicy {
-    ZeroWorkspace,
-    Heuristic,
-    TimedFind
-  };
+  enum class AlgorithmSelectionPolicy { ZeroWorkspace, Heuristic, TimedFind };
 
-  enum class WorkspacePolicy {
-    AllenExternal,
-    OwnedInitTime,
-    ZeroOnly
-  };
+  enum class WorkspacePolicy { AllenExternal, OwnedInitTime, ZeroOnly };
 
-  enum class AlgorithmSelectionSource {
-    Default,
-    ZeroWorkspace,
-    Heuristic,
-    TimedFind,
-    Fallback
-  };
+  enum class AlgorithmSelectionSource { Default, ZeroWorkspace, Heuristic, TimedFind, Fallback };
 
-  enum class AlgorithmCachePolicy {
-    Disabled,
-    LookupOnly,
-    Populate,
-    LookupAndPopulate,
-    StrictLookup
-  };
+  enum class AlgorithmCachePolicy { Disabled, LookupOnly, Populate, LookupAndPopulate, StrictLookup };
 
-  enum class AlgorithmCacheStatus {
-    Disabled,
-    Miss,
-    Hit,
-    StrictMiss,
-    RejectedIncompatibleEnvironment
-  };
+  enum class AlgorithmCacheStatus { Disabled, Miss, Hit, StrictMiss, RejectedIncompatibleEnvironment };
 
-  enum class TensorLayout {
-    NCHW
-  };
+  enum class TensorLayout { NCHW };
 
-  enum class PoolingMode {
-    Max,
-    AverageCountIncludePadding,
-    AverageCountExcludePadding
-  };
+  enum class PoolingMode { Max, AverageCountIncludePadding, AverageCountExcludePadding };
 
-  enum class ActivationMode {
-    Identity,
-    Relu,
-    Sigmoid,
-    Tanh,
-    ClippedRelu,
-    Elu
-  };
+  enum class ActivationMode { Identity, Relu, Sigmoid, Tanh, ClippedRelu, Elu };
 
   struct TensorShape {
     int n = 0, c = 0, h = 0, w = 0;
@@ -207,19 +168,9 @@ namespace Allen::CuDNN {
   };
 
   struct Pooling1DShape {
-    static Pooling2DShape forward(
-      int n,
-      int channels,
-      int width,
-      int window_width,
-      int stride = 1,
-      int pad = 0)
+    static Pooling2DShape forward(int n, int channels, int width, int window_width, int stride = 1, int pad = 0)
     {
-      return Pooling2DShape::forward(
-        {n, channels, 1, width},
-        {1, window_width},
-        {0, pad},
-        {1, stride});
+      return Pooling2DShape::forward({n, channels, 1, width}, {1, window_width}, {0, pad}, {1, stride});
     }
   };
 
@@ -326,7 +277,8 @@ namespace Allen::CuDNN {
     PrecisionPolicy precision {};
   };
 
-  inline const char* to_string(AlgorithmSelectionPolicy policy) {
+  inline const char* to_string(AlgorithmSelectionPolicy policy)
+  {
     switch (policy) {
     case AlgorithmSelectionPolicy::ZeroWorkspace: return "ZeroWorkspace";
     case AlgorithmSelectionPolicy::Heuristic: return "Heuristic";
@@ -335,7 +287,8 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline const char* to_string(AlgorithmSelectionSource source) {
+  inline const char* to_string(AlgorithmSelectionSource source)
+  {
     switch (source) {
     case AlgorithmSelectionSource::Default: return "Default";
     case AlgorithmSelectionSource::ZeroWorkspace: return "ZeroWorkspace";
@@ -346,7 +299,8 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline const char* to_string(AlgorithmCachePolicy policy) {
+  inline const char* to_string(AlgorithmCachePolicy policy)
+  {
     switch (policy) {
     case AlgorithmCachePolicy::Disabled: return "Disabled";
     case AlgorithmCachePolicy::LookupOnly: return "LookupOnly";
@@ -357,7 +311,8 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline const char* to_string(AlgorithmCacheStatus status) {
+  inline const char* to_string(AlgorithmCacheStatus status)
+  {
     switch (status) {
     case AlgorithmCacheStatus::Disabled: return "Disabled";
     case AlgorithmCacheStatus::Miss: return "Miss";
@@ -368,7 +323,8 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline const char* to_string(WorkspacePolicy policy) {
+  inline const char* to_string(WorkspacePolicy policy)
+  {
     switch (policy) {
     case WorkspacePolicy::AllenExternal: return "AllenExternal";
     case WorkspacePolicy::OwnedInitTime: return "OwnedInitTime";
@@ -377,14 +333,16 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline const char* to_string(TensorLayout layout) {
+  inline const char* to_string(TensorLayout layout)
+  {
     switch (layout) {
     case TensorLayout::NCHW: return "NCHW";
     }
     return "Unknown";
   }
 
-  inline const char* to_string(PoolingMode mode) {
+  inline const char* to_string(PoolingMode mode)
+  {
     switch (mode) {
     case PoolingMode::Max: return "Max";
     case PoolingMode::AverageCountIncludePadding: return "AverageCountIncludePadding";
@@ -393,7 +351,8 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline const char* to_string(ActivationMode mode) {
+  inline const char* to_string(ActivationMode mode)
+  {
     switch (mode) {
     case ActivationMode::Identity: return "Identity";
     case ActivationMode::Relu: return "Relu";
@@ -405,33 +364,33 @@ namespace Allen::CuDNN {
     return "Unknown";
   }
 
-  inline std::string describe_precision_policy(const PrecisionPolicy& policy) {
+  inline std::string describe_precision_policy(const PrecisionPolicy& policy)
+  {
     std::ostringstream out;
-    out << "io=" << static_cast<int>(policy.input_output_type)
-        << ",filter=" << static_cast<int>(policy.filter_type)
-        << ",compute=" << static_cast<int>(policy.compute_type)
-        << ",math=" << static_cast<int>(policy.math_type)
+    out << "io=" << static_cast<int>(policy.input_output_type) << ",filter=" << static_cast<int>(policy.filter_type)
+        << ",compute=" << static_cast<int>(policy.compute_type) << ",math=" << static_cast<int>(policy.math_type)
         << ",tensor_ops=" << (policy.tensor_ops_enabled ? "true" : "false")
         << ",tf32=" << (policy.allow_tf32 ? "true" : "false")
         << ",fp16_experimental=" << (policy.fp16_experimental ? "true" : "false");
     return out.str();
   }
 
-  inline TensorShape make_tensor_shape(std::array<int, 4> shape) {
-    return {shape[0], shape[1], shape[2], shape[3]};
-  }
+  inline TensorShape make_tensor_shape(std::array<int, 4> shape) { return {shape[0], shape[1], shape[2], shape[3]}; }
 
-  inline void validate_tensor_shape(TensorShape shape, const char* name) {
+  inline void validate_tensor_shape(TensorShape shape, const char* name)
+  {
     if (shape.n <= 0 || shape.c <= 0 || shape.h <= 0 || shape.w <= 0) {
       throw std::invalid_argument(std::string("AllenCuDNN: invalid non-positive dimension in ") + name);
     }
   }
 
-  inline void validate_shape_4d(std::array<int, 4> shape, const char* name) {
+  inline void validate_shape_4d(std::array<int, 4> shape, const char* name)
+  {
     validate_tensor_shape(make_tensor_shape(shape), name);
   }
 
-  inline void validate_pair_2d(std::array<int, 2> value, const char* name, bool allow_zero) {
+  inline void validate_pair_2d(std::array<int, 2> value, const char* name, bool allow_zero)
+  {
     for (int dim : value) {
       if ((allow_zero && dim < 0) || (!allow_zero && dim <= 0)) {
         throw std::invalid_argument(std::string("AllenCuDNN: invalid 2D parameter in ") + name);
@@ -439,21 +398,25 @@ namespace Allen::CuDNN {
     }
   }
 
-  inline void validate_workspace_options(const ConvPlanOptions& options, const char* owner) {
-    if (options.workspace_policy == WorkspacePolicy::ZeroOnly &&
-        options.algorithm_policy != AlgorithmSelectionPolicy::ZeroWorkspace) {
+  inline void validate_workspace_options(const ConvPlanOptions& options, const char* owner)
+  {
+    if (
+      options.workspace_policy == WorkspacePolicy::ZeroOnly &&
+      options.algorithm_policy != AlgorithmSelectionPolicy::ZeroWorkspace) {
       throw std::invalid_argument(
         std::string("AllenCuDNN: ") + owner + " ZeroOnly workspace requires ZeroWorkspace algorithm policy");
     }
   }
 
-  inline void validate_layout(TensorLayout layout, const char* owner) {
+  inline void validate_layout(TensorLayout layout, const char* owner)
+  {
     if (layout != TensorLayout::NCHW) {
       throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " only supports NCHW tensor layout");
     }
   }
 
-  inline void validate_forward_shape(const Conv2DShape& shape, const char* owner) {
+  inline void validate_forward_shape(const Conv2DShape& shape, const char* owner)
+  {
     validate_layout(shape.layout, owner);
     validate_tensor_shape(shape.input, (std::string(owner) + " input_shape").c_str());
     validate_tensor_shape(shape.filter, (std::string(owner) + " filter_shape").c_str());
@@ -465,7 +428,8 @@ namespace Allen::CuDNN {
     }
   }
 
-  inline void validate_backward_data_shape(const Conv2DShape& shape, const char* owner) {
+  inline void validate_backward_data_shape(const Conv2DShape& shape, const char* owner)
+  {
     validate_layout(shape.layout, owner);
     validate_tensor_shape(shape.filter, (std::string(owner) + " filter_shape").c_str());
     validate_tensor_shape(shape.input, (std::string(owner) + " input_shape").c_str());
@@ -474,14 +438,17 @@ namespace Allen::CuDNN {
     validate_pair_2d(shape.stride, (std::string(owner) + " stride").c_str(), false);
     validate_pair_2d(shape.dilation, (std::string(owner) + " dilation").c_str(), false);
     if (shape.filter.n != shape.input.c) {
-      throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter output channels do not match input channels");
+      throw std::invalid_argument(
+        "AllenCuDNN: BackwardDataConvPlan filter output channels do not match input channels");
     }
     if (shape.filter.c != shape.output.c) {
-      throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan filter input channels do not match output channels");
+      throw std::invalid_argument(
+        "AllenCuDNN: BackwardDataConvPlan filter input channels do not match output channels");
     }
   }
 
-  inline void validate_pooling_shape(const Pooling2DShape& shape, const char* owner) {
+  inline void validate_pooling_shape(const Pooling2DShape& shape, const char* owner)
+  {
     validate_layout(shape.layout, owner);
     validate_tensor_shape(shape.input, (std::string(owner) + " input_shape").c_str());
     validate_pair_2d(shape.window, (std::string(owner) + " window").c_str(), false);
@@ -492,7 +459,8 @@ namespace Allen::CuDNN {
     }
   }
 
-  inline TensorShape pooling_forward_output_shape(const Pooling2DShape& shape, const char* owner) {
+  inline TensorShape pooling_forward_output_shape(const Pooling2DShape& shape, const char* owner)
+  {
     validate_pooling_shape(shape, owner);
     const int h_extent = shape.input.h + 2 * shape.pad[0] - shape.window[0];
     const int w_extent = shape.input.w + 2 * shape.pad[1] - shape.window[1];
@@ -507,11 +475,11 @@ namespace Allen::CuDNN {
     return {shape.input.n, shape.input.c, output_h, output_w};
   }
 
-  inline TensorShape channel_bias_shape(TensorShape tensor_shape) {
-    return {1, tensor_shape.c, 1, 1};
-  }
+  inline TensorShape channel_bias_shape(TensorShape tensor_shape) { return {1, tensor_shape.c, 1, 1}; }
 
-  inline void validate_bias_shape(TensorShape tensor_shape, TensorShape bias_shape, TensorLayout layout, const char* owner) {
+  inline void
+  validate_bias_shape(TensorShape tensor_shape, TensorShape bias_shape, TensorLayout layout, const char* owner)
+  {
     validate_layout(layout, owner);
     validate_tensor_shape(tensor_shape, (std::string(owner) + " tensor_shape").c_str());
     validate_tensor_shape(bias_shape, (std::string(owner) + " bias_shape").c_str());
@@ -521,9 +489,7 @@ namespace Allen::CuDNN {
   }
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-  inline PrecisionPolicy fp32_precision_policy(
-    cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH,
-    bool allow_tf32 = true)
+  inline PrecisionPolicy fp32_precision_policy(cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH, bool allow_tf32 = true)
   {
     PrecisionPolicy policy {};
     policy.input_output_type = CUDNN_DATA_FLOAT;
@@ -536,7 +502,8 @@ namespace Allen::CuDNN {
     return policy;
   }
 
-  inline PrecisionPolicy fp16_precision_policy(bool experimental = true) {
+  inline PrecisionPolicy fp16_precision_policy(bool experimental = true)
+  {
     PrecisionPolicy policy {};
     policy.input_output_type = CUDNN_DATA_HALF;
     policy.filter_type = CUDNN_DATA_HALF;
@@ -548,24 +515,27 @@ namespace Allen::CuDNN {
     return policy;
   }
 
-  inline void validate_precision_policy(const PrecisionPolicy& policy, const char* owner) {
+  inline void validate_precision_policy(const PrecisionPolicy& policy, const char* owner)
+  {
     if (policy.input_output_type != policy.filter_type) {
-      throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " requires matching input/output and filter data types");
+      throw std::invalid_argument(
+        std::string("AllenCuDNN: ") + owner + " requires matching input/output and filter data types");
     }
     if (policy.input_output_type == CUDNN_DATA_HALF && !policy.fp16_experimental) {
       throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " FP16 plans require fp16_experimental=true");
     }
   }
 
-  inline PrecisionPolicy normalize_precision_policy(PrecisionPolicy policy) {
-    if (!policy.tensor_ops_enabled ||
-        (policy.input_output_type == CUDNN_DATA_FLOAT && !policy.allow_tf32)) {
+  inline PrecisionPolicy normalize_precision_policy(PrecisionPolicy policy)
+  {
+    if (!policy.tensor_ops_enabled || (policy.input_output_type == CUDNN_DATA_FLOAT && !policy.allow_tf32)) {
       policy.math_type = CUDNN_DEFAULT_MATH;
     }
     return policy;
   }
 
-  inline const char* to_string(cudnnConvolutionFwdAlgo_t algo) {
+  inline const char* to_string(cudnnConvolutionFwdAlgo_t algo)
+  {
     switch (algo) {
     case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM: return "CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM";
     case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM: return "CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM";
@@ -579,7 +549,8 @@ namespace Allen::CuDNN {
     return "CUDNN_CONVOLUTION_FWD_ALGO_UNKNOWN";
   }
 
-  inline const char* to_string(cudnnConvolutionBwdDataAlgo_t algo) {
+  inline const char* to_string(cudnnConvolutionBwdDataAlgo_t algo)
+  {
     switch (algo) {
     case CUDNN_CONVOLUTION_BWD_DATA_ALGO_0: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_0";
     case CUDNN_CONVOLUTION_BWD_DATA_ALGO_1: return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_1";
@@ -591,7 +562,8 @@ namespace Allen::CuDNN {
     return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_UNKNOWN";
   }
 
-  inline cudnnActivationMode_t to_cudnn_activation_mode(ActivationMode mode) {
+  inline cudnnActivationMode_t to_cudnn_activation_mode(ActivationMode mode)
+  {
     switch (mode) {
     case ActivationMode::Identity:
       throw std::invalid_argument("AllenCuDNN: identity activation is not a cuDNN activation descriptor");
@@ -604,7 +576,8 @@ namespace Allen::CuDNN {
     return CUDNN_ACTIVATION_RELU;
   }
 
-  inline cudnnPoolingMode_t to_cudnn_pooling_mode(PoolingMode mode) {
+  inline cudnnPoolingMode_t to_cudnn_pooling_mode(PoolingMode mode)
+  {
     switch (mode) {
     case PoolingMode::Max: return CUDNN_POOLING_MAX;
     case PoolingMode::AverageCountIncludePadding: return CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
@@ -613,15 +586,18 @@ namespace Allen::CuDNN {
     return CUDNN_POOLING_MAX;
   }
 
-  inline bool plan_creation_logging_enabled(const ConvPlanOptions& options) {
+  inline bool plan_creation_logging_enabled(const ConvPlanOptions& options)
+  {
     return options.log_plan_creation || std::getenv("ALLEN_CUDNN_VERBOSE") != nullptr;
   }
 
-  inline bool pooling_plan_creation_logging_enabled(const PoolingOptions& options) {
+  inline bool pooling_plan_creation_logging_enabled(const PoolingOptions& options)
+  {
     return options.log_plan_creation || std::getenv("ALLEN_CUDNN_VERBOSE") != nullptr;
   }
 
-  inline void log_plan_creation(const char* plan_name, const ConvPlanMetadata& info, const ConvPlanOptions& options) {
+  inline void log_plan_creation(const char* plan_name, const ConvPlanMetadata& info, const ConvPlanOptions& options)
+  {
     if (!plan_creation_logging_enabled(options)) return;
     std::fprintf(
       stderr,
@@ -647,7 +623,9 @@ namespace Allen::CuDNN {
     std::fprintf(stderr, "\n");
   }
 
-  inline void log_pooling_plan_creation(const char* plan_name, const PoolingMetadata& info, const PoolingOptions& options) {
+  inline void
+  log_pooling_plan_creation(const char* plan_name, const PoolingMetadata& info, const PoolingOptions& options)
+  {
     if (!pooling_plan_creation_logging_enabled(options)) return;
     std::fprintf(
       stderr,
@@ -656,17 +634,27 @@ namespace Allen::CuDNN {
       plan_name,
       to_string(info.layout),
       to_string(info.mode),
-      info.input_shape.n, info.input_shape.c, info.input_shape.h, info.input_shape.w,
-      info.output_shape.n, info.output_shape.c, info.output_shape.h, info.output_shape.w,
-      info.window[0], info.window[1],
-      info.pad[0], info.pad[1],
-      info.stride[0], info.stride[1],
+      info.input_shape.n,
+      info.input_shape.c,
+      info.input_shape.h,
+      info.input_shape.w,
+      info.output_shape.n,
+      info.output_shape.c,
+      info.output_shape.h,
+      info.output_shape.w,
+      info.window[0],
+      info.window[1],
+      info.pad[0],
+      info.pad[1],
+      info.stride[0],
+      info.stride[1],
       info.workspace_bytes,
       describe_precision_policy(info.precision).c_str());
   }
 
   namespace detail {
-    inline size_t dtype_size(cudnnDataType_t dtype) {
+    inline size_t dtype_size(cudnnDataType_t dtype)
+    {
       return dtype == CUDNN_DATA_HALF ? sizeof(__half) : sizeof(float);
     }
 
@@ -744,8 +732,7 @@ namespace Allen::CuDNN {
 
     inline bool cache_entry_environment_matches(const AlgorithmCacheEntry& entry)
     {
-      return entry.device_name == current_device_name() &&
-             entry.cudnn_version == cudnnGetVersion() &&
+      return entry.device_name == current_device_name() && entry.cudnn_version == cudnnGetVersion() &&
              entry.cuda_runtime_version == cuda_runtime_version();
     }
 
@@ -771,10 +758,8 @@ namespace Allen::CuDNN {
       out << "io=" << static_cast<int>(precision.input_output_type)
           << ";filter=" << static_cast<int>(precision.filter_type)
           << ";compute=" << static_cast<int>(precision.compute_type)
-          << ";math=" << static_cast<int>(precision.math_type)
-          << ";tensor_ops=" << precision.tensor_ops_enabled
-          << ";tf32=" << precision.allow_tf32
-          << ";fp16_exp=" << precision.fp16_experimental << ';';
+          << ";math=" << static_cast<int>(precision.math_type) << ";tensor_ops=" << precision.tensor_ops_enabled
+          << ";tf32=" << precision.allow_tf32 << ";fp16_exp=" << precision.fp16_experimental << ';';
     }
 
     inline std::string algorithm_cache_key(
@@ -788,21 +773,19 @@ namespace Allen::CuDNN {
       append_shape(out, "input", shape.input);
       append_shape(out, "filter", shape.filter);
       append_shape(out, "output", output_shape);
-      out << "pad=" << shape.pad[0] << 'x' << shape.pad[1] << ';'
-          << "stride=" << shape.stride[0] << 'x' << shape.stride[1] << ';'
-          << "dilation=" << shape.dilation[0] << 'x' << shape.dilation[1] << ';'
+      out << "pad=" << shape.pad[0] << 'x' << shape.pad[1] << ';' << "stride=" << shape.stride[0] << 'x'
+          << shape.stride[1] << ';' << "dilation=" << shape.dilation[0] << 'x' << shape.dilation[1] << ';'
           << "layout=" << to_string(shape.layout) << ';';
       append_precision(out, options.precision);
       out << "algo_policy=" << to_string(options.algorithm_policy) << ';'
           << "workspace_policy=" << to_string(options.workspace_policy) << ';'
-          << "workspace_limit=" << options.workspace_limit_bytes << ';'
-          << "device=" << current_device_name() << ';'
-          << "cuda_runtime=" << cuda_runtime_version() << ';'
-          << "cudnn=" << cudnnGetVersion() << ';';
+          << "workspace_limit=" << options.workspace_limit_bytes << ';' << "device=" << current_device_name() << ';'
+          << "cuda_runtime=" << cuda_runtime_version() << ';' << "cudnn=" << cudnnGetVersion() << ';';
       return out.str();
     }
 
-    inline void cuda_check(cudaError_t e, const char* what) {
+    inline void cuda_check(cudaError_t e, const char* what)
+    {
       if (e != cudaSuccess) {
         throw std::runtime_error(std::string(what) + ": " + cudaGetErrorString(e));
       }
@@ -814,14 +797,16 @@ namespace Allen::CuDNN {
 #endif
 
 #ifndef ALLEN_CUDNN_BACKEND_CUDA
-  inline PrecisionPolicy fp32_precision_policy(int math_type = 0, bool allow_tf32 = false) {
+  inline PrecisionPolicy fp32_precision_policy(int math_type = 0, bool allow_tf32 = false)
+  {
     PrecisionPolicy policy {};
     policy.math_type = math_type;
     policy.allow_tf32 = allow_tf32;
     return policy;
   }
 
-  inline PrecisionPolicy fp16_precision_policy(bool experimental = true) {
+  inline PrecisionPolicy fp16_precision_policy(bool experimental = true)
+  {
     PrecisionPolicy policy {};
     policy.fp16_experimental = experimental;
     return policy;
@@ -846,22 +831,25 @@ namespace Allen::CuDNN {
     TensorDescriptor(const TensorDescriptor&) = delete;
     TensorDescriptor& operator=(const TensorDescriptor&) = delete;
 
-    void reset() {
+    void reset()
+    {
       if (m_desc) {
         cudnnDestroyTensorDescriptor(m_desc);
         m_desc = nullptr;
       }
     }
 
-    void create() {
+    void create()
+    {
       reset();
       ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&m_desc));
     }
 
-    void set_4d(std::array<int, 4> shape, cudnnDataType_t dtype) {
+    void set_4d(std::array<int, 4> shape, cudnnDataType_t dtype)
+    {
       if (!m_desc) create();
-      ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        m_desc, CUDNN_TENSOR_NCHW, dtype, shape[0], shape[1], shape[2], shape[3]));
+      ALLEN_CUDNN_CHECK(
+        cudnnSetTensor4dDescriptor(m_desc, CUDNN_TENSOR_NCHW, dtype, shape[0], shape[1], shape[2], shape[3]));
     }
 
     cudnnTensorDescriptor_t get() const { return m_desc; }
@@ -884,22 +872,25 @@ namespace Allen::CuDNN {
     FilterDescriptor(const FilterDescriptor&) = delete;
     FilterDescriptor& operator=(const FilterDescriptor&) = delete;
 
-    void reset() {
+    void reset()
+    {
       if (m_desc) {
         cudnnDestroyFilterDescriptor(m_desc);
         m_desc = nullptr;
       }
     }
 
-    void create() {
+    void create()
+    {
       reset();
       ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&m_desc));
     }
 
-    void set_4d(std::array<int, 4> shape, cudnnDataType_t dtype) {
+    void set_4d(std::array<int, 4> shape, cudnnDataType_t dtype)
+    {
       if (!m_desc) create();
-      ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        m_desc, dtype, CUDNN_TENSOR_NCHW, shape[0], shape[1], shape[2], shape[3]));
+      ALLEN_CUDNN_CHECK(
+        cudnnSetFilter4dDescriptor(m_desc, dtype, CUDNN_TENSOR_NCHW, shape[0], shape[1], shape[2], shape[3]));
     }
 
     cudnnFilterDescriptor_t get() const { return m_desc; }
@@ -922,14 +913,16 @@ namespace Allen::CuDNN {
     ConvolutionDescriptor(const ConvolutionDescriptor&) = delete;
     ConvolutionDescriptor& operator=(const ConvolutionDescriptor&) = delete;
 
-    void reset() {
+    void reset()
+    {
       if (m_desc) {
         cudnnDestroyConvolutionDescriptor(m_desc);
         m_desc = nullptr;
       }
     }
 
-    void create() {
+    void create()
+    {
       reset();
       ALLEN_CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&m_desc));
     }
@@ -943,9 +936,7 @@ namespace Allen::CuDNN {
     {
       if (!m_desc) create();
       ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
-        m_desc,
-        pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1],
-        CUDNN_CROSS_CORRELATION, compute_type));
+        m_desc, pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1], CUDNN_CROSS_CORRELATION, compute_type));
       ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(m_desc, math_type));
     }
 
@@ -969,22 +960,25 @@ namespace Allen::CuDNN {
     ActivationDescriptor(const ActivationDescriptor&) = delete;
     ActivationDescriptor& operator=(const ActivationDescriptor&) = delete;
 
-    void reset() {
+    void reset()
+    {
       if (m_desc) {
         cudnnDestroyActivationDescriptor(m_desc);
         m_desc = nullptr;
       }
     }
 
-    void create() {
+    void create()
+    {
       reset();
       ALLEN_CUDNN_CHECK(cudnnCreateActivationDescriptor(&m_desc));
     }
 
-    void set(ActivationMode mode, double coefficient) {
+    void set(ActivationMode mode, double coefficient)
+    {
       if (!m_desc) create();
-      ALLEN_CUDNN_CHECK(cudnnSetActivationDescriptor(
-        m_desc, to_cudnn_activation_mode(mode), CUDNN_NOT_PROPAGATE_NAN, coefficient));
+      ALLEN_CUDNN_CHECK(
+        cudnnSetActivationDescriptor(m_desc, to_cudnn_activation_mode(mode), CUDNN_NOT_PROPAGATE_NAN, coefficient));
     }
 
     cudnnActivationDescriptor_t get() const { return m_desc; }
@@ -1007,27 +1001,33 @@ namespace Allen::CuDNN {
     PoolingDescriptor(const PoolingDescriptor&) = delete;
     PoolingDescriptor& operator=(const PoolingDescriptor&) = delete;
 
-    void reset() {
+    void reset()
+    {
       if (m_desc) {
         cudnnDestroyPoolingDescriptor(m_desc);
         m_desc = nullptr;
       }
     }
 
-    void create() {
+    void create()
+    {
       reset();
       ALLEN_CUDNN_CHECK(cudnnCreatePoolingDescriptor(&m_desc));
     }
 
-    void set_2d(PoolingMode mode, std::array<int, 2> window, std::array<int, 2> pad, std::array<int, 2> stride) {
+    void set_2d(PoolingMode mode, std::array<int, 2> window, std::array<int, 2> pad, std::array<int, 2> stride)
+    {
       if (!m_desc) create();
       ALLEN_CUDNN_CHECK(cudnnSetPooling2dDescriptor(
         m_desc,
         to_cudnn_pooling_mode(mode),
         CUDNN_NOT_PROPAGATE_NAN,
-        window[0], window[1],
-        pad[0], pad[1],
-        stride[0], stride[1]));
+        window[0],
+        window[1],
+        pad[0],
+        pad[1],
+        stride[0],
+        stride[1]));
     }
 
     cudnnPoolingDescriptor_t get() const { return m_desc; }
@@ -1055,7 +1055,8 @@ namespace Allen::CuDNN {
     size_t m_ws_bytes = 0;
     bool m_created = false;
 
-    void release_workspace() {
+    void release_workspace()
+    {
       if (m_workspace) {
         cudaFree(m_workspace);
         m_workspace = nullptr;
@@ -1063,7 +1064,8 @@ namespace Allen::CuDNN {
       m_ws_bytes = 0;
     }
 
-    void set_workspace(size_t bytes) {
+    void set_workspace(size_t bytes)
+    {
       m_ws_bytes = bytes;
       if (m_options.workspace_policy == WorkspacePolicy::ZeroOnly && bytes != 0) {
         throw std::runtime_error("ForwardConvPlan selected an algorithm that violates ZeroOnly workspace policy");
@@ -1073,10 +1075,12 @@ namespace Allen::CuDNN {
       }
     }
 
-    bool cache_lookup(const std::string& key) {
+    bool cache_lookup(const std::string& key)
+    {
       m_cache_metadata.key = key;
-      if (m_options.cache_policy == AlgorithmCachePolicy::Disabled ||
-          m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace) {
+      if (
+        m_options.cache_policy == AlgorithmCachePolicy::Disabled ||
+        m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace) {
         m_cache_metadata.status = AlgorithmCacheStatus::Disabled;
         return false;
       }
@@ -1098,7 +1102,8 @@ namespace Allen::CuDNN {
       if (!detail::cache_entry_environment_matches(entry)) {
         if (m_options.cache_policy == AlgorithmCachePolicy::StrictLookup) {
           m_cache_metadata.status = AlgorithmCacheStatus::RejectedIncompatibleEnvironment;
-          throw std::runtime_error("AllenCuDNN: ForwardConvPlan strict algorithm cache lookup found an incompatible environment");
+          throw std::runtime_error(
+            "AllenCuDNN: ForwardConvPlan strict algorithm cache lookup found an incompatible environment");
         }
         m_cache_metadata.status = AlgorithmCacheStatus::RejectedIncompatibleEnvironment;
         return false;
@@ -1114,9 +1119,11 @@ namespace Allen::CuDNN {
       return true;
     }
 
-    void cache_store(const std::string& key) {
-      if (m_options.cache_policy != AlgorithmCachePolicy::Populate &&
-          m_options.cache_policy != AlgorithmCachePolicy::LookupAndPopulate) {
+    void cache_store(const std::string& key)
+    {
+      if (
+        m_options.cache_policy != AlgorithmCachePolicy::Populate &&
+        m_options.cache_policy != AlgorithmCachePolicy::LookupAndPopulate) {
         return;
       }
       if (m_selection_source == AlgorithmSelectionSource::Fallback && !m_options.cache_fallback_results) {
@@ -1134,8 +1141,9 @@ namespace Allen::CuDNN {
       entry.cudnn_version = cudnnGetVersion();
       entry.cuda_runtime_version = detail::cuda_runtime_version();
       detail::algorithm_cache_store().insert(key, entry);
-      if (m_cache_metadata.status != AlgorithmCacheStatus::Hit &&
-          m_cache_metadata.status != AlgorithmCacheStatus::RejectedIncompatibleEnvironment) {
+      if (
+        m_cache_metadata.status != AlgorithmCacheStatus::Hit &&
+        m_cache_metadata.status != AlgorithmCacheStatus::RejectedIncompatibleEnvironment) {
         m_cache_metadata.status = AlgorithmCacheStatus::Miss;
       }
       m_cache_metadata.key = key;
@@ -1143,19 +1151,20 @@ namespace Allen::CuDNN {
       m_cache_metadata.created_by = entry.created_by;
     }
 
-    void select_heuristic(cudnnHandle_t handle) {
+    void select_heuristic(cudnnHandle_t handle)
+    {
       static constexpr int kMaxAlgos = 8;
       int returned = 0;
       cudnnConvolutionFwdAlgoPerf_t perf[kMaxAlgos];
       const auto status = cudnnGetConvolutionForwardAlgorithm_v7(
-            handle,
-            m_input_desc.get(),
-            m_filter_desc.get(),
-            m_conv_desc.get(),
-            m_output_desc.get(),
-            kMaxAlgos,
-            &returned,
-            perf);
+        handle,
+        m_input_desc.get(),
+        m_filter_desc.get(),
+        m_conv_desc.get(),
+        m_output_desc.get(),
+        kMaxAlgos,
+        &returned,
+        perf);
       if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
@@ -1168,16 +1177,13 @@ namespace Allen::CuDNN {
         m_fallback_reason = "heuristic selection returned no successful algorithm within the workspace limit";
       }
       else {
-        m_fallback_reason = std::string("cudnnGetConvolutionForwardAlgorithm_v7 failed: ") + cudnnGetErrorString(status);
+        m_fallback_reason =
+          std::string("cudnnGetConvolutionForwardAlgorithm_v7 failed: ") + cudnnGetErrorString(status);
       }
       m_selection_source = AlgorithmSelectionSource::Fallback;
     }
 
-    void select_timed(
-      cudnnHandle_t handle,
-      TensorShape input_shape,
-      TensorShape filter_shape,
-      TensorShape output_shape)
+    void select_timed(cudnnHandle_t handle, TensorShape input_shape, TensorShape filter_shape, TensorShape output_shape)
     {
       static constexpr int kMaxAlgos = 8;
       const size_t dtype_bytes = detail::dtype_size(m_options.precision.input_output_type);
@@ -1187,20 +1193,29 @@ namespace Allen::CuDNN {
 
       void *tmp_in = nullptr, *tmp_filt = nullptr, *tmp_out = nullptr, *search_ws = nullptr;
       detail::cuda_check(cudaMalloc(&tmp_in, in_elems * dtype_bytes), "ForwardConvPlan FindEx input allocation failed");
-      detail::cuda_check(cudaMalloc(&tmp_filt, filt_elems * dtype_bytes), "ForwardConvPlan FindEx filter allocation failed");
-      detail::cuda_check(cudaMalloc(&tmp_out, out_elems * dtype_bytes), "ForwardConvPlan FindEx output allocation failed");
-      detail::cuda_check(cudaMalloc(&search_ws, m_options.workspace_limit_bytes), "ForwardConvPlan FindEx search allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&tmp_filt, filt_elems * dtype_bytes), "ForwardConvPlan FindEx filter allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&tmp_out, out_elems * dtype_bytes), "ForwardConvPlan FindEx output allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&search_ws, m_options.workspace_limit_bytes), "ForwardConvPlan FindEx search allocation failed");
 
       int returned = 0;
       cudnnConvolutionFwdAlgoPerf_t perf[kMaxAlgos];
       const auto status = cudnnFindConvolutionForwardAlgorithmEx(
-            handle,
-            m_input_desc.get(), tmp_in,
-            m_filter_desc.get(), tmp_filt,
-            m_conv_desc.get(),
-            m_output_desc.get(), tmp_out,
-            kMaxAlgos, &returned, perf,
-            search_ws, m_options.workspace_limit_bytes);
+        handle,
+        m_input_desc.get(),
+        tmp_in,
+        m_filter_desc.get(),
+        tmp_filt,
+        m_conv_desc.get(),
+        m_output_desc.get(),
+        tmp_out,
+        kMaxAlgos,
+        &returned,
+        perf,
+        search_ws,
+        m_options.workspace_limit_bytes);
       if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
@@ -1216,7 +1231,8 @@ namespace Allen::CuDNN {
         }
       }
       else {
-        m_fallback_reason = std::string("cudnnFindConvolutionForwardAlgorithmEx failed: ") + cudnnGetErrorString(status);
+        m_fallback_reason =
+          std::string("cudnnFindConvolutionForwardAlgorithmEx failed: ") + cudnnGetErrorString(status);
         m_selection_source = AlgorithmSelectionSource::Fallback;
       }
 
@@ -1232,7 +1248,8 @@ namespace Allen::CuDNN {
     ForwardConvPlan(const ForwardConvPlan&) = delete;
     ForwardConvPlan& operator=(const ForwardConvPlan&) = delete;
 
-    void reset() {
+    void reset()
+    {
       release_workspace();
       m_selection_source = AlgorithmSelectionSource::Default;
       m_cache_metadata = {};
@@ -1240,10 +1257,7 @@ namespace Allen::CuDNN {
       m_created = false;
     }
 
-    void create(
-      cudnnHandle_t handle,
-      Conv2DShape shape,
-      ConvPlanOptions options = {})
+    void create(cudnnHandle_t handle, Conv2DShape shape, ConvPlanOptions options = {})
     {
       validate_forward_shape(shape, "ForwardConvPlan");
       options.precision = normalize_precision_policy(options.precision);
@@ -1265,14 +1279,16 @@ namespace Allen::CuDNN {
         m_conv_desc.get(), m_input_desc.get(), m_filter_desc.get(), &on, &oc, &oh, &ow));
       const TensorShape output_shape {on, oc, oh, ow};
       if (shape.has_output && shape.output != output_shape) {
-        throw std::invalid_argument("AllenCuDNN: ForwardConvPlan caller output_shape does not match cuDNN output shape");
+        throw std::invalid_argument(
+          "AllenCuDNN: ForwardConvPlan caller output_shape does not match cuDNN output shape");
       }
       m_output_desc.set_4d(output_shape.dims(), m_options.precision.input_output_type);
 
       m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
       m_ws_bytes = 0;
       m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
-        AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
+                             AlgorithmSelectionSource::ZeroWorkspace :
+                             AlgorithmSelectionSource::Default;
       const std::string cache_key = detail::algorithm_cache_key("forward-convolution", shape, m_options, output_shape);
       const bool cache_hit = cache_lookup(cache_key);
       if (!cache_hit) {
@@ -1338,7 +1354,8 @@ namespace Allen::CuDNN {
     cudnnDataType_t compute_type() const { return m_options.precision.compute_type; }
     cudnnMathType_t math_type() const { return m_options.precision.math_type; }
 
-    ConvPlanMetadata metadata() const {
+    ConvPlanMetadata metadata() const
+    {
       ConvPlanMetadata info {};
       info.algorithm_policy = m_options.algorithm_policy;
       info.selection_source = m_selection_source;
@@ -1372,13 +1389,17 @@ namespace Allen::CuDNN {
       ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
         handle,
         &alpha,
-        m_input_desc.get(), dev_input,
-        m_filter_desc.get(), dev_filter,
+        m_input_desc.get(),
+        dev_input,
+        m_filter_desc.get(),
+        dev_filter,
         m_conv_desc.get(),
         m_algo,
-        workspace, m_ws_bytes,
+        workspace,
+        m_ws_bytes,
         &beta,
-        m_output_desc.get(), dev_output));
+        m_output_desc.get(),
+        dev_output));
     }
 
     void forward(
@@ -1405,7 +1426,14 @@ namespace Allen::CuDNN {
       forward(handle, alpha, beta, (const void*) dev_input, (const void*) dev_filter, (void*) dev_output);
     }
 
-    void forward(const Handle& handle, const float alpha, const float beta, const float* dev_input, const float* dev_filter, float* dev_output) const {
+    void forward(
+      const Handle& handle,
+      const float alpha,
+      const float beta,
+      const float* dev_input,
+      const float* dev_filter,
+      float* dev_output) const
+    {
       forward(handle.get(), alpha, beta, dev_input, dev_filter, dev_output);
     }
 
@@ -1440,17 +1468,37 @@ namespace Allen::CuDNN {
     }
 #else
     void create(void*, Conv2DShape, ConvPlanOptions = {}) {}
-    void create(void*, std::array<int, 4>, std::array<int, 4>, std::array<int, 2> = {0, 0}, std::array<int, 2> = {1, 1}, std::array<int, 2> = {1, 1}, ConvPlanOptions = {}) {}
+    void create(
+      void*,
+      std::array<int, 4>,
+      std::array<int, 4>,
+      std::array<int, 2> = {0, 0},
+      std::array<int, 2> = {1, 1},
+      std::array<int, 2> = {1, 1},
+      ConvPlanOptions = {})
+    {}
     size_t workspace_bytes() const { return 0; }
     WorkspacePolicy workspace_policy() const { return WorkspacePolicy::ZeroOnly; }
     AlgorithmSelectionPolicy algorithm_policy() const { return AlgorithmSelectionPolicy::ZeroWorkspace; }
     AlgorithmSelectionSource selection_source() const { return AlgorithmSelectionSource::Default; }
-    const std::string& fallback_reason() const { static const std::string empty {}; return empty; }
+    const std::string& fallback_reason() const
+    {
+      static const std::string empty {};
+      return empty;
+    }
     bool is_created() const { return false; }
     int algorithm_id() const { return 0; }
     const char* algorithm_name() const { return "CUDNN_CONVOLUTION_FWD_ALGO_UNKNOWN"; }
-    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
-    const AlgorithmCacheMetadata& cache_metadata() const { static const AlgorithmCacheMetadata metadata {}; return metadata; }
+    const PrecisionPolicy& precision_policy() const
+    {
+      static const PrecisionPolicy policy {};
+      return policy;
+    }
+    const AlgorithmCacheMetadata& cache_metadata() const
+    {
+      static const AlgorithmCacheMetadata metadata {};
+      return metadata;
+    }
     ConvPlanMetadata metadata() const { return {}; }
     void reset() {}
     void forward(void*, float, float, const float*, const float*, float*) const {}
@@ -1477,7 +1525,8 @@ namespace Allen::CuDNN {
     size_t m_ws_bytes = 0;
     bool m_created = false;
 
-    void release_workspace() {
+    void release_workspace()
+    {
       if (m_workspace) {
         cudaFree(m_workspace);
         m_workspace = nullptr;
@@ -1485,7 +1534,8 @@ namespace Allen::CuDNN {
       m_ws_bytes = 0;
     }
 
-    void set_workspace(size_t bytes) {
+    void set_workspace(size_t bytes)
+    {
       m_ws_bytes = bytes;
       if (m_options.workspace_policy == WorkspacePolicy::ZeroOnly && bytes != 0) {
         throw std::runtime_error("BackwardDataConvPlan selected an algorithm that violates ZeroOnly workspace policy");
@@ -1495,10 +1545,12 @@ namespace Allen::CuDNN {
       }
     }
 
-    bool cache_lookup(const std::string& key) {
+    bool cache_lookup(const std::string& key)
+    {
       m_cache_metadata.key = key;
-      if (m_options.cache_policy == AlgorithmCachePolicy::Disabled ||
-          m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace) {
+      if (
+        m_options.cache_policy == AlgorithmCachePolicy::Disabled ||
+        m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace) {
         m_cache_metadata.status = AlgorithmCacheStatus::Disabled;
         return false;
       }
@@ -1537,9 +1589,11 @@ namespace Allen::CuDNN {
       return true;
     }
 
-    void cache_store(const std::string& key) {
-      if (m_options.cache_policy != AlgorithmCachePolicy::Populate &&
-          m_options.cache_policy != AlgorithmCachePolicy::LookupAndPopulate) {
+    void cache_store(const std::string& key)
+    {
+      if (
+        m_options.cache_policy != AlgorithmCachePolicy::Populate &&
+        m_options.cache_policy != AlgorithmCachePolicy::LookupAndPopulate) {
         return;
       }
       if (m_selection_source == AlgorithmSelectionSource::Fallback && !m_options.cache_fallback_results) {
@@ -1557,8 +1611,9 @@ namespace Allen::CuDNN {
       entry.cudnn_version = cudnnGetVersion();
       entry.cuda_runtime_version = detail::cuda_runtime_version();
       detail::algorithm_cache_store().insert(key, entry);
-      if (m_cache_metadata.status != AlgorithmCacheStatus::Hit &&
-          m_cache_metadata.status != AlgorithmCacheStatus::RejectedIncompatibleEnvironment) {
+      if (
+        m_cache_metadata.status != AlgorithmCacheStatus::Hit &&
+        m_cache_metadata.status != AlgorithmCacheStatus::RejectedIncompatibleEnvironment) {
         m_cache_metadata.status = AlgorithmCacheStatus::Miss;
       }
       m_cache_metadata.key = key;
@@ -1566,19 +1621,20 @@ namespace Allen::CuDNN {
       m_cache_metadata.created_by = entry.created_by;
     }
 
-    void select_heuristic(cudnnHandle_t handle) {
+    void select_heuristic(cudnnHandle_t handle)
+    {
       static constexpr int kMaxAlgos = 8;
       int returned = 0;
       cudnnConvolutionBwdDataAlgoPerf_t perf[kMaxAlgos];
       const auto status = cudnnGetConvolutionBackwardDataAlgorithm_v7(
-            handle,
-            m_filter_desc.get(),
-            m_input_desc.get(),
-            m_conv_desc.get(),
-            m_output_desc.get(),
-            kMaxAlgos,
-            &returned,
-            perf);
+        handle,
+        m_filter_desc.get(),
+        m_input_desc.get(),
+        m_conv_desc.get(),
+        m_output_desc.get(),
+        kMaxAlgos,
+        &returned,
+        perf);
       if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
@@ -1597,11 +1653,7 @@ namespace Allen::CuDNN {
       m_selection_source = AlgorithmSelectionSource::Fallback;
     }
 
-    void select_timed(
-      cudnnHandle_t handle,
-      TensorShape filter_shape,
-      TensorShape input_shape,
-      TensorShape output_shape)
+    void select_timed(cudnnHandle_t handle, TensorShape filter_shape, TensorShape input_shape, TensorShape output_shape)
     {
       static constexpr int kMaxAlgos = 8;
       const size_t dtype_bytes = detail::dtype_size(m_options.precision.input_output_type);
@@ -1610,21 +1662,32 @@ namespace Allen::CuDNN {
       const size_t out_elems = output_shape.elements();
 
       void *tmp_filt = nullptr, *tmp_in = nullptr, *tmp_out = nullptr, *search_ws = nullptr;
-      detail::cuda_check(cudaMalloc(&tmp_filt, filt_elems * dtype_bytes), "BackwardDataConvPlan FindEx filter allocation failed");
-      detail::cuda_check(cudaMalloc(&tmp_in, in_elems * dtype_bytes), "BackwardDataConvPlan FindEx input allocation failed");
-      detail::cuda_check(cudaMalloc(&tmp_out, out_elems * dtype_bytes), "BackwardDataConvPlan FindEx output allocation failed");
-      detail::cuda_check(cudaMalloc(&search_ws, m_options.workspace_limit_bytes), "BackwardDataConvPlan FindEx search allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&tmp_filt, filt_elems * dtype_bytes), "BackwardDataConvPlan FindEx filter allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&tmp_in, in_elems * dtype_bytes), "BackwardDataConvPlan FindEx input allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&tmp_out, out_elems * dtype_bytes), "BackwardDataConvPlan FindEx output allocation failed");
+      detail::cuda_check(
+        cudaMalloc(&search_ws, m_options.workspace_limit_bytes),
+        "BackwardDataConvPlan FindEx search allocation failed");
 
       int returned = 0;
       cudnnConvolutionBwdDataAlgoPerf_t perf[kMaxAlgos];
       const auto status = cudnnFindConvolutionBackwardDataAlgorithmEx(
         handle,
-        m_filter_desc.get(), tmp_filt,
-        m_input_desc.get(), tmp_in,
+        m_filter_desc.get(),
+        tmp_filt,
+        m_input_desc.get(),
+        tmp_in,
         m_conv_desc.get(),
-        m_output_desc.get(), tmp_out,
-        kMaxAlgos, &returned, perf,
-        search_ws, m_options.workspace_limit_bytes);
+        m_output_desc.get(),
+        tmp_out,
+        kMaxAlgos,
+        &returned,
+        perf,
+        search_ws,
+        m_options.workspace_limit_bytes);
       if (status == CUDNN_STATUS_SUCCESS) {
         for (int i = 0; i < returned; ++i) {
           if (perf[i].status == CUDNN_STATUS_SUCCESS && perf[i].memory <= m_options.workspace_limit_bytes) {
@@ -1657,10 +1720,7 @@ namespace Allen::CuDNN {
     BackwardDataConvPlan(const BackwardDataConvPlan&) = delete;
     BackwardDataConvPlan& operator=(const BackwardDataConvPlan&) = delete;
 
-    void create(
-      cudnnHandle_t handle,
-      Conv2DShape shape,
-      ConvPlanOptions options = {})
+    void create(cudnnHandle_t handle, Conv2DShape shape, ConvPlanOptions options = {})
     {
       validate_backward_data_shape(shape, "BackwardDataConvPlan");
       options.precision = normalize_precision_policy(options.precision);
@@ -1682,14 +1742,17 @@ namespace Allen::CuDNN {
         m_conv_desc.get(), m_output_desc.get(), m_filter_desc.get(), &on, &oc, &oh, &ow));
       const TensorShape expected_input_shape {on, oc, oh, ow};
       if (shape.input != expected_input_shape) {
-        throw std::invalid_argument("AllenCuDNN: BackwardDataConvPlan input_shape does not match cuDNN-computed forward output shape");
+        throw std::invalid_argument(
+          "AllenCuDNN: BackwardDataConvPlan input_shape does not match cuDNN-computed forward output shape");
       }
 
       m_algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
       m_ws_bytes = 0;
       m_selection_source = m_options.algorithm_policy == AlgorithmSelectionPolicy::ZeroWorkspace ?
-        AlgorithmSelectionSource::ZeroWorkspace : AlgorithmSelectionSource::Default;
-      const std::string cache_key = detail::algorithm_cache_key("backward-data-convolution", shape, m_options, shape.output);
+                             AlgorithmSelectionSource::ZeroWorkspace :
+                             AlgorithmSelectionSource::Default;
+      const std::string cache_key =
+        detail::algorithm_cache_key("backward-data-convolution", shape, m_options, shape.output);
       const bool cache_hit = cache_lookup(cache_key);
       if (!cache_hit) {
         if (m_options.algorithm_policy == AlgorithmSelectionPolicy::Heuristic) {
@@ -1717,7 +1780,12 @@ namespace Allen::CuDNN {
       create(
         handle,
         Conv2DShape::backward_data(
-          make_tensor_shape(filter_shape), make_tensor_shape(input_shape), make_tensor_shape(output_shape), pad, stride, dilation),
+          make_tensor_shape(filter_shape),
+          make_tensor_shape(input_shape),
+          make_tensor_shape(output_shape),
+          pad,
+          stride,
+          dilation),
         options);
     }
 
@@ -1735,7 +1803,8 @@ namespace Allen::CuDNN {
     cudnnDataType_t compute_type() const { return m_options.precision.compute_type; }
     cudnnMathType_t math_type() const { return m_options.precision.math_type; }
 
-    ConvPlanMetadata metadata() const {
+    ConvPlanMetadata metadata() const
+    {
       ConvPlanMetadata info {};
       info.algorithm_policy = m_options.algorithm_policy;
       info.selection_source = m_selection_source;
@@ -1769,13 +1838,17 @@ namespace Allen::CuDNN {
       ALLEN_CUDNN_CHECK(cudnnConvolutionBackwardData(
         handle,
         &alpha,
-        m_filter_desc.get(), dev_filter,
-        m_input_desc.get(), dev_input,
+        m_filter_desc.get(),
+        dev_filter,
+        m_input_desc.get(),
+        dev_input,
         m_conv_desc.get(),
         m_algo,
-        workspace, m_ws_bytes,
+        workspace,
+        m_ws_bytes,
         &beta,
-        m_output_desc.get(), dev_output));
+        m_output_desc.get(),
+        dev_output));
     }
 
     void backward_data(
@@ -1792,17 +1865,38 @@ namespace Allen::CuDNN {
     }
 #else
     void create(void*, Conv2DShape, ConvPlanOptions = {}) {}
-    void create(void*, std::array<int, 4>, std::array<int, 4>, std::array<int, 4>, std::array<int, 2> = {0, 0}, std::array<int, 2> = {1, 1}, std::array<int, 2> = {1, 1}, ConvPlanOptions = {}) {}
+    void create(
+      void*,
+      std::array<int, 4>,
+      std::array<int, 4>,
+      std::array<int, 4>,
+      std::array<int, 2> = {0, 0},
+      std::array<int, 2> = {1, 1},
+      std::array<int, 2> = {1, 1},
+      ConvPlanOptions = {})
+    {}
     size_t workspace_bytes() const { return 0; }
     WorkspacePolicy workspace_policy() const { return WorkspacePolicy::ZeroOnly; }
     AlgorithmSelectionPolicy algorithm_policy() const { return AlgorithmSelectionPolicy::ZeroWorkspace; }
     AlgorithmSelectionSource selection_source() const { return AlgorithmSelectionSource::Default; }
-    const std::string& fallback_reason() const { static const std::string empty {}; return empty; }
+    const std::string& fallback_reason() const
+    {
+      static const std::string empty {};
+      return empty;
+    }
     bool is_created() const { return false; }
     int algorithm_id() const { return 0; }
     const char* algorithm_name() const { return "CUDNN_CONVOLUTION_BWD_DATA_ALGO_UNKNOWN"; }
-    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
-    const AlgorithmCacheMetadata& cache_metadata() const { static const AlgorithmCacheMetadata metadata {}; return metadata; }
+    const PrecisionPolicy& precision_policy() const
+    {
+      static const PrecisionPolicy policy {};
+      return policy;
+    }
+    const AlgorithmCacheMetadata& cache_metadata() const
+    {
+      static const AlgorithmCacheMetadata metadata {};
+      return metadata;
+    }
     ConvPlanMetadata metadata() const { return {}; }
     void backward_data(void*, float, float, const void*, const void*, void*, void* = nullptr) const {}
     void backward_data(void*, float, float, const void*, const void*, void*, Workspace) const {}
@@ -1825,7 +1919,8 @@ namespace Allen::CuDNN {
     PoolingPlan(const PoolingPlan&) = delete;
     PoolingPlan& operator=(const PoolingPlan&) = delete;
 
-    void create(Pooling2DShape shape, PoolingOptions options = {}) {
+    void create(Pooling2DShape shape, PoolingOptions options = {})
+    {
       validate_layout(options.layout, "PoolingPlan");
       validate_pooling_shape(shape, "PoolingPlan");
       options.precision = normalize_precision_policy(options.precision);
@@ -1847,7 +1942,8 @@ namespace Allen::CuDNN {
       log_pooling_plan_creation("PoolingPlan", metadata(), m_options);
     }
 
-    void create(std::array<int, 4> input_shape, std::array<int, 2> window, PoolingOptions options = {}) {
+    void create(std::array<int, 4> input_shape, std::array<int, 2> window, PoolingOptions options = {})
+    {
       create(Pooling2DShape::forward(make_tensor_shape(input_shape), window), options);
     }
 
@@ -1862,7 +1958,8 @@ namespace Allen::CuDNN {
     cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
     size_t workspace_bytes() const { return 0; }
 
-    PoolingMetadata metadata() const {
+    PoolingMetadata metadata() const
+    {
       PoolingMetadata info {};
       info.created = m_created;
       info.mode = m_options.mode;
@@ -1877,23 +1974,16 @@ namespace Allen::CuDNN {
       return info;
     }
 
-    void forward(
-      cudnnHandle_t handle,
-      const float alpha,
-      const void* dev_input,
-      const float beta,
-      void* dev_output) const
+    void forward(cudnnHandle_t handle, const float alpha, const void* dev_input, const float beta, void* dev_output)
+      const
     {
       ALLEN_CUDNN_CHECK(cudnnPoolingForward(
-        handle,
-        m_pooling_desc.get(),
-        &alpha,
-        m_input_desc.get(), dev_input,
-        &beta,
-        m_output_desc.get(), dev_output));
+        handle, m_pooling_desc.get(), &alpha, m_input_desc.get(), dev_input, &beta, m_output_desc.get(), dev_output));
     }
 
-    void forward(cudnnHandle_t handle, const float alpha, const float* dev_input, const float beta, float* dev_output) const {
+    void forward(cudnnHandle_t handle, const float alpha, const float* dev_input, const float beta, float* dev_output)
+      const
+    {
       forward(handle, alpha, (const void*) dev_input, beta, (void*) dev_output);
     }
 
@@ -1916,7 +2006,11 @@ namespace Allen::CuDNN {
     std::array<int, 2> window() const { return {1, 1}; }
     std::array<int, 2> pad() const { return {0, 0}; }
     std::array<int, 2> stride() const { return {1, 1}; }
-    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    const PrecisionPolicy& precision_policy() const
+    {
+      static const PrecisionPolicy policy {};
+      return policy;
+    }
     int data_type() const { return 0; }
     size_t workspace_bytes() const { return 0; }
     PoolingMetadata metadata() const { return {}; }
@@ -1941,7 +2035,8 @@ namespace Allen::CuDNN {
     BiasAddPlan(const BiasAddPlan&) = delete;
     BiasAddPlan& operator=(const BiasAddPlan&) = delete;
 
-    void create(TensorShape tensor_shape, BiasAddOptions options = {}) {
+    void create(TensorShape tensor_shape, BiasAddOptions options = {})
+    {
       options.precision = normalize_precision_policy(options.precision);
       validate_precision_policy(options.precision, "BiasAddPlan");
       const TensorShape bias_shape = channel_bias_shape(tensor_shape);
@@ -1955,7 +2050,8 @@ namespace Allen::CuDNN {
       m_created = true;
     }
 
-    void create(std::array<int, 4> tensor_shape, BiasAddOptions options = {}) {
+    void create(std::array<int, 4> tensor_shape, BiasAddOptions options = {})
+    {
       create(make_tensor_shape(tensor_shape), options);
     }
 
@@ -1965,7 +2061,8 @@ namespace Allen::CuDNN {
     const PrecisionPolicy& precision_policy() const { return m_options.precision; }
     cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
 
-    BiasAddMetadata metadata() const {
+    BiasAddMetadata metadata() const
+    {
       BiasAddMetadata info {};
       info.created = m_created;
       info.layout = m_options.layout;
@@ -1975,31 +2072,19 @@ namespace Allen::CuDNN {
       return info;
     }
 
-    void add(
-      cudnnHandle_t handle,
-      const float alpha,
-      const void* dev_bias,
-      const float beta,
-      void* dev_tensor) const
+    void add(cudnnHandle_t handle, const float alpha, const void* dev_bias, const float beta, void* dev_tensor) const
     {
-      ALLEN_CUDNN_CHECK(cudnnAddTensor(
-        handle,
-        &alpha,
-        m_bias_desc.get(), dev_bias,
-        &beta,
-        m_tensor_desc.get(), dev_tensor));
+      ALLEN_CUDNN_CHECK(
+        cudnnAddTensor(handle, &alpha, m_bias_desc.get(), dev_bias, &beta, m_tensor_desc.get(), dev_tensor));
     }
 
-    void add(cudnnHandle_t handle, const float alpha, const float* dev_bias, const float beta, float* dev_tensor) const {
+    void add(cudnnHandle_t handle, const float alpha, const float* dev_bias, const float beta, float* dev_tensor) const
+    {
       add(handle, alpha, (const void*) dev_bias, beta, (void*) dev_tensor);
     }
 
-    void add_half(
-      cudnnHandle_t handle,
-      const float alpha,
-      const __half* dev_bias,
-      const float beta,
-      __half* dev_tensor) const
+    void add_half(cudnnHandle_t handle, const float alpha, const __half* dev_bias, const float beta, __half* dev_tensor)
+      const
     {
       add(handle, alpha, (const void*) dev_bias, beta, (void*) dev_tensor);
     }
@@ -2009,7 +2094,11 @@ namespace Allen::CuDNN {
     bool is_created() const { return false; }
     TensorShape tensor_shape() const { return {}; }
     TensorShape bias_shape() const { return {}; }
-    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    const PrecisionPolicy& precision_policy() const
+    {
+      static const PrecisionPolicy policy {};
+      return policy;
+    }
     int data_type() const { return 0; }
     BiasAddMetadata metadata() const { return {}; }
     void add(void*, float, const void*, float, void*) const {}
@@ -2033,7 +2122,8 @@ namespace Allen::CuDNN {
     ActivationPlan(const ActivationPlan&) = delete;
     ActivationPlan& operator=(const ActivationPlan&) = delete;
 
-    void create(TensorShape tensor_shape, ActivationOptions options = {}) {
+    void create(TensorShape tensor_shape, ActivationOptions options = {})
+    {
       validate_layout(options.layout, "ActivationPlan");
       validate_tensor_shape(tensor_shape, "ActivationPlan tensor_shape");
       options.precision = normalize_precision_policy(options.precision);
@@ -2047,7 +2137,8 @@ namespace Allen::CuDNN {
       m_created = true;
     }
 
-    void create(std::array<int, 4> tensor_shape, ActivationOptions options = {}) {
+    void create(std::array<int, 4> tensor_shape, ActivationOptions options = {})
+    {
       create(make_tensor_shape(tensor_shape), options);
     }
 
@@ -2058,7 +2149,8 @@ namespace Allen::CuDNN {
     const PrecisionPolicy& precision_policy() const { return m_options.precision; }
     cudnnDataType_t data_type() const { return m_options.precision.input_output_type; }
 
-    ActivationMetadata metadata() const {
+    ActivationMetadata metadata() const
+    {
       ActivationMetadata info {};
       info.created = m_created;
       info.mode = m_options.mode;
@@ -2069,23 +2161,23 @@ namespace Allen::CuDNN {
       return info;
     }
 
-    void forward(
-      cudnnHandle_t handle,
-      const float alpha,
-      const void* dev_input,
-      const float beta,
-      void* dev_output) const
+    void forward(cudnnHandle_t handle, const float alpha, const void* dev_input, const float beta, void* dev_output)
+      const
     {
       ALLEN_CUDNN_CHECK(cudnnActivationForward(
         handle,
         m_activation_desc.get(),
         &alpha,
-        m_input_desc.get(), dev_input,
+        m_input_desc.get(),
+        dev_input,
         &beta,
-        m_output_desc.get(), dev_output));
+        m_output_desc.get(),
+        dev_output));
     }
 
-    void forward(cudnnHandle_t handle, const float alpha, const float* dev_input, const float beta, float* dev_output) const {
+    void forward(cudnnHandle_t handle, const float alpha, const float* dev_input, const float beta, float* dev_output)
+      const
+    {
       forward(handle, alpha, (const void*) dev_input, beta, (void*) dev_output);
     }
 
@@ -2105,7 +2197,11 @@ namespace Allen::CuDNN {
     ActivationMode mode() const { return ActivationMode::Relu; }
     double coefficient() const { return 0.0; }
     TensorShape tensor_shape() const { return {}; }
-    const PrecisionPolicy& precision_policy() const { static const PrecisionPolicy policy {}; return policy; }
+    const PrecisionPolicy& precision_policy() const
+    {
+      static const PrecisionPolicy policy {};
+      return policy;
+    }
     int data_type() const { return 0; }
     ActivationMetadata metadata() const { return {}; }
     void forward(void*, float, const void*, float, void*) const {}
@@ -2149,12 +2245,12 @@ namespace Allen::CuDNN {
   struct ConvDescriptors {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   private:
-    cudnnTensorDescriptor_t      m_input_desc   = nullptr;
-    cudnnFilterDescriptor_t      m_filter_desc  = nullptr;
-    cudnnConvolutionDescriptor_t m_conv_desc    = nullptr;
-    cudnnTensorDescriptor_t      m_output_desc  = nullptr;
-    cudnnConvolutionFwdAlgo_t    m_algo         = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
-    size_t                       m_ws_bytes     = 0;
+    cudnnTensorDescriptor_t m_input_desc = nullptr;
+    cudnnFilterDescriptor_t m_filter_desc = nullptr;
+    cudnnConvolutionDescriptor_t m_conv_desc = nullptr;
+    cudnnTensorDescriptor_t m_output_desc = nullptr;
+    cudnnConvolutionFwdAlgo_t m_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+    size_t m_ws_bytes = 0;
     bool m_created = false;
 
     // Thread-local workspace, keyed by this instance within each thread's own map
@@ -2168,7 +2264,8 @@ namespace Allen::CuDNN {
     // the rest of the process's life on that (thread, instance). Only record the
     // size only after allocation succeeds, so a transient failure is
     // retried on the next call instead of being latched in as a fatal state.
-    static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes) {
+    static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes)
+    {
       if (needed_bytes == 0) return nullptr;
       thread_local std::unordered_map<const void*, std::pair<void*, size_t>> tl_workspaces;
       auto& entry = tl_workspaces[instance_key];
@@ -2184,7 +2281,8 @@ namespace Allen::CuDNN {
   public:
     ConvDescriptors() = default;
 
-    ~ConvDescriptors() {
+    ~ConvDescriptors()
+    {
       if (!m_created) return;
       cudnnDestroyTensorDescriptor(m_input_desc);
       cudnnDestroyFilterDescriptor(m_filter_desc);
@@ -2214,13 +2312,13 @@ namespace Allen::CuDNN {
     // dtype: CUDNN_DATA_FLOAT (default) or CUDNN_DATA_HALF for FP16 Tensor Core path.
     // Compute type is always CUDNN_DATA_FLOAT (FP32 accumulation) for both dtypes.
     void create(
-      cudnnHandle_t     handle,
-      std::array<int,4> input_shape,            // {N, C_in, H, W} — fixed
-      std::array<int,4> filter_shape,           // {K, C_in, R, S}
-      std::array<int,2> pad      = {0, 0},
-      std::array<int,2> stride   = {1, 1},
-      std::array<int,2> dilation = {1, 1},
-      cudnnDataType_t   dtype    = CUDNN_DATA_FLOAT,
+      cudnnHandle_t handle,
+      std::array<int, 4> input_shape,  // {N, C_in, H, W} — fixed
+      std::array<int, 4> filter_shape, // {K, C_in, R, S}
+      std::array<int, 2> pad = {0, 0},
+      std::array<int, 2> stride = {1, 1},
+      std::array<int, 2> dilation = {1, 1},
+      cudnnDataType_t dtype = CUDNN_DATA_FLOAT,
       // 0 pins IMPLICIT_GEMM. A nonzero value runs
       // cudnnGetConvolutionForwardAlgorithm_v7 (a static heuristic cost
       // model, not a timed benchmark), then executes each
@@ -2230,7 +2328,7 @@ namespace Allen::CuDNN {
       // for some shape/dtype combinations here (see the loop below). Falls
       // back to pinned IMPLICIT_GEMM if nothing fits the budget and survives
       // verification, or the initial query fails.
-      size_t            workspace_budget_bytes = 0)
+      size_t workspace_budget_bytes = 0)
     {
       ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&m_input_desc));
       ALLEN_CUDNN_CHECK(cudnnCreateFilterDescriptor(&m_filter_desc));
@@ -2238,27 +2336,30 @@ namespace Allen::CuDNN {
       ALLEN_CUDNN_CHECK(cudnnCreateTensorDescriptor(&m_output_desc));
 
       ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        m_input_desc, CUDNN_TENSOR_NCHW, dtype,
-        input_shape[0], input_shape[1], input_shape[2], input_shape[3]));
+        m_input_desc, CUDNN_TENSOR_NCHW, dtype, input_shape[0], input_shape[1], input_shape[2], input_shape[3]));
 
       ALLEN_CUDNN_CHECK(cudnnSetFilter4dDescriptor(
-        m_filter_desc, dtype, CUDNN_TENSOR_NCHW,
-        filter_shape[0], filter_shape[1], filter_shape[2], filter_shape[3]));
+        m_filter_desc, dtype, CUDNN_TENSOR_NCHW, filter_shape[0], filter_shape[1], filter_shape[2], filter_shape[3]));
 
       ALLEN_CUDNN_CHECK(cudnnSetConvolution2dDescriptor(
         m_conv_desc,
-        pad[0], pad[1], stride[0], stride[1], dilation[0], dilation[1],
-        CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+        pad[0],
+        pad[1],
+        stride[0],
+        stride[1],
+        dilation[0],
+        dilation[1],
+        CUDNN_CROSS_CORRELATION,
+        CUDNN_DATA_FLOAT));
       // CUDNN_TENSOR_OP_MATH: enables TF32 on Ampere+ for FP32, and Tensor Core on all
       // supported GPUs for FP16 (wmma on SM 7.x, HMMA on SM 8.x+).
       ALLEN_CUDNN_CHECK(cudnnSetConvolutionMathType(m_conv_desc, CUDNN_TENSOR_OP_MATH));
 
       // Derive and store output descriptor — fixed for this shape.
       int on, oc, oh, ow;
-      ALLEN_CUDNN_CHECK(cudnnGetConvolution2dForwardOutputDim(
-        m_conv_desc, m_input_desc, m_filter_desc, &on, &oc, &oh, &ow));
-      ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(
-        m_output_desc, CUDNN_TENSOR_NCHW, dtype, on, oc, oh, ow));
+      ALLEN_CUDNN_CHECK(
+        cudnnGetConvolution2dForwardOutputDim(m_conv_desc, m_input_desc, m_filter_desc, &on, &oc, &oh, &ow));
+      ALLEN_CUDNN_CHECK(cudnnSetTensor4dDescriptor(m_output_desc, CUDNN_TENSOR_NCHW, dtype, on, oc, oh, ow));
 
       m_created = true;
 
@@ -2267,24 +2368,26 @@ namespace Allen::CuDNN {
         static constexpr int kFwdMaxAlgo = 8;
         cudnnConvolutionFwdAlgoPerf_t perf[kFwdMaxAlgo];
         int returned = 0;
-        if (cudnnGetConvolutionForwardAlgorithm_v7(
-              handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc,
-              kFwdMaxAlgo, &returned, perf) == CUDNN_STATUS_SUCCESS) {
+        if (
+          cudnnGetConvolutionForwardAlgorithm_v7(
+            handle, m_input_desc, m_filter_desc, m_conv_desc, m_output_desc, kFwdMaxAlgo, &returned, perf) ==
+          CUDNN_STATUS_SUCCESS) {
           // The v7 ranking is a static cost model, so a successful query does
           // not guarantee that the candidate executes for this shape and dtype.
           // Execute each within-budget candidate against correctly sized scratch
           // buffers and adopt the first one that succeeds.
-          const size_t elem_size  = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
-          const size_t in_elems   = (size_t)input_shape[0]  * input_shape[1]  * input_shape[2]  * input_shape[3];
-          const size_t filt_elems = (size_t)filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
-          const size_t out_elems  = (size_t)on * oc * oh * ow;
-          void* dummy_in   = nullptr;
+          const size_t elem_size = (dtype == CUDNN_DATA_HALF) ? sizeof(__half) : sizeof(float);
+          const size_t in_elems = (size_t) input_shape[0] * input_shape[1] * input_shape[2] * input_shape[3];
+          const size_t filt_elems = (size_t) filter_shape[0] * filter_shape[1] * filter_shape[2] * filter_shape[3];
+          const size_t out_elems = (size_t) on * oc * oh * ow;
+          void* dummy_in = nullptr;
           void* dummy_filt = nullptr;
-          void* dummy_out  = nullptr;
-          if (cudaMalloc(&dummy_in,   in_elems   * elem_size) == cudaSuccess &&
-              cudaMalloc(&dummy_filt, filt_elems * elem_size) == cudaSuccess &&
-              cudaMalloc(&dummy_out,  out_elems  * elem_size) == cudaSuccess) {
-            cudaMemset(dummy_in,   0, in_elems   * elem_size);
+          void* dummy_out = nullptr;
+          if (
+            cudaMalloc(&dummy_in, in_elems * elem_size) == cudaSuccess &&
+            cudaMalloc(&dummy_filt, filt_elems * elem_size) == cudaSuccess &&
+            cudaMalloc(&dummy_out, out_elems * elem_size) == cudaSuccess) {
+            cudaMemset(dummy_in, 0, in_elems * elem_size);
             cudaMemset(dummy_filt, 0, filt_elems * elem_size);
             const float alpha = 1.f, beta = 0.f;
             for (int i = 0; i < returned && !picked_by_search; ++i) {
@@ -2292,19 +2395,30 @@ namespace Allen::CuDNN {
               void* dummy_ws = nullptr;
               if (perf[i].memory > 0 && cudaMalloc(&dummy_ws, perf[i].memory) != cudaSuccess) continue;
               const cudnnStatus_t trial = cudnnConvolutionForward(
-                handle, &alpha, m_input_desc, dummy_in, m_filter_desc, dummy_filt,
-                m_conv_desc, perf[i].algo, dummy_ws, perf[i].memory, &beta, m_output_desc, dummy_out);
+                handle,
+                &alpha,
+                m_input_desc,
+                dummy_in,
+                m_filter_desc,
+                dummy_filt,
+                m_conv_desc,
+                perf[i].algo,
+                dummy_ws,
+                perf[i].memory,
+                &beta,
+                m_output_desc,
+                dummy_out);
               if (dummy_ws) cudaFree(dummy_ws);
               if (trial == CUDNN_STATUS_SUCCESS) {
-                m_algo        = perf[i].algo;
-                m_ws_bytes    = perf[i].memory;
+                m_algo = perf[i].algo;
+                m_ws_bytes = perf[i].memory;
                 picked_by_search = true;
               }
             }
           }
-          if (dummy_in)   cudaFree(dummy_in);
+          if (dummy_in) cudaFree(dummy_in);
           if (dummy_filt) cudaFree(dummy_filt);
-          if (dummy_out)  cudaFree(dummy_out);
+          if (dummy_out) cudaFree(dummy_out);
         }
       }
       if (!picked_by_search) {
@@ -2322,31 +2436,37 @@ namespace Allen::CuDNN {
 
     // Forward convolution using a thread_local cudnnHandle_t.
     void forward(
-      cudnnHandle_t  handle,
-      const float    alpha, const float beta,
-      const float*   dev_input,
-      const float*   dev_filter,
-      float*         dev_output) const
+      cudnnHandle_t handle,
+      const float alpha,
+      const float beta,
+      const float* dev_input,
+      const float* dev_filter,
+      float* dev_output) const
     {
       ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
         handle,
         &alpha,
-        m_input_desc,  dev_input,
-        m_filter_desc, dev_filter,
+        m_input_desc,
+        dev_input,
+        m_filter_desc,
+        dev_filter,
         m_conv_desc,
         m_algo,
-        get_thread_local_workspace(this, m_ws_bytes), m_ws_bytes,
+        get_thread_local_workspace(this, m_ws_bytes),
+        m_ws_bytes,
         &beta,
-        m_output_desc, dev_output));
+        m_output_desc,
+        dev_output));
     }
 
     // Compatibility overload for callers that use the Handle wrapper.
     void forward(
-      const Handle&  handle,
-      const float    alpha, const float beta,
-      const float*   dev_input,
-      const float*   dev_filter,
-      float*         dev_output) const
+      const Handle& handle,
+      const float alpha,
+      const float beta,
+      const float* dev_input,
+      const float* dev_filter,
+      float* dev_output) const
     {
       forward(handle.get(), alpha, beta, dev_input, dev_filter, dev_output);
     }
@@ -2354,22 +2474,27 @@ namespace Allen::CuDNN {
     // FP16 forward: for descriptors created with dtype=CUDNN_DATA_HALF.
     // Alpha/beta are float (cuDNN convention for FP16 tensors with FP32 accumulation).
     void forward_half(
-      cudnnHandle_t   handle,
-      const float     alpha, const float beta,
-      const __half*   dev_input,
-      const __half*   dev_filter,
-      __half*         dev_output) const
+      cudnnHandle_t handle,
+      const float alpha,
+      const float beta,
+      const __half* dev_input,
+      const __half* dev_filter,
+      __half* dev_output) const
     {
       ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
         handle,
         &alpha,
-        m_input_desc,  dev_input,
-        m_filter_desc, dev_filter,
+        m_input_desc,
+        dev_input,
+        m_filter_desc,
+        dev_filter,
         m_conv_desc,
         m_algo,
-        get_thread_local_workspace(this, m_ws_bytes), m_ws_bytes,
+        get_thread_local_workspace(this, m_ws_bytes),
+        m_ws_bytes,
         &beta,
-        m_output_desc, dev_output));
+        m_output_desc,
+        dev_output));
     }
 
     // BF16 forward: for descriptors created with dtype=CUDNN_DATA_BFLOAT16.
@@ -2377,40 +2502,47 @@ namespace Allen::CuDNN {
     // avoids the overflow-to-NaN failure mode FP16 can hit on wide-dynamic-
     // range inputs.
     void forward_bf16(
-      cudnnHandle_t         handle,
-      const float           alpha, const float beta,
-      const __nv_bfloat16*  dev_input,
-      const __nv_bfloat16*  dev_filter,
-      __nv_bfloat16*        dev_output) const
+      cudnnHandle_t handle,
+      const float alpha,
+      const float beta,
+      const __nv_bfloat16* dev_input,
+      const __nv_bfloat16* dev_filter,
+      __nv_bfloat16* dev_output) const
     {
       ALLEN_CUDNN_CHECK(cudnnConvolutionForward(
         handle,
         &alpha,
-        m_input_desc,  dev_input,
-        m_filter_desc, dev_filter,
+        m_input_desc,
+        dev_input,
+        m_filter_desc,
+        dev_filter,
         m_conv_desc,
         m_algo,
-        get_thread_local_workspace(this, m_ws_bytes), m_ws_bytes,
+        get_thread_local_workspace(this, m_ws_bytes),
+        m_ws_bytes,
         &beta,
-        m_output_desc, dev_output));
+        m_output_desc,
+        dev_output));
     }
 
 #else
-    void create(cudnnHandle_t, std::array<int,4>, std::array<int,4>,
-                std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
-                std::array<int,2> = {1,1}, cudnnDataType_t = CUDNN_DATA_FLOAT,
-                size_t = 0) {}
+    void create(
+      cudnnHandle_t,
+      std::array<int, 4>,
+      std::array<int, 4>,
+      std::array<int, 2> = {0, 0},
+      std::array<int, 2> = {1, 1},
+      std::array<int, 2> = {1, 1},
+      cudnnDataType_t = CUDNN_DATA_FLOAT,
+      size_t = 0)
+    {}
     size_t workspace_bytes() const { return 0; }
     int algo_id() const { return 0; }
     void ensure_thread_local_workspace() const {}
-    void forward(cudnnHandle_t, float, float,
-                 const float*, const float*, float*) const {}
-    void forward(const Handle&, float, float,
-                 const float*, const float*, float*) const {}
-    void forward_half(cudnnHandle_t, float, float,
-                      const void*, const void*, void*) const {}
-    void forward_bf16(cudnnHandle_t, float, float,
-                      const void*, const void*, void*) const {}
+    void forward(cudnnHandle_t, float, float, const float*, const float*, float*) const {}
+    void forward(const Handle&, float, float, const float*, const float*, float*) const {}
+    void forward_half(cudnnHandle_t, float, float, const void*, const void*, void*) const {}
+    void forward_bf16(cudnnHandle_t, float, float, const void*, const void*, void*) const {}
 #endif
   };
 
@@ -2444,8 +2576,8 @@ namespace Allen::CuDNN {
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
   private:
     cudnnBackendDescriptor_t m_exec_plan = nullptr;
-    size_t m_ws_bytes  = 0;
-    bool   m_created   = false;
+    size_t m_ws_bytes = 0;
+    bool m_created = false;
 
     static constexpr int64_t UID_X = 1, UID_W = 2, UID_B = 3, UID_Y = 4;
     static constexpr int64_t UID_ZCONV = 5, UID_ZADD = 6;
@@ -2453,7 +2585,8 @@ namespace Allen::CuDNN {
     // Thread-local workspace, keyed by this instance within each thread's own
     // map — same idiom as ConvDescriptors::get_thread_local_workspace (see
     // that function's comment for the cudaMalloc-failure handling rationale).
-    static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes) {
+    static void* get_thread_local_workspace(const void* instance_key, size_t needed_bytes)
+    {
       if (needed_bytes == 0) return nullptr;
       thread_local std::unordered_map<const void*, std::pair<void*, size_t>> tl_workspaces;
       auto& entry = tl_workspaces[instance_key];
@@ -2469,7 +2602,8 @@ namespace Allen::CuDNN {
   public:
     ConvBiasReluGraph() = default;
 
-    ~ConvBiasReluGraph() {
+    ~ConvBiasReluGraph()
+    {
       if (!m_created) return;
       cudnnBackendDestroyDescriptor(m_exec_plan);
       // Thread-local workspaces (see get_thread_local_workspace) are intentionally
@@ -2487,16 +2621,16 @@ namespace Allen::CuDNN {
     // filter_shape is {K, C_in, 1, R} where R is the 1-D kernel size.
     // Fused weights (BN folded in) and fused bias are passed at execute() time.
     void create(
-      cudnnHandle_t     handle,
-      std::array<int,4> input_shape,           // {N, C_in, 1, W}
-      std::array<int,4> filter_shape,          // {K, C_in, 1, R}
-      std::array<int,2> pad      = {0, 0},
-      std::array<int,2> stride   = {1, 1},
-      std::array<int,2> dilation = {1, 1})
+      cudnnHandle_t handle,
+      std::array<int, 4> input_shape,  // {N, C_in, 1, W}
+      std::array<int, 4> filter_shape, // {K, C_in, 1, R}
+      std::array<int, 2> pad = {0, 0},
+      std::array<int, 2> stride = {1, 1},
+      std::array<int, 2> dilation = {1, 1})
     {
       int N = input_shape[0], C_in = input_shape[1], W_in = input_shape[3];
       int K = filter_shape[0], R = filter_shape[3];
-      int W_out = (W_in + 2*pad[1] - dilation[1]*(R-1) - 1) / stride[1] + 1;
+      int W_out = (W_in + 2 * pad[1] - dilation[1] * (R - 1) - 1) / stride[1] + 1;
 
       // Helper: create a backend descriptor of the given type.
       auto mk = [](cudnnBackendDescriptorType_t t) {
@@ -2508,45 +2642,52 @@ namespace Allen::CuDNN {
       // Helper: create, configure, and finalize a tensor descriptor.
       auto mk_tensor = [&](int64_t uid, int64_t n, int64_t c, int64_t h, int64_t w, bool is_virtual) {
         auto d = mk(CUDNN_BACKEND_TENSOR_DESCRIPTOR);
-        int64_t dims[4]    = {n, c, h, w};
-        int64_t strides[4] = {c*h*w, h*w, w, 1};
+        int64_t dims[4] = {n, c, h, w};
+        int64_t strides[4] = {c * h * w, h * w, w, 1};
         int64_t align = 4;
         cudnnDataType_t dt = CUDNN_DATA_FLOAT;
-        int8_t  virt = is_virtual ? 1 : 0;
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_DATA_TYPE,     CUDNN_TYPE_DATA_TYPE, 1, &dt));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_UNIQUE_ID,     CUDNN_TYPE_INT64,     1, &uid));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_DIMENSIONS,    CUDNN_TYPE_INT64,     4, dims));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_STRIDES,       CUDNN_TYPE_INT64,     4, strides));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_BYTE_ALIGNMENT,CUDNN_TYPE_INT64,     1, &align));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_IS_VIRTUAL,    CUDNN_TYPE_BOOLEAN,   1, &virt));
+        int8_t virt = is_virtual ? 1 : 0;
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_DATA_TYPE, CUDNN_TYPE_DATA_TYPE, 1, &dt));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_UNIQUE_ID, CUDNN_TYPE_INT64, 1, &uid));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_DIMENSIONS, CUDNN_TYPE_INT64, 4, dims));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_STRIDES, CUDNN_TYPE_INT64, 4, strides));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_BYTE_ALIGNMENT, CUDNN_TYPE_INT64, 1, &align));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(d, CUDNN_ATTR_TENSOR_IS_VIRTUAL, CUDNN_TYPE_BOOLEAN, 1, &virt));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(d));
         return d;
       };
 
       // Tensor descriptors: real (x, w, b, y) and virtual (zconv, zadd).
-      auto x_t     = mk_tensor(UID_X,     N,  C_in, 1, W_in,  false);
-      auto w_t     = mk_tensor(UID_W,     K,  C_in, 1, R,     false);
-      auto b_t     = mk_tensor(UID_B,     1,  K,    1, 1,     false);
-      auto y_t     = mk_tensor(UID_Y,     N,  K,    1, W_out, false);
-      auto zconv_t = mk_tensor(UID_ZCONV, N,  K,    1, W_out, true);
-      auto zadd_t  = mk_tensor(UID_ZADD,  N,  K,    1, W_out, true);
+      auto x_t = mk_tensor(UID_X, N, C_in, 1, W_in, false);
+      auto w_t = mk_tensor(UID_W, K, C_in, 1, R, false);
+      auto b_t = mk_tensor(UID_B, 1, K, 1, 1, false);
+      auto y_t = mk_tensor(UID_Y, N, K, 1, W_out, false);
+      auto zconv_t = mk_tensor(UID_ZCONV, N, K, 1, W_out, true);
+      auto zadd_t = mk_tensor(UID_ZADD, N, K, 1, W_out, true);
 
       // Convolution descriptor (backend variant).
       auto conv_d = mk(CUDNN_BACKEND_CONVOLUTION_DESCRIPTOR);
       {
-        cudnnDataType_t       comp  = CUDNN_DATA_FLOAT;
+        cudnnDataType_t comp = CUDNN_DATA_FLOAT;
         cudnnConvolutionMode_t mode = CUDNN_CROSS_CORRELATION;
         int64_t sdims = 2;
-        int64_t cpads[2]   = {pad[0],      pad[1]};
-        int64_t cstrs[2]   = {stride[0],   stride[1]};
-        int64_t cdils[2]   = {dilation[0], dilation[1]};
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_COMP_TYPE,      CUDNN_TYPE_DATA_TYPE,        1, &comp));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_CONV_MODE,      CUDNN_TYPE_CONVOLUTION_MODE, 1, &mode));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_SPATIAL_DIMS,   CUDNN_TYPE_INT64,            1, &sdims));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_PRE_PADDINGS,   CUDNN_TYPE_INT64,            2, cpads));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_POST_PADDINGS,  CUDNN_TYPE_INT64,            2, cpads));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_FILTER_STRIDES, CUDNN_TYPE_INT64,            2, cstrs));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_DILATIONS,      CUDNN_TYPE_INT64,            2, cdils));
+        int64_t cpads[2] = {pad[0], pad[1]};
+        int64_t cstrs[2] = {stride[0], stride[1]};
+        int64_t cdils[2] = {dilation[0], dilation[1]};
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_COMP_TYPE, CUDNN_TYPE_DATA_TYPE, 1, &comp));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_CONV_MODE, CUDNN_TYPE_CONVOLUTION_MODE, 1, &mode));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_SPATIAL_DIMS, CUDNN_TYPE_INT64, 1, &sdims));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_PRE_PADDINGS, CUDNN_TYPE_INT64, 2, cpads));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_POST_PADDINGS, CUDNN_TYPE_INT64, 2, cpads));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_FILTER_STRIDES, CUDNN_TYPE_INT64, 2, cstrs));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(conv_d, CUDNN_ATTR_CONVOLUTION_DILATIONS, CUDNN_TYPE_INT64, 2, cdils));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(conv_d));
       }
 
@@ -2554,9 +2695,11 @@ namespace Allen::CuDNN {
       auto add_pw = mk(CUDNN_BACKEND_POINTWISE_DESCRIPTOR);
       {
         cudnnPointwiseMode_t m = CUDNN_POINTWISE_ADD;
-        cudnnDataType_t      p = CUDNN_DATA_FLOAT;
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(add_pw, CUDNN_ATTR_POINTWISE_MODE,      CUDNN_TYPE_POINTWISE_MODE, 1, &m));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(add_pw, CUDNN_ATTR_POINTWISE_MATH_PREC, CUDNN_TYPE_DATA_TYPE,      1, &p));
+        cudnnDataType_t p = CUDNN_DATA_FLOAT;
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(add_pw, CUDNN_ATTR_POINTWISE_MODE, CUDNN_TYPE_POINTWISE_MODE, 1, &m));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(add_pw, CUDNN_ATTR_POINTWISE_MATH_PREC, CUDNN_TYPE_DATA_TYPE, 1, &p));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(add_pw));
       }
 
@@ -2564,9 +2707,11 @@ namespace Allen::CuDNN {
       auto relu_pw = mk(CUDNN_BACKEND_POINTWISE_DESCRIPTOR);
       {
         cudnnPointwiseMode_t m = CUDNN_POINTWISE_RELU_FWD;
-        cudnnDataType_t      p = CUDNN_DATA_FLOAT;
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(relu_pw, CUDNN_ATTR_POINTWISE_MODE,      CUDNN_TYPE_POINTWISE_MODE, 1, &m));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(relu_pw, CUDNN_ATTR_POINTWISE_MATH_PREC, CUDNN_TYPE_DATA_TYPE,      1, &p));
+        cudnnDataType_t p = CUDNN_DATA_FLOAT;
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(relu_pw, CUDNN_ATTR_POINTWISE_MODE, CUDNN_TYPE_POINTWISE_MODE, 1, &m));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(relu_pw, CUDNN_ATTR_POINTWISE_MATH_PREC, CUDNN_TYPE_DATA_TYPE, 1, &p));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(relu_pw));
       }
 
@@ -2574,31 +2719,44 @@ namespace Allen::CuDNN {
       float falpha = 1.f, fbeta = 0.f;
       auto conv_op = mk(CUDNN_BACKEND_OPERATION_CONVOLUTION_FORWARD_DESCRIPTOR);
       {
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_X,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &x_t));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_W,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &w_t));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_Y,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zconv_t));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_CONV_DESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &conv_d));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_ALPHA,     CUDNN_TYPE_FLOAT,              1, &falpha));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_BETA,      CUDNN_TYPE_FLOAT,              1, &fbeta));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_X, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &x_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_W, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &w_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_Y, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zconv_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_CONV_DESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &conv_d));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_ALPHA, CUDNN_TYPE_FLOAT, 1, &falpha));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          conv_op, CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_BETA, CUDNN_TYPE_FLOAT, 1, &fbeta));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(conv_op));
       }
 
       // Pointwise ADD operation: zconv + b → zadd (virtual).
       auto add_op = mk(CUDNN_BACKEND_OPERATION_POINTWISE_DESCRIPTOR);
       {
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(add_op, CUDNN_ATTR_OPERATION_POINTWISE_PW_DESCRIPTOR, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &add_pw));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(add_op, CUDNN_ATTR_OPERATION_POINTWISE_XDESC,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zconv_t));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(add_op, CUDNN_ATTR_OPERATION_POINTWISE_BDESC,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &b_t));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(add_op, CUDNN_ATTR_OPERATION_POINTWISE_YDESC,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zadd_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          add_op, CUDNN_ATTR_OPERATION_POINTWISE_PW_DESCRIPTOR, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &add_pw));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          add_op, CUDNN_ATTR_OPERATION_POINTWISE_XDESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zconv_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          add_op, CUDNN_ATTR_OPERATION_POINTWISE_BDESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &b_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          add_op, CUDNN_ATTR_OPERATION_POINTWISE_YDESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zadd_t));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(add_op));
       }
 
       // Pointwise RELU operation: zadd → y.
       auto relu_op = mk(CUDNN_BACKEND_OPERATION_POINTWISE_DESCRIPTOR);
       {
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(relu_op, CUDNN_ATTR_OPERATION_POINTWISE_PW_DESCRIPTOR, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &relu_pw));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(relu_op, CUDNN_ATTR_OPERATION_POINTWISE_XDESC,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zadd_t));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(relu_op, CUDNN_ATTR_OPERATION_POINTWISE_YDESC,         CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &y_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          relu_op, CUDNN_ATTR_OPERATION_POINTWISE_PW_DESCRIPTOR, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &relu_pw));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          relu_op, CUDNN_ATTR_OPERATION_POINTWISE_XDESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &zadd_t));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          relu_op, CUDNN_ATTR_OPERATION_POINTWISE_YDESC, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &y_t));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(relu_op));
       }
 
@@ -2606,8 +2764,10 @@ namespace Allen::CuDNN {
       auto op_graph = mk(CUDNN_BACKEND_OPERATIONGRAPH_DESCRIPTOR);
       {
         cudnnBackendDescriptor_t ops[3] = {conv_op, add_op, relu_op};
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(op_graph, CUDNN_ATTR_OPERATIONGRAPH_HANDLE, CUDNN_TYPE_HANDLE,             1, &handle));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(op_graph, CUDNN_ATTR_OPERATIONGRAPH_OPS,    CUDNN_TYPE_BACKEND_DESCRIPTOR, 3, ops));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(op_graph, CUDNN_ATTR_OPERATIONGRAPH_HANDLE, CUDNN_TYPE_HANDLE, 1, &handle));
+        ALLEN_CUDNN_CHECK(
+          cudnnBackendSetAttribute(op_graph, CUDNN_ATTR_OPERATIONGRAPH_OPS, CUDNN_TYPE_BACKEND_DESCRIPTOR, 3, ops));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(op_graph));
       }
 
@@ -2615,8 +2775,9 @@ namespace Allen::CuDNN {
       auto heur = mk(CUDNN_BACKEND_ENGINEHEUR_DESCRIPTOR);
       {
         cudnnBackendHeurMode_t hmode = CUDNN_HEUR_MODE_INSTANT;
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(heur, CUDNN_ATTR_ENGINEHEUR_OPERATION_GRAPH, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &op_graph));
-        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(heur, CUDNN_ATTR_ENGINEHEUR_MODE,            CUDNN_TYPE_HEUR_MODE,          1, &hmode));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(
+          heur, CUDNN_ATTR_ENGINEHEUR_OPERATION_GRAPH, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &op_graph));
+        ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(heur, CUDNN_ATTR_ENGINEHEUR_MODE, CUDNN_TYPE_HEUR_MODE, 1, &hmode));
         ALLEN_CUDNN_CHECK(cudnnBackendFinalize(heur));
       }
 
@@ -2626,21 +2787,26 @@ namespace Allen::CuDNN {
       for (int i = 0; i < kMaxEngines; ++i)
         ALLEN_CUDNN_CHECK(cudnnBackendCreateDescriptor(CUDNN_BACKEND_ENGINECFG_DESCRIPTOR, &eng_cfgs[i]));
       int64_t returned = 0;
-      ALLEN_CUDNN_CHECK(cudnnBackendGetAttribute(heur, CUDNN_ATTR_ENGINEHEUR_RESULTS,
-        CUDNN_TYPE_BACKEND_DESCRIPTOR, kMaxEngines, &returned, eng_cfgs));
+      ALLEN_CUDNN_CHECK(cudnnBackendGetAttribute(
+        heur, CUDNN_ATTR_ENGINEHEUR_RESULTS, CUDNN_TYPE_BACKEND_DESCRIPTOR, kMaxEngines, &returned, eng_cfgs));
 
       for (int64_t i = 0; i < returned && !m_exec_plan; ++i) {
         cudnnBackendDescriptor_t plan = nullptr;
-        if (cudnnBackendCreateDescriptor(CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR, &plan) != CUDNN_STATUS_SUCCESS) continue;
-        if (cudnnBackendSetAttribute(plan, CUDNN_ATTR_EXECUTION_PLAN_HANDLE,        CUDNN_TYPE_HANDLE,             1, &handle)        != CUDNN_STATUS_SUCCESS ||
-            cudnnBackendSetAttribute(plan, CUDNN_ATTR_EXECUTION_PLAN_ENGINE_CONFIG, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &eng_cfgs[i])   != CUDNN_STATUS_SUCCESS ||
-            cudnnBackendFinalize(plan)                                                                                                  != CUDNN_STATUS_SUCCESS) {
+        if (cudnnBackendCreateDescriptor(CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR, &plan) != CUDNN_STATUS_SUCCESS)
+          continue;
+        if (
+          cudnnBackendSetAttribute(plan, CUDNN_ATTR_EXECUTION_PLAN_HANDLE, CUDNN_TYPE_HANDLE, 1, &handle) !=
+            CUDNN_STATUS_SUCCESS ||
+          cudnnBackendSetAttribute(
+            plan, CUDNN_ATTR_EXECUTION_PLAN_ENGINE_CONFIG, CUDNN_TYPE_BACKEND_DESCRIPTOR, 1, &eng_cfgs[i]) !=
+            CUDNN_STATUS_SUCCESS ||
+          cudnnBackendFinalize(plan) != CUDNN_STATUS_SUCCESS) {
           cudnnBackendDestroyDescriptor(plan);
           continue;
         }
         int64_t ws = 0;
         cudnnBackendGetAttribute(plan, CUDNN_ATTR_EXECUTION_PLAN_WORKSPACE_SIZE, CUDNN_TYPE_INT64, 1, nullptr, &ws);
-        m_ws_bytes  = (size_t)ws;
+        m_ws_bytes = (size_t) ws;
         m_exec_plan = plan;
         // Workspace buffer itself is not allocated here — see
         // get_thread_local_workspace(): it's lazily allocated per (thread,
@@ -2665,8 +2831,7 @@ namespace Allen::CuDNN {
       for (int i = 0; i < kMaxEngines; ++i)
         if (eng_cfgs[i]) cudnnBackendDestroyDescriptor(eng_cfgs[i]);
 
-      if (!m_exec_plan)
-        throw std::invalid_argument("ConvBiasReluGraph::create: no valid engine for Conv+Add+ReLU");
+      if (!m_exec_plan) throw std::invalid_argument("ConvBiasReluGraph::create: no valid engine for Conv+Add+ReLU");
       m_created = true;
     }
 
@@ -2675,12 +2840,7 @@ namespace Allen::CuDNN {
 
     // Execute the fused graph. x/w/b are device pointers; w and b must be the
     // BN-folded fused weights and biases computed at init time.
-    void execute(
-      cudnnHandle_t handle,
-      const float*  x,
-      const float*  w,
-      const float*  b,
-      float*        y) const
+    void execute(cudnnHandle_t handle, const float* x, const float* w, const float* b, float* y) const
     {
       void* workspace = get_thread_local_workspace(this, m_ws_bytes);
 
@@ -2688,20 +2848,26 @@ namespace Allen::CuDNN {
       ALLEN_CUDNN_CHECK(cudnnBackendCreateDescriptor(CUDNN_BACKEND_VARIANT_PACK_DESCRIPTOR, &vpack));
 
       int64_t uids[4] = {UID_X, UID_W, UID_B, UID_Y};
-      void*   ptrs[4] = {const_cast<float*>(x), const_cast<float*>(w),
-                         const_cast<float*>(b), y};
-      ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_UNIQUE_IDS,    CUDNN_TYPE_INT64,     4, uids));
-      ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_DATA_POINTERS, CUDNN_TYPE_VOID_PTR,  4, ptrs));
-      ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_WORKSPACE,     CUDNN_TYPE_VOID_PTR,  1, &workspace));
+      void* ptrs[4] = {const_cast<float*>(x), const_cast<float*>(w), const_cast<float*>(b), y};
+      ALLEN_CUDNN_CHECK(cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_UNIQUE_IDS, CUDNN_TYPE_INT64, 4, uids));
+      ALLEN_CUDNN_CHECK(
+        cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_DATA_POINTERS, CUDNN_TYPE_VOID_PTR, 4, ptrs));
+      ALLEN_CUDNN_CHECK(
+        cudnnBackendSetAttribute(vpack, CUDNN_ATTR_VARIANT_PACK_WORKSPACE, CUDNN_TYPE_VOID_PTR, 1, &workspace));
       ALLEN_CUDNN_CHECK(cudnnBackendFinalize(vpack));
       ALLEN_CUDNN_CHECK(cudnnBackendExecute(handle, m_exec_plan, vpack));
       cudnnBackendDestroyDescriptor(vpack);
     }
 
 #else
-    void create(cudnnHandle_t, std::array<int,4>, std::array<int,4>,
-                std::array<int,2> = {0,0}, std::array<int,2> = {1,1},
-                std::array<int,2> = {1,1}) {}
+    void create(
+      cudnnHandle_t,
+      std::array<int, 4>,
+      std::array<int, 4>,
+      std::array<int, 2> = {0, 0},
+      std::array<int, 2> = {1, 1},
+      std::array<int, 2> = {1, 1})
+    {}
     bool is_created() const { return false; }
     size_t workspace_bytes() const { return 0; }
     void ensure_thread_local_workspace() const {}

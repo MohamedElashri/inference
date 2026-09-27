@@ -22,11 +22,7 @@
 
 namespace Allen::CuDNN {
 
-  enum class PostOpKind {
-    ChannelBias,
-    Activation,
-    Add
-  };
+  enum class PostOpKind { ChannelBias, Activation, Add };
 
   enum class FusedConvBackend {
     Auto,
@@ -45,19 +41,9 @@ namespace Allen::CuDNN {
     ForceLegacyConvPlusCudaPostOp
   };
 
-  enum class FusedConvFallbackPolicy {
-    RequireRequestedBackend,
-    AllowMetadataOnly,
-    AllowClientFallback
-  };
+  enum class FusedConvFallbackPolicy { RequireRequestedBackend, AllowMetadataOnly, AllowClientFallback };
 
-  enum class FusedConvExecutionKind {
-    MetadataOnly,
-    SingleCall,
-    ConvPlusKernel,
-    PrimitiveSequence,
-    ClientFallback
-  };
+  enum class FusedConvExecutionKind { MetadataOnly, SingleCall, ConvPlusKernel, PrimitiveSequence, ClientFallback };
 
   struct PostOp {
     PostOpKind kind = PostOpKind::Activation;
@@ -213,10 +199,7 @@ namespace Allen::CuDNN {
            lhs.activation_coefficient == rhs.activation_coefficient;
   }
 
-  inline bool operator==(const PostOpSequence& lhs, const PostOpSequence& rhs)
-  {
-    return lhs.ops == rhs.ops;
-  }
+  inline bool operator==(const PostOpSequence& lhs, const PostOpSequence& rhs) { return lhs.ops == rhs.ops; }
 
   inline std::string describe_post_ops(const PostOpSequence& sequence)
   {
@@ -240,18 +223,16 @@ namespace Allen::CuDNN {
       return options.backend_preference;
     }
     switch (options.preferred_backend) {
-    case FusedConvBackend::Auto:
-      return FusedConvBackendPreference::Auto;
+    case FusedConvBackend::Auto: return FusedConvBackendPreference::Auto;
     case FusedConvBackend::LegacyConvPlusCudaPostOp:
       return options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend ?
-        FusedConvBackendPreference::ForceLegacyConvPlusCudaPostOp :
-        FusedConvBackendPreference::PreferLegacyConvPlusCudaPostOp;
+               FusedConvBackendPreference::ForceLegacyConvPlusCudaPostOp :
+               FusedConvBackendPreference::PreferLegacyConvPlusCudaPostOp;
     case FusedConvBackend::CudnnFrontendGraph:
       return options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend ?
-        FusedConvBackendPreference::ForceCudnnFrontendGraph :
-        FusedConvBackendPreference::PreferCudnnFrontendGraph;
-    default:
-      return FusedConvBackendPreference::Auto;
+               FusedConvBackendPreference::ForceCudnnFrontendGraph :
+               FusedConvBackendPreference::PreferCudnnFrontendGraph;
+    default: return FusedConvBackendPreference::Auto;
     }
   }
 
@@ -259,13 +240,10 @@ namespace Allen::CuDNN {
   {
     switch (preference) {
     case FusedConvBackendPreference::PreferCudnnFrontendGraph:
-    case FusedConvBackendPreference::ForceCudnnFrontendGraph:
-      return FusedConvBackend::CudnnFrontendGraph;
+    case FusedConvBackendPreference::ForceCudnnFrontendGraph: return FusedConvBackend::CudnnFrontendGraph;
     case FusedConvBackendPreference::PreferLegacyConvPlusCudaPostOp:
-    case FusedConvBackendPreference::ForceLegacyConvPlusCudaPostOp:
-      return FusedConvBackend::LegacyConvPlusCudaPostOp;
-    case FusedConvBackendPreference::Auto:
-      return FusedConvBackend::Auto;
+    case FusedConvBackendPreference::ForceLegacyConvPlusCudaPostOp: return FusedConvBackend::LegacyConvPlusCudaPostOp;
+    case FusedConvBackendPreference::Auto: return FusedConvBackend::Auto;
     }
     return FusedConvBackend::Auto;
   }
@@ -299,8 +277,7 @@ namespace Allen::CuDNN {
             std::string("AllenCuDNN: ") + owner + " post-op sequence has duplicate activation");
         }
         if (i + 1 != sequence.ops.size()) {
-          throw std::invalid_argument(
-            std::string("AllenCuDNN: ") + owner + " activation post-op must be last");
+          throw std::invalid_argument(std::string("AllenCuDNN: ") + owner + " activation post-op must be last");
         }
         seen_activation = true;
         break;
@@ -349,19 +326,18 @@ namespace Allen::CuDNN {
     }
     capability.device_supported = true;
 
-    capability.dtype_supported =
-      options.conv.precision.input_output_type == CUDNN_DATA_FLOAT &&
-      options.conv.precision.filter_type == CUDNN_DATA_FLOAT &&
-      options.conv.precision.compute_type == CUDNN_DATA_FLOAT;
+    capability.dtype_supported = options.conv.precision.input_output_type == CUDNN_DATA_FLOAT &&
+                                 options.conv.precision.filter_type == CUDNN_DATA_FLOAT &&
+                                 options.conv.precision.compute_type == CUDNN_DATA_FLOAT;
     capability.layout_supported = shape.layout == TensorLayout::NCHW;
     capability.post_ops_supported = true;
     for (const auto& op : options.post_ops.ops) {
       if (op.kind == PostOpKind::Add) {
         capability.post_ops_supported = false;
       }
-      if (op.kind == PostOpKind::Activation &&
-          op.activation_mode != ActivationMode::Identity &&
-          op.activation_mode != ActivationMode::Relu) {
+      if (
+        op.kind == PostOpKind::Activation && op.activation_mode != ActivationMode::Identity &&
+        op.activation_mode != ActivationMode::Relu) {
         capability.post_ops_supported = false;
       }
     }
@@ -382,8 +358,7 @@ namespace Allen::CuDNN {
       capability.reason = "frontend graph backend supports only conv, bias, ReLU, and bias+ReLU";
     }
     else {
-      capability.reason =
-        "cuDNN frontend graph execution is disabled; use LegacyConvPlusCudaPostOp";
+      capability.reason = "cuDNN frontend graph execution is disabled; use LegacyConvPlusCudaPostOp";
     }
 #else
     (void) shape;
@@ -398,7 +373,8 @@ namespace Allen::CuDNN {
     return options.log_plan_creation || options.conv.log_plan_creation || std::getenv("ALLEN_CUDNN_VERBOSE") != nullptr;
   }
 
-  inline void log_fused_plan_creation(const char* plan_name, const FusedConvMetadata& info, const FusedConvPlanOptions& options)
+  inline void
+  log_fused_plan_creation(const char* plan_name, const FusedConvMetadata& info, const FusedConvPlanOptions& options)
   {
     if (!fused_plan_creation_logging_enabled(options)) return;
     std::fprintf(
@@ -481,8 +457,7 @@ namespace Allen::CuDNN {
 
     static bool requires_cuda_backend(FusedConvBackend backend)
     {
-      return backend == FusedConvBackend::LegacyConvPlusCudaPostOp ||
-             backend == FusedConvBackend::CudnnFrontendGraph ||
+      return backend == FusedConvBackend::LegacyConvPlusCudaPostOp || backend == FusedConvBackend::CudnnFrontendGraph ||
              backend == FusedConvBackend::PrimitiveSequence;
     }
 
@@ -575,11 +550,13 @@ namespace Allen::CuDNN {
         options.has_output_shape ? options.output_shape : (shape.has_output ? shape.output : computed_output);
       validate_tensor_shape(requested_output, "FusedConvPlan output_shape");
       if (requested_output != computed_output) {
-        throw std::invalid_argument("AllenCuDNN: FusedConvPlan caller output_shape does not match computed output shape");
+        throw std::invalid_argument(
+          "AllenCuDNN: FusedConvPlan caller output_shape does not match computed output shape");
       }
 
-      if (options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend &&
-          requires_cuda_backend(options.preferred_backend)) {
+      if (
+        options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend &&
+        requires_cuda_backend(options.preferred_backend)) {
         throw std::invalid_argument(
           "AllenCuDNN: FusedConvPlan executable backend creation requires the cudnnHandle_t create overload");
       }
@@ -627,7 +604,8 @@ namespace Allen::CuDNN {
         options.has_output_shape ? options.output_shape : (shape.has_output ? shape.output : computed_output);
       validate_tensor_shape(requested_output, "FusedConvPlan output_shape");
       if (requested_output != computed_output) {
-        throw std::invalid_argument("AllenCuDNN: FusedConvPlan caller output_shape does not match computed output shape");
+        throw std::invalid_argument(
+          "AllenCuDNN: FusedConvPlan caller output_shape does not match computed output shape");
       }
       shape.output = computed_output;
       shape.has_output = true;
@@ -653,16 +631,14 @@ namespace Allen::CuDNN {
       }
 
       if (backend_preference == FusedConvBackendPreference::ForceCudnnFrontendGraph) {
-        const std::string reason =
-          frontend_capability.reason.empty() ?
-            "CudnnFrontendGraph execution is not enabled" :
-            std::string("CudnnFrontendGraph unavailable: ") + frontend_capability.reason;
+        const std::string reason = frontend_capability.reason.empty() ?
+                                     "CudnnFrontendGraph execution is not enabled" :
+                                     std::string("CudnnFrontendGraph unavailable: ") + frontend_capability.reason;
         throw std::invalid_argument(std::string("AllenCuDNN: FusedConvPlan ") + reason);
       }
 
-      const bool fp32 =
-        options.conv.precision.input_output_type == CUDNN_DATA_FLOAT &&
-        options.conv.precision.filter_type == CUDNN_DATA_FLOAT;
+      const bool fp32 = options.conv.precision.input_output_type == CUDNN_DATA_FLOAT &&
+                        options.conv.precision.filter_type == CUDNN_DATA_FLOAT;
       std::string frontend_fallback_reason;
       if (wants_frontend_backend(backend_preference) && !frontend_capability.available()) {
         frontend_fallback_reason = std::string("CudnnFrontendGraph unavailable: ") + frontend_capability.reason;
@@ -680,7 +656,9 @@ namespace Allen::CuDNN {
         else {
           reason = "LegacyConvPlusCudaPostOp supports only identity and ReLU activation";
         }
-        if (options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend || forces_backend(backend_preference)) {
+        if (
+          options.fallback_policy == FusedConvFallbackPolicy::RequireRequestedBackend ||
+          forces_backend(backend_preference)) {
           throw std::invalid_argument(std::string("AllenCuDNN: FusedConvPlan ") + reason);
         }
         fill_metadata(
@@ -712,7 +690,8 @@ namespace Allen::CuDNN {
         FusedConvBackend::LegacyConvPlusCudaPostOp,
         (options.post_ops.empty() || activation_mode(options.post_ops) == ActivationMode::Identity) &&
             !has_channel_bias(options.post_ops) ?
-          FusedConvExecutionKind::SingleCall : FusedConvExecutionKind::ConvPlusKernel,
+          FusedConvExecutionKind::SingleCall :
+          FusedConvExecutionKind::ConvPlusKernel,
         conv_metadata.selection_source,
         conv_metadata.workspace_bytes,
         conv_metadata.algorithm_name,

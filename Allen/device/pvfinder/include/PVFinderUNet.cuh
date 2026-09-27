@@ -45,22 +45,22 @@ namespace pvfinder_unet {
 // N_BATCH_CHANNELS (the FC/UNet handoff's latentChannels) are fixed by the
 // build (-DPVFINDER_UNET_N_FEAT, -DPVFINDER_UNET_N_BATCH_CHANNELS).
 #ifdef PVFINDER_UNET_N_BATCH_CHANNELS
-static constexpr int N_BATCH_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
+  static constexpr int N_BATCH_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
 #else
-static constexpr int N_BATCH_CHANNELS = 8; // input latent channels
+  static constexpr int N_BATCH_CHANNELS = 8; // input latent channels
 #endif
 #ifdef PVFINDER_UNET_N_FEAT
-static constexpr int N_FEAT = PVFINDER_UNET_N_FEAT;
+  static constexpr int N_FEAT = PVFINDER_UNET_N_FEAT;
 #else
-static constexpr int N_FEAT = 64; // feature maps throughout
+  static constexpr int N_FEAT = 64;          // feature maps throughout
 #endif
-static constexpr int W_IN = PVFinderConstants::KDE::n_bins_per_interval; // input width
-static constexpr int W_HALF = W_IN / 2;                                   // after first MaxPool
-static constexpr int W_QTR = W_IN / 4;                                    // after second MaxPool
-static constexpr int N_INTERVALS = PVFinderConstants::KDE::n_intervals;
-static constexpr float KDE_SCALE = 0.001f;
+  static constexpr int W_IN = PVFinderConstants::KDE::n_bins_per_interval; // input width
+  static constexpr int W_HALF = W_IN / 2;                                  // after first MaxPool
+  static constexpr int W_QTR = W_IN / 4;                                   // after second MaxPool
+  static constexpr int N_INTERVALS = PVFinderConstants::KDE::n_intervals;
+  static constexpr float KDE_SCALE = 0.001f;
 
-struct Parameters {
+  struct Parameters {
     HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
 
     // From pvfinder_fc_aggregation: the rows, their layout
@@ -83,52 +83,68 @@ struct Parameters {
 
     // The KDE: [n_events * 40 * 100] floats
     DEVICE_OUTPUT(dev_pvfinder_kde_output_t, float) dev_pvfinder_kde_output;
-};
+  };
 
-struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
+  struct pvfinder_unet_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
 
     void operator()(
-        const ArgumentReferences<Parameters>& arguments,
-        const RuntimeOptions&,
-        const Constants&,
-        const Allen::Context& context) const;
+      const ArgumentReferences<Parameters>& arguments,
+      const RuntimeOptions&,
+      const Constants&,
+      const Allen::Context& context) const;
 
     // Loads the weights and prepares the configured precision's path.
     void init();
 
-private:
+  private:
     // The trained model (PVFinderModel.h): relative to the parameters
     // directory (--params), or absolute. Must be pvfinder_fc_aggregation's
     // (AllenConf sets both).
     Allen::Property<std::string> m_model_file {
-        this, "model", "pvfinder/unet16_lc4_scnone_asym5_final.json",
-        "PVFinder model file, relative to the parameters directory or absolute; must match "
-        "pvfinder_fc_aggregation.model"};
+      this,
+      "model",
+      "pvfinder/unet16_lc4_scnone_asym5_final.json",
+      "PVFinder model file, relative to the parameters directory or absolute; must match "
+      "pvfinder_fc_aggregation.model"};
     PVFinder::Model m_model {"pvfinder_unet", [this] { return m_model_file.value(); }};
 
     Allen::Property<std::string> m_precision {
-        this, "precision", "float32", "float32 or bfloat16; must match pvfinder_fc_aggregation.precision"};
+      this,
+      "precision",
+      "float32",
+      "float32 or bfloat16; must match pvfinder_fc_aggregation.precision"};
 
     // float32: events per cuDNN batch (N = this * 40 rows). Must match
     // pvfinder_fc_aggregation.unet_batch_events, which pads the rows to a
     // multiple of it (AllenConf sets both).
     Allen::Property<unsigned> m_unet_batch_events {
-        this, "unet_batch_events", 20u, "float32: events per cuDNN batch; must match pvfinder_fc_aggregation"};
+      this,
+      "unet_batch_events",
+      20u,
+      "float32: events per cuDNN batch; must match pvfinder_fc_aggregation"};
 
     // bfloat16: fraction of the full-occupancy grid the fused kernel is
     // launched with (one 4-warp block of about 59 KB per SM at full occupancy);
     // below 1, other streams' kernels keep SMs while it runs. 1/4 is the best
     // measured at 16 streams on the RTX 3090.
     Allen::Property<float> m_fused_grid_fraction {
-        this, "fused_grid_fraction", 0.25f, "bfloat16: fraction of the full-occupancy grid for the fused UNet kernel"};
+      this,
+      "fused_grid_fraction",
+      0.25f,
+      "bfloat16: fraction of the full-occupancy grid for the fused UNet kernel"};
 
     Allen::Property<dim3> m_block_dim {
-        this, "block_dim", {256, 1, 1}, "float32: block dimensions of the element-wise kernels"};
+      this,
+      "block_dim",
+      {256, 1, 1},
+      "float32: block dimensions of the element-wise kernels"};
 
     Allen::Property<std::string> m_dump_dir {
-        this, "dump_validation", "",
-        "if non-empty, dump the input rows and the KDE of the first slice to this directory"};
+      this,
+      "dump_validation",
+      "",
+      "if non-empty, dump the input rows and the KDE of the first slice to this directory"};
     mutable bool m_dump_done = false;
 
     // Per-instance state (weights, cuDNN descriptors, the fused kernel's weight
@@ -139,10 +155,14 @@ private:
     bool m_bf16 = false;
 
 #ifdef ALLEN_CUDNN_BACKEND_CUDA
-    void run_fp32_batch(const float* rows, float* kde, float* const scratch[5], cudnnHandle_t handle,
-                        const Allen::Context& context) const;
+    void run_fp32_batch(
+      const float* rows,
+      float* kde,
+      float* const scratch[5],
+      cudnnHandle_t handle,
+      const Allen::Context& context) const;
     void dump(const ArgumentReferences<Parameters>& arguments, const Allen::Context& context) const;
 #endif
-};
+  };
 
 } // namespace pvfinder_unet

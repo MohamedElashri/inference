@@ -14,11 +14,11 @@
 // and a no-op backend for CPU builds.
 
 #if defined(ALLEN_WITH_CUDNN) && defined(TARGET_DEVICE_CUDA)
-#  define ALLEN_CUDNN_BACKEND_CUDA 1
+#define ALLEN_CUDNN_BACKEND_CUDA 1
 #elif defined(TARGET_DEVICE_HIP)
-#  define ALLEN_CUDNN_BACKEND_HIP_STUB 1  // placeholder: replace with MIOpen
+#define ALLEN_CUDNN_BACKEND_HIP_STUB 1 // placeholder: replace with MIOpen
 #else
-#  define ALLEN_CUDNN_BACKEND_NONE 1
+#define ALLEN_CUDNN_BACKEND_NONE 1
 #endif
 
 namespace Allen::CuDNN {

@@ -22,9 +22,9 @@
 
 #ifdef ALLEN_WITH_CUDNN
 #include <cuda_runtime.h>
-#define ALLEN_CUDNN_CUDA_CHECK(stmt)                                      \
-  do {                                                                    \
-    cudaError_t e = (stmt);                                               \
+#define ALLEN_CUDNN_CUDA_CHECK(stmt)                                       \
+  do {                                                                     \
+    cudaError_t e = (stmt);                                                \
     if (e != cudaSuccess) throw std::runtime_error(cudaGetErrorString(e)); \
   } while (0)
 #endif
@@ -90,8 +90,7 @@ namespace Allen::CuDNN {
           if (!adopted) {
             release_owned(device_ptr);
           }
-        }
-        catch (...) {
+        } catch (...) {
           release_owned(device_ptr);
           throw;
         }
@@ -106,11 +105,7 @@ namespace Allen::CuDNN {
       {
         validate_input(key, device_data, bytes, expected_bytes);
         insert_or_update(
-          key,
-          const_cast<void*>(device_data),
-          bytes,
-          DeviceWeightOwnership::ExternalDevicePointer,
-          duplicate_policy);
+          key, const_cast<void*>(device_data), bytes, DeviceWeightOwnership::ExternalDevicePointer, duplicate_policy);
       }
 
     private:
@@ -199,20 +194,14 @@ namespace Allen::CuDNN {
     return m_namespace.empty() ? key : (m_namespace + "." + key);
   }
 
-  bool DeviceWeights::contains(const std::string& key) const
-  {
-    return global_weight_store().contains(full_key(key));
-  }
+  bool DeviceWeights::contains(const std::string& key) const { return global_weight_store().contains(full_key(key)); }
 
   size_t DeviceWeights::size_bytes(const std::string& key) const
   {
     return global_weight_store().size_bytes(full_key(key));
   }
 
-  const void* DeviceWeights::get_raw(const std::string& key) const
-  {
-    return global_weight_store().get(full_key(key));
-  }
+  const void* DeviceWeights::get_raw(const std::string& key) const { return global_weight_store().get(full_key(key)); }
 
   void DeviceWeights::load_file(
     const std::string& key,
@@ -259,7 +248,8 @@ namespace Allen::CuDNN {
     return s_instance;
   }
 
-  void WeightRegistry::load(const std::string& key, const std::string& file_path) {
+  void WeightRegistry::load(const std::string& key, const std::string& file_path)
+  {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_locked) {
       throw std::runtime_error("WeightRegistry: load after initialization (registry locked): " + key);
@@ -267,7 +257,8 @@ namespace Allen::CuDNN {
     m_weights.load_file(key, file_path);
   }
 
-  void WeightRegistry::load_from_buffer(const std::string& key, const void* host_data, size_t bytes) {
+  void WeightRegistry::load_from_buffer(const std::string& key, const void* host_data, size_t bytes)
+  {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_locked) {
       throw std::runtime_error("WeightRegistry: load after initialization (registry locked): " + key);

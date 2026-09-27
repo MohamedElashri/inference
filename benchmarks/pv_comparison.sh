@@ -55,15 +55,14 @@ done
 [[ -n "${LABEL}" ]] || { echo "--label is required" >&2; exit 2; }
 B="${REPO}/Allen/${BUILD}"
 [[ -x "${B}/Allen" ]] || { echo "no Allen binary in ${B}" >&2; exit 1; }
-WDIR="${REPO}/weights/out/${MODEL}"
-[[ -f "${WDIR}/fc_weights.bin" && -f "${WDIR}/cnn_weights.bin" ]] || {
-    echo "missing weights in ${WDIR}: make -C weights convert MODEL=${MODEL}" >&2; exit 1; }
+MODEL_FILE="${REPO}/weights/out/${MODEL}/pvfinder_model.json"
+[[ -f "${MODEL_FILE}" ]] || { echo "missing ${MODEL_FILE}: make -C weights verify MODEL=${MODEL}" >&2; exit 1; }
 
 BATCH="${REPO}/benchmark_results/$(date +%Y%m%d_%H%M%S)_${LABEL}"
 mkdir -p "${BATCH}"
 
 # One configuration: the sequence, once per batch.
-(cd "${BATCH}" && PVFINDER_WEIGHTS_DIR="${WDIR}" "${B}/toolchain/wrapper" bash -c '
+(cd "${BATCH}" && "${B}/toolchain/wrapper" bash -c '
     export PYTHONPATH="$1/code_generation/sequences:${PYTHONPATH:-}"
     python3 "$1/code_generation/sequences/AllenCore/gen_allen_json.py" --no-register-keys \
         --seqpath "$1/code_generation/sequences/AllenSequences/$2.py"' bash "${B}" "${SEQ}") \
@@ -87,10 +86,12 @@ RUN_DIRS=()
 for point in "${POINTS[@]}"; do
     name="${point%%$'\t'*}"; read -r -a point_sets <<< "${point#*$'\t'}"
     d="${BATCH}/${name}"; mkdir -p "${d}"
-    "${PY}" - "${BATCH}/Sequence.json" "${d}/Sequence.json" "${d}" "${SETS[@]}" "${point_sets[@]}" <<'EOF'
+    "${PY}" - "${BATCH}/Sequence.json" "${d}/Sequence.json" "${d}" "${MODEL_FILE}" "${SETS[@]}" "${point_sets[@]}" <<'EOF'
 import json, sys
-src, dst, dump, *sets = sys.argv[1:]
+src, dst, dump, model, *sets = sys.argv[1:]
 cfg = json.load(open(src))
+cfg["pvfinder_fc_aggregation"]["model"] = model
+cfg["pvfinder_unet"]["model"] = model
 cfg["pvfinder_unet"]["dump_validation"] = dump          # first slice's KDE and seeds,
 cfg["pvfinder_peak_pvfinder"]["dump_validation"] = dump  # for validate_peaks.py
 for item in sets:

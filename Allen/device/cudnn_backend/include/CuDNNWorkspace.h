@@ -50,10 +50,7 @@ namespace Allen::CuDNN {
     size_t alignment = 256;
   };
 
-  enum class WorkspacePlanningMode {
-    NonOverlapping,
-    Overlapping
-  };
+  enum class WorkspacePlanningMode { NonOverlapping, Overlapping };
 
   inline size_t align_workspace_offset(size_t offset, size_t alignment)
   {
@@ -72,9 +69,8 @@ namespace Allen::CuDNN {
 
     const WorkspaceSlice& slice(const std::string& name) const
     {
-      const auto found = std::find_if(slices.begin(), slices.end(), [&name](const WorkspaceSlice& s) {
-        return s.name == name;
-      });
+      const auto found =
+        std::find_if(slices.begin(), slices.end(), [&name](const WorkspaceSlice& s) { return s.name == name; });
       if (found == slices.end()) {
         throw std::invalid_argument("AllenCuDNN: workspace plan has no slice named " + name);
       }

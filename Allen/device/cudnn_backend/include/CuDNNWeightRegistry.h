@@ -43,23 +43,21 @@ namespace Allen::CuDNN {
      * Called when event processing starts, after every algorithm's init().
      * Lookups (get/contains) stay valid afterwards.
      */
-    void lock_allocations() {
+    void lock_allocations()
+    {
       std::lock_guard<std::mutex> lock(m_mutex);
       m_locked = true;
     }
 
     template<typename T>
-    const T* get(const std::string& key) const {
+    const T* get(const std::string& key) const
+    {
       return m_weights.get<T>(key);
     }
 
-    size_t size_bytes(const std::string& key) const {
-      return m_weights.size_bytes(key);
-    }
+    size_t size_bytes(const std::string& key) const { return m_weights.size_bytes(key); }
 
-    bool contains(const std::string& key) const {
-      return m_weights.contains(key);
-    }
+    bool contains(const std::string& key) const { return m_weights.contains(key); }
 
     WeightRegistry(const WeightRegistry&) = delete;
     WeightRegistry& operator=(const WeightRegistry&) = delete;

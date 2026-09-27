@@ -40,17 +40,20 @@ namespace Allen::CuDNN {
     Handle(Handle&&) = delete;
     Handle& operator=(Handle&&) = delete;
 
-    void create() {
+    void create()
+    {
       ALLEN_CUDNN_CHECK(cudnnCreate(&m_h));
       m_created = true;
     }
 
-    void wrap(cudnnHandle_t h) {
+    void wrap(cudnnHandle_t h)
+    {
       m_h = h;
       m_created = false;
     }
 
-    void destroy() {
+    void destroy()
+    {
       if (m_created) {
         cudnnDestroy(m_h);
         m_h = nullptr;
@@ -58,9 +61,7 @@ namespace Allen::CuDNN {
       }
     }
 
-    void set_stream(cudaStream_t stream) const {
-      ALLEN_CUDNN_CHECK(cudnnSetStream(m_h, stream));
-    }
+    void set_stream(cudaStream_t stream) const { ALLEN_CUDNN_CHECK(cudnnSetStream(m_h, stream)); }
 
     cudnnHandle_t get() const { return m_h; }
     bool created() const { return m_created; }
@@ -85,12 +86,14 @@ namespace Allen::CuDNN {
    */
   class HandleManager {
   public:
-    static HandleManager& instance() {
+    static HandleManager& instance()
+    {
       static HandleManager s_instance;
       return s_instance;
     }
 
-    cudnnHandle_t handle_for(cudaStream_t stream) {
+    cudnnHandle_t handle_for(cudaStream_t stream)
+    {
       std::lock_guard<std::mutex> lock(m_mutex);
       auto [it, inserted] = m_handles.try_emplace(stream, nullptr);
       if (inserted) ALLEN_CUDNN_CHECK(cudnnCreate(&it->second));
@@ -117,7 +120,8 @@ namespace Allen::CuDNN {
    *   cudnnHandle_t h = Allen::CuDNN::get_thread_local_handle(context.stream());
    *   desc.forward(h, ...);
    */
-  inline cudnnHandle_t get_thread_local_handle(cudaStream_t stream) {
+  inline cudnnHandle_t get_thread_local_handle(cudaStream_t stream)
+  {
     thread_local cudaStream_t tl_stream = nullptr;
     thread_local cudnnHandle_t tl_handle = nullptr;
     if (tl_handle == nullptr || tl_stream != stream) {

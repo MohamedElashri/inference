@@ -254,10 +254,12 @@ def catalog_row(model):
     return None
 
 
-def model_info(model, cnn_weights=None, fc_weights=None):
+def model_info(model, cnn_weights=None, fc_weights=None, model_file=None):
+    """The model's catalog row, checkpoint and weight files. Since 2026-09-27
+    Allen reads one model file (pvfinder_model.json); cnn/fc (the older
+    fc_weights.bin, cnn_weights.bin) only appear for records that name them."""
     out_dir = os.path.join(REPO_ROOT, "weights", "out", model) if model else None
-    cnn = cnn_weights or (os.path.join(out_dir, "cnn_weights.bin") if out_dir else None)
-    fc = fc_weights or (os.path.join(out_dir, "fc_weights.bin") if out_dir else None)
+    mfile = model_file or (os.path.join(out_dir, "pvfinder_model.json") if out_dir else None)
     ckpt = os.path.join(REPO_ROOT, "weights", "checkpoints", f"{model}.pyt") if model else None
     verify = read_text(os.path.join(out_dir, "verify.txt")) if out_dir else None
     return {
@@ -265,8 +267,9 @@ def model_info(model, cnn_weights=None, fc_weights=None):
         "catalog": catalog_row(model) if model else None,
         "checkpoint": {"path": rel(ckpt), "sha256": sha256_file(ckpt)},
         "weights": {
-            "cnn": {"path": rel(cnn), "sha256": sha256_file(cnn)},
-            "fc": {"path": rel(fc), "sha256": sha256_file(fc)},
+            "model": {"path": rel(mfile), "sha256": sha256_file(mfile)},
+            **({"cnn": {"path": rel(cnn_weights), "sha256": sha256_file(cnn_weights)}} if cnn_weights else {}),
+            **({"fc": {"path": rel(fc_weights), "sha256": sha256_file(fc_weights)}} if fc_weights else {}),
         },
         "verified": bool(verify) and "FAIL" not in verify,
     }
@@ -279,7 +282,7 @@ def cmd_snapshot(args):
         "gpu": gpu_info(args.device),
         "git": git_info(),
         "build": build_info(args.build_dir),
-        "model": model_info(args.model, args.cnn_weights, args.fc_weights),
+        "model": model_info(args.model, args.cnn_weights, args.fc_weights, args.model_file),
     }
     with open(os.path.join(args.batch_dir, "snapshot.json"), "w") as fp:
         json.dump(snap, fp, indent=2)
@@ -455,7 +458,7 @@ def workload_block(meta):
 
 WORKLOAD_KEYS = {"events", "memory", "repetitions", "threads", "repeats", "device", "mdf", "geometry",
                  "sequences", "label", "timestamp", "build_name", "build_dir", "profile", "model",
-                 "cnn_weights", "fc_weights"}
+                 "cnn_weights", "fc_weights", "model_file"}
 
 
 def legacy_snapshot(batch_dir, meta):
@@ -477,7 +480,8 @@ def legacy_snapshot(batch_dir, meta):
     build = build_info(build_dir) if build_dir and os.path.isdir(build_dir) else {"name": meta.get("build_name")}
     build.pop("sources_newer_than_build", None)  # about today's tree, not the batch's
     build.pop("lib_mtime", None)
-    model = model_info(meta.get("model"), meta.get("cnn_weights"), meta.get("fc_weights")) if meta.get("model") else None
+    model = (model_info(meta.get("model"), meta.get("cnn_weights"), meta.get("fc_weights"), meta.get("model_file"))
+             if meta.get("model") else None)
     # weights.sha256 was written at run time; prefer it over today's files.
     for line in (read_text(os.path.join(batch_dir, "weights.sha256")) or "").splitlines():
         parts = line.split()
@@ -762,8 +766,9 @@ def cmd_show(args):
           f"cuDNN={cm.get('CUDNN_VERSION')} cuBLAS={cm.get('WITH_CUBLAS')} CUDA={cm.get('CMAKE_CUDA_COMPILER_VERSION')} arch={cm.get('CUDA_ARCH')}")
     if b.get("sources_newer_than_build"):
         print(f"  WARNING   {len(b['sources_newer_than_build'])} tracked Allen source(s) newer than the build")
-    print(f"  model     {m.get('name')}  cnn {str(((m.get('weights') or {}).get('cnn') or {}).get('sha256'))[:12]}"
-          f"  fc {str(((m.get('weights') or {}).get('fc') or {}).get('sha256'))[:12]}")
+    ws = m.get("weights") or {}
+    files = "  ".join(f"{k} {str((ws.get(k) or {}).get('sha256'))[:12]}" for k in ("model", "cnn", "fc") if ws.get(k))
+    print(f"  model     {m.get('name')}  {files}")
     print(f"  workload  " + ", ".join(f"{k}={v}" for k, v in w.items() if v is not None and k not in ("mdf", "geometry")))
     opts = r.get("options") or {}
     if opts:
@@ -840,6 +845,7 @@ def main():
     s.add_argument("--model", default=None)
     s.add_argument("--cnn-weights", default=None)
     s.add_argument("--fc-weights", default=None)
+    s.add_argument("--model-file", default=None)
     s.set_defaults(func=cmd_snapshot)
 
     s = sub.add_parser("record")

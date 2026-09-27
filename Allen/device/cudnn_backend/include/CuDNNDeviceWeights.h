@@ -16,16 +16,9 @@
 
 namespace Allen::CuDNN {
 
-  enum class DuplicateKeyPolicy {
-    Reject,
-    ReuseExisting,
-    ReplaceExisting
-  };
+  enum class DuplicateKeyPolicy { Reject, ReuseExisting, ReplaceExisting };
 
-  enum class DeviceWeightOwnership {
-    ProcessLifetime,
-    ExternalDevicePointer
-  };
+  enum class DeviceWeightOwnership { ProcessLifetime, ExternalDevicePointer };
 
   class DeviceWeights {
   public:
@@ -52,7 +45,8 @@ namespace Allen::CuDNN {
       DuplicateKeyPolicy duplicate_policy = DuplicateKeyPolicy::Reject);
 
     template<typename T>
-    const T* get(const std::string& key) const {
+    const T* get(const std::string& key) const
+    {
       if (size_bytes(key) % sizeof(T) != 0) {
         throw std::runtime_error("DeviceWeights: key size is not aligned to requested type: " + full_key(key));
       }
