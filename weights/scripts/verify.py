@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """verify.py - Check an Allen PVFinder model file against the checkpoint it came from.
 
-Reads the model file (pvfinder_model.json, format pvfinder-model/1) as Allen
+Reads the model file (pvfinder_model.json, format allen-tensors/1, kind pvfinder) as Allen
 does, independently of convert.py: every tensor it holds, parsed and rounded
 to float32, must equal the checkpoint's bit for bit, with the checkpoint's
 shape. Also checks the metadata (latent channels, UNet features, no skip
@@ -19,7 +19,7 @@ import sys
 import numpy as np
 import torch
 
-from convert import BN_EPS, FC_TENSORS, UNET_TENSORS
+from convert import BN_EPS, FC_TENSORS, FORMAT, KIND, UNET_TENSORS
 
 parser = argparse.ArgumentParser(description="Verify an Allen PVFinder model file against a checkpoint")
 parser.add_argument("--checkpoint", required=True)
@@ -33,16 +33,19 @@ with open(args.model_file) as fp:
     model = json.load(fp)
 
 problems = []
-if model.get("format") != "pvfinder-model/1":
-    problems.append(f"format is {model.get('format')!r}, not 'pvfinder-model/1'")
+if model.get("format") != FORMAT:
+    problems.append(f"format is {model.get('format')!r}, not {FORMAT!r}")
+if model.get("kind") != KIND:
+    problems.append(f"kind is {model.get('kind')!r}, not {KIND!r}")
+meta = model.get("metadata", {})
 n_feat = int(sd["rcbn1.0.weight"].shape[0])
 n_latent = int(sd["layer6A.bias"].shape[0]) // 100
-if model.get("unet_features") != n_feat:
-    problems.append(f"unet_features {model.get('unet_features')} != checkpoint {n_feat}")
-if model.get("latent_channels") != n_latent:
-    problems.append(f"latent_channels {model.get('latent_channels')} != checkpoint {n_latent}")
-if np.float32(model.get("bn_eps", 0.0)) != np.float32(BN_EPS):
-    problems.append(f"bn_eps {model.get('bn_eps')} != {BN_EPS}")
+if meta.get("unet_features") != n_feat:
+    problems.append(f"unet_features {meta.get('unet_features')} != checkpoint {n_feat}")
+if meta.get("latent_channels") != n_latent:
+    problems.append(f"latent_channels {meta.get('latent_channels')} != checkpoint {n_latent}")
+if np.float32(meta.get("bn_eps", 0.0)) != np.float32(BN_EPS):
+    problems.append(f"bn_eps {meta.get('bn_eps')} != {BN_EPS}")
 if int(sd["up2.0.weight"].shape[0]) != n_feat or int(sd["out_intermediate.weight"].shape[1]) != n_feat:
     problems.append("the checkpoint has skip connections, which Allen's UNet does not implement")
 

@@ -164,5 +164,48 @@ the parameters directory (``--params``), absolute paths are taken as they are;
         // ...
     }
 
-``pvfinder_fc_aggregation`` and ``pvfinder_unet`` (``PVFinder::Model``,
-``device/pvfinder/include/PVFinderModel.h``) read their network this way.
+Tensor model files
+^^^^^^^^^^^^^^^^^^
+An algorithm that runs a network itself, with its own kernels or with
+:doc:`allen_cudnn` layers, needs its trained parameters rather than an
+evaluator. ``Allen::MVAModels::TensorModel``
+(``device/utils/mva_models/include/TensorModel.h``) reads them from one JSON
+file of named float32 tensors:
+
+.. code-block:: json
+
+    {"format": "allen-tensors/1",
+     "kind": "my_net",
+     "name": "free text",
+     "metadata": {"bn_eps": 1e-5, "channels": 16},
+     "tensors": {"conv1.weight": {"shape": [16, 4, 25], "data": [...]},
+                 "conv1.bias": {"shape": [16], "data": [...]}}}
+
+Tensor names are free (a PyTorch state dict's work well) and data are row
+major. ``kind`` names the network; the model rejects a file of another kind.
+Other top-level keys, such as provenance, are ignored. Write each value as the
+shortest decimal that reads back as the same float32 (Python's ``repr`` of the
+value) and the file is exact.
+
+It is a model like the others: a member of the algorithm, read before
+``init()``, where the algorithm takes its tensors and checks their shapes
+against what it was built for:
+
+.. code-block:: c++
+
+    Allen::Property<std::string> m_model_file {this, "model", "my_net/model.json", "model file"};
+    Allen::MVAModels::TensorModel m_model {"my_net", [this] { return m_model_file.value(); }, "my_net"};
+
+    void my_algorithm_t::init()
+    {
+      const float* w = m_model.device_tensor("conv1.weight", {16, 4, 25});   // throws on a wrong shape
+      const float eps = m_model.metadata<float>("bn_eps");
+      // ...
+    }
+
+``tensor()`` gives the host copy and ``device_tensor()`` a device copy made
+once and kept for the process lifetime. A network that needs more than this,
+such as metadata read into members or a build hint in shape errors, derives
+from ``TensorModel``: ``PVFinder::Model``
+(``device/pvfinder/include/PVFinderModel.h``) of ``pvfinder_fc_aggregation``
+and ``pvfinder_unet`` does.

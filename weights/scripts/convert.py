@@ -1,12 +1,15 @@
 """
 Convert a PVFinder .pyt checkpoint to the model file Allen reads.
 
-Produces one JSON file (format "pvfinder-model/1"), read by the Allen
-algorithms pvfinder_fc_aggregation and pvfinder_unet through their "model"
-property (see Allen/device/pvfinder/include/PVFinderModel.h):
+Produces one Allen tensor model file (format "allen-tensors/1", kind
+"pvfinder"), read by the Allen algorithms pvfinder_fc_aggregation and
+pvfinder_unet through their "model" property (see
+Allen/device/utils/mva_models/include/TensorModel.h and
+Allen/device/pvfinder/include/PVFinderModel.h):
 
-  {"format": "pvfinder-model/1", "name": ..., "source": ..., "sha256": ...,
-   "latent_channels": 4, "unet_features": 16, "bn_eps": 1e-05,
+  {"format": "allen-tensors/1", "kind": "pvfinder", "name": ...,
+   "source": ..., "sha256": ...,
+   "metadata": {"latent_channels": 4, "unet_features": 16, "bn_eps": 1e-05},
    "tensors": {"layer1.weight": {"shape": [20, 9], "data": [...]}, ...}}
 
 Tensors keep their PyTorch state-dict names and shapes, data row major; each
@@ -44,6 +47,7 @@ UNET_TENSORS = (
     + ["out_intermediate.weight", "out_intermediate.bias", "outc.weight", "outc.bias"]
 )
 BN_EPS = 1e-5  # PyTorch's BatchNorm1d default, as in training
+FORMAT, KIND = "allen-tensors/1", "pvfinder"
 
 
 def float32_list(array):
@@ -72,13 +76,12 @@ def model_json(state_dict, name, source):
         tensors[key] = {"shape": list(t.shape), "data": float32_list(t)}
     sha = hashlib.sha256(open(source, "rb").read()).hexdigest()
     return {
-        "format": "pvfinder-model/1",
+        "format": FORMAT,
+        "kind": KIND,
         "name": name,
         "source": os.path.abspath(source),
         "sha256": sha,
-        "latent_channels": n_latent,
-        "unet_features": n_feat,
-        "bn_eps": BN_EPS,
+        "metadata": {"latent_channels": n_latent, "unet_features": n_feat, "bn_eps": BN_EPS},
         "tensors": tensors,
     }
 
@@ -98,9 +101,9 @@ def main():
         json.dump(model, f, separators=(",", ":"))
     n = sum(len(t["data"]) for t in model["tensors"].values())
     print(f"Wrote {args.out}: {len(model['tensors'])} tensors, {n:,} floats, "
-          f"N_FEAT={model['unet_features']}, latentChannels={model['latent_channels']}")
-    print(f"Allen build for this model: ./ballen -a gpu --cudnn --unet-feat {model['unet_features']} "
-          f"--unet-batch-channels {model['latent_channels']}")
+          f"N_FEAT={model['metadata']['unet_features']}, latentChannels={model['metadata']['latent_channels']}")
+    print(f"Allen build for this model: ./ballen -a gpu --cudnn --unet-feat {model['metadata']['unet_features']} "
+          f"--unet-batch-channels {model['metadata']['latent_channels']}")
 
 
 if __name__ == "__main__":

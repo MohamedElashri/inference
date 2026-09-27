@@ -264,13 +264,9 @@ TEST_CASE("pvfinder peak finding: parallel = serial", "[PVFinder]")
 
 namespace {
   struct TemporaryDirectory {
-    std::filesystem::path path;
-    TemporaryDirectory()
-    {
-      path =
-        std::filesystem::temp_directory_path() / ("allen_test_pvfinder_" + std::to_string(std::random_device {}()));
-      std::filesystem::create_directories(path);
-    }
+    std::filesystem::path path =
+      std::filesystem::temp_directory_path() / ("allen_test_pvfinder_" + std::to_string(std::random_device {}()));
+    TemporaryDirectory() { std::filesystem::create_directories(path); }
     ~TemporaryDirectory() { std::filesystem::remove_all(path); }
     std::string write(const std::string& name, const std::string& content) const
     {
@@ -278,11 +274,6 @@ namespace {
       return (path / name).string();
     }
   };
-
-  const std::string valid_model = R"({"format": "pvfinder-model/1", "name": "test", "latent_channels": 4,
-    "unet_features": 16, "bn_eps": 1e-5, "tensors": {
-      "layer1.weight": {"shape": [2, 3], "data": [1, 2, 3, 4, 5, 6.5]},
-      "layer1.bias": {"shape": [2], "data": [-1, 0.25]}}})";
 
   // The message of the StrException that f throws ("" if none).
   template<typename F>
@@ -299,75 +290,35 @@ namespace {
   bool contains(const std::string& s, const std::string& part) { return s.find(part) != std::string::npos; }
 } // namespace
 
+// The tensor file reader itself: TestTensorModel.cu.
 TEST_CASE("pvfinder model file", "[PVFinder]")
 {
   const TemporaryDirectory dir;
   std::string path;
   PVFinder::Model model {"test_model", [&] { return path; }};
 
-  SECTION("a valid file, absolute path")
+  SECTION("metadata")
   {
-    path = dir.write("model.json", valid_model);
-    model.readData("/nonexistent");
-    REQUIRE(model.file() == path);
+    path = dir.write(
+      "model.json",
+      R"({"format": "allen-tensors/1", "kind": "pvfinder", "metadata": {"latent_channels": 4, "unet_features": 16,
+          "bn_eps": 1e-5}, "tensors": {"b": {"shape": [2], "data": [1, 2]}}})");
+    model.readData("");
     REQUIRE(model.latent_channels() == 4);
     REQUIRE(model.unet_features() == 16);
     REQUIRE(model.bn_eps() == 1e-5f);
-    REQUIRE(model.tensor("layer1.weight", {2, 3}) == std::vector<float> {1, 2, 3, 4, 5, 6.5f});
-    REQUIRE(model.tensor("layer1.bias", {2}) == std::vector<float> {-1, 0.25f});
+    // A build for other widths: the error says how to build for this model.
+    REQUIRE(contains(error_of([&] { model.tensor("b", {3}); }), "--unet-feat and --unet-batch-channels"));
   }
 
-  SECTION("a relative path is in the parameters directory")
+  SECTION("other kinds and missing metadata are rejected")
   {
-    std::filesystem::create_directories(dir.path / "pvfinder");
-    dir.write("pvfinder/model.json", valid_model);
-    path = "pvfinder/model.json";
-    for (const std::string params : {dir.path.string(), dir.path.string() + "/"}) {
-      PVFinder::Model m {"test_model", [&] { return path; }};
-      m.readData(params);
-      REQUIRE(m.file() == (dir.path / "pvfinder/model.json").string());
-      REQUIRE(m.tensor("layer1.bias", {2}).size() == 2);
-    }
-  }
-
-  SECTION("wrong requests")
-  {
-    path = dir.write("model.json", valid_model);
-    model.readData("");
-    REQUIRE(contains(error_of([&] { model.tensor("layer1.weight", {3, 2}); }), "this build expects [3, 2]"));
-    REQUIRE(contains(error_of([&] { model.tensor("layer2.weight", {2, 3}); }), "has no tensor layer2.weight"));
-  }
-
-  SECTION("bad files")
-  {
-    path = (dir.path / "missing.json").string();
-    REQUIRE(contains(error_of([&] { model.readData(""); }), "cannot open"));
-    path = dir.write("broken.json", "{\"format\": ");
-    REQUIRE(contains(error_of([&] { model.readData(""); }), "not valid JSON"));
-    path = dir.write("other.json", R"({"format": "something-else/1"})");
-    REQUIRE(contains(error_of([&] { model.readData(""); }), "is not a PVFinder model"));
+    path =
+      dir.write("other.json", R"({"format": "allen-tensors/1", "kind": "something", "metadata": {}, "tensors": {}})");
+    REQUIRE(contains(error_of([&] { model.readData(""); }), "is a \"something\" model, not \"pvfinder\""));
     path = dir.write(
-      "short.json",
-      R"({"format": "pvfinder-model/1", "latent_channels": 4, "unet_features": 16, "bn_eps": 1e-5,
-          "tensors": {"w": {"shape": [2, 2], "data": [1, 2, 3]}}})");
-    REQUIRE(contains(error_of([&] { model.readData(""); }), "has 3 values for shape [2, 2]"));
+      "incomplete.json",
+      R"({"format": "allen-tensors/1", "kind": "pvfinder", "metadata": {"latent_channels": 4}, "tensors": {}})");
+    REQUIRE(contains(error_of([&] { model.readData(""); }), "has no metadata unet_features"));
   }
-
-#ifdef TARGET_DEVICE_CUDA
-  SECTION("device tensors")
-  {
-    int n_devices = 0;
-    if (cudaGetDeviceCount(&n_devices) != cudaSuccess || n_devices == 0) {
-      WARN("no CUDA device: skipped");
-      return;
-    }
-    path = dir.write("model.json", valid_model);
-    model.readData("");
-    const float* d = model.device_tensor("layer1.weight", {2, 3});
-    REQUIRE(model.device_tensor("layer1.weight", {2, 3}) == d); // copied once
-    std::vector<float> back(6);
-    REQUIRE(cudaMemcpy(back.data(), d, 6 * sizeof(float), cudaMemcpyDeviceToHost) == cudaSuccess);
-    REQUIRE(back == model.tensor("layer1.weight", {2, 3}));
-  }
-#endif
 }

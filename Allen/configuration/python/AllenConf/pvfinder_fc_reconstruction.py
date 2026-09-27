@@ -60,7 +60,7 @@ def make_pvfinder_fc(
 ):
     """PVFinder FC aggregation (it computes the per-track features itself).
 
-    model: the trained model file (pvfinder-model/1 JSON), relative to Allen's
+    model: the trained model file (tensor model JSON of kind "pvfinder"), relative to Allen's
     parameters directory (--params) or absolute; None keeps the algorithms'
     default. make_pvfinder_unet takes it from here.
     precision: "float32" (exact, any CUDA GPU) or "bfloat16" (tensor cores,

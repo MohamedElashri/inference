@@ -5,8 +5,8 @@ CNNs with cuDNN (AllenCuDNN)
 ``AllenCuDNN`` (``device/cudnn_backend``) lets any Allen algorithm run a
 convolutional network with cuDNN's graph API. It provides per-stream cuDNN
 handles, graphs and plans, and CNN layers built from them. It is not a model
-framework: the algorithm owns its network's structure, weights (see
-:doc:`add_mva_model`), buffers and any kernels of its own.
+framework: the algorithm owns its network's structure, weights (a tensor
+model, see :doc:`add_mva_model`), buffers and any kernels of its own.
 
 It is built with ``-DWITH_CUDNN=ON`` for ``TARGET_DEVICE=CUDA``, which also
 defines ``ALLEN_WITH_CUDNN`` everywhere. An algorithm links it in its

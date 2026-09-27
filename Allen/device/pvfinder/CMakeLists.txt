@@ -8,11 +8,10 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-# The model file reader, on its own so that tests can use it without the
-# algorithms' device code.
-allen_add_host_library(PVFinderModel STATIC src/PVFinderModel.cpp)
-target_link_libraries(PVFinderModel PUBLIC AllenCommon Backend)
-target_include_directories(PVFinderModel PUBLIC
+# The headers alone (peak finding, model file), for tests.
+add_library(PVFinderHeaders INTERFACE)
+target_link_libraries(PVFinderHeaders INTERFACE Backend EventModel TensorModel)
+target_include_directories(PVFinderHeaders INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
@@ -23,7 +22,7 @@ allen_add_device_library(PVFinder
     src/PVFinderVertexDump.cpp
 )
 
-target_link_libraries(PVFinder PRIVATE AllenCommon Backend HostEventModel EventModel Utils PV_beamline PVFinderModel)
+target_link_libraries(PVFinder PRIVATE PVFinderHeaders AllenCommon Backend HostEventModel EventModel Utils PV_beamline)
 
 if(WITH_CUDNN AND TARGET_DEVICE STREQUAL "CUDA")
     target_link_libraries(PVFinder PRIVATE AllenCuDNN)
