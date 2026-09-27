@@ -103,6 +103,7 @@ def make_pvfinder_fc(
         "dev_pvfinder_slot_row": pvfinder_fc_aggregation.dev_pvfinder_slot_row_t,
         "dev_pvfinder_row_slot": pvfinder_fc_aggregation.dev_pvfinder_row_slot_t,
         "host_number_of_events": host_number_of_events,
+        "pv_name": pv_name,
         "model": model,
         "precision": precision,
         "unet_batch_events": unet_batch_events,

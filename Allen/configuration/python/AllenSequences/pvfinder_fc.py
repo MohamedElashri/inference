@@ -27,9 +27,4 @@ node = CompositeNode(
     "PVFinderFC", [aggregation_producer], NodeLogic.LAZY_AND, force_order=True
 )
 
-config = {
-    "control_flow_node": node,
-    "reconstruction": {"velo_tracks": velo_tracks, "pvfinder_fc": pvfinder_fc_output},
-}
-
 generate(node)

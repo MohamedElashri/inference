@@ -28,15 +28,17 @@ if(WITH_CUDNN AND TARGET_DEVICE STREQUAL "CUDA")
     target_link_libraries(PVFinder PRIVATE AllenCuDNN)
 endif()
 
-if(PVFINDER_UNET_N_FEAT)
-    target_compile_definitions(PVFinder PRIVATE PVFINDER_UNET_N_FEAT=${PVFINDER_UNET_N_FEAT})
-    message(STATUS "PVFinder: UNet N_FEAT overridden to ${PVFINDER_UNET_N_FEAT}")
-endif()
-
-if(PVFINDER_UNET_N_BATCH_CHANNELS)
-    target_compile_definitions(PVFinder PRIVATE PVFINDER_UNET_N_BATCH_CHANNELS=${PVFINDER_UNET_N_BATCH_CHANNELS})
-    message(STATUS "PVFinder: UNet N_BATCH_CHANNELS (latentChannels) overridden to ${PVFINDER_UNET_N_BATCH_CHANNELS}")
-endif()
+# The network's widths are compile-time constants and must match the model
+# file (the algorithms check every tensor's shape in init()). The defaults are
+# those of the default model, unet16_lc4_scnone_asym5_final; the bfloat16 path
+# supports only these.
+set(PVFINDER_UNET_N_FEAT 16 CACHE STRING "PVFinder UNet feature maps (N_FEAT)")
+set(PVFINDER_UNET_N_BATCH_CHANNELS 4 CACHE STRING
+    "PVFinder latent channels: FC outputs per bin and UNet input channels (latentChannels)")
+target_compile_definitions(PVFinder PRIVATE
+    PVFINDER_UNET_N_FEAT=${PVFINDER_UNET_N_FEAT}
+    PVFINDER_UNET_N_BATCH_CHANNELS=${PVFINDER_UNET_N_BATCH_CHANNELS})
+message(STATUS "PVFinder: UNet N_FEAT ${PVFINDER_UNET_N_FEAT}, latent channels ${PVFINDER_UNET_N_BATCH_CHANNELS}")
 
 
 target_include_directories(PVFinder PUBLIC

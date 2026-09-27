@@ -1,0 +1,235 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260927_144612_reviewfix_bf16_t16",
+  "label": "reviewfix_bf16_t16",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-27T14:46:16-04:00",
+  "finished_at": "2026-09-27T15:04:12-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label reviewfix_bf16_t16 -B build16chL4finalgpu -d 2 --model unet16_lc4_scnone_asym5_best_bf16 --use-bf16 true -n 500 -m 500 -r 1000 -t 16 --repeats 3",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "6e2df607489c3c33972b20cd9c071f17332c6b2b",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Refactor PVFinder weights pipeline",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/configuration/parser/ParseAlgorithms.py",
+      "Allen/configuration/python/AllenConf/pvfinder_fc_reconstruction.py",
+      "Allen/configuration/python/AllenConf/pvfinder_unet_reconstruction.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_pvfinder_benchmark.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_pvfinder_unet_benchmark.py",
+      "Allen/configuration/python/AllenSequences/pvfinder_fc.py",
+      "Allen/device/cudnn_backend/include/CuDNNGraph.h",
+      "Allen/device/cudnn_backend/src/CuDNNGraph.cpp",
+      "Allen/device/pvfinder/CMakeLists.txt",
+      "Allen/device/pvfinder/include/PVFinderFCAggregation.cuh",
+      "Allen/device/pvfinder/include/PVFinderPeak.cuh",
+      "Allen/device/pvfinder/include/PVFinderTrackFeatures.cuh",
+      "Allen/device/pvfinder/include/PVFinderUNet.cuh",
+      "Allen/device/pvfinder/src/PVFinderFCAggregation.cu",
+      "Allen/device/pvfinder/src/PVFinderPeak.cu",
+      "Allen/device/pvfinder/src/PVFinderUNet.cu",
+      "Allen/doc/develop/allen_cudnn.rst",
+      "Allen/test/unit_tests/generic/src/TestCuDNNGraph.cu",
+      "ballen"
+    ],
+    "diff_sha256": "c720de2228c861198d312d6d987577288e39186a754fd292a8475af08e6ae5ef"
+  },
+  "build": {
+    "name": "build16chL4finalgpu",
+    "dir": "Allen/build16chL4finalgpu",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T14:23:27-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "fc_grid_fraction": 0.125,
+    "precision": "bfloat16",
+    "unet_batch_events": 20,
+    "unet_grid_fraction": 0.25,
+    "use_bf16": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "e5e269b686ac40c1047af7759ddfaf188396322b3b98f9f88e46cd008c4a1b70",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "7a283dccb6a621f9f4a2bb2ae107ff568b79d66890c073705266c57a7137aed2",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "43d33e39aa429d63af7a67cedbd6cd7183bd3ac6cb9805cd6649ed8c60486ff4",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.25,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 86877.30276,
+          "fc": 85085.096998,
+          "unet": 83968.257871
+        },
+        "fc_overhead_pct": 2.062915980427029,
+        "unet_overhead_pct": 3.348452123377146,
+        "unet_retention_pct": 96.65154787662286
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 86942.807012,
+          "fc": 84966.931719,
+          "unet": 83923.640989
+        },
+        "fc_overhead_pct": 2.2726150223414003,
+        "unet_overhead_pct": 3.4725886209117762,
+        "unet_retention_pct": 96.52741137908822
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 87108.787328,
+          "fc": 84997.127613,
+          "unet": 83955.922508
+        },
+        "fc_overhead_pct": 2.4241638298197676,
+        "unet_overhead_pct": 3.619456677921809,
+        "unet_retention_pct": 96.3805433220782
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 86942.807012,
+        "fc": 84997.127613,
+        "unet": 83955.922508
+      },
+      "median_fc_overhead_pct": 2.2726150223414003,
+      "median_unet_overhead_pct": 3.4725886209117762,
+      "median_unet_retention_pct": 96.52741137908822,
+      "baseline_spread_pct": 0.26624924586119003,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260927_144612_reviewfix_bf16_t16"
+  },
+  "duration_s": 1076
+}

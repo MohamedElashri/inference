@@ -13,6 +13,7 @@
 #include "AlgorithmTypes.cuh"
 #include "PVFinderConstants.cuh"
 #include "PVFinderModel.h"
+#include <atomic>
 #include <memory>
 #ifdef ALLEN_WITH_CUDNN
 #include "AllenCuDNN.h"
@@ -28,9 +29,9 @@
 //         interval without tracks.
 //
 // Two precisions (precision, must match pvfinder_fc_aggregation's):
-//   float32   cuDNN convolutions (IMPLICIT_GEMM, no workspace) and small FP32
-//             kernels, batches of unet_batch_events * 40 rows; reproduces the
-//             trained model to float32 rounding. Any CUDA GPU.
+//   float32   Allen::CuDNN layers (exact float32 engines, deterministic),
+//             batches of unet_batch_events * 40 rows; reproduces the trained
+//             model to float32 rounding. Any CUDA GPU.
 //   bfloat16  the whole UNet in one kernel (PVFinderUNetFused.cuh):
 //             activations in shared memory, convolutions on BF16 tensor cores
 //             with FP32 accumulation. Compute capability 8.0 or newer, and the
@@ -44,15 +45,16 @@ namespace pvfinder_unet {
 // -> outc), matching checkpoints trained with sc_mode=none. N_FEAT and
 // N_BATCH_CHANNELS (the FC/UNet handoff's latentChannels) are fixed by the
 // build (-DPVFINDER_UNET_N_FEAT, -DPVFINDER_UNET_N_BATCH_CHANNELS).
+// Defaults: the default model's (see CMakeLists.txt).
 #ifdef PVFINDER_UNET_N_BATCH_CHANNELS
   static constexpr int N_BATCH_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
 #else
-  static constexpr int N_BATCH_CHANNELS = 8; // input latent channels
+  static constexpr int N_BATCH_CHANNELS = 4; // input latent channels
 #endif
 #ifdef PVFINDER_UNET_N_FEAT
   static constexpr int N_FEAT = PVFINDER_UNET_N_FEAT;
 #else
-  static constexpr int N_FEAT = 64;          // feature maps throughout
+  static constexpr int N_FEAT = 16;          // feature maps throughout
 #endif
   static constexpr int W_IN = PVFinderConstants::KDE::n_bins_per_interval; // input width
   static constexpr int W_HALF = W_IN / 2;                                  // after first MaxPool
@@ -147,16 +149,17 @@ namespace pvfinder_unet {
       "dump_validation",
       "",
       "if non-empty, dump the input rows and the KDE of the first slice to this directory"};
-    mutable bool m_dump_done = false;
+    mutable std::atomic<bool> m_dump_done {false};
 
-    // Per-instance state (weights, cuDNN descriptors, the fused kernel's weight
-    // image), defined in PVFinderUNet.cu so the cuDNN types stay out of this
-    // header; created in init(). shared_ptr keeps the algorithm copyable.
+    // Per-instance state (weights, cuDNN layers, the fused kernel's weight
+    // image, the empty-interval response), defined in PVFinderUNet.cu so the
+    // cuDNN types stay out of this header; created in init().
     struct UNetState;
     std::shared_ptr<UNetState> m_state;
     bool m_bf16 = false;
 
 #ifdef ALLEN_WITH_CUDNN
+    void compute_empty_response();
     void run_fp32_batch(const float* rows, float* kde, float* const scratch[6], cudnnHandle_t handle) const;
     void dump(const ArgumentReferences<Parameters>& arguments, const Allen::Context& context) const;
 #endif

@@ -303,6 +303,41 @@ TEST_CASE("cudnn.layer.bfloat16_channels_last_is_fused", "[AllenCuDNN]")
   CHECK(worst < 1e-2);
 }
 
+// One plan, built with one handle, run through handles of other streams
+// (each gets its own execution plan) and on changing buffers (the variant
+// pack is rebuilt): identical results everywhere.
+TEST_CASE("cudnn.graph.plan_on_other_handles_and_buffers", "[AllenCuDNN]")
+{
+  if (!have_device()) return;
+  const int N = 2, C = 3, H = 1, W = 64, K = 4, S = 5;
+  const auto w = random_values(K * C * S, 7);
+  Graph g;
+  const TensorId tx = g.input({N, C, H, W}, Layout::NCHW), tw = g.input({K, C, 1, S}, Layout::NCHW);
+  g.output(g.convolution(tx, tw, {{0, 2}, {1, 1}, {1, 1}}));
+  const Plan plan = g.build(handle(nullptr));
+  DeviceBuffer dw(w), ws(plan.workspace_size());
+  cudaStream_t streams[2];
+  for (auto& st : streams)
+    REQUIRE(cudaStreamCreate(&st) == cudaSuccess);
+  const size_t n_out = (size_t) N * K * H * W;
+  std::vector<float> first;
+  for (int i = 0; i < 6; ++i) {
+    // Inputs 0, 1, 0, 1, ... in fresh buffers each time; handles alternate.
+    const auto x = random_values(N * C * H * W, 100 + i % 2);
+    DeviceBuffer dx(x), dy(n_out * 4);
+    cudnnHandle_t h = handle(streams[i % 2]);
+    plan.execute(h, {dx.p, dw.p, dy.p}, ws.p);
+    plan.execute(h, {dx.p, dw.p, dy.p}, ws.p); // same pointers: the cached pack
+    REQUIRE(cudaStreamSynchronize(streams[i % 2]) == cudaSuccess);
+    const auto y = dy.get<float>(n_out);
+    CHECK(max_abs_diff(y, reference_convolution(x, w, N, C, H, W, K, 1, S, 0, 2)) < 1e-5);
+    if (i == 0) first = y;
+    if (i % 2 == 0) CHECK(y == first); // bit for bit on either handle
+  }
+  for (auto& st : streams)
+    cudaStreamDestroy(st);
+}
+
 TEST_CASE("cudnn.graph.plan_cache_and_errors", "[AllenCuDNN]")
 {
   if (!have_device()) return;

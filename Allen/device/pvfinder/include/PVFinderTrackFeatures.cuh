@@ -11,8 +11,7 @@
 #pragma once
 
 // Per-track PVFinder input features from a VELO Kalman state, computed by
-// the FC aggregation's CSR build (pvfinder_fc_aggregation; this replaced the
-// separate pvfinder_velo_feature_extraction algorithm). Uses dev_beamline
+// the FC aggregation's CSR build (pvfinder_fc_aggregation). Uses dev_beamline
 // (loaded by updateCommon, see BeamlinePVConstants.cuh).
 
 #include "KalmanParametrizations.cuh"

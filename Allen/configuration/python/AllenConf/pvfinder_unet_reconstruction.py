@@ -25,8 +25,8 @@ def make_pvfinder_unet(fc_output, dump_validation=""):
     ----------
     fc_output : dict
         Return value of make_pvfinder_fc(): the rows and their layout, the
-        number of events, and the model, precision and batch size, which the
-        UNet takes from it so the two algorithms always agree.
+        number of events, and the name suffix, model, precision and batch
+        size, which the UNet takes from it so the two algorithms always agree.
     dump_validation : str
         Directory for the validation dumps, "" = off.
 
@@ -39,7 +39,7 @@ def make_pvfinder_unet(fc_output, dump_validation=""):
     model_property = {} if fc_output["model"] is None else {"model": fc_output["model"]}
     pvfinder_unet = make_algorithm(
         pvfinder_unet_t,
-        name="pvfinder_unet",
+        name="pvfinder_unet" + fc_output["pv_name"],
         host_number_of_events_t=fc_output["host_number_of_events"],
         dev_pvfinder_interval_features_t=fc_output["dev_pvfinder_interval_features"],
         host_pvfinder_unet_rows_t=fc_output["host_pvfinder_unet_rows"],

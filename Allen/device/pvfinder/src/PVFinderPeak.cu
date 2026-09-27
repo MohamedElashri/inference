@@ -45,7 +45,9 @@ void pvfinder_peak::pvfinder_peak_t::operator()(
     m_histogram_seed_z.data(context));
 
   const std::string& dump_dir = m_dump_dir.value();
-  if (!dump_dir.empty() && !m_dump_done) {
+  // One thread dumps (the first to get here); run single-stream (-t 1) to
+  // dump the same slice as the other PVFinder algorithms.
+  if (!dump_dir.empty() && !m_dump_done.exchange(true)) {
     const auto zpeaks = make_host_buffer<dev_zpeaks_t>(arguments, context);
     const auto number_of_zpeaks = make_host_buffer<dev_number_of_zpeaks_t>(arguments, context);
     const auto event_list = make_host_buffer<dev_event_list_t>(arguments, context);
@@ -67,7 +69,6 @@ void pvfinder_peak::pvfinder_peak_t::operator()(
     }
     if (!file) throw StrException("pvfinder_peak: cannot write " + dump_dir + "/allen_zpeaks.bin");
     info_cout << "[pvfinder_peak] validation dump written to " << dump_dir << " (" << n_events << " events)\n";
-    m_dump_done = true;
   }
 }
 

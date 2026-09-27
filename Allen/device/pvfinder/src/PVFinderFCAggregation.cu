@@ -78,22 +78,17 @@ namespace pvfinder_fc_aggregation {
   // Exact, branchless and overflow-safe softplus: log(1 + exp(x)).
   __device__ float pvfinder_softplus(float x) { return fmaxf(x, 0.0f) + logf(1.0f + expf(-fabsf(x))); }
 
-  // Inline LeakyReLU and linear layer — runs in registers, no global writes.
   __device__ __forceinline__ float pvfinder_leaky_relu(float x) { return x > 0.0f ? x : 0.01f * x; }
-
-  // A zero w_stride uses in_f as the row stride. A nonzero stride selects a
-  // leading submatrix from wider stored weights for the hidden-width throughput
-  // probe.
 
   // ---------------------------------------------------------------------------
   // CSR index builder kernel.
   //
-  // Grid: (n_events)  blockDim: 256
+  // Grid: one block per event in the event list; block: block_dim.
   //
   // For each event, builds a CSR (compressed sparse row) representation that
   // maps each interval to a contiguous range of track indices:
   //
-  //   interval_start[ev * 42 + i]          = start offset in track_idx[]
+  //   interval_start[ev * CSR_STRIDE + i]   = start offset in track_idx[]
   //   interval_start[ev * CSR_STRIDE + CSR_TOTAL]         = total entries (sentinel)
   //   track_idx[track_idx_base + start..end] = local track indices for interval i
   //
@@ -1127,9 +1122,10 @@ namespace pvfinder_fc_aggregation {
         write_histogram);
     }
 
-    if (write_histogram && !m_dump_done) {
+    // One thread dumps (the first to get here); run single-stream (-t 1) to
+    // dump the same slice as the other PVFinder algorithms.
+    if (write_histogram && !m_dump_done.exchange(true)) {
       dump(arguments, context);
-      m_dump_done = true;
     }
   }
 

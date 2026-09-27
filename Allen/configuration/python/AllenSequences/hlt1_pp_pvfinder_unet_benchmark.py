@@ -24,7 +24,6 @@ from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc, pvfinder_node
 from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet
 from AllenConf.velo_reconstruction import make_pr_velo_tracks
 from AllenCore.generator import generate
-from PyConf.control_flow import CompositeNode, NodeLogic
 
 
 def hook_pvfinder_unet_to_hlt1():

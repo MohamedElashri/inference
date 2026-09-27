@@ -87,7 +87,10 @@ namespace Allen::CuDNN {
   public:
     Plan() = default;
     // Runs the plan on the handle's stream. pointers: device memory of the
-    // graph's bound tensors, in declaration order.
+    // graph's bound tensors, in declaration order. Any handle of the device
+    // works: each gets its own execution plan of the same engine on first use
+    // (build with the init() handle, execute with the stream's). A handle is
+    // used by one thread at a time, as cuDNN requires anyway.
     void execute(cudnnHandle_t handle, std::initializer_list<const void*> pointers, void* workspace) const;
     void execute(cudnnHandle_t handle, const std::vector<const void*>& pointers, void* workspace) const;
     size_t workspace_size() const;

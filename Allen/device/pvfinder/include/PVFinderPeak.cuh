@@ -14,6 +14,8 @@
 #include "AllenMonitoring.h"
 #include "PVFinderPeakFinding.cuh"
 
+#include <atomic>
+
 // Primary-vertex z seeds from the PVFinder KDE. The output has the layout of
 // pv_beamline_peak's, so the beamline PV track association and fit
 // (pv_beamline_calculate_denom, pv_beamline_multi_fitter, pv_beamline_cleanup)
@@ -80,7 +82,7 @@ namespace pvfinder_peak {
       "dump_validation",
       "",
       "if non-empty, dump the seeds of the first slice to this directory"};
-    mutable bool m_dump_done = false;
+    mutable std::atomic<bool> m_dump_done {false};
 
     Allen::Monitoring::AveragingCounter<> m_seeds {this, "n_seeds"};
     // Events with more peaks than PV::max_number_vertices (the highest in z dropped).

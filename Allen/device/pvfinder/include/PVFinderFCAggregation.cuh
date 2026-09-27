@@ -16,20 +16,17 @@
 #include "PVFinderConstants.cuh"
 #include "PVFinderModel.h"
 
+#include <atomic>
+
 namespace pvfinder_fc_aggregation {
 
-// N_LATENT_CHANNELS shares PVFinderUNet.cuh's PVFINDER_UNET_N_BATCH_CHANNELS
-// build macro (wired via ballen's --unet-batch-channels flag) rather than
-// getting its own -- both represent the exact same physical quantity (the
-// UNet's bottleneck/output channel count, which is also the number of
-// channels in the per-interval features FC aggregation reduces into), and
-// a build where the two disagreed would silently pair a UNet sized for one
-// architecture with FC aggregation sized for another. One flag keeps them
-// consistent by construction.
+  // The latent channels (FC outputs per bin, UNet input channels): the same
+  // build setting as pvfinder_unet's N_BATCH_CHANNELS, so the two always agree.
+  // Default: the default model's 4 (see CMakeLists.txt).
 #ifdef PVFINDER_UNET_N_BATCH_CHANNELS
   constexpr unsigned N_LATENT_CHANNELS = PVFINDER_UNET_N_BATCH_CHANNELS;
 #else
-  constexpr unsigned N_LATENT_CHANNELS = 8u;
+  constexpr unsigned N_LATENT_CHANNELS = 4u;
 #endif
   constexpr unsigned N_BINS_PER_CHANNEL = PVFinderConstants::KDE::n_bins_per_interval;
   constexpr unsigned N_INTERVALS = PVFinderConstants::KDE::n_intervals;
@@ -195,7 +192,7 @@ namespace pvfinder_fc_aggregation {
       "dump_validation",
       "",
       "if non-empty, dump the FC inputs and outputs of the first slice to this directory"};
-    mutable bool m_dump_done = false;
+    mutable std::atomic<bool> m_dump_done {false};
     void dump(const ArgumentReferences<Parameters>& arguments, const Allen::Context& context) const;
 
     // Set by init(): this instance's device weights (layers 1-6A, float32),

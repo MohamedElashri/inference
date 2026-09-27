@@ -62,7 +62,9 @@ are cached for the process by the graph's signature, so identical layers and
 algorithms share them. ``build()`` throws a ``StrException`` naming the graph
 when no allowed engine runs it; ``try_build()`` returns an invalid plan
 instead. ``execute()`` takes the device pointers of the bound tensors in the
-order they were declared. Its workspace must hold ``plan.workspace_size()``
+order they were declared, and runs on the stream of the handle it is given:
+cuDNN ties an execution plan to a handle, so each handle gets its own plan of
+the chosen engine on first use, and keeps the variant pack of its last call. Its workspace must hold ``plan.workspace_size()``
 bytes: request it as a ``DEVICE_OUTPUT`` argument sized in
 ``set_arguments_size``, so that it comes from Allen's memory manager.
 

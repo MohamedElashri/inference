@@ -43,6 +43,13 @@ namespace Allen::CuDNN {
 
     void finalize(const Handle& d) { ALLEN_CUDNN_CHECK(cudnnBackendFinalize(d.get())); }
 
+    void cuda_check(cudaError_t status, const char* what)
+    {
+      if (status != cudaSuccess) {
+        throw StrException(std::string("Allen::CuDNN: ") + what + ": " + cudaGetErrorString(status));
+      }
+    }
+
     cudnnDataType_t cudnn_type(DataType t)
     {
       switch (t) {
@@ -284,13 +291,55 @@ namespace Allen::CuDNN {
   // ---------------------------------------------------------------------------
   // Plans
   // ---------------------------------------------------------------------------
+  // A plan holds the engine configuration the build chose. cuDNN ties an
+  // execution plan to the handle it is finalized with, so each handle gets
+  // its own plan from that configuration (same engine, same numerics) on first
+  // use, and keeps the variant pack of its last call, rebuilt only when the
+  // pointers change. As for the handles themselves, one thread at a time uses
+  // a given handle (Allen: one per stream).
   struct Plan::Impl {
-    Handle plan;
+    struct PerHandle {
+      Handle plan;
+      Handle pack;
+      std::vector<void*> pointers; // of the pack: bound tensors, then scalars
+      void* workspace = nullptr;
+      std::vector<float> values; // the by-value scalars the pack points to
+    };
+
+    Handle config;
     size_t workspace = 0;
     std::string engine;
     std::vector<int64_t> bound;                     // uids, declaration order
     std::vector<std::pair<int64_t, float>> scalars; // by-value tensors
+
+    mutable std::mutex mutex;
+    mutable std::map<cudnnHandle_t, std::shared_ptr<PerHandle>> per_handle;
+
+    PerHandle& for_handle(cudnnHandle_t handle) const;
   };
+
+  namespace {
+    Handle make_plan(cudnnHandle_t handle, const Handle& config, size_t& workspace);
+  }
+
+  Plan::Impl::PerHandle& Plan::Impl::for_handle(cudnnHandle_t handle) const
+  {
+    std::lock_guard<std::mutex> lock {mutex};
+    auto& entry = per_handle[handle];
+    if (!entry) {
+      auto h = std::make_shared<PerHandle>();
+      size_t bytes = 0;
+      h->plan = make_plan(handle, config, bytes);
+      if (!h->plan || bytes > workspace) {
+        per_handle.erase(handle);
+        throw StrException("Allen::CuDNN::Plan: cannot finalize " + engine + " for another cuDNN handle");
+      }
+      for (const auto& scalar : scalars)
+        h->values.push_back(scalar.second);
+      entry = std::move(h);
+    }
+    return *entry;
+  }
 
   void Plan::execute(cudnnHandle_t handle, std::initializer_list<const void*> pointers, void* workspace) const
   {
@@ -305,25 +354,32 @@ namespace Allen::CuDNN {
         "Allen::CuDNN::Plan: " + std::to_string(pointers.size()) + " pointers for " +
         std::to_string(m_impl->bound.size()) + " bound tensors");
     }
-    std::vector<int64_t> uids = m_impl->bound;
-    std::vector<void*> ptrs;
-    for (const void* p : pointers)
-      ptrs.push_back(const_cast<void*>(p));
-    std::vector<float> values;
-    values.reserve(m_impl->scalars.size());
-    for (const auto& [uid, value] : m_impl->scalars) {
-      values.push_back(value);
-      uids.push_back(uid);
+    Impl::PerHandle& h = m_impl->for_handle(handle);
+    const bool same =
+      h.pack && h.workspace == workspace && std::equal(pointers.begin(), pointers.end(), h.pointers.begin());
+    if (!same) {
+      std::vector<int64_t> uids = m_impl->bound;
+      h.pointers.assign(pointers.size(), nullptr);
+      for (size_t i = 0; i < pointers.size(); ++i)
+        h.pointers[i] = const_cast<void*>(pointers[i]);
+      for (size_t i = 0; i < m_impl->scalars.size(); ++i) {
+        uids.push_back(m_impl->scalars[i].first);
+        h.pointers.push_back(&h.values[i]);
+      }
+      auto pack = make(CUDNN_BACKEND_VARIANT_PACK_DESCRIPTOR);
+      set(pack, CUDNN_ATTR_VARIANT_PACK_UNIQUE_IDS, CUDNN_TYPE_INT64, static_cast<int64_t>(uids.size()), uids.data());
+      set(
+        pack,
+        CUDNN_ATTR_VARIANT_PACK_DATA_POINTERS,
+        CUDNN_TYPE_VOID_PTR,
+        static_cast<int64_t>(h.pointers.size()),
+        h.pointers.data());
+      set(pack, CUDNN_ATTR_VARIANT_PACK_WORKSPACE, CUDNN_TYPE_VOID_PTR, 1, &workspace);
+      finalize(pack);
+      h.pack = std::move(pack);
+      h.workspace = workspace;
     }
-    for (auto& v : values)
-      ptrs.push_back(&v);
-    auto pack = make(CUDNN_BACKEND_VARIANT_PACK_DESCRIPTOR);
-    set(pack, CUDNN_ATTR_VARIANT_PACK_UNIQUE_IDS, CUDNN_TYPE_INT64, static_cast<int64_t>(uids.size()), uids.data());
-    set(
-      pack, CUDNN_ATTR_VARIANT_PACK_DATA_POINTERS, CUDNN_TYPE_VOID_PTR, static_cast<int64_t>(ptrs.size()), ptrs.data());
-    set(pack, CUDNN_ATTR_VARIANT_PACK_WORKSPACE, CUDNN_TYPE_VOID_PTR, 1, &workspace);
-    finalize(pack);
-    ALLEN_CUDNN_CHECK(cudnnBackendExecute(handle, m_impl->plan.get(), pack.get()));
+    ALLEN_CUDNN_CHECK(cudnnBackendExecute(handle, h.plan.get(), h.pack.get()));
   }
 
   size_t Plan::workspace_size() const { return m_impl ? m_impl->workspace : 0; }
@@ -629,25 +685,25 @@ namespace Allen::CuDNN {
         for (size_t i = 0; i < t.dims.size(); ++i)
           n += (t.dims[i] - 1) * t.strides[i];
         void* p = nullptr;
-        cudaMalloc(&p, n * element_size(t.type));
-        cudaMemsetAsync(p, 0, n * element_size(t.type), stream);
+        cuda_check(cudaMalloc(&p, n * element_size(t.type)), "cudaMalloc");
+        cuda_check(cudaMemsetAsync(p, 0, n * element_size(t.type), stream), "cudaMemsetAsync");
         buffers.push_back(p);
         pointers.push_back(p);
       }
       void* workspace = nullptr;
-      if (plan.workspace_size() > 0) cudaMalloc(&workspace, plan.workspace_size());
+      if (plan.workspace_size() > 0) cuda_check(cudaMalloc(&workspace, plan.workspace_size()), "cudaMalloc");
       cudaEvent_t start, stop;
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
+      cuda_check(cudaEventCreate(&start), "cudaEventCreate");
+      cuda_check(cudaEventCreate(&stop), "cudaEventCreate");
       std::vector<float> times;
       plan.execute(handle, pointers, workspace); // warm-up
       for (int i = 0; i < 10; ++i) {
-        cudaEventRecord(start, stream);
+        cuda_check(cudaEventRecord(start, stream), "cudaEventRecord");
         plan.execute(handle, pointers, workspace);
-        cudaEventRecord(stop, stream);
-        cudaEventSynchronize(stop);
+        cuda_check(cudaEventRecord(stop, stream), "cudaEventRecord");
+        cuda_check(cudaEventSynchronize(stop), "cudaEventSynchronize");
         float ms = 0.f;
-        cudaEventElapsedTime(&ms, start, stop);
+        cuda_check(cudaEventElapsedTime(&ms, start, stop), "cudaEventElapsedTime");
         times.push_back(ms);
       }
       cudaEventDestroy(start);
@@ -663,7 +719,7 @@ namespace Allen::CuDNN {
   Plan Graph::try_build(cudnnHandle_t handle, const BuildOptions& options) const
   {
     int device = 0;
-    cudaGetDevice(&device);
+    cuda_check(cudaGetDevice(&device), "cudaGetDevice");
     std::ostringstream key;
     key << "device" << device << ";" << signature() << ";opt" << options.max_candidates
         << options.allow_reduced_precision << options.allow_nondeterministic << options.allow_runtime_compilation
@@ -699,11 +755,16 @@ namespace Allen::CuDNN {
       Handle plan = make_plan(handle, config, workspace);
       if (!plan || workspace > options.max_workspace) continue;
       auto impl = std::make_shared<Plan::Impl>();
-      impl->plan = plan;
+      impl->config = config;
       impl->workspace = workspace;
       impl->engine = description + ", workspace " + std::to_string(workspace) + " B";
       impl->bound = m_impl->bound;
       impl->scalars = scalars;
+      auto first = std::make_shared<Plan::Impl::PerHandle>();
+      first->plan = plan;
+      for (const auto& scalar : scalars)
+        first->values.push_back(scalar.second);
+      impl->per_handle.emplace(handle, std::move(first));
       Plan candidate;
       candidate.m_impl = impl;
       ++candidates;

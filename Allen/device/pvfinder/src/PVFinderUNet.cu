@@ -17,9 +17,7 @@
 
 #include <cstring>
 #include <fstream>
-#include <mutex>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 INSTANTIATE_ALGORITHM(pvfinder_unet::pvfinder_unet_t)
@@ -103,10 +101,12 @@ namespace pvfinder_unet {
     int fused_grid = 0;
 
     // The UNet's output for an all-zero interval ([W_IN] floats, device),
-    // written to every interval without tracks. Computed once, by the
-    // configured path, on the first call.
+    // written to every interval without tracks. Computed in init(), by the
+    // configured path.
     float* empty_response = nullptr;
-    std::once_flag empty_response_flag;
+
+    // The stream init() runs its kernels on, kept with its cuDNN handle.
+    Allen::Context setup;
   };
 
   namespace {
@@ -194,8 +194,8 @@ namespace pvfinder_unet {
 
     // Fold BatchNorm into the CBR layers' weights and biases, on the device:
     // scale = gamma / sqrt(var + eps), w_f = scale w, b_f = scale (b - mean) + beta.
-    // A stream of its own for these one-off kernels.
-    Allen::Context setup;
+    // A stream of its own for init()'s kernels.
+    Allen::Context& setup = state->setup;
     setup.initialize(0);
     const float* bn[5][7] = {
       {wb.w_rcbn1_w, wb.w_rcbn1_b, wb.w_rcbn1_gamma, wb.w_rcbn1_beta, wb.w_rcbn1_mean, wb.w_rcbn1_var},
@@ -222,7 +222,6 @@ namespace pvfinder_unet {
         k_size);
     }
     Allen::synchronize(setup);
-    cudaCheck(cudaStreamDestroy(setup.stream()));
 
     if (m_bf16) {
       int device = 0, cc_major = 0, sm_count = 0, per_sm = 0;
@@ -343,6 +342,7 @@ namespace pvfinder_unet {
         state->workspace_bytes = std::max(state->workspace_bytes, p.workspace_size());
     }
     m_state = std::move(state);
+    compute_empty_response();
 #else
     throw StrException("pvfinder_unet needs a CUDA build with cuDNN (WITH_CUDNN=ON)");
 #endif
@@ -404,6 +404,61 @@ namespace pvfinder_unet {
     s.oint.forward(handle, up2, wb.w_oint_w, wb.w_oint_b, x1, workspace);
     s.outc.forward(handle, x1, wb.w_outc_w, wb.w_outc_b, kde, workspace);
   }
+
+  // The UNet's response to an all-zero interval, through the configured path
+  // and batch size, so intervals without tracks get bit for bit what running
+  // them would give. One batch of zero rows on init()'s stream; row 0 is kept.
+  void pvfinder_unet_t::compute_empty_response()
+  {
+    UNetState& state = *m_state;
+    const Allen::Context& setup = state.setup;
+    const int N = (int) m_unet_batch_events.value() * N_INTERVALS;
+    const size_t input_floats = (size_t) N * N_BATCH_CHANNELS * W_IN;
+    float* zeros = nullptr;
+    float* out = nullptr;
+    Allen::malloc((void**) &zeros, input_floats * sizeof(float));
+    Allen::malloc((void**) &out, (size_t) N * W_IN * sizeof(float));
+    Allen::memset_async(zeros, 0, input_floats * sizeof(float), setup);
+    std::vector<float*> buffers;
+    if (m_bf16) {
+      // All-zero bits are BF16 zeros too.
+      global_function(fused::fused_unet_bf16_kernel)(
+        dim3(std::min(state.fused_grid, (N + fused::WARPS - 1) / fused::WARPS)),
+        dim3(fused::THREADS),
+        setup,
+        fused::SMEM_BYTES)(
+        reinterpret_cast<const __nv_bfloat16*>(zeros),
+        state.fused_blob,
+        out,
+        KDE_SCALE,
+        N,
+        nullptr,
+        nullptr,
+        nullptr,
+        0);
+    }
+    else {
+      // Scratch as in operator(): x1, x2, x3, up1, up2, workspace.
+      const size_t sizes[6] = {
+        (size_t) N * N_FEAT * W_IN,
+        (size_t) N * N_FEAT * W_HALF,
+        (size_t) N * N_FEAT * W_IN,
+        (size_t) N * N_FEAT * W_HALF,
+        (size_t) N * N_FEAT * W_IN,
+        (state.workspace_bytes + 3) / 4};
+      float* scratch[6];
+      for (int i = 0; i < 6; ++i) {
+        Allen::malloc((void**) &scratch[i], std::max<size_t>(sizes[i], 1) * sizeof(float));
+        buffers.push_back(scratch[i]);
+      }
+      run_fp32_batch(zeros, out, scratch, Allen::CuDNN::handle(setup.stream()));
+    }
+    Allen::synchronize(setup);
+    Allen::free(zeros);
+    for (float* b : buffers)
+      Allen::free(b);
+    state.empty_response = out; // row 0; kept for the process lifetime, like the weights
+  }
 #endif
 
   void pvfinder_unet_t::operator()(
@@ -413,7 +468,7 @@ namespace pvfinder_unet {
     const Allen::Context& context) const
   {
 #ifdef ALLEN_WITH_CUDNN
-    UNetState& state = *m_state;
+    const UNetState& state = *m_state;
     const unsigned n_events = first<host_number_of_events_t>(arguments);
     const unsigned* unet_rows = data<host_pvfinder_unet_rows_t>(arguments);
     if ((unet_rows[2] == 1u) != m_bf16) {
@@ -439,40 +494,6 @@ namespace pvfinder_unet {
       data<dev_unet_up1_t>(arguments),
       data<dev_unet_up2_t>(arguments),
       data<dev_unet_workspace_t>(arguments)};
-
-    // The UNet's response to an all-zero interval, through the configured
-    // path, so intervals without tracks get bit for bit what running them
-    // would give. Once per instance; other threads wait until it is there.
-    std::call_once(state.empty_response_flag, [&]() {
-      float* zeros = nullptr;
-      float* out = nullptr;
-      Allen::malloc((void**) &zeros, (size_t) N * N_BATCH_CHANNELS * W_IN * sizeof(float));
-      Allen::malloc((void**) &out, (size_t) N * W_IN * sizeof(float));
-      Allen::memset_async(zeros, 0, (size_t) N * N_BATCH_CHANNELS * W_IN * sizeof(float), context);
-      if (m_bf16) {
-        // All-zero bits are BF16 zeros too.
-        global_function(fused::fused_unet_bf16_kernel)(
-          dim3(std::min(state.fused_grid, (N + fused::WARPS - 1) / fused::WARPS)),
-          dim3(fused::THREADS),
-          context,
-          fused::SMEM_BYTES)(
-          reinterpret_cast<const __nv_bfloat16*>(zeros),
-          state.fused_blob,
-          out,
-          KDE_SCALE,
-          N,
-          nullptr,
-          nullptr,
-          nullptr,
-          0);
-      }
-      else {
-        run_fp32_batch(zeros, out, scratch, handle);
-      }
-      Allen::synchronize(context);
-      Allen::free(zeros);
-      state.empty_response = out; // row 0; kept for the process lifetime, like the weights
-    });
 
     if (m_bf16) {
       // Every row in one launch, each row's KDE straight to its (event,
@@ -510,9 +531,10 @@ namespace pvfinder_unet {
       }
     }
 
-    if (!m_dump_dir.value().empty() && !m_dump_done) {
+    // One thread dumps (the first to get here); run single-stream (-t 1) to
+    // dump the same slice as the other PVFinder algorithms.
+    if (!m_dump_dir.value().empty() && !m_dump_done.exchange(true)) {
       dump(arguments, context);
-      m_dump_done = true;
     }
 #else
     // Not reached: init() refuses to run without cuDNN.
