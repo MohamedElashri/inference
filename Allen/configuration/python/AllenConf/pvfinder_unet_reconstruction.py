@@ -21,24 +21,20 @@ from AllenConf.utils import initialize_number_of_events
 @configurable
 def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
     """
-    Wire PVFinderUNet directly downstream of the FC aggregation.
-    The interval_features buffer [n_events, 40, 8, 100] has the same memory
-    layout as the NCW tensor [N=n_events*40, C=8, W=100] so the copy step
-    (pvfinder_ncw_layout) is eliminated — saving ~122 MB per slice.
+    The UNet, downstream of the FC aggregation: its rows (one per interval with
+    tracks) to the KDE.
 
     Parameters
     ----------
     fc_output : dict
-        Return value of make_pvfinder_fc(), must contain:
-          - "dev_pvfinder_interval_features"
-          - "host_pvfinder_unet_rows", "dev_pvfinder_slot_row" (row layout of
-            the features; compact when pvfinder_fc_aggregation.skip_empty_intervals)
-          - "host_number_of_events"
+        Return value of make_pvfinder_fc(): the rows and their layout, the
+        number of events, and the precision and batch size, which the UNet
+        takes from it so the two algorithms always agree.
     weight_file : str, optional
         Path to cnn_weights.bin. Defaults to $PVFINDER_WEIGHTS_DIR/cnn_weights.bin,
         produced by the repository's weights/ pipeline (see pvfinder_weight_file).
     dump_validation : str
-        Directory for weights/scripts/validate_unet.py dumps, "" = off.
+        Directory for the validation dumps, "" = off.
 
     Returns
     -------
@@ -50,7 +46,6 @@ def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
         weight_file = pvfinder_weight_file("cnn_weights.bin")
     host_number_of_events = fc_output["host_number_of_events"]
 
-    # Direct UNet forward pass — no NCW copy step needed
     pvfinder_unet = make_algorithm(
         pvfinder_unet_t,
         name="pvfinder_unet",
@@ -60,6 +55,8 @@ def make_pvfinder_unet(fc_output, weight_file=None, dump_validation=""):
         dev_pvfinder_slot_row_t=fc_output["dev_pvfinder_slot_row"],
         dev_pvfinder_row_slot_t=fc_output["dev_pvfinder_row_slot"],
         weight_file=weight_file,
+        precision=fc_output["precision"],
+        unet_batch_events=fc_output["unet_batch_events"],
         dump_validation=dump_validation,
     )
 

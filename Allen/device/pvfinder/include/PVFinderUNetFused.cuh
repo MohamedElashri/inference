@@ -35,7 +35,7 @@
 #include <cuda_bf16.h>
 #include <cstring>
 #include <vector>
-#include "PVFinderUNetLowPrecision.cuh"
+#include "PVFinderUNetOutputStage.cuh"
 
 namespace pvfinder_unet {
 namespace fused {

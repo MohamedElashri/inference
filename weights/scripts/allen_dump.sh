@@ -8,7 +8,7 @@
 # validate_fc.py and validate_unet.py.
 #
 # --set ALG.PROPERTY=VALUE (repeatable) overrides one algorithm property in the
-# generated configuration, e.g. --set pvfinder_unet.use_bf16=true; VALUE is
+# generated configuration, e.g. --set pvfinder_unet.precision=bfloat16; VALUE is
 # read as JSON when it parses, as a string otherwise.
 #
 # Usage:

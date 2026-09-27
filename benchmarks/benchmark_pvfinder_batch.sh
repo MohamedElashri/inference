@@ -2,8 +2,8 @@
 # Reproducible PVFinder benchmark batch runner.
 #
 # This wraps Allen benchmark runs with provenance capture, repeated measurements,
-# per-run logs/configs, optional nsys profiling, and an explicit pvfinder_unet
-# use_fp16 configuration toggle.
+# per-run logs/configs, optional nsys profiling, and the PVFinder precision
+# (--use-bf16).
 #
 # Every batch, including failed and interrupted ones, leaves a JSON run record
 # in results/runs/ (tracked in git; see results/README.md and
@@ -31,119 +31,13 @@ Options:
                              (default: unet16_lc4_scnone_asym5_final; see make -C weights list)
   --cnn-weights PATH         Override pvfinder_unet weight_file (default: from --model)
   --fc-weights PATH          Override pvfinder_fc_aggregation weight_file (default: from --model)
-  --use-fp16 BOOL            Set pvfinder_unet.use_fp16 true/false (default: false)
-  --use-bf16 BOOL            Set pvfinder_unet.use_bf16 true/false (default: false)
-                             eager path only, takes precedence over use_fp16
-  --use-cuda-graph BOOL      Set pvfinder_unet.use_cuda_graph true/false (default: false)
-                             FP32 or FP16; ignored when use_bf16=true
-  --use-fused-cbr BOOL       Set pvfinder_unet.use_fused_cbr true/false (default: false)
-                             rcbn1 only, FP32 only; falls back automatically if
-                             unsupported on the GPU
-  --fwd-algo-ws-budget-mb N  Set pvfinder_unet.fwd_algo_ws_budget_bytes = N*1024*1024
-                             (default: 0 = pinned IMPLICIT_GEMM, no search)
-  --use-fused-rcbn3 BOOL     Set pvfinder_unet.use_fused_rcbn3 true/false (default: false)
-  --use-fused-bias-relu-pool BOOL
-                             Set pvfinder_unet.use_fused_bias_relu_pool true/false
-                             (default: false); fuses each bias+ReLU epilogue into
-                             the max-pool that consumes it, eager FP32 path only
-  --use-merged-up1 BOOL     Set pvfinder_unet.use_merged_up1 true/false
-                             (default: false); eager FP32 path only; the tuned
-                             cuDNN sequence is faster
-  --l6a-m N                  Override pvfinder_fc_aggregation.l6a_m GEMM row count
-                             (default: unset -- leaves Allen's own build-derived
-                             default, L6A_WIDTH, in effect; that's 800 for the
-                             standard 8-channel build, and scales with
-                             --unet-batch-channels for others. Any value other
-                             than that build's real L6A_WIDTH is throughput-only
-                             tile-alignment testing, not physics-valid -- passing
-                             a value for the wrong build's L6A_WIDTH, e.g. 800
-                             against a --unet-batch-channels 4 build, is an
-                             invalid cuBLAS call, not just non-physical)
-  --use-nonatomic-l6a-reduce BOOL
-                             Set pvfinder_fc_aggregation.use_nonatomic_l6a_reduce
-                             true/false (default: false)
-  --use-warp-parallel-reduce BOOL
-                             Set pvfinder_fc_aggregation.use_warp_parallel_reduce
-                             true/false (default: true)
+  --use-bf16 BOOL            precision = bfloat16 for pvfinder_fc_aggregation and
+                             pvfinder_unet (default: false, i.e. float32)
   --unet-batch-events N      Set pvfinder_unet.unet_batch_events and
                              pvfinder_fc_aggregation.unet_batch_events together
-                             (default: 20); events per cuDNN batch, set equal
-                             to -n to run the whole slice in one pass
-  --fc-chunk-size N          Set pvfinder_fc_aggregation.fc_chunk_size
-                             (default: 130)
-  --use-fused-bias-relu-reduce BOOL
-                             Set pvfinder_fc_aggregation.use_fused_bias_relu_reduce
-                             true/false (default: true)
-  --skip-redundant-memset BOOL
-                             Set pvfinder_fc_aggregation.skip_redundant_memset
-                             true/false (default: true)
-  --use-grid-stride-reduce BOOL
-                             Set pvfinder_fc_aggregation.use_grid_stride_reduce
-                             true/false (default: true); requires
-                             --use-warp-parallel-reduce and
-                             --use-fused-bias-relu-reduce true
-  --fc-single-hidden-layer BOOL
-                             Set pvfinder_fc_aggregation.fc_single_hidden_layer
-                             true/false (default: false); throughput-ceiling
-                             probe -- skips L1-L5's layers 2-5 (NOT physics-valid
-                             when true)
-  --l1-l5-hidden-width N     Set pvfinder_fc_aggregation.l1_l5_hidden_width
-                             (default: 20, physics-valid); throughput-ceiling probe --
-                             uses only the first N of L1-L5's 20 real neurons per layer
-                             and shrinks L6A's GEMM K accordingly (NOT physics-valid
-                             when < 20)
-  --l6a-active-channels N    Set pvfinder_fc_aggregation.l6a_active_channels
-                             (default: unset -- leaves Allen's own build-derived
-                             default, N_LATENT_CHANNELS, in effect; that's 8 for
-                             the standard build, and scales with
-                             --unet-batch-channels for others); throughput-ceiling
-                             probe -- bounds L6A's zero-init/channel-reduction/
-                             write-back to N of this build's real N_LATENT_CHANNELS
-                             channels (NOT physics-valid when < N_LATENT_CHANNELS);
-                             set to l6a-m/100 for a consistent narrower-L6A
-                             simulation
-  --use-precomputed-csr-offset BOOL
-                             Set pvfinder_fc_aggregation.use_precomputed_csr_offset
-                             true/false (default: true)
-  --safe-avg-entries-per-event N
-                             Set pvfinder_fc_aggregation.safe_avg_entries_per_event
-                             (default: 450); CAUTION -- lowering this reclaims
-                             T_chunk_max headroom for a larger fc_chunk_size at
-                             real crash risk if set too low
-  --l6a-dtype DTYPE          Set pvfinder_fc_aggregation.l6a_dtype: auto (default:
-                             tensor cores in the fused FC when the UNet input is
-                             bfloat16), float32 or bfloat16
-  --fc-fused-per-warp BOOL   Set pvfinder_fc_aggregation.fc_fused_per_warp
-                             (default: true); one warp per slot in the fused FC
-  --fc-hidden-dtype DTYPE    Set pvfinder_fc_aggregation.fc_hidden_dtype: auto
-                             (default: tensor cores for FC layers 2-5 when L6A
-                             is on them), float32 or bfloat16
+                             (default: 20); float32 cuDNN batch size in events
   --fc-grid-fraction F       Set pvfinder_fc_aggregation.fused_grid_fraction (default 0.125)
   --unet-grid-fraction F     Set pvfinder_unet.fused_grid_fraction (default 0.25)
-  --canonical-track-order BOOL
-                             Set pvfinder_fc_aggregation.canonical_track_order
-                             (default: true); reproducible sums over tracks
-  --fc-fused BOOL            Set pvfinder_fc_aggregation.fc_fused true/false
-                             (default: true); the whole FC stage in one kernel
-  --skip-empty-intervals BOOL
-                             Set pvfinder_fc_aggregation.skip_empty_intervals
-                             true/false (default: true); the UNet then runs
-                             only on intervals with tracks (exact)
-  --unet-fused-kernel BOOL   Set pvfinder_unet.fused_kernel (default: true); the
-                             channels-last BF16 UNet as one tensor-core kernel
-                             (only used on that path, cuDNN otherwise)
-  --bf16-layout LAYOUT       Set pvfinder_unet.bf16_layout: nwc (default; channels
-                             last, cuDNN graph-API fused convolutions) or ncw;
-                             only used with --use-bf16 true
-  --unet-input-layout L      Set pvfinder_fc_aggregation.unet_input_layout: ncw,
-                             nwc, or auto (default: nwc when the UNet input is
-                             bfloat16 and --bf16-layout nwc, ncw otherwise)
-  --unet-input-dtype TYPE    Set pvfinder_fc_aggregation.unet_input_dtype:
-                             float32, bfloat16, or auto (default: bfloat16
-                             when --use-bf16 true, float32 otherwise)
-  --min-interval-tracks N    Set pvfinder_fc_aggregation.min_interval_tracks
-                             (default: 1); with --skip-empty-intervals, also
-                             skip intervals with fewer tracks (NOT exact when > 1)
   --profile                  Run each sequence under nsys; the record gets
                              the per-sequence kernel summary
   --result-root DIR          Directory for batches (default: benchmark_results)
@@ -154,7 +48,7 @@ Example:
   benchmarks/benchmark_pvfinder_batch.sh \
     --label reference_A_fp32_head_d1874d8 \
     -B buildgpu16chL4gpu --model unet16_lc4_scnone_asym5_final \
-    -d 2 -t 16 -n 100 -m 300 -r 500 --repeats 3 --use-fp16 false
+    -d 2 -t 16 -n 500 -m 500 -r 1000 --repeats 3 --use-bf16 true
 USAGE
 }
 
@@ -175,40 +69,10 @@ REPEATS=3
 MODEL=unet16_lc4_scnone_asym5_final
 CNN_WEIGHTS_OVERRIDE=""
 FC_WEIGHTS_OVERRIDE=""
-USE_FP16=false
 USE_BF16=false
-USE_CUDA_GRAPH=false
-USE_FUSED_CBR=false
-FWD_ALGO_WS_BUDGET_MB=0
-USE_FUSED_RCBN3=false
-USE_FUSED_BIAS_RELU_POOL=""
-USE_MERGED_UP1=false
-L6A_M=""    # unset default: leaves Allen's own build-derived L6A_WIDTH in effect
-USE_NONATOMIC_L6A_REDUCE=false
-USE_WARP_PARALLEL_REDUCE=true
-FC_CHUNK_SIZE=130
 UNET_BATCH_EVENTS=20
-USE_FUSED_BIAS_RELU_REDUCE=true
-SKIP_REDUNDANT_MEMSET=true
-USE_GRID_STRIDE_REDUCE=true
-FC_SINGLE_HIDDEN_LAYER=false
-L1_L5_HIDDEN_WIDTH=20
-L6A_ACTIVE_CHANNELS=""    # unset default: leaves Allen's own build-derived N_LATENT_CHANNELS in effect
-USE_PRECOMPUTED_CSR_OFFSET=true
-SAFE_AVG_ENTRIES_PER_EVENT=450
-SKIP_EMPTY_INTERVALS=true
-FC_FUSED=true
-CANONICAL_TRACK_ORDER=true
-FC_FUSED_PER_WARP=true
 FC_GRID_FRACTION=0.125
 UNET_GRID_FRACTION=0.25
-FC_HIDDEN_DTYPE=auto
-L6A_DTYPE=auto
-UNET_INPUT_DTYPE=auto
-BF16_LAYOUT=nwc
-UNET_FUSED_KERNEL=true
-UNET_INPUT_LAYOUT=auto
-MIN_INTERVAL_TRACKS=1
 PROFILE=0
 RESULT_ROOT="${REPO_ROOT}/benchmark_results"
 RECORD=1
@@ -226,40 +90,18 @@ while [[ $# -gt 0 ]]; do
         --model) MODEL="$2"; shift 2 ;;
         --cnn-weights) CNN_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
         --fc-weights) FC_WEIGHTS_OVERRIDE="$2"; shift 2 ;;
-        --use-fp16) USE_FP16="$2"; shift 2 ;;
         --use-bf16) USE_BF16="$2"; shift 2 ;;
-        --use-cuda-graph) USE_CUDA_GRAPH="$2"; shift 2 ;;
-        --use-fused-cbr) USE_FUSED_CBR="$2"; shift 2 ;;
-        --fwd-algo-ws-budget-mb) FWD_ALGO_WS_BUDGET_MB="$2"; shift 2 ;;
-        --use-fused-rcbn3) USE_FUSED_RCBN3="$2"; shift 2 ;;
-        --use-fused-bias-relu-pool) USE_FUSED_BIAS_RELU_POOL="$2"; shift 2 ;;
-        --use-merged-up1) USE_MERGED_UP1="$2"; shift 2 ;;
-        --l6a-m) L6A_M="$2"; shift 2 ;;
-        --use-nonatomic-l6a-reduce) USE_NONATOMIC_L6A_REDUCE="$2"; shift 2 ;;
-        --use-warp-parallel-reduce) USE_WARP_PARALLEL_REDUCE="$2"; shift 2 ;;
-        --fc-chunk-size) FC_CHUNK_SIZE="$2"; shift 2 ;;
         --unet-batch-events) UNET_BATCH_EVENTS="$2"; shift 2 ;;
-        --use-fused-bias-relu-reduce) USE_FUSED_BIAS_RELU_REDUCE="$2"; shift 2 ;;
-        --skip-redundant-memset) SKIP_REDUNDANT_MEMSET="$2"; shift 2 ;;
-        --use-grid-stride-reduce) USE_GRID_STRIDE_REDUCE="$2"; shift 2 ;;
-        --fc-single-hidden-layer) FC_SINGLE_HIDDEN_LAYER="$2"; shift 2 ;;
-        --l1-l5-hidden-width) L1_L5_HIDDEN_WIDTH="$2"; shift 2 ;;
-        --l6a-active-channels) L6A_ACTIVE_CHANNELS="$2"; shift 2 ;;
-        --use-precomputed-csr-offset) USE_PRECOMPUTED_CSR_OFFSET="$2"; shift 2 ;;
-        --safe-avg-entries-per-event) SAFE_AVG_ENTRIES_PER_EVENT="$2"; shift 2 ;;
-        --skip-empty-intervals) SKIP_EMPTY_INTERVALS="$2"; shift 2 ;;
-        --fc-fused) FC_FUSED="$2"; shift 2 ;;
-        --canonical-track-order) CANONICAL_TRACK_ORDER="$2"; shift 2 ;;
-        --fc-fused-per-warp) FC_FUSED_PER_WARP="$2"; shift 2 ;;
         --fc-grid-fraction) FC_GRID_FRACTION="$2"; shift 2 ;;
         --unet-grid-fraction) UNET_GRID_FRACTION="$2"; shift 2 ;;
-        --fc-hidden-dtype) FC_HIDDEN_DTYPE="$2"; shift 2 ;;
-        --l6a-dtype) L6A_DTYPE="$2"; shift 2 ;;
-        --min-interval-tracks) MIN_INTERVAL_TRACKS="$2"; shift 2 ;;
-        --unet-input-dtype) UNET_INPUT_DTYPE="$2"; shift 2 ;;
-        --bf16-layout) BF16_LAYOUT="$2"; shift 2 ;;
-        --unet-fused-kernel) UNET_FUSED_KERNEL="$2"; shift 2 ;;
-        --unet-input-layout) UNET_INPUT_LAYOUT="$2"; shift 2 ;;
+        --use-fp16|--use-cuda-graph|--use-fused-cbr|--fwd-algo-ws-budget-mb|--use-fused-rcbn3|\
+        --use-fused-bias-relu-pool|--use-merged-up1|--l6a-m|--use-nonatomic-l6a-reduce|\
+        --use-warp-parallel-reduce|--fc-chunk-size|--use-fused-bias-relu-reduce|--skip-redundant-memset|\
+        --use-grid-stride-reduce|--fc-single-hidden-layer|--l1-l5-hidden-width|--l6a-active-channels|\
+        --use-precomputed-csr-offset|--safe-avg-entries-per-event|--skip-empty-intervals|--fc-fused|\
+        --canonical-track-order|--fc-fused-per-warp|--fc-hidden-dtype|--l6a-dtype|--min-interval-tracks|\
+        --unet-input-dtype|--bf16-layout|--unet-fused-kernel|--unet-input-layout)
+            echo "ERROR: $1 was removed with the experimental PVFinder paths (2026-09-27)" >&2; exit 1 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --no-record) RECORD=0; shift 1 ;;
@@ -274,168 +116,14 @@ if [[ -z "${LABEL}" ]]; then
     exit 1
 fi
 
-case "${USE_FP16}" in
-    true|false) ;;
-    *) echo "ERROR: --use-fp16 must be true or false" >&2; exit 1 ;;
-esac
-
 case "${USE_BF16}" in
-    true|false) ;;
+    true) PRECISION=bfloat16 ;;
+    false) PRECISION=float32 ;;
     *) echo "ERROR: --use-bf16 must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_CUDA_GRAPH}" in
-    true|false) ;;
-    *) echo "ERROR: --use-cuda-graph must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_FUSED_CBR}" in
-    true|false) ;;
-    *) echo "ERROR: --use-fused-cbr must be true or false" >&2; exit 1 ;;
-esac
-
-if ! [[ "${FWD_ALGO_WS_BUDGET_MB}" =~ ^[0-9]+$ ]]; then
-    echo "ERROR: --fwd-algo-ws-budget-mb must be a non-negative integer" >&2
-    exit 1
-fi
-
-case "${USE_FUSED_BIAS_RELU_POOL}" in
-    true|false|"") ;;
-    *) echo "ERROR: --use-fused-bias-relu-pool must be true or false" >&2; exit 1 ;;
-esac
-case "${USE_FUSED_RCBN3}" in
-    true|false) ;;
-    *) echo "ERROR: --use-fused-rcbn3 must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_MERGED_UP1}" in
-    true|false) ;;
-    *) echo "ERROR: --use-merged-up1 must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_NONATOMIC_L6A_REDUCE}" in
-    true|false) ;;
-    *) echo "ERROR: --use-nonatomic-l6a-reduce must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_WARP_PARALLEL_REDUCE}" in
-    true|false) ;;
-    *) echo "ERROR: --use-warp-parallel-reduce must be true or false" >&2; exit 1 ;;
 esac
 
 if ! [[ "${UNET_BATCH_EVENTS}" =~ ^[0-9]+$ ]] || [[ "${UNET_BATCH_EVENTS}" -lt 1 ]]; then
     echo "ERROR: --unet-batch-events must be a positive integer" >&2
-    exit 1
-fi
-if ! [[ "${FC_CHUNK_SIZE}" =~ ^[0-9]+$ ]] || [[ "${FC_CHUNK_SIZE}" -lt 1 ]]; then
-    echo "ERROR: --fc-chunk-size must be a positive integer" >&2
-    exit 1
-fi
-
-case "${USE_FUSED_BIAS_RELU_REDUCE}" in
-    true|false) ;;
-    *) echo "ERROR: --use-fused-bias-relu-reduce must be true or false" >&2; exit 1 ;;
-esac
-
-case "${SKIP_REDUNDANT_MEMSET}" in
-    true|false) ;;
-    *) echo "ERROR: --skip-redundant-memset must be true or false" >&2; exit 1 ;;
-esac
-
-case "${USE_GRID_STRIDE_REDUCE}" in
-    true|false) ;;
-    *) echo "ERROR: --use-grid-stride-reduce must be true or false" >&2; exit 1 ;;
-esac
-
-case "${FC_SINGLE_HIDDEN_LAYER}" in
-    true|false) ;;
-    *) echo "ERROR: --fc-single-hidden-layer must be true or false" >&2; exit 1 ;;
-esac
-
-if ! [[ "${L1_L5_HIDDEN_WIDTH}" =~ ^[0-9]+$ ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -lt 1 ]] || [[ "${L1_L5_HIDDEN_WIDTH}" -gt 20 ]]; then
-    echo "ERROR: --l1-l5-hidden-width must be an integer in [1, 20] (20 = physics-valid default)" >&2
-    exit 1
-fi
-
-if [[ -n "${L6A_ACTIVE_CHANNELS}" ]] && { ! [[ "${L6A_ACTIVE_CHANNELS}" =~ ^[0-9]+$ ]] || [[ "${L6A_ACTIVE_CHANNELS}" -lt 1 ]]; }; then
-    echo "ERROR: --l6a-active-channels must be a positive integer (leave unset for this build's own physics-valid N_LATENT_CHANNELS default -- the upper bound is build-dependent, see --unet-batch-channels)" >&2
-    exit 1
-fi
-
-case "${USE_PRECOMPUTED_CSR_OFFSET}" in
-    true|false) ;;
-    *) echo "ERROR: --use-precomputed-csr-offset must be true or false" >&2; exit 1 ;;
-esac
-
-if ! [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" =~ ^[0-9]+$ ]] || [[ "${SAFE_AVG_ENTRIES_PER_EVENT}" -lt 1 ]]; then
-    echo "ERROR: --safe-avg-entries-per-event must be a positive integer" >&2
-    exit 1
-fi
-
-case "${UNET_FUSED_KERNEL}" in
-    true|false) ;;
-    *) echo "ERROR: --unet-fused-kernel must be true or false" >&2; exit 1 ;;
-esac
-
-case "${BF16_LAYOUT}" in
-    ncw|nwc) ;;
-    *) echo "ERROR: --bf16-layout must be ncw or nwc" >&2; exit 1 ;;
-esac
-
-case "${UNET_INPUT_DTYPE}" in
-    auto) [[ "${USE_BF16}" == true ]] && UNET_INPUT_DTYPE=bfloat16 || UNET_INPUT_DTYPE=float32 ;;
-    float32|bfloat16) ;;
-    *) echo "ERROR: --unet-input-dtype must be float32, bfloat16 or auto" >&2; exit 1 ;;
-esac
-if [[ "${UNET_INPUT_DTYPE}" == bfloat16 && "${USE_BF16}" != true ]]; then
-    echo "ERROR: --unet-input-dtype bfloat16 needs --use-bf16 true" >&2
-    exit 1
-fi
-case "${UNET_INPUT_LAYOUT}" in
-    auto) [[ "${UNET_INPUT_DTYPE}" == bfloat16 && "${BF16_LAYOUT}" == nwc ]] && UNET_INPUT_LAYOUT=nwc || UNET_INPUT_LAYOUT=ncw ;;
-    ncw) ;;
-    nwc) [[ "${UNET_INPUT_DTYPE}" == bfloat16 && "${BF16_LAYOUT}" == nwc ]] || {
-             echo "ERROR: --unet-input-layout nwc needs bfloat16 input and --bf16-layout nwc" >&2; exit 1; } ;;
-    *) echo "ERROR: --unet-input-layout must be ncw, nwc or auto" >&2; exit 1 ;;
-esac
-
-case "${L6A_DTYPE}" in
-    auto|float32|bfloat16) ;;
-    *) echo "ERROR: --l6a-dtype must be auto, float32 or bfloat16" >&2; exit 1 ;;
-esac
-
-case "${FC_HIDDEN_DTYPE}" in
-    auto|float32|bfloat16) ;;
-    *) echo "ERROR: --fc-hidden-dtype must be auto, float32 or bfloat16" >&2; exit 1 ;;
-esac
-
-case "${FC_FUSED_PER_WARP}" in
-    true|false) ;;
-    *) echo "ERROR: --fc-fused-per-warp must be true or false" >&2; exit 1 ;;
-esac
-
-case "${CANONICAL_TRACK_ORDER}" in
-    true|false) ;;
-    *) echo "ERROR: --canonical-track-order must be true or false" >&2; exit 1 ;;
-esac
-
-case "${FC_FUSED}" in
-    true|false) ;;
-    *) echo "ERROR: --fc-fused must be true or false" >&2; exit 1 ;;
-esac
-
-case "${SKIP_EMPTY_INTERVALS}" in
-    true|false) ;;
-    *) echo "ERROR: --skip-empty-intervals must be true or false" >&2; exit 1 ;;
-esac
-
-if ! [[ "${MIN_INTERVAL_TRACKS}" =~ ^[0-9]+$ ]] || [[ "${MIN_INTERVAL_TRACKS}" -lt 1 ]]; then
-    echo "ERROR: --min-interval-tracks must be a positive integer" >&2
-    exit 1
-fi
-
-if [[ -n "${L6A_M}" ]] && { ! [[ "${L6A_M}" =~ ^[0-9]+$ ]] || [[ "${L6A_M}" -lt 1 ]]; }; then
-    echo "ERROR: --l6a-m must be a positive integer (leave unset for this build's own physics-valid L6A_WIDTH default -- the upper bound is build-dependent, see --unet-batch-channels)" >&2
     exit 1
 fi
 
@@ -548,38 +236,18 @@ write_command() {
 
 patch_unet_config() {
     local config="$1"
-    python3 - "$config" "$CNN_WEIGHTS_ABS" "$USE_FP16" "$USE_CUDA_GRAPH" "$USE_FUSED_CBR" "$FWD_ALGO_WS_BUDGET_MB" "$USE_FUSED_RCBN3" "$USE_BF16" "$USE_MERGED_UP1" "$USE_FUSED_BIAS_RELU_POOL" "$UNET_BATCH_EVENTS" "$BF16_LAYOUT" "$UNET_FUSED_KERNEL" "$UNET_GRID_FRACTION" <<'PY'
+    python3 - "$config" "$CNN_WEIGHTS_ABS" "$PRECISION" "$UNET_BATCH_EVENTS" "$UNET_GRID_FRACTION" <<'PY'
 import json
 import sys
 
-path, weights, use_fp16_raw, use_cuda_graph_raw, use_fused_cbr_raw, fwd_ws_budget_mb_raw, use_fused_rcbn3_raw, use_bf16_raw, use_merged_up1_raw, use_fused_brp_raw, unet_batch_events_raw, bf16_layout, unet_fused_kernel_raw, unet_grid_fraction = sys.argv[1:]
-use_fp16 = use_fp16_raw == "true"
-use_bf16 = use_bf16_raw == "true"
-use_merged_up1 = use_merged_up1_raw == "true"
-use_cuda_graph = use_cuda_graph_raw == "true"
-use_fused_cbr = use_fused_cbr_raw == "true"
-fwd_ws_budget_bytes = int(fwd_ws_budget_mb_raw) * 1024 * 1024
-use_fused_rcbn3 = use_fused_rcbn3_raw == "true"
-
+path, weights, precision, unet_batch_events, unet_grid_fraction = sys.argv[1:]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
-
-pvfinder_unet = data.setdefault("pvfinder_unet", {})
-pvfinder_unet["weight_file"] = weights
-pvfinder_unet["use_fp16"] = use_fp16
-pvfinder_unet["use_bf16"] = use_bf16
-pvfinder_unet["use_merged_up1"] = use_merged_up1
-pvfinder_unet["use_cuda_graph"] = use_cuda_graph
-pvfinder_unet["use_fused_cbr"] = use_fused_cbr
-pvfinder_unet["fwd_algo_ws_budget_bytes"] = fwd_ws_budget_bytes
-pvfinder_unet["use_fused_rcbn3"] = use_fused_rcbn3
-if use_fused_brp_raw:            # only touch builds that have the property
-    pvfinder_unet["use_fused_bias_relu_pool"] = use_fused_brp_raw == "true"
-pvfinder_unet["unet_batch_events"] = int(unet_batch_events_raw)
-pvfinder_unet["bf16_layout"] = bf16_layout
-pvfinder_unet["fused_kernel"] = unet_fused_kernel_raw == "true"
-pvfinder_unet["fused_grid_fraction"] = float(unet_grid_fraction)
-
+unet = data.setdefault("pvfinder_unet", {})
+unet["weight_file"] = weights
+unet["precision"] = precision
+unet["unet_batch_events"] = int(unet_batch_events)
+unet["fused_grid_fraction"] = float(unet_grid_fraction)
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
     handle.write("\n")
@@ -588,59 +256,18 @@ PY
 
 patch_fc_config() {
     local config="$1"
-    python3 - "$config" "$L6A_M" "$USE_NONATOMIC_L6A_REDUCE" \
-        "$USE_WARP_PARALLEL_REDUCE" "$FC_CHUNK_SIZE" \
-        "$USE_FUSED_BIAS_RELU_REDUCE" "$SKIP_REDUNDANT_MEMSET" \
-        "$USE_GRID_STRIDE_REDUCE" "$FC_SINGLE_HIDDEN_LAYER" \
-        "$USE_PRECOMPUTED_CSR_OFFSET" "$SAFE_AVG_ENTRIES_PER_EVENT" \
-        "$L1_L5_HIDDEN_WIDTH" "$L6A_ACTIVE_CHANNELS" "$FC_WEIGHTS_ABS" \
-        "$UNET_BATCH_EVENTS" "$SKIP_EMPTY_INTERVALS" "$MIN_INTERVAL_TRACKS" "$UNET_INPUT_DTYPE" \
-        "$UNET_INPUT_LAYOUT" "$FC_FUSED" "$CANONICAL_TRACK_ORDER" "$L6A_DTYPE" "$FC_FUSED_PER_WARP" "$FC_HIDDEN_DTYPE" "$FC_GRID_FRACTION" <<'PY'
+    python3 - "$config" "$FC_WEIGHTS_ABS" "$PRECISION" "$UNET_BATCH_EVENTS" "$FC_GRID_FRACTION" <<'PY'
 import json
 import sys
 
-(path, l6a_m_raw, use_nonatomic_raw, use_warp_parallel_raw, fc_chunk_size_raw,
- use_fused_bias_relu_raw, skip_memset_raw, use_grid_stride_reduce_raw,
- fc_single_hidden_layer_raw, use_precomputed_csr_offset_raw,
- safe_avg_entries_per_event_raw, l1_l5_hidden_width_raw,
- l6a_active_channels_raw, fc_weights_abs, unet_batch_events_raw,
- skip_empty_intervals_raw, min_interval_tracks_raw, unet_input_dtype,
- unet_input_layout, fc_fused_raw, canonical_raw, l6a_dtype, per_warp_raw, hidden_dtype, fc_grid_fraction) = sys.argv[1:]
-
+path, weights, precision, unet_batch_events, fc_grid_fraction = sys.argv[1:]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
-
-fc_agg = data.setdefault("pvfinder_fc_aggregation", {})
-fc_agg["weight_file"] = fc_weights_abs
-# Omit width overrides unless explicitly requested so Allen uses the
-# build-derived L6A_WIDTH and N_LATENT_CHANNELS. Values that exceed the built
-# buffer dimensions would make the cuBLAS leading dimensions invalid.
-if l6a_m_raw != "":
-    fc_agg["l6a_m"] = int(l6a_m_raw)
-fc_agg["use_nonatomic_l6a_reduce"] = use_nonatomic_raw == "true"
-fc_agg["use_warp_parallel_reduce"] = use_warp_parallel_raw == "true"
-fc_agg["fc_chunk_size"] = int(fc_chunk_size_raw)
-fc_agg["unet_batch_events"] = int(unet_batch_events_raw)
-fc_agg["use_fused_bias_relu_reduce"] = use_fused_bias_relu_raw == "true"
-fc_agg["skip_redundant_memset"] = skip_memset_raw == "true"
-fc_agg["use_grid_stride_reduce"] = use_grid_stride_reduce_raw == "true"
-fc_agg["fc_single_hidden_layer"] = fc_single_hidden_layer_raw == "true"
-fc_agg["use_precomputed_csr_offset"] = use_precomputed_csr_offset_raw == "true"
-fc_agg["safe_avg_entries_per_event"] = int(safe_avg_entries_per_event_raw)
-fc_agg["l1_l5_hidden_width"] = int(l1_l5_hidden_width_raw)
-if l6a_active_channels_raw != "":
-    fc_agg["l6a_active_channels"] = int(l6a_active_channels_raw)
-fc_agg["skip_empty_intervals"] = skip_empty_intervals_raw == "true"
-fc_agg["min_interval_tracks"] = int(min_interval_tracks_raw)
-fc_agg["unet_input_dtype"] = unet_input_dtype
-fc_agg["unet_input_layout"] = unet_input_layout
-fc_agg["fc_fused"] = fc_fused_raw == "true"
-fc_agg["canonical_track_order"] = canonical_raw == "true"
-fc_agg["l6a_dtype"] = l6a_dtype
-fc_agg["fc_fused_per_warp"] = per_warp_raw == "true"
-fc_agg["fc_hidden_dtype"] = hidden_dtype
-fc_agg["fused_grid_fraction"] = float(fc_grid_fraction)
-
+fc = data.setdefault("pvfinder_fc_aggregation", {})
+fc["weight_file"] = weights
+fc["precision"] = precision
+fc["unet_batch_events"] = int(unet_batch_events)
+fc["fused_grid_fraction"] = float(fc_grid_fraction)
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
     handle.write("\n")
@@ -759,38 +386,9 @@ run_sequence() {
     echo "model=${MODEL}"
     echo "cnn_weights=${CNN_WEIGHTS_ABS}"
     echo "fc_weights=${FC_WEIGHTS_ABS}"
-    echo "use_fp16=${USE_FP16}"
     echo "use_bf16=${USE_BF16}"
-    echo "use_cuda_graph=${USE_CUDA_GRAPH}"
-    echo "use_fused_cbr=${USE_FUSED_CBR}"
-    echo "fwd_algo_ws_budget_mb=${FWD_ALGO_WS_BUDGET_MB}"
-    echo "use_fused_rcbn3=${USE_FUSED_RCBN3}"
-    echo "use_fused_bias_relu_pool=${USE_FUSED_BIAS_RELU_POOL}"
-    echo "use_merged_up1=${USE_MERGED_UP1}"
-    echo "l6a_m=${L6A_M:-<build-default L6A_WIDTH>}"
-    echo "use_nonatomic_l6a_reduce=${USE_NONATOMIC_L6A_REDUCE}"
-    echo "use_warp_parallel_reduce=${USE_WARP_PARALLEL_REDUCE}"
-    echo "fc_chunk_size=${FC_CHUNK_SIZE}"
+    echo "precision=${PRECISION}"
     echo "unet_batch_events=${UNET_BATCH_EVENTS}"
-    echo "use_fused_bias_relu_reduce=${USE_FUSED_BIAS_RELU_REDUCE}"
-    echo "skip_redundant_memset=${SKIP_REDUNDANT_MEMSET}"
-    echo "use_grid_stride_reduce=${USE_GRID_STRIDE_REDUCE}"
-    echo "fc_single_hidden_layer=${FC_SINGLE_HIDDEN_LAYER}"
-    echo "l1_l5_hidden_width=${L1_L5_HIDDEN_WIDTH}"
-    echo "l6a_active_channels=${L6A_ACTIVE_CHANNELS:-<build-default N_LATENT_CHANNELS>}"
-    echo "use_precomputed_csr_offset=${USE_PRECOMPUTED_CSR_OFFSET}"
-    echo "safe_avg_entries_per_event=${SAFE_AVG_ENTRIES_PER_EVENT}"
-    echo "skip_empty_intervals=${SKIP_EMPTY_INTERVALS}"
-    echo "min_interval_tracks=${MIN_INTERVAL_TRACKS}"
-    echo "unet_input_dtype=${UNET_INPUT_DTYPE}"
-    echo "bf16_layout=${BF16_LAYOUT}"
-    echo "unet_fused_kernel=${UNET_FUSED_KERNEL}"
-    echo "unet_input_layout=${UNET_INPUT_LAYOUT}"
-    echo "fc_fused=${FC_FUSED}"
-    echo "canonical_track_order=${CANONICAL_TRACK_ORDER}"
-    echo "l6a_dtype=${L6A_DTYPE}"
-    echo "fc_fused_per_warp=${FC_FUSED_PER_WARP}"
-    echo "fc_hidden_dtype=${FC_HIDDEN_DTYPE}"
     echo "fc_grid_fraction=${FC_GRID_FRACTION}"
     echo "unet_grid_fraction=${UNET_GRID_FRACTION}"
     echo "mdf=${MDF}"

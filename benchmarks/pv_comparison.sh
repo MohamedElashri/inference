@@ -17,8 +17,8 @@
 #       [--set ALG.PROP=VALUE]... [--scan ALG.PROP=V1,V2,...]...
 #       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--no-record]
 #
-#   --bf16          the BF16 path (pvfinder_unet.use_bf16 and the FC's bfloat16
-#                   channels-last features), as benchmark_pvfinder_batch.sh --use-bf16
+#   --bf16          the BF16 path (precision = bfloat16 for the FC and the UNet),
+#                   as benchmark_pvfinder_batch.sh --use-bf16
 #   --set           one property for every point (VALUE read as JSON if it parses)
 #   --scan          one point per value; several --scan give their product
 #   -n EVENTS       0 (default) = the whole input file
@@ -41,8 +41,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --label) LABEL="$2"; shift 2 ;;
         --model) MODEL="$2"; shift 2 ;;
-        --bf16) SETS+=(pvfinder_unet.use_bf16=true pvfinder_fc_aggregation.unet_input_dtype=bfloat16
-                       pvfinder_fc_aggregation.unet_input_layout=nwc); shift ;;
+        --bf16) SETS+=(pvfinder_unet.precision=bfloat16 pvfinder_fc_aggregation.precision=bfloat16); shift ;;
         --set) SETS+=("$2"); shift 2 ;;
         --scan) SCANS+=("$2"); shift 2 ;;
         -B|--build-dir) BUILD="$2"; shift 2 ;;

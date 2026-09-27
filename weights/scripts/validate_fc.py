@@ -211,8 +211,9 @@ ref_hist = ref_hist.reshape(n_events, 40, 100); env_hist = env_hist.reshape(n_ev
 F32_EPS = float(np.finfo(np.float32).eps)
 BF16_EPS = 2.0 ** -7   # bfloat16 keeps 8 significant bits
 
-# Features stored as bfloat16 (pvfinder_fc_aggregation.unet_input_dtype) are
-# rounded on purpose: measure them in bfloat16 ulps instead.
+# pvfinder_fc_aggregation.precision = bfloat16 (unet_input_dtype and
+# l6a_dtype in older dumps): the features are stored as bfloat16, rounded on
+# purpose, so measure them in bfloat16 ulps instead.
 features_eps, features_unit = F32_EPS, "float32"
 # A bfloat16 L6A (pvfinder_fc_aggregation.l6a_dtype) rounds its inputs, so
 # every per-entry term is off by bfloat16 rounding: both outputs are measured
@@ -230,6 +231,9 @@ if os.path.isfile(cfg_path):
         fc_cfg = json.load(fp).get("pvfinder_fc_aggregation", {})
     if fc_cfg.get("skip_empty_intervals", False):
         min_tracks = int(fc_cfg.get("min_interval_tracks", 1))
+    if fc_cfg.get("precision") == "bfloat16":
+        features_eps, features_unit = BF16_EPS, "bfloat16"
+        hist_eps, hist_unit = BF16_EPS, "bfloat16"
     if fc_cfg.get("unet_input_dtype") == "bfloat16":
         features_eps, features_unit = BF16_EPS, "bfloat16"
     l6a = fc_cfg.get("l6a_dtype", "auto")

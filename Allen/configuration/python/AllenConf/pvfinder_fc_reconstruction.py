@@ -75,13 +75,25 @@ def pvfinder_weight_file(filename):
 
 
 @configurable
-def make_pvfinder_fc(velo_tracks, pv_name="", weight_file=None, dump_validation=""):
+def make_pvfinder_fc(
+    velo_tracks,
+    pv_name="",
+    weight_file=None,
+    precision="float32",
+    unet_batch_events=20,
+    dump_validation="",
+):
     """PVFinder FC aggregation (it computes the per-track features itself).
 
     weight_file: path to fc_weights.bin; defaults to
     $PVFINDER_WEIGHTS_DIR/fc_weights.bin (see pvfinder_weight_file).
-    dump_validation: directory for weights/scripts/validate_fc.py dumps, "" = off.
+    precision: "float32" (exact, any CUDA GPU) or "bfloat16" (tensor cores,
+    compute capability 8.0 or newer); make_pvfinder_unet takes it from here.
+    unet_batch_events: the UNet's float32 batch size in events, also from here.
+    dump_validation: directory for the validation dumps, "" = off.
     """
+    if precision not in ("float32", "bfloat16"):
+        raise ValueError(f"precision must be float32 or bfloat16, not {precision!r}")
     if weight_file is None:
         weight_file = pvfinder_weight_file("fc_weights.bin")
 
@@ -104,6 +116,8 @@ def make_pvfinder_fc(velo_tracks, pv_name="", weight_file=None, dump_validation=
         dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
         dev_velo_states_view_t=velo_states["dev_velo_kalman_beamline_states_view"],
         weight_file=weight_file,
+        precision=precision,
+        unet_batch_events=unet_batch_events,
         dump_validation=dump_validation,
     )
 
@@ -114,4 +128,6 @@ def make_pvfinder_fc(velo_tracks, pv_name="", weight_file=None, dump_validation=
         "dev_pvfinder_slot_row": pvfinder_fc_aggregation.dev_pvfinder_slot_row_t,
         "dev_pvfinder_row_slot": pvfinder_fc_aggregation.dev_pvfinder_row_slot_t,
         "host_number_of_events": host_number_of_events,
+        "precision": precision,
+        "unet_batch_events": unet_batch_events,
     }

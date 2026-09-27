@@ -24,7 +24,7 @@ function help {
     echo "  -i, --input <path>              Specify the Allen repository folder (overrides --repo-dir)"
     echo "  -j, --cores [num]               Number of cores for the build (default: nproc)"
   echo "  --cudnn                         Enable cuDNN support (sets -DWITH_CUDNN=ON with local path)"
-  echo "  --cublas                        Enable cuBLAS GEMM for PVFinder L6A (sets -DWITH_CUBLAS=ON)"
+  echo "  --cublas                        Ignored (PVFinder no longer uses cuBLAS; kept for old command lines)"
   echo "  --cuda-arch <arch>              Set CUDA_ARCH (e.g. 86 for SM 8.6, 75 for SM 7.5; default: COMPATIBILITY)"
   echo "  --unet-feat <n>                 Override UNet N_FEAT (e.g. 16 for 16-channel model; default: 64)"
   echo "  --unet-batch-channels <n>       Override UNet N_BATCH_CHANNELS / latentChannels (e.g. 4; default: 8)"
@@ -146,9 +146,6 @@ function build_gpu {
         CMAKE_ARGS="-DSTANDALONE=ON -DTARGET_DEVICE=CUDA -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
         if [[ $USE_CUDNN -eq 1 ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUDNN=ON -DCUDNN_LIBRARY=$HOME/local/cuda/lib64/libcudnn.so -DCUDNN_INCLUDE_DIR=$HOME/local/cuda/include"
-        fi
-        if [[ ${USE_CUBLAS:-0} -eq 1 ]]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUBLAS=ON"
         fi
         if [[ -n "${UNET_N_FEAT:-}" ]]; then
             CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_FEAT=${UNET_N_FEAT}"

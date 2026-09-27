@@ -16,7 +16,7 @@
 #
 # MODEL defaults to unet16_lc4_scnone_asym5_final. Optional: DEVICE (GPU index, default 2),
 # EVENTS (slice size for dump, default 500), JOBS (build jobs, default 16), PY.
-# Variants: DUMP_SET="pvfinder_unet.use_bf16=true ..." overrides Allen properties
+# Variants: DUMP_SET="pvfinder_unet.precision=bfloat16 pvfinder_fc_aggregation.precision=bfloat16 ..." overrides Allen properties
 # for dump; DUMP_TAG=<tag> keeps that dump in out/<name>/dump_<tag>/ (use the
 # same DUMP_TAG for validate); LABEL names the run record.
 
@@ -89,7 +89,7 @@ $(OUT)/verify.txt: $(OUT)/.converted $(SCRIPTS)/verify.py
 
 # ---- Allen build, dump, validate ---------------------------------------------
 build: check-model
-> cd $(REPO) && ./ballen -a gpu --cudnn --cublas --unet-feat $(UNET_FEAT) --unet-batch-channels $(LATENT) -b $(BUILD) -j $(JOBS)
+> cd $(REPO) && ./ballen -a gpu --cudnn --unet-feat $(UNET_FEAT) --unet-batch-channels $(LATENT) -b $(BUILD) -j $(JOBS)
 
 dump: verify build
 > $(SCRIPTS)/allen_dump.sh --build $(REPO)/Allen/$(BUILD)gpu --weights-dir $(OUT) \
