@@ -12,6 +12,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <iostream>
 #include <Algorithm.cuh>
 
@@ -21,6 +22,15 @@
 
 namespace Allen::Monitoring {
   struct AccumulatorBase;
+
+  /// Guards the host-side accumulator values (bins, entries, sums). They are written by the
+  /// aggregation thread in AccumulatorManager::mergeAndReset() and read (to_json) or reset
+  /// (reset) by the Gaudi monitoring hub's sinks and users on other threads.
+  inline std::mutex& hostDataMutex()
+  {
+    static std::mutex s_mutex;
+    return s_mutex;
+  }
 
   template<typename T>
   struct Counter;
@@ -41,12 +51,14 @@ namespace Allen::Monitoring {
 
     friend void reset(CountersHistogram& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       std::fill(c.m_bins.begin(), c.m_bins.end(), 0.0f);
       c.m_totNEntries = 0.0;
     }
 
     friend void to_json(nlohmann::json& j, CountersHistogram const& h)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {
         {"type", "histogram:WeightedHistogram:d"},
         {"title", h.m_title},
@@ -238,9 +250,14 @@ namespace Allen::Monitoring {
     std::size_t elementSize() const override { return sizeof(T); }
     DeviceType data(const Allen::Context& ctx) const { return reinterpret_cast<T*>(currentDevicePtr(ctx.stream_id)); }
 
-    friend void reset(Counter& c) { c.m_entries = 0.0; }
+    friend void reset(Counter& c)
+    {
+      std::lock_guard lock {hostDataMutex()};
+      c.m_entries = 0.0;
+    }
     friend void to_json(nlohmann::json& j, Counter const& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(c.m_entries)}, {"nEntries", c.m_entries}};
     }
     void registerAccumulator() override
@@ -307,11 +324,13 @@ namespace Allen::Monitoring {
 
     friend void reset(AveragingCounter& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       c.m_sum = 0.0;
       c.m_entries = 0.0;
     }
     friend void to_json(nlohmann::json& j, AveragingCounter const& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {
         {"type", "counter:AveragingCounter:d"},
         {"empty", LHCb::essentiallyZero(c.m_entries)},
@@ -576,12 +595,14 @@ namespace Allen::Monitoring {
 
     friend void reset(HistogramND& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       std::fill(c.m_bins.begin(), c.m_bins.end(), 0.0);
       c.m_totNEntries = 0.0;
     }
 
     friend void to_json(nlohmann::json& j, HistogramND const& h)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {
         {"type", "histogram:Histogram:d"},
         {"title", h.m_title},
@@ -663,6 +684,7 @@ namespace Allen::Monitoring {
     }
     friend void to_json(nlohmann::json& j, HistogramBinAsCounter const& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       const auto entries =
         (c.m_histo != nullptr && c.m_bin + 1 < c.m_histo->m_bins.size()) ? c.m_histo->m_bins[c.m_bin + 1] : 0.0;
       j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(entries)}, {"nEntries", entries}};

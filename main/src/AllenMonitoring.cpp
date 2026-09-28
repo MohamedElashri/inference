@@ -118,7 +118,9 @@ namespace Allen::Monitoring {
     // * Reset device buffer to 0
     Allen::memset((void*) m_dev_buffer_ptr[buf], 0, m_buffer_size);
 
-    // * Update accumulators
+    // * Update accumulators. The host-side values are read and reset concurrently by the
+    //   monitoring hub's users, see hostDataMutex().
+    std::lock_guard lock {hostDataMutex()};
     for ([[maybe_unused]] auto& [key, acc] : m_accumulators) {
       acc.owners[0]->fillAccumulator((void*) (m_host_buffer_ptr + acc.offset));
     }
