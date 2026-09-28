@@ -19,6 +19,8 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <span>
+#include <stdexcept>
+#include <string>
 
 namespace {
   constexpr unsigned CACHE_LINE_SIZE = 64;
@@ -79,6 +81,11 @@ struct SPSCRingBuffer {
 
   std::span<char> reserve_write(std::size_t s)
   {
+    if (s >= m_writer.capacity) {
+      throw std::runtime_error(
+        "Requested ring buffer reservation of " + std::to_string(s) + " bytes does not fit in the ring of " +
+        std::to_string(m_writer.capacity) + " bytes.");
+    }
     m_writer.end =
       ((m_writer.begin + s) > m_writer.capacity) ? (m_writer.begin + s - m_writer.capacity) : (m_writer.begin + s);
     std::size_t available_space;
