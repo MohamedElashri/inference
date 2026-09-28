@@ -129,6 +129,8 @@ def make_MultiEventScheduler(
 
             output_writer = FileOutputWriter()
     output_writer.NStreams = options.n_threads
+    # output ring buffer per stream, room for large output batches
+    output_writer.RBCapacity = 500 * 1024 * 1024
     output_writer.OutputConnection = options.output_file or ""
 
     # setup options for large event passthrough:
