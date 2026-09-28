@@ -1,0 +1,215 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260928_124400_gridscan_bf16_f0.5",
+  "label": "gridscan_bf16_f0.5",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-28T12:44:04-04:00",
+  "finished_at": "2026-09-28T13:01:49-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label gridscan_bf16_f0.5 -B build16chL4finalgpu -d 2 --model unet16_lc4_scnone_asym5_best_bf16 --use-bf16 true -n 500 -m 500 -r 1000 -t 16 --repeats 3 --fc-grid-fraction 0.5 --unet-grid-fraction 0.5",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "03aca252f97805855856c8e870a1ff80d5b61f85",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Add new benchmark results for UNet16 model with BF16 precision on RTX 3090",
+    "dirty": false,
+    "dirty_files": [],
+    "diff_sha256": null
+  },
+  "build": {
+    "name": "build16chL4finalgpu",
+    "dir": "Allen/build16chL4finalgpu",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T15:22:52-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "fc_grid_fraction": 0.5,
+    "precision": "bfloat16",
+    "unet_batch_events": 20,
+    "unet_grid_fraction": 0.5,
+    "use_bf16": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "ac6847bcc26b288b252dd519d5fbb842c820be25fec8e12863554ecd1153748a",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "932382600187faedebea0207c4dfca7a2ef90888de9795755729fa0951387288",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.5,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "ca9ab98cc916667f1347fc7fa45fba1c3e47f21077641f6e3eeca3f359d9d70a",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.5,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.5,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 87012.584951,
+          "fc": 84035.666521,
+          "unet": 82623.107025
+        },
+        "fc_overhead_pct": 3.421250422196288,
+        "unet_overhead_pct": 5.044647194968256,
+        "unet_retention_pct": 94.95535280503175
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 87046.230556,
+          "fc": 84091.888764,
+          "unet": 82593.683872
+        },
+        "fc_overhead_pct": 3.3939916445886267,
+        "unet_overhead_pct": 5.115151633287,
+        "unet_retention_pct": 94.884848366713
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 86883.560567,
+          "fc": 84025.743637,
+          "unet": 82698.510656
+        },
+        "fc_overhead_pct": 3.289249325591565,
+        "unet_overhead_pct": 4.816848991556586,
+        "unet_retention_pct": 95.18315100844342
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 87012.584951,
+        "fc": 84035.666521,
+        "unet": 82623.107025
+      },
+      "median_fc_overhead_pct": 3.3939916445886267,
+      "median_unet_overhead_pct": 5.044647194968256,
+      "median_unet_retention_pct": 94.95535280503175,
+      "baseline_spread_pct": 0.18694995567779912,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260928_124400_gridscan_bf16_f0.5"
+  },
+  "duration_s": 1065
+}

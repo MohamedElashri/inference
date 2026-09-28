@@ -1,0 +1,215 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20260928_140541_headline_fp32_t16",
+  "label": "headline_fp32_t16",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-09-28T14:05:46-04:00",
+  "finished_at": "2026-09-28T14:25:52-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label headline_fp32_t16 -B build16chL4finalgpu -d 2 --model unet16_lc4_scnone_asym5_best --use-bf16 false -n 500 -m 500 -r 1000 -t 16 --repeats 3",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "03aca252f97805855856c8e870a1ff80d5b61f85",
+    "branch": "feat/pvfinder-allen-integration",
+    "subject": "Add new benchmark results for UNet16 model with BF16 precision on RTX 3090",
+    "dirty": false,
+    "dirty_files": [],
+    "diff_sha256": null
+  },
+  "build": {
+    "name": "build16chL4finalgpu",
+    "dir": "Allen/build16chL4finalgpu",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.6/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "COMPATIBILITY",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUBLAS": "ON",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.6.85",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-09-27T15:22:52-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_best.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "asym 5, best val loss (epoch 5 of 70)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+      "sha256": "480f7a2bd6f7637b1f4e245be478803eccc99f7f003333824b1ec0ed0678bcbc"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+        "sha256": "a2540cf30a082caf0acaab785d026834c67a9cf557cb221b4c3fd16cfc66ec76"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+    "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 3,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvfinder_benchmark",
+      "hlt1_pp_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "fc_grid_fraction": 0.125,
+    "precision": "float32",
+    "unet_batch_events": 20,
+    "unet_grid_fraction": 0.25,
+    "use_bf16": false
+  },
+  "config": {
+    "baseline": {
+      "sha256": "992aac2472113f3897fb95fa6d6fe3e1682095243fc9a6463b1c0ecdbb868e42",
+      "algorithms": {}
+    },
+    "fc": {
+      "sha256": "5b2370aec2dc33d3bd5ef20497bb3802f7629182c874eeaaacfb4f1c2c9e5abd",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    },
+    "unet": {
+      "sha256": "1aa488479fceefac8b8e57d95f6e3847693b988bc72134c6d4f548575940ec76",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.25,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 87284.341481,
+          "fc": 81752.396763,
+          "unet": 56368.523136
+        },
+        "fc_overhead_pct": 6.3378432192264285,
+        "unet_overhead_pct": 35.41966155719893,
+        "unet_retention_pct": 64.58033844280108
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "baseline": 87007.593382,
+          "fc": 81765.509115,
+          "unet": 56480.393078
+        },
+        "fc_overhead_pct": 6.024858363781025,
+        "unet_overhead_pct": 35.08567369513685,
+        "unet_retention_pct": 64.91432630486315
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 87119.689074,
+          "fc": 81765.873384,
+          "unet": 56478.915354
+        },
+        "fc_overhead_pct": 6.145356746455357,
+        "unet_overhead_pct": 35.1708942555724,
+        "unet_retention_pct": 64.82910574442761
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 87119.689074,
+        "fc": 81765.509115,
+        "unet": 56478.915354
+      },
+      "median_fc_overhead_pct": 6.145356746455357,
+      "median_unet_overhead_pct": 35.1708942555724,
+      "median_unet_retention_pct": 64.82910574442761,
+      "baseline_spread_pct": 0.3176642409328595,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20260928_140541_headline_fp32_t16"
+  },
+  "duration_s": 1206
+}
