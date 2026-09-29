@@ -19,6 +19,7 @@ allen_add_device_library(PVFinder
     src/PVFinderFCAggregation.cu
     src/PVFinderUNet.cu
     src/PVFinderPeak.cu
+    src/PVFinderMergeSeeds.cu
     src/PVFinderVertexDump.cpp
 )
 

@@ -63,6 +63,9 @@ PVFINDER_KERNEL_RE = re.compile(r"pvfinder|unet|cudnn|cublas|gemm|conv|softplus|
                                 re.IGNORECASE)
 TOP_KERNELS = 25
 SEQUENCE_KEYS = ("baseline", "fc", "unet")
+# Further roles of benchmark_pvfinder_batch.sh (PVF_SEQUENCES): full chain,
+# PVFinder replacing the beamline PV finder, and the hybrid of both.
+ALL_SEQUENCE_KEYS = SEQUENCE_KEYS + ("pvs", "replace", "hybrid")
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +330,7 @@ def derived(rates):
 def pvfinder_config(run_dir):
     """The pvfinder_* algorithm blocks of each sequence's effective config."""
     out = {}
-    for seq in SEQUENCE_KEYS:
+    for seq in ALL_SEQUENCE_KEYS:
         path = os.path.join(run_dir, f"{seq}_effective_config.json")
         if not os.path.isfile(path):
             continue
@@ -380,7 +383,7 @@ def parse_kernel_csv(path):
 def profile_summary(batch_dir, run_dirs):
     """Per sequence: kernel summary of each profiled repeat, merged by median."""
     per_seq = {}
-    for seq in SEQUENCE_KEYS:
+    for seq in ALL_SEQUENCE_KEYS:
         tables = []
         for rd in run_dirs:
             for path in sorted(glob.glob(os.path.join(rd, f"pvfinder_profile_{seq}*cuda_gpu_kern_sum*.csv"))):

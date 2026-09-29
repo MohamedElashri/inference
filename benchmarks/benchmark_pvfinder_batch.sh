@@ -164,7 +164,12 @@ COMMON_ARGS=(
     -t "${THREADS}"
 )
 
-# Default triple: HLT1 alone | HLT1+FC | HLT1+FC+UNet.
+# Default triple: HLT1 alone | HLT1+FC | HLT1+FC+UNet. Two more roles are
+# recognised by name: *_pvs_pvfinder_unet_benchmark ("pvs": + peak finding and
+# the PV fit) and *_pvfinder_replace_benchmark ("replace": PVFinder's vertices
+# replace the beamline PV finder's for all of HLT1), and
+# *_pvfinder_hybrid_benchmark ("hybrid": as replace, the beamline PV finder's
+# seeds kept outside PVFinder's z range).
 # Override with PVF_SEQUENCES="<baseline_seq> <fc_seq> <unet_seq>" to benchmark
 # against a different HLT1 sequence (e.g. a reduced-work HLT1). Names must end
 # in the same _pvfinder_benchmark / _pvfinder_unet_benchmark suffixes so the
@@ -181,6 +186,9 @@ fi
 
 sequence_label() {
     case "$1" in
+        *_pvs_pvfinder_unet_benchmark) echo "pvs" ;;
+        *_pvfinder_replace_benchmark) echo "replace" ;;
+        *_pvfinder_hybrid_benchmark) echo "hybrid" ;;
         *_pvfinder_unet_benchmark) echo "unet" ;;
         *_pvfinder_benchmark) echo "fc" ;;
         *) echo "baseline" ;;
@@ -278,10 +286,13 @@ generate_config() {
     cp "${tmp}/Sequence.json" "${out_config}"
     rm -rf "${tmp}"
 
-    if [[ "${seq}" == *_pvfinder_unet_benchmark ]]; then
+    # *_pvs_pvfinder_unet_benchmark is also a *_pvfinder_unet_benchmark.
+    if [[ "${seq}" == *_pvfinder_unet_benchmark || "${seq}" == *_pvfinder_replace_benchmark \
+          || "${seq}" == *_pvfinder_hybrid_benchmark ]]; then
         patch_unet_config "${out_config}"
     fi
-    if [[ "${seq}" == *_pvfinder_benchmark || "${seq}" == *_pvfinder_unet_benchmark ]]; then
+    if [[ "${seq}" == *_pvfinder_benchmark || "${seq}" == *_pvfinder_unet_benchmark \
+          || "${seq}" == *_pvfinder_replace_benchmark || "${seq}" == *_pvfinder_hybrid_benchmark ]]; then
         patch_fc_config "${out_config}"
     fi
 }

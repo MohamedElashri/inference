@@ -15,13 +15,14 @@
 # Usage:
 #   benchmarks/pv_comparison.sh --label LABEL [--model NAME] [--bf16]
 #       [--set ALG.PROP=VALUE]... [--scan ALG.PROP=V1,V2,...]...
-#       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--no-record]
+#       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--sequence SEQ] [--no-record]
 #
 #   --bf16          the BF16 path (precision = bfloat16 for the FC and the UNet),
 #                   as benchmark_pvfinder_batch.sh --use-bf16
 #   --set           one property for every point (VALUE read as JSON if it parses)
 #   --scan          one point per value; several --scan give their product
 #   -n EVENTS       0 (default) = the whole input file
+#   --sequence SEQ  pvfinder_pv_validation (default) or pvfinder_pv_validation_hybrid
 #
 # Example, the peak finder's thresholds:
 #   benchmarks/pv_comparison.sh --label peak_scan \
@@ -47,6 +48,7 @@ while [[ $# -gt 0 ]]; do
         -B|--build-dir) BUILD="$2"; shift 2 ;;
         -d|--device) DEVICE="$2"; shift 2 ;;
         -n|--events) EVENTS="$2"; shift 2 ;;
+        --sequence) SEQ="$2"; shift 2 ;;
         --no-record) RECORD=0; shift ;;
         -h|--help) sed -n '2,31s/^# \{0,1\}//p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1 (see --help)" >&2; exit 2 ;;

@@ -80,17 +80,23 @@ def check_event(rec, mc, zrange=None):
 
 
 def summarise(events, zrange=None):
-    tot, dz, sigma_z = {}, [], []
+    tot, dx, dy, dz, sigma_z = {}, [], [], [], []
     for rec, mc in events.values():
         c, mc_sel, rec_sel, mc_rec, reco_ble = check_event(rec, mc, zrange)
         for k, v in c.items():
             tot[k] = tot.get(k, 0) + v
         for j in np.nonzero((mc_rec > -1) & reco_ble)[0]:
+            dx.append(float(rec_sel[mc_rec[j], 0]) - mc_sel[j, 0])
+            dy.append(float(rec_sel[mc_rec[j], 1]) - mc_sel[j, 1])
             dz.append(float(rec_sel[mc_rec[j], 2]) - mc_sel[j, 2])
             sigma_z.append(np.sqrt(float(rec_sel[mc_rec[j], 5])))
-    dz = np.array(dz)
+    dx, dy, dz = np.array(dx), np.array(dy), np.array(dz)
     def ratio(a, b):
         return a / b if b else 0.0
+
+    def core_um(d):
+        """Half the 15.87-84.13 percentile range (a Gaussian's sigma), in um."""
+        return 1e3 * float(0.5 * (np.percentile(d, 84.13) - np.percentile(d, 15.87))) if len(d) else 0.0
 
     return {
         "efficiency": ratio(tot["found"], tot["mc"]), "found": tot["found"], "mc": tot["mc"],
@@ -102,7 +108,9 @@ def summarise(events, zrange=None):
         "reconstructed": tot["rec"], "reconstructed_with_cov22_not_positive": tot["rec_bad_cov"],
         "dz_mean_um": 1e3 * float(dz.mean()) if len(dz) else 0.0,
         "dz_rms_um": 1e3 * float(dz.std()) if len(dz) else 0.0,
-        "dz_core_sigma_um": 1e3 * float(0.5 * (np.percentile(dz, 84.13) - np.percentile(dz, 15.87))) if len(dz) else 0.0,
+        "dz_core_sigma_um": core_um(dz),
+        "dx_core_sigma_um": core_um(dx),
+        "dy_core_sigma_um": core_um(dy),
         "sigma_z_median_um": 1e3 * float(np.median(sigma_z)) if len(sigma_z) else 0.0,
     }
 

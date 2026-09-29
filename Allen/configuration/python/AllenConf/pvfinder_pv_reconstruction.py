@@ -13,13 +13,22 @@ from AllenCore.algorithms import (
     pv_beamline_cleanup_t,
     pv_beamline_extrapolate_t,
     pv_beamline_multi_fitter_t,
+    pvfinder_merge_seeds_t,
     pvfinder_peak_t,
 )
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
+import AllenConf.primary_vertex_reconstruction as primary_vertex_reconstruction
 from AllenConf.utils import initialize_number_of_events
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
+
+
+def make_beamline_seeds(velo_tracks):
+    """The beamline PV finder's seeds: the pv_beamline_peak instance of make_pvs
+    itself (only its seeds are used, so its fit is not scheduled for them)."""
+    peak = primary_vertex_reconstruction.make_pvs(velo_tracks)["dev_number_of_zpeaks"].producer
+    return peak.dev_zpeaks_t, peak.dev_number_of_zpeaks_t
 
 
 @configurable
@@ -30,6 +39,7 @@ def make_pvfinder_pvs(
     zmin=-541.0,
     zmax=307.0,
     SMOG2_pp_separation=-334.0,
+    fill_outside_range=False,
 ):
     """Primary vertices seeded by the PVFinder KDE.
 
@@ -40,6 +50,8 @@ def make_pvfinder_pvs(
     -100 < z < 300 mm only (no SMOG2).
 
     pvfinder_kde: dev_pvfinder_kde_output of make_pvfinder_unet.
+    fill_outside_range: add the beamline PV finder's seeds outside PVFinder's
+    z range (pvfinder_merge_seeds), so vertices there are still found.
     Returns the keys of make_pvs, so pv_validation and the other consumers of
     make_pvs accept it.
     """
@@ -70,14 +82,28 @@ def make_pvfinder_pvs(
         dev_pvfinder_kde_output_t=pvfinder_kde,
     )
 
+    zpeaks, number_of_zpeaks = pvfinder_peak.dev_zpeaks_t, pvfinder_peak.dev_number_of_zpeaks_t
+    if fill_outside_range:
+        other_zpeaks, other_number_of_zpeaks = make_beamline_seeds(velo_tracks)
+        merge = make_algorithm(
+            pvfinder_merge_seeds_t,
+            name="pvfinder_merge_seeds" + pv_name,
+            host_number_of_events_t=host_number_of_events,
+            dev_pvfinder_zpeaks_t=zpeaks,
+            dev_pvfinder_number_of_zpeaks_t=number_of_zpeaks,
+            dev_other_zpeaks_t=other_zpeaks,
+            dev_other_number_of_zpeaks_t=other_number_of_zpeaks,
+        )
+        zpeaks, number_of_zpeaks = merge.dev_zpeaks_t, merge.dev_number_of_zpeaks_t
+
     pv_beamline_calculate_denom = make_algorithm(
         pv_beamline_calculate_denom_t,
         name="pv_beamline_calculate_denom" + pv_name,
         host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
         dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
         dev_pvtracks_t=pv_beamline_extrapolate.dev_pvtracks_t,
-        dev_zpeaks_t=pvfinder_peak.dev_zpeaks_t,
-        dev_number_of_zpeaks_t=pvfinder_peak.dev_number_of_zpeaks_t,
+        dev_zpeaks_t=zpeaks,
+        dev_number_of_zpeaks_t=number_of_zpeaks,
     )
 
     pv_beamline_multi_fitter = make_algorithm(
@@ -87,8 +113,8 @@ def make_pvfinder_pvs(
         host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
         dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
         dev_pvtracks_t=pv_beamline_extrapolate.dev_pvtracks_t,
-        dev_zpeaks_t=pvfinder_peak.dev_zpeaks_t,
-        dev_number_of_zpeaks_t=pvfinder_peak.dev_number_of_zpeaks_t,
+        dev_zpeaks_t=zpeaks,
+        dev_number_of_zpeaks_t=number_of_zpeaks,
         dev_pvtracks_denom_t=pv_beamline_calculate_denom.dev_pvtracks_denom_t,
         maxChi2=maxChi2,
         pp_minNumTracksPerVertex=pp_minNumTracksPerVertex,
@@ -106,8 +132,8 @@ def make_pvfinder_pvs(
     )
 
     return {
-        "dev_number_of_zpeaks": pvfinder_peak.dev_number_of_zpeaks_t,
-        "dev_zpeaks": pvfinder_peak.dev_zpeaks_t,
+        "dev_number_of_zpeaks": number_of_zpeaks,
+        "dev_zpeaks": zpeaks,
         "dev_multi_final_vertices": pv_beamline_cleanup.dev_multi_final_vertices_t,
         "dev_number_of_multi_final_vertices": pv_beamline_cleanup.dev_number_of_multi_final_vertices_t,
         "pp_minNumTracksPerVertex": pp_minNumTracksPerVertex,
