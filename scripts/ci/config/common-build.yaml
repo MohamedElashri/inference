@@ -16,19 +16,6 @@
           - "cpu"
           - "cuda13_3"
 
-# Builds that are considered "additional", can be run in addition to "minimal" tests in certain scenarios
-# This is run for the CUDA target (see main.yaml)
-.build_job_additional_matrix:
-  parallel:
-    matrix:
-      # build jobs (with tests)
-      - LCG_SYSTEM:
-          - "x86_64_v3-el9-gcc15"
-        LCG_OPTIMIZATION:
-          - "opt+g"
-        OPTIONS:
-          - BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC
-
 .build_job:
   extends: .base_job
 

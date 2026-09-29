@@ -39,10 +39,6 @@
       - AllenCI_full.log
       - run_*_output_*
       - run_profiler_*/
-      - ./*-unit-tests.xml
-    reports:
-      junit:
-        - ./*-unit-tests.xml
 
 .run_jobs_minimal:
   extends:

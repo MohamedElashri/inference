@@ -295,9 +295,9 @@ namespace SciFi {
    */
   struct TrackCandidate {
     float quality = 0.f;
-    float qop;
-    uint16_t input_track_index;
-    uint16_t hits[SciFi::Constants::max_track_candidate_size];
+    float qop = 0.f;
+    uint16_t input_track_index = 0;
+    uint16_t hits[SciFi::Constants::max_track_candidate_size] = {};
     uint8_t hitsNum = 0;
 
     TrackCandidate() = default;
@@ -334,10 +334,10 @@ namespace SciFi {
    */
   struct TrackHits {
     float quality = 0.f;
-    float qop;
-    uint16_t input_track_index;
-    uint16_t charge_seed;
-    uint16_t hits[SciFi::Constants::max_track_size];
+    float qop = 0.f;
+    uint16_t input_track_index = 0;
+    uint16_t charge_seed = 0;
+    uint16_t hits[SciFi::Constants::max_track_size] = {};
     uint8_t hitsNum = 0;
     uint8_t XhitsNum = 0;
     uint8_t UVhitsNum = 0;

@@ -24,6 +24,7 @@
 #include "Kernel/LHCbID.h"
 
 #include "VeloEventModel.cuh"
+#include "VeloConsolidated.cuh"
 #include "VeloDefinitions.cuh"
 #include "States.cuh"
 #include "AllenBuffer.cuh"
@@ -69,7 +70,7 @@ public:
     const unsigned n_tracks_total = h_track_offsets[n_events];
     const unsigned n_hits_total = h_hit_offsets[n_tracks_total];
 
-    Velo::ConstClusters all_hits {h_hits.data(), n_hits_total};
+    Velo::Consolidated::ConstHits all_hits {h_hits.data(), 0, n_hits_total};
 
     std::vector<LHCb::Pr::Velo::Tracks> out_fwd, out_bwd;
     out_fwd.reserve(n_events);

@@ -61,8 +61,13 @@ void lf_triplet_seeding::lf_triplet_seeding_t::operator()(
 template<typename T>
 __device__ unsigned int binary_search_leftmost_unrolled(const T* array, const unsigned array_size, const T& needle)
 {
+  if (array_size <= 0) return 0;
   unsigned int low = 0;
-  unsigned int size = array_size;
+  // Search only the first array_size - 1 elements. With this reduced size the
+  // invariant low + size <= array_size - 1 (and half <= size - 1) guarantees the
+  // unrolled probe array[low + half] never reaches index array_size, so the hot
+  // loop stays branch-free without reading one element past the window.
+  unsigned int size = array_size - 1;
 
   // Unroll 9 time to cover arrays of size max 512
   UNROLL(9)
@@ -71,6 +76,12 @@ __device__ unsigned int binary_search_leftmost_unrolled(const T* array, const un
     low += (array[low + half] < needle) * (size - half);
     size = half;
   } // while (size > 0);
+
+  // The reduced search returns array_size - 1 when everything below it is below
+  // the needle, i.e. it never compared the last element. Fold that comparison
+  // back in (once, outside the loop) to keep the exact lower_bound semantics:
+  // the result may be array_size, meaning "not found".
+  low += (low == array_size - 1) * (array[low] < needle);
 
   return low;
 }

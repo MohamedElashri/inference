@@ -62,7 +62,8 @@ void velo_consolidate_tracks::velo_consolidate_tracks_t::set_arguments_size(
                                            first<host_number_of_three_hit_tracks_filtered_t>(arguments);
 
   set_size<dev_velo_track_hits_t>(
-    arguments, first<host_accumulated_number_of_hits_in_velo_tracks_t>(arguments) * Velo::Clusters::element_size);
+    arguments,
+    first<host_accumulated_number_of_hits_in_velo_tracks_t>(arguments) * Velo::Consolidated::Hits::element_size);
   set_size<dev_accepted_velo_tracks_t>(arguments, total_number_of_velo_tracks);
   set_size<dev_velo_hits_view_t>(arguments, first<host_number_of_events_t>(arguments));
   set_size<dev_velo_track_view_t>(arguments, total_number_of_velo_tracks);

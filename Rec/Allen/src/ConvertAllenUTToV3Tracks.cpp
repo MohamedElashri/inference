@@ -26,6 +26,7 @@
 #include "Kernel/LHCbID.h"
 
 #include "VeloEventModel.cuh"
+#include "VeloConsolidated.cuh"
 #include "VeloDefinitions.cuh"
 #include "States.cuh"
 #include "AllenBuffer.cuh"
@@ -110,7 +111,7 @@ public:
     // Velo hits (indexed globally by Velo track index via dev_velo_indices)
     const unsigned n_velo_hits_total =
       h_velo_hit_offsets.size() > 0 ? h_velo_hit_offsets[h_velo_hit_offsets.size() - 1] : 0;
-    Velo::ConstClusters velo_hits {h_velo_hits.data(), n_velo_hits_total};
+    Velo::Consolidated::ConstHits velo_hits {h_velo_hits.data(), 0, n_velo_hits_total};
 
     // Track params: 4 floats per UT track (qop, x, z, tx)
     const float* params = h_track_params.data();
