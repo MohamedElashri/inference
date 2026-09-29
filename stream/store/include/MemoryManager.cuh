@@ -55,42 +55,48 @@ namespace Allen::Store {
     }
   };
 
-  template<Scope S, AllocPolicy P>
-  struct MemoryManager;
-
   /**
-   * @brief This memory manager allocates a single chunk of memory at the beginning,
-   *        and reserves / frees using this memory chunk from that point onwards.
+   * @brief This memory manager keeps a host-side model of the memory budget
+   *        (segment bookkeeping) so that out-of-memory is hit deterministically
+   *        in the same places, independently of the allocation policy.
+   *
+   *        The policy only selects how the memory is actually served:
+   *         - SingleAlloc reserves a single backend allocation up front and
+   *           hands out slices of it;
+   *         - MultiAlloc gives every reservation its own backend allocation, so
+   *           that each buffer has a real allocation boundary that sanitizers
+   *           can check.
    */
-  template<Scope S>
-  struct MemoryManager<S, AllocPolicy::SingleAlloc> : MemoryManagerAllocator<S> {
+  template<Scope S, AllocPolicy P>
+  struct MemoryManager : MemoryManagerAllocator<S> {
   private:
     std::string m_name = "Memory manager";
     size_t m_max_available_memory = 0;
     unsigned m_guaranteed_alignment = 512;
-    char* m_base_pointer = nullptr;
+    // Only used by SingleAlloc: the backend allocation that is sliced up.
+    [[maybe_unused]] char* m_base_pointer = nullptr;
     AllocationReport m_report;
 
     /**
-     * @brief A memory segment is composed of a start
-     *        and size, both referencing bytes.
+     * @brief A memory segment is composed of a start and size, both
+     *        referencing bytes of the virtual budget, plus (for MultiAlloc)
+     *        the backend allocation that serves it.
      */
     struct MemorySegment {
       unsigned start;
       size_t size;
       bool used;
+      char* pointer;
     };
-    std::list<MemorySegment, SlabAllocator<MemorySegment>> m_memory_segments {{0, m_max_available_memory, false}};
+    std::list<MemorySegment, SlabAllocator<MemorySegment>> m_memory_segments {
+      {0, m_max_available_memory, false, nullptr}};
 
   public:
     MemoryManager() = default;
     MemoryManager(const std::string& name) : m_name {name} {}
-    MemoryManager(const std::string& name, const size_t memory_size, const unsigned memory_alignment) :
-      m_name {name}, m_max_available_memory {memory_size}, m_guaranteed_alignment {memory_alignment}
+    MemoryManager(const std::string& name, const size_t memory_size, const unsigned memory_alignment) : m_name {name}
     {
-      if (m_base_pointer) MemoryManagerAllocator<S>::free(m_base_pointer);
-      MemoryManagerAllocator<S>::malloc(reinterpret_cast<void**>(&m_base_pointer), memory_size);
-      free_all();
+      reserve_memory(memory_size, memory_alignment);
     }
 
     /**
@@ -100,8 +106,10 @@ namespace Allen::Store {
      */
     void reserve_memory(size_t memory_size, const unsigned memory_alignment)
     {
-      if (m_base_pointer) MemoryManagerAllocator<S>::free(m_base_pointer);
-      MemoryManagerAllocator<S>::malloc(reinterpret_cast<void**>(&m_base_pointer), memory_size);
+      if constexpr (P == AllocPolicy::SingleAlloc) {
+        if (m_base_pointer) MemoryManagerAllocator<S>::free(m_base_pointer);
+        MemoryManagerAllocator<S>::malloc(reinterpret_cast<void**>(&m_base_pointer), memory_size);
+      }
 
       m_guaranteed_alignment = memory_alignment;
       m_max_available_memory = memory_size;
@@ -152,8 +160,17 @@ namespace Allen::Store {
         it = m_memory_segments.erase(it);
       }
 
+      // Serve the memory according to the policy
+      char* memory_pointer = nullptr;
+      if constexpr (P == AllocPolicy::SingleAlloc) {
+        memory_pointer = m_base_pointer + start;
+      }
+      else {
+        MemoryManagerAllocator<S>::malloc(reinterpret_cast<void**>(&memory_pointer), aligned_request);
+      }
+
       // Insert an occupied segment
-      auto segment = MemorySegment {start, aligned_request, true};
+      auto segment = MemorySegment {start, aligned_request, true, memory_pointer};
       m_memory_segments.insert(it, segment);
 
       // Update total memory required
@@ -162,7 +179,7 @@ namespace Allen::Store {
       m_report.report_allocation(
         aligned_request); // TODO: virtual peak: m_max_available_memory - m_memory_segments.back().size
 
-      return m_base_pointer + start;
+      return memory_pointer;
     }
 
     /**
@@ -175,18 +192,27 @@ namespace Allen::Store {
 
     void free(char* ptr)
     {
-      unsigned start = ptr - m_base_pointer;
-      auto it =
-        std::find_if(m_memory_segments.begin(), m_memory_segments.end(), [&start](const MemorySegment& segment) {
-          return segment.start == start;
-        });
+      auto it = std::find_if(m_memory_segments.begin(), m_memory_segments.end(), [&](const MemorySegment& segment) {
+        if constexpr (P == AllocPolicy::SingleAlloc) {
+          return segment.start == static_cast<unsigned>(ptr - m_base_pointer);
+        }
+        else {
+          return segment.pointer == ptr;
+        }
+      });
 
       if (it == m_memory_segments.end()) {
         throw std::runtime_error("MemoryManager free: Requested segment could not be found");
       }
 
+      if constexpr (P == AllocPolicy::MultiAlloc) {
+        // Release the backend allocation
+        MemoryManagerAllocator<S>::free(it->pointer);
+      }
+
       // Free found segment
       it->used = false;
+      it->pointer = nullptr;
 
       m_report.report_free(it->size);
 
@@ -235,8 +261,15 @@ namespace Allen::Store {
      */
     void free_all()
     {
+      if constexpr (P == AllocPolicy::MultiAlloc) {
+        for (const auto& segment : m_memory_segments) {
+          if (segment.used) {
+            MemoryManagerAllocator<S>::free(segment.pointer);
+          }
+        }
+      }
       m_memory_segments.clear();
-      m_memory_segments.emplace_front(MemorySegment {0, m_max_available_memory, false});
+      m_memory_segments.emplace_front(MemorySegment {0, m_max_available_memory, false, nullptr});
     }
 
     const auto& report() const { return m_report; }
@@ -250,117 +283,6 @@ namespace Allen::Store {
       for (auto& segment : m_memory_segments) {
         std::string name = segment.used ? "used" : "unused";
         info_cout << name << " (" << segment.start << ", " << static_cast<float>(segment.size) / (1024.f * 1024.f)
-                  << "), ";
-      }
-      info_cout << "\nMax memory required: " << (static_cast<float>(m_report.current_bytes_in_use) / (1024.f * 1024.f))
-                << " MB"
-                << "\n\n";
-    }
-  };
-
-  /**
-   * @brief This memory manager allocates / frees using the backend calls (eg. Allen::malloc, Allen::free).
-   *        It is slower but better at debugging out-of-bound accesses.
-   */
-  template<Scope S>
-  struct MemoryManager<S, AllocPolicy::MultiAlloc> : MemoryManagerAllocator<S> {
-  private:
-    std::string m_name = "Memory manager";
-    AllocationReport m_report;
-
-    /**
-     * @brief A memory segment, in the case of MultiAlloc policy,
-     *        consists of a pointer to segment association.
-     */
-    struct MemorySegment {
-      char* pointer;
-      size_t size;
-    };
-    std::unordered_map<char*, MemorySegment> m_memory_segments {};
-
-  public:
-    MemoryManager() = default;
-    MemoryManager(const std::string& name) : m_name {name} {}
-    MemoryManager(const std::string& name, const size_t, const unsigned) : m_name {name} {}
-
-    /**
-     * @brief This MultiAlloc MemoryManager does not reserve memory upon startup.
-     */
-    void reserve_memory(size_t, const unsigned) {}
-
-    char* reserve(size_t requested_size)
-    {
-      /// Size requested should be greater than zero
-      if (requested_size == 0) {
-        warning_cout << "Warning: MemoryManager: Requested to reserve zero bytes for argument "
-                     << ". Did you forget to set_size?" << std::endl;
-        requested_size = 1;
-      }
-
-      // We will allocate in a char*
-      char* memory_pointer;
-
-      MemoryManagerAllocator<S>::malloc(reinterpret_cast<void**>(&memory_pointer), requested_size);
-
-      // Add the pointer to the memory segments map
-      m_memory_segments[memory_pointer] = MemorySegment {memory_pointer, requested_size};
-
-      m_report.report_allocation(requested_size);
-
-      return memory_pointer;
-    }
-
-    /**
-     * @brief Allocates a segment of the requested size.
-     */
-    void reserve(BaseArgument& argument) { argument.set_pointer(reserve(argument.size_bytes())); }
-
-    void free(char* ptr)
-    {
-      // Verify the pointer existed in the memory segments map
-      const auto it = m_memory_segments.find(ptr);
-      if (it == m_memory_segments.end()) {
-        print();
-        throw MemoryException(
-          "MemoryManager free: Requested to free segment but it was not allocated with this MemoryManager");
-      }
-
-      MemoryManagerAllocator<S>::free(it->second.pointer);
-
-      m_report.report_free(it->second.size);
-
-      m_memory_segments.erase(ptr);
-    }
-
-    /**
-     * @brief Frees the requested argument.
-     */
-    void free(BaseArgument& argument) { free(reinterpret_cast<char*>(argument.pointer())); }
-
-    /**
-     * @brief Frees all memory segments, effectively resetting the
-     *        available space.
-     */
-    void free_all()
-    {
-      for (const auto& it : m_memory_segments) {
-        MemoryManagerAllocator<S>::free(it.second.pointer);
-      }
-      m_memory_segments.clear();
-    }
-
-    void test_alignment() {}
-
-    const auto& report() const { return m_report; }
-
-    /**
-     * @brief Prints the current state of the memory segments.
-     */
-    void print() const
-    {
-      info_cout << m_name << " segments (MB):" << std::endl;
-      for (auto const& [ptr, segment] : m_memory_segments) {
-        info_cout << static_cast<const void*>(ptr) << " (" << static_cast<float>(segment.size) / (1024.f * 1024.f)
                   << "), ";
       }
       info_cout << "\nMax memory required: " << (static_cast<float>(m_report.current_bytes_in_use) / (1024.f * 1024.f))

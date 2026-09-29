@@ -73,7 +73,7 @@ namespace Allen::Store {
     using type = const T;
     constexpr __host__ __device__ input_datatype() {}
     constexpr __host__ __device__ input_datatype(Allen::device::span<type> value) : datatype<type>(value) {}
-    constexpr __host__ __device__ type operator[](const unsigned index) const { return this->get()[index]; }
+    constexpr __host__ __device__ const type& operator[](const unsigned index) const { return this->get()[index]; }
   };
 
   // Output datatypes return pointers that can be modified.

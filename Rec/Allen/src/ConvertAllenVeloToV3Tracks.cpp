@@ -29,6 +29,7 @@
 
 // Allen
 #include "VeloEventModel.cuh"
+#include "VeloConsolidated.cuh"
 #include "VeloDefinitions.cuh"
 #include "States.cuh"
 #include "AllenBuffer.cuh"
@@ -82,7 +83,7 @@ public:
     const unsigned n_hits_total = h_hit_offsets[n_tracks_total];
 
     // Global hit container (handles the half_t → float conversion)
-    Velo::ConstClusters all_hits {h_hits.data(), n_hits_total};
+    Velo::Consolidated::ConstHits all_hits {h_hits.data(), 0, n_hits_total};
 
     // Output vectors (one entry per event)
     std::vector<OutTracks> out_fwd, out_bwd;

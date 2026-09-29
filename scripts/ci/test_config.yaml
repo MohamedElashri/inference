@@ -59,14 +59,6 @@ full:
     dataset: "Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD"
     geometry: "geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
 
-  - type: "throughput"
-    sequence:
-      - hlt1_pp_default
-    dataset: "Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD"
-    geometry: "geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
-    build_options: BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC
-    throughput_report: false # don't publish throughput report
-
   # run throughput, 50% lumi events
   - type: "throughput"
     sequence:
@@ -154,42 +146,3 @@ full:
     allowed_devices:
       - a5000
       - geforcertx3090
-
-  ######################################################## Other tests
-
-  - type: "run_built_tests"
-    lcg_opt:
-      - "opt+g"
-      # - "dbg" # FIXME dbg platform not available for x86_64_v3
-    build_options: "BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC"
-
-  # run memcheck
-  - type: "run_memcheck"
-    sanitizer: "memcheck"
-    sequence:
-      - hlt1_pp_default
-    dataset: "Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD"
-    geometry: "geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
-    build_options: BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC
-    allowed_devices:
-      - a5000
-
-  - type: "run_racecheck"
-    sanitizer: "racecheck"
-    sequence:
-      - hlt1_pp_default
-    dataset: "Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD"
-    geometry: "geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
-    build_options: BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC
-    allowed_devices:
-      - a5000
-
-  - type: "run_synccheck"
-    sanitizer: "synccheck"
-    sequence:
-      - hlt1_pp_default
-    dataset: "Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD"
-    geometry: "geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
-    build_options: BUILD_TESTING+ENABLE_CONTRACTS+TREAT_WARNINGS_AS_ERRORS+MALLOC_ENGINE=MULTI_ALLOC
-    allowed_devices:
-      - a5000

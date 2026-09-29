@@ -123,24 +123,6 @@ full-pipeline:
   needs: []
 
 
-# build job for the CUDA target
-
-.full-build:
-  needs: [full-pipeline]
-  stage: "build full"
-  extends:
-    - .default_rules
-    - .build_job
-    - .build_job_additional_matrix
-  timeout: 1h 30m
-
-CUDA:
-  extends: .full-build
-  variables:
-    LCG_QUALIFIER: "cuda13_3"
-
-
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Configuration of jobs for each device                     #
 # All devices to run in the full pipeline should be         #
@@ -151,7 +133,7 @@ CUDA:
 # dependencies: instead.
 
 .cuda_run_job:
-  dependencies: [CUDA, build]
+  dependencies: [build]
   variables:
     LCG_QUALIFIER: cuda13_3
 

@@ -154,6 +154,15 @@ __global__ void downstream_v2_consolidate::downstream_v2_consolidate_tracks(Para
     output_states.qop(reconstructed_idx) = input_qop;
     output_states.chi2(reconstructed_idx) = input_score;
     output_states.ndof(reconstructed_idx) = 1;
+    // The compact input state carries no covariance, but the downstream particles
+    // expose a full KalmanState: initialise it explicitly so that consumers such
+    // as ip_chi2() do not read uninitialised memory.
+    output_states.c00(reconstructed_idx) = 0.f;
+    output_states.c11(reconstructed_idx) = 0.f;
+    output_states.c22(reconstructed_idx) = 0.f;
+    output_states.c20(reconstructed_idx) = 0.f;
+    output_states.c31(reconstructed_idx) = 0.f;
+    output_states.c33(reconstructed_idx) = 0.f;
 
     // Fill hits
     const auto output_hit_offset = reconstructed_idx * 4;

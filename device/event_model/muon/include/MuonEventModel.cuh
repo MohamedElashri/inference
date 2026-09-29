@@ -240,7 +240,6 @@ struct MuonTrack {
   float m_ay;
   float m_chi2x;
   float m_chi2y;
-  int m_state_muon_index;
 
   __host__ __device__ MuonTrack() {}
 
@@ -260,7 +259,6 @@ struct MuonTrack {
   __host__ __device__ float& ay() { return m_ay; }
   __host__ __device__ float& chi2x() { return m_chi2x; }
   __host__ __device__ float& chi2y() { return m_chi2y; }
-  __host__ __device__ int& state() { return m_state_muon_index; }
 
   __host__ __device__ float tx() const { return m_tx; }
   __host__ __device__ float ty() const { return m_ty; }
@@ -268,7 +266,6 @@ struct MuonTrack {
   __host__ __device__ float ay() const { return m_ay; }
   __host__ __device__ float chi2x() const { return m_chi2x; }
   __host__ __device__ float chi2y() const { return m_chi2y; }
-  __host__ __device__ int state() const { return m_state_muon_index; }
 };
 
 namespace MatchUpstreamMuon {
