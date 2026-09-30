@@ -67,7 +67,18 @@ add_custom_command(
   WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
   DEPENDS generate_conf_core default_properties)
 add_custom_target(generate_algorithms_view DEPENDS "${ALGORITHMS_OUTPUTFILE}")
-install(FILES "${ALGORITHMS_OUTPUTFILE}" DESTINATION python/AllenAlgorithms)
+# Install next to the generated AllenAlgorithms/__init__.py and AllenAlgorithmsConf.py, which Gaudi puts in
+# GAUDI_INSTALL_PYTHONDIR (lib/pythonX.Y/site-packages since Gaudi v41r0, python before that): a package split
+# over two directories is not importable, python/AllenAlgorithms would be hidden by the regular package.
+# Without Gaudi (standalone build) the variable is not defined.
+# TODO: this can be removed or simplified (install to ${GAUDI_INSTALL_PYTHONDIR}/AllenAlgorithms unconditionally
+# in a Gaudi build) once support for Gaudi releases older than v41r0 is no longer needed.
+if(DEFINED GAUDI_INSTALL_PYTHONDIR AND NOT "${GAUDI_INSTALL_PYTHONDIR}" STREQUAL "")
+  set(ALLEN_ALGORITHMS_INSTALL_DIR "${GAUDI_INSTALL_PYTHONDIR}/AllenAlgorithms")
+else()
+  set(ALLEN_ALGORITHMS_INSTALL_DIR python/AllenAlgorithms)
+endif()
+install(FILES "${ALGORITHMS_OUTPUTFILE}" DESTINATION "${ALLEN_ALGORITHMS_INSTALL_DIR}")
 
 # Target that the generation of the sequences can depend on
 add_custom_target(Sequences DEPENDS generate_algorithms_view)
