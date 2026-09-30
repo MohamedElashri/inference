@@ -35,6 +35,9 @@ namespace rich_quartic_signals {
 
     // Temporaries
     DEVICE_OUTPUT(dev_pd_photon_dir_corners_t, std::array<float2, 4>) dev_pd_photon_dir_corners;
+    // Bit per panel-local PD saying whether it passed the prefilter, so that the
+    // fill pass does not have to evaluate the prefilter a second time.
+    DEVICE_OUTPUT(dev_rich_prefilter_pd_mask_t, uint32_t) dev_rich_prefilter_pd_mask;
 
     // Signal from each track hypo (\mu_j)
     HOST_OUTPUT(host_total_number_of_geomeffs_t, unsigned) host_total_number_of_geomeffs;
@@ -120,6 +123,11 @@ namespace rich_quartic_signals {
 #else
     Allen::Property<Allen::Rich::DetectorArray<float>> m_ckBiasCorrs {this, "CKThetaBiasCorr", {0.6e-4, 0.5e-5}, ""};
 #endif
+
+    /// 32 bit words per track in dev_rich_prefilter_pd_mask_t. Depends on m_n_pds,
+    /// which update() fills before the first set_arguments_size call; the sizing and
+    /// the kernel argument must be derived from the same value, hence this helper.
+    unsigned maskWordsPerTrack() const { return (m_n_pds + 31) / 32; }
 
     // Precomputed values
     mutable std::array<float, 2> m_factor {};
