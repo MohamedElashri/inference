@@ -58,6 +58,9 @@ namespace ParKalmanFilter {
     track.nhitsV = velo_hits;
     track.nhitsUT = ut_hits;
     track.nhitsT = scifi_hits;
+    // Copy outlier tracking information
+    track.worst_chi2 = tI.worst_chi2;
+    track.worst_hit_global_id = tI.worst_hit_global_id;
   }
 
   //----------------------------------------------------------------------
@@ -120,16 +123,9 @@ namespace ParKalmanFilter {
     SimpleKalmanState& r1_b_state,
     SimpleKalmanState& r2_f_state,
     SimpleKalmanState& r2_b_state,
-    const float* dev_UT_lay,
-    const float* dev_T_lay,
-    const float* dev_V_pars,
-    const float* dev_VUT_pars,
-    const float* dev_UT_pars,
-    const float* dev_UTTF_pars,
-    const float* dev_T_pars,
-    const float* dev_TFT_pars,
-    const float* dev_UTT_META,
-    const KalmanFloat magSign);
+    const KalmanFloat magSign,
+    const KalmanFloat outlier_chi2_threshold = -1.0f,
+    const uint64_t skip_mask = 0);
 
   // Set the fit results
   __host__ __device__ void set_result(
@@ -153,6 +149,8 @@ namespace kalman_filter {
     DEVICE_INPUT(dev_number_of_multi_final_vertices_t, unsigned) dev_number_of_multi_final_vertices;
     DEVICE_INPUT(dev_is_muon_t, bool) dev_is_muon;
     DEVICE_OUTPUT(dev_kf_tracks_t, ParKalmanFilter::FittedTrack) dev_kf_tracks;
+    DEVICE_OUTPUT(dev_n_outlier_tracks_t, unsigned) dev_n_outlier_tracks;
+    DEVICE_OUTPUT(dev_outlier_track_indices_t, unsigned) dev_outlier_track_indices;
     DEVICE_OUTPUT(dev_kalman_pv_ip_t, char) dev_kalman_pv_ip;
     DEVICE_OUTPUT(dev_kalman_fit_results_t, char) dev_kalman_fit_results;
     DEVICE_OUTPUT_WITH_DEPENDENCIES(
@@ -179,7 +177,8 @@ namespace kalman_filter {
   __global__ void kalman_filter(
     Parameters,
     const float magnet_polarity,
-    const ParKalmanFilter::KalmanParametrizations* dev_kalman_params);
+    const ParKalmanFilter::KalmanParametrizations* dev_kalman_params,
+    const float outlier_chi2_threshold);
 
   __global__ void kalman_pv_ip(Parameters parameters);
 
@@ -195,5 +194,15 @@ namespace kalman_filter {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
+    Allen::Property<float> m_outlier_chi2_threshold {
+      this,
+      "outlier_chi2_threshold",
+      9.0f,
+      "Chi2 threshold for outlier removal (negative disables refit, typical value: 9.0)"};
+    Allen::Property<unsigned> m_max_outlier_iterations {
+      this,
+      "max_outlier_iterations",
+      2u,
+      "Maximum number of outlier removal passes (1 = one hit removal possible)"};
   };
 } // namespace kalman_filter

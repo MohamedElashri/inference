@@ -31,6 +31,8 @@ namespace downstream_kalman_filter {
 
     // Kalman filter outputs (CompactState + qop + chi2 from ParKF fit)
     DEVICE_OUTPUT(dev_downstream_kf_tracks_t, ParKalmanFilter::FittedTrack) dev_downstream_kf_tracks;
+    DEVICE_OUTPUT(dev_n_outlier_downstream_tracks_t, unsigned) dev_n_outlier_downstream_tracks;
+    DEVICE_OUTPUT(dev_outlier_downstream_track_indices_t, unsigned) dev_outlier_downstream_track_indices;
     // State at MidUTz
     DEVICE_OUTPUT(dev_downstream_kf_track_states_t, char) dev_downstream_kf_track_states;
     DEVICE_OUTPUT_WITH_DEPENDENCIES(
@@ -46,7 +48,15 @@ namespace downstream_kalman_filter {
   __global__ void downstream_kalman_filter(
     Parameters,
     const float magnet_polarity,
-    const ParKalmanFilter::KalmanParametrizations* dev_kalman_params);
+    const ParKalmanFilter::KalmanParametrizations* dev_kalman_params,
+    const float outlier_chi2_threshold);
+
+  __global__ void refit_downstream_outliers(
+    Parameters,
+    const float magnet_polarity,
+    const ParKalmanFilter::KalmanParametrizations* dev_kalman_params,
+    const float outlier_chi2_threshold,
+    const unsigned max_outlier_iterations);
 
   // Create KalmanStates views for the output (per-event structure)
   __global__ void consolidate_kalman_tracks(Parameters, const unsigned n_events);
@@ -63,5 +73,15 @@ namespace downstream_kalman_filter {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {128, 1, 1}, "block dimensions"};
+    Allen::Property<float> m_outlier_chi2_threshold {
+      this,
+      "outlier_chi2_threshold",
+      9.0f,
+      "Chi2 threshold for outlier removal (negative disables refit, typical value: 9.0)"};
+    Allen::Property<unsigned> m_max_outlier_iterations {
+      this,
+      "max_outlier_iterations",
+      2u,
+      "Maximum number of outlier removal passes (1 = one hit removal possible)"};
   };
 } // namespace downstream_kalman_filter

@@ -42,6 +42,45 @@ namespace ParKalmanFilter {
     KalmanFloat m_chi2T;
     KalmanFloat m_chi2V;
     KalmanFloat m_chi2UT;
+
+    // Outlier tracking for post-processing
+    KalmanFloat worst_chi2;
+    unsigned short worst_hit_global_id; // Global hit ID across all detectors (0-41), 0xFFFF = invalid
+  };
+
+  // Encapsulates per-fit outlier tracking state for the forward pass.
+  struct OutlierContext {
+    const bool enabled;
+    const KalmanFloat threshold;
+    const uint64_t skip_mask;
+    KalmanFloat worst_chi2 = 0.0f;
+    unsigned short hit_id = 0;
+    unsigned short worst_hit_global_id = 0xFFFF;
+
+    // Returns true if the hit with the given global id was removed by a previous pass.
+    __device__ __forceinline__ bool is_masked(unsigned id) const { return (skip_mask >> id) & 1; }
+
+    // Returns true if this slot has a hit and is not masked out.
+    __device__ __forceinline__ bool should_process(bool has_hit) const { return has_hit && !is_masked(hit_id); }
+
+    // Record chi2 from an update call and advance to the next slot.
+    __device__ __forceinline__ void consider(KalmanFloat chi2, unsigned n_active, unsigned min_active)
+    {
+      if (enabled && n_active > min_active && chi2 > threshold && chi2 > worst_chi2) {
+        worst_chi2 = chi2;
+        worst_hit_global_id = hit_id;
+      }
+      ++hit_id;
+    }
+
+    // Advance without an update (no hit in slot, or hit masked out).
+    __device__ __forceinline__ void skip() { ++hit_id; }
+
+    __device__ __forceinline__ void commit(trackInfo& tI) const
+    {
+      tI.worst_chi2 = worst_chi2;
+      tI.worst_hit_global_id = worst_hit_global_id;
+    }
   };
 
 } // namespace ParKalmanFilter
@@ -822,16 +861,35 @@ __device__ inline void CreateVeloSeedState(
   const int nVeloHits,
   Vector5& x,
   SymMatrix5x5& C,
-  trackInfo& tI)
+  trackInfo& tI,
+  const uint64_t skip_mask = 0)
 {
-  // Set the state.
-  x(0) = (KalmanFloat) track.hit(nVeloHits - 1).x();
-  x(1) = (KalmanFloat) track.hit(nVeloHits - 1).y();
-  x(2) = (KalmanFloat) ((track.hit(0).x() - track.hit(nVeloHits - 1).x()) /
-                        (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
-  x(3) = (KalmanFloat) ((track.hit(0).y() - track.hit(nVeloHits - 1).y()) /
-                        (track.hit(0).z() - track.hit(nVeloHits - 1).z()));
-  tI.m_Lastz = (KalmanFloat) track.hit(nVeloHits - 1).z();
+  int i_first = nVeloHits - 1; // largest index, smallest z: where the forward pass starts
+  int i_last = 0;              // smallest index, largest z
+  if (skip_mask != 0) {
+    int first_kept = nVeloHits - 1;
+    while (first_kept > 0 && ((skip_mask >> (nVeloHits - 1 - first_kept)) & 1))
+      --first_kept;
+    int last_kept = 0;
+    while (last_kept < first_kept && ((skip_mask >> (nVeloHits - 1 - last_kept)) & 1))
+      ++last_kept;
+    // Keep the full span unless two distinct hits survive, so the slope denominator below can
+    // never vanish.
+    if (last_kept < first_kept) {
+      i_first = first_kept;
+      i_last = last_kept;
+    }
+  }
+
+  // Set the state. Anchoring m_Lastz on i_first keeps the forward propagation chain valid:
+  // the first PredictStateV then extrapolates over dz == 0, which ExtrapolateInV skips.
+  x(0) = (KalmanFloat) track.hit(i_first).x();
+  x(1) = (KalmanFloat) track.hit(i_first).y();
+  x(2) =
+    (KalmanFloat) ((track.hit(i_last).x() - track.hit(i_first).x()) / (track.hit(i_last).z() - track.hit(i_first).z()));
+  x(3) =
+    (KalmanFloat) ((track.hit(i_last).y() - track.hit(i_first).y()) / (track.hit(i_last).z() - track.hit(i_first).z()));
+  tI.m_Lastz = (KalmanFloat) track.hit(i_first).z();
 
   // Set covariance matrix with large uncertainties and no correlations.
   C(0, 0) = (KalmanFloat) 100.0;
@@ -1073,7 +1131,7 @@ __device__ inline void PredictStateT(
 
 //----------------------------------------------------------------------
 // Update state with velo measurement.
-__device__ inline void UpdateStateV(
+__device__ inline KalmanFloat UpdateStateV(
   const Allen::Views::Velo::Consolidated::Track& track,
   int forward,
   int nHit,
@@ -1110,11 +1168,12 @@ __device__ inline void UpdateStateV(
   if (forward > 0) {
     tI.m_chi2V += chi2Tmp;
   }
+  return chi2Tmp;
 }
 
 //----------------------------------------------------------------------
 // Update state with UT measurement.
-__device__ inline void UpdateStateUT(
+__device__ inline KalmanFloat UpdateStateUT(
   const Allen::Views::UT::Consolidated::Track& track,
   Vector5& x,
   SymMatrix5x5& C,
@@ -1158,15 +1217,18 @@ __device__ inline void UpdateStateUT(
   C -= KCResKt;
 
   // Update chi2.
-  tI.m_chi2UT += res * res / CRes;
+  KalmanFloat chi2_contribution = res * res / CRes;
+  tI.m_chi2UT += chi2_contribution;
 
   // Update z. Already be done in the prediction step
   // tI.m_Lastz = (KalmanFloat) track.hit(nHit).zAtYEq0();
+
+  return chi2_contribution;
 }
 
 //----------------------------------------------------------------------
 // Update state with T measurement.
-__device__ inline void UpdateStateT(
+__device__ inline KalmanFloat UpdateStateT(
   const Allen::Views::SciFi::Consolidated::Track& track,
   const float* dev_lays,
   Vector5& x,
@@ -1213,10 +1275,13 @@ __device__ inline void UpdateStateT(
   C -= KCResKt;
 
   // Update the chi2.
-  tI.m_chi2T += res * res / CRes;
+  KalmanFloat chi2_contribution = res * res / CRes;
+  tI.m_chi2T += chi2_contribution;
 
   // Update z. -> Should be a really minimal update, since x[1] is updated and dzdy != 0.
   tI.m_Lastz = z0 + dzdy * (x[1] - y0);
+
+  return chi2_contribution;
 }
 
 //----------------------------------------------------------------------

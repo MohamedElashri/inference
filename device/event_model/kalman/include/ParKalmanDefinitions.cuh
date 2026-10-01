@@ -129,4 +129,10 @@ namespace ParKalmanFilter {
     {0.51594, 0.92742, 0.50147, 0.90342, -0.23370, -4.42730, 0.05454, -0.62828, 1.27656, 0.87818, 1.24467, 0.88083};
   [[maybe_unused]] __constant__ constexpr float PAR_RICH2_B[1 * 12] =
     {0.32917, 1.10458, 0.00001, 0.44354, -0.09239, -1.10418, 0.02300, -2.05242, 1.20123, 0.87818, 0.71955, 0.88083};
+  // Minimum hit counts per subdetector for outlier removal.
+  // A hit is only considered as an outlier if removing it would
+  // still leave at least this many hits in the subdetector.
+  constexpr unsigned minVeloHitsForOutlier = 4;
+  constexpr unsigned minUTLayersForOutlier = 2;
+  constexpr unsigned minSciFiLayersForOutlier = 8;
 } // namespace ParKalmanFilter

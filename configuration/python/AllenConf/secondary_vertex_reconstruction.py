@@ -33,7 +33,14 @@ from AllenConf.utils import initialize_number_of_events
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 
 
-def make_kalman_long(long_tracks, pvs, is_muon_result, is_electron_result=None):
+def make_kalman_long(
+    long_tracks,
+    pvs,
+    is_muon_result,
+    is_electron_result=None,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
+):
     number_of_events = initialize_number_of_events()
 
     kalman = make_algorithm(
@@ -52,6 +59,8 @@ def make_kalman_long(long_tracks, pvs, is_muon_result, is_electron_result=None):
         dev_multi_final_vertices_t=pvs["dev_multi_final_vertices"],
         dev_number_of_multi_final_vertices_t=pvs["dev_number_of_multi_final_vertices"],
         dev_is_muon_t=is_muon_result["dev_is_muon"],
+        outlier_chi2_threshold=outlier_chi2_threshold,
+        max_outlier_iterations=max_outlier_iterations,
     )
 
     return {
