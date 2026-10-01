@@ -85,6 +85,8 @@ def hlt1_reconstruction(
     with_AC_split=False,
     with_fullKF=False,
     with_downstream_KF=False,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
     with_ttracks=False,
     track_max_chi2ndof=10.0,
 ):
@@ -128,6 +130,8 @@ def hlt1_reconstruction(
                 velo_scifi_matches=long_tracks["matched_tracks"],
                 pvs=pvs,
                 with_downstream_KF=with_downstream_KF,
+                outlier_chi2_threshold=outlier_chi2_threshold,
+                max_outlier_iterations=max_outlier_iterations,
                 dev_used_ut_hits_offsets=long_tracks["dev_used_ut_hits_offsets"],
             )
             output.update({"downstream_tracks": downstream_tracks})
@@ -164,6 +168,8 @@ def hlt1_reconstruction(
                 velo_scifi_matches=long_tracks,
                 pvs=pvs,
                 with_downstream_KF=with_downstream_KF,
+                outlier_chi2_threshold=outlier_chi2_threshold,
+                max_outlier_iterations=max_outlier_iterations,
                 dev_used_ut_hits_offsets=long_tracks["dev_used_ut_hits_offsets"],
             )
             output.update({"downstream_tracks": downstream_tracks})
@@ -234,7 +240,13 @@ def hlt1_reconstruction(
     )
 
     if with_fullKF:
-        kalman_long_tracks = make_kalman_long(long_tracks, pvs, muonID)
+        kalman_long_tracks = make_kalman_long(
+            long_tracks,
+            pvs,
+            muonID,
+            outlier_chi2_threshold=outlier_chi2_threshold,
+            max_outlier_iterations=max_outlier_iterations,
+        )
         KF_long_track = kalman_long_tracks
         output.update({"kalman_long_track": kalman_long_tracks})
 

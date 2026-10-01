@@ -702,6 +702,8 @@ def setup_hlt1_node(
     smog2_lumi_prescale=0.1,
     with_fullKF=False,
     with_downstream_KF=False,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
     enabled_lines=[r".*?"],
     disabled_lines=[],
     preset_modifiers=None,
@@ -725,6 +727,8 @@ def setup_hlt1_node(
         with_fullKF=with_fullKF,
         with_downstream_KF=with_downstream_KF,
         track_max_chi2ndof=chi2_cuts.SV_track_max_chi2ndof,
+        outlier_chi2_threshold=outlier_chi2_threshold,
+        max_outlier_iterations=max_outlier_iterations,
     )
 
     preset_name = "pp_smog2_be" if withSMOG2 else "pp_default"  # noqa: F841

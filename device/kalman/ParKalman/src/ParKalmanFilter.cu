@@ -13,6 +13,13 @@
 
 INSTANTIATE_ALGORITHM(kalman_filter::kalman_filter_t)
 
+__global__ void refit_outliers(
+  kalman_filter::Parameters parameters,
+  const float magnet_polarity,
+  const ParKalmanFilter::KalmanParametrizations* dev_kalman_params,
+  const KalmanFloat outlier_threshold,
+  const unsigned max_outlier_iterations);
+
 void kalman_filter::kalman_filter_t::update(const Constants& constants) const
 {
   updateCommon(constants);
@@ -27,6 +34,8 @@ void kalman_filter::kalman_filter_t::set_arguments_size(
 {
   auto n_scifi_tracks = first<host_number_of_reconstructed_scifi_tracks_t>(arguments);
   set_size<dev_kf_tracks_t>(arguments, n_scifi_tracks);
+  set_size<dev_n_outlier_tracks_t>(arguments, 1);
+  set_size<dev_outlier_track_indices_t>(arguments, n_scifi_tracks);
   set_size<dev_kalman_pv_ip_t>(arguments, Associate::Consolidated::table_size(n_scifi_tracks));
   set_size<dev_kalman_fit_results_t>(arguments, n_scifi_tracks * Velo::Consolidated::States::size);
   set_size<dev_kalman_states_view_t>(arguments, first<host_number_of_events_t>(arguments));
@@ -46,8 +55,31 @@ void kalman_filter::kalman_filter_t::operator()(
 {
   dim3 block_dim = m_block_dim;
   int _gridDim = (first<host_number_of_reconstructed_scifi_tracks_t>(arguments) + (block_dim.x) - 1) / (block_dim.x);
+
+  // Zero-initialize outlier counter before main fit
+  Allen::memset_async<dev_n_outlier_tracks_t>(arguments, 0, context);
+
+  // Main Kalman filter fit on all tracks
   global_function(kalman_filter)(dim3(_gridDim), m_block_dim, context)(
-    arguments, constants.magnet_polarity, constants.dev_kalman_params);
+    arguments, constants.magnet_polarity, constants.dev_kalman_params, m_outlier_chi2_threshold);
+
+  // Refit outlier tracks excluding their worst hit (only if enabled).
+  if (m_outlier_chi2_threshold > 0.0f) {
+    unsigned n_outlier_tracks = 0;
+    Allen::memcpy_async(
+      &n_outlier_tracks, data<dev_n_outlier_tracks_t>(arguments), sizeof(unsigned), Allen::memcpyDeviceToHost, context);
+    Allen::synchronize(context);
+
+    if (n_outlier_tracks > 0) {
+      _gridDim = (n_outlier_tracks + block_dim.x - 1) / block_dim.x;
+      global_function(refit_outliers)(dim3(_gridDim), m_block_dim, context)(
+        arguments,
+        constants.magnet_polarity,
+        constants.dev_kalman_params,
+        m_outlier_chi2_threshold,
+        m_max_outlier_iterations);
+    }
+  }
 
   global_function(kalman_pv_ip)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(arguments);
 }
@@ -66,17 +98,11 @@ namespace ParKalmanFilter {
     SimpleKalmanState& r1_b_state,
     SimpleKalmanState& r2_f_state,
     SimpleKalmanState& r2_b_state,
-    const float* dev_UT_lay,
-    const float* dev_T_lay,
-    const float* dev_V_pars,
-    const float* dev_VUT_pars,
-    const float* dev_UT_pars,
-    const float* dev_UTTF_pars,
-    const float* dev_T_pars,
-    const float* dev_TFT_pars,
-    const float* dev_UTT_META,
-    const KalmanFloat magSign)
+    const KalmanFloat magSign,
+    const KalmanFloat outlier_chi2_threshold,
+    const uint64_t skip_mask)
   {
+    using namespace parkalman_shared;
     // Fit information.
     trackInfo tI;
     tI.m_BestMomEst = init_qop;
@@ -92,21 +118,45 @@ namespace ParKalmanFilter {
     x[4] = init_qop;
 
     // Initilise the Velo state using the first and last Velo hit
-    CreateVeloSeedState(velo_track, n_velo_hits, x, C, tI);
+    CreateVeloSeedState(velo_track, n_velo_hits, x, C, tI, skip_mask);
     // sets the state at the position of the first (in z last in index) hit.
     // initialises a very large covariance matrix
     tI.m_chi2V = 0;
     tI.m_chi2T = 0;
     tI.m_chi2UT = 0;
 
+    // Count previously removed hits per detector from the accumulated skip_mask
+    unsigned velo_removed = 0, ut_removed = 0, scifi_removed = 0;
+    if (skip_mask != 0) {
+      for (unsigned b = 0; b < n_velo_hits; ++b)
+        velo_removed += (skip_mask >> b) & 1;
+      for (unsigned b = n_velo_hits; b < n_velo_hits + 4; ++b)
+        ut_removed += (skip_mask >> b) & 1;
+      for (unsigned b = n_velo_hits + 4; b < n_velo_hits + 4 + 12; ++b)
+        scifi_removed += (skip_mask >> b) & 1;
+    }
+
+    OutlierContext oc {outlier_chi2_threshold > 0.0f, outlier_chi2_threshold, skip_mask};
+
     //------------------------------ Start forward fit.
     // Velo loop.
     // Update on the first hit
-    UpdateStateV(velo_track, 1, n_velo_hits - 1, x, C, tI);
+    if (oc.should_process(true))
+      oc.consider(
+        UpdateStateV(velo_track, 1, n_velo_hits - 1, x, C, tI), n_velo_hits - velo_removed, minVeloHitsForOutlier);
+    else
+      oc.skip();
+
     // have to iterate down from `n_velo_hits - 1` to `0`
     for (unsigned i_hit = 1; i_hit < n_velo_hits; i_hit++) {
       PredictStateV(velo_track, dev_V_pars, n_velo_hits - 1 - i_hit, x, C, tI);
-      UpdateStateV(velo_track, 1, n_velo_hits - 1 - i_hit, x, C, tI);
+      if (oc.should_process(true))
+        oc.consider(
+          UpdateStateV(velo_track, 1, n_velo_hits - 1 - i_hit, x, C, tI),
+          n_velo_hits - velo_removed,
+          minVeloHitsForOutlier);
+      else
+        oc.skip();
     }
 
     KalmanFloat endVeloZ = tI.m_Lastz; // z position if the last Velo hit
@@ -122,18 +172,20 @@ namespace ParKalmanFilter {
     PredictStateVUT(ut_track, dev_UT_lay, dev_VUT_pars, x, C, tI, hit_counter);
     // m_RefStateForwardV was saved at the last Velo hit.
 
-    //  and update the first ut layer if there is a hit.
-    if (hit_counter != 0xf) {
-      UpdateStateUT(ut_track, x, C, tI, hit_counter);
-    }
+    // Update the first UT layer if there is a hit.
+    if (oc.should_process(hit_counter != 0xf))
+      oc.consider(UpdateStateUT(ut_track, x, C, tI, hit_counter), n_ut_layers - ut_removed, minUTLayersForOutlier);
+    else
+      oc.skip();
 
-    // iterater over the remaining UT layers
+    // Iterate over the remaining UT layers
     for (layer = 1; layer < 4; layer++) {
       hit_counter = ((hit_map0 >> (layer * 4)) & 0xf);
       PredictStateUT(ut_track, dev_UT_lay, dev_UT_pars, x, C, tI, layer, hit_counter);
-      if (hit_counter != 0xf) {
-        UpdateStateUT(ut_track, x, C, tI, hit_counter);
-      }
+      if (oc.should_process(hit_counter != 0xf))
+        oc.consider(UpdateStateUT(ut_track, x, C, tI, hit_counter), n_ut_layers - ut_removed, minUTLayersForOutlier);
+      else
+        oc.skip();
     }
 
     layer = 3; // needed because `PredictStateUTT` calls `ExtrapolateInUT` again
@@ -151,22 +203,35 @@ namespace ParKalmanFilter {
     // ----- would possibly make the TFT step redundant and improve on it.
     hit_counter = (hit_map0 & 0xf);
     layer = 0;
-    if (hit_counter != 0xf) {
-      UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer);
-    }
+    if (oc.should_process(hit_counter != 0xf))
+      oc.consider(
+        UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer),
+        n_scifi_layers - scifi_removed,
+        minSciFiLayersForOutlier);
+    else
+      oc.skip();
+
     for (layer = 1; layer < 6; layer++) {
       hit_counter = ((hit_map0 >> (4 * layer)) & 0xf);
       PredictStateT(scifi_track, dev_T_lay, dev_T_pars, x, C, tI, layer, hit_counter);
-      if (hit_counter != 0xf) {
-        UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer);
-      }
+      if (oc.should_process(hit_counter != 0xf))
+        oc.consider(
+          UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer),
+          n_scifi_layers - scifi_removed,
+          minSciFiLayersForOutlier);
+      else
+        oc.skip();
     }
     for (layer = 6; layer < 12; layer++) {
       hit_counter = ((hit_map1 >> (4 * (layer - 6))) & 0xf);
       PredictStateT(scifi_track, dev_T_lay, dev_T_pars, x, C, tI, layer, hit_counter);
-      if (hit_counter != 0xf) {
-        UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer);
-      }
+      if (oc.should_process(hit_counter != 0xf))
+        oc.consider(
+          UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer),
+          n_scifi_layers - scifi_removed,
+          minSciFiLayersForOutlier);
+      else
+        oc.skip();
     }
     // Extrapolate to R2 states
     Vector5 x_tmp = x;
@@ -176,7 +241,7 @@ namespace ParKalmanFilter {
     x_tmp = x;
     ExtrapolateToR2(PAR_RICH2_B, RICH2_B_zTo, x_tmp, tI);
     r2_b_state = SimpleKalmanState(x_tmp[0], x_tmp[1], RICH2_B_zTo, x_tmp[2], x_tmp[3], x_tmp[4]);
-    __syncthreads();
+    oc.commit(tI);
     //------------------------------ End forward fit.
 
     // Set state and covariance for VELO-only backward fit
@@ -203,14 +268,20 @@ namespace ParKalmanFilter {
     //------------------------------ Start backward fit.
     // Velo loop.
     // Update again on the hit in the last layer
-    UpdateStateV(velo_track, -1, 0, x, C, tI);
+    if (!oc.is_masked(n_velo_hits - 1)) {
+      UpdateStateV(velo_track, -1, 0, x, C, tI);
+    }
     for (unsigned i_hit = 1; i_hit < n_velo_hits; i_hit++) { // Velo hits are sorted from large z to small z
       PredictStateV(velo_track, dev_V_pars, i_hit, x, C, tI);
-      UpdateStateV(velo_track, -1, i_hit, x, C, tI);
+      if (!oc.is_masked(n_velo_hits - 1 - i_hit)) {
+        UpdateStateV(velo_track, -1, i_hit, x, C, tI);
+      }
     }
     //------------------------------ End backward fit.
 
-    MakeTrack(init_qop, x, C, tI, track, n_velo_hits2, n_ut_layers, n_scifi_layers);
+    unsigned eff_ut_layers = n_ut_layers - ut_removed;
+    unsigned eff_scifi_layers = n_scifi_layers - scifi_removed;
+    MakeTrack(init_qop, x, C, tI, track, n_velo_hits2 - velo_removed, eff_ut_layers, eff_scifi_layers);
 
     // Straight line extrapolation to the closest point to the beamline.
 
@@ -245,11 +316,88 @@ namespace ParKalmanFilter {
 } // End namespace ParKalmanFilter.
 
 //----------------------------------------------------------------------
+// Refit outlier tracks excluding their worst hit.
+// This kernel only processes tracks identified as outliers during the main fit.
+__global__ void refit_outliers(
+  kalman_filter::Parameters parameters,
+  const float magnet_polarity,
+  const ParKalmanFilter::KalmanParametrizations* dev_kalman_params,
+  const KalmanFloat outlier_threshold,
+  const unsigned max_outlier_iterations)
+{
+  const KalmanFloat magSign = magnet_polarity;
+  const unsigned n_outlier_tracks = *parameters.dev_n_outlier_tracks;
+  const unsigned total_tracks = parameters.dev_long_track_view.size();
+  const Allen::Views::Physics::LongTrack* track_base = parameters.dev_long_track_view.data();
+  Velo::Consolidated::States kalman_states {parameters.dev_kalman_fit_results, total_tracks};
+
+  for (unsigned consolidated_track_idx = blockIdx.x * blockDim.x + threadIdx.x;
+       consolidated_track_idx < n_outlier_tracks;
+       consolidated_track_idx += blockDim.x * gridDim.x) {
+    const unsigned track_idx = parameters.dev_outlier_track_indices[consolidated_track_idx];
+    auto& kf_track = parameters.dev_kf_tracks[track_idx];
+
+    const auto& long_track = track_base[track_idx];
+    const auto ut_track_ptr = long_track.track_segment_ptr<Allen::Views::Physics::Track::segment::ut>();
+    const auto ut_track = ut_track_ptr != nullptr ? *ut_track_ptr : Allen::Views::UT::Consolidated::Track();
+
+    for (unsigned outlier_pass = 0; outlier_pass < max_outlier_iterations; ++outlier_pass) {
+      // Skip tracks that have already converged (no outlier above threshold)
+      if (kf_track.worst_chi2 <= outlier_threshold) continue;
+      if (kf_track.worst_hit_global_id >= 64) continue;
+
+      const KalmanFloat current_chi2 = kf_track.chi2;
+      const unsigned current_ndof = kf_track.ndof;
+
+      // Accumulate skip mask: add the worst hit from the previous pass
+      uint64_t new_mask = kf_track.skip_mask | (uint64_t(1) << kf_track.worst_hit_global_id);
+
+      // Refit the track excluding all accumulated bad hits
+      ParKalmanFilter::FittedTrack refit_track;
+      SimpleKalmanState r1_f, r1_b, r2_f, r2_b;
+      ParKalmanFilter::fit(
+        long_track.track_segment<Allen::Views::Physics::Track::segment::velo>(),
+        ut_track,
+        long_track.track_segment<Allen::Views::Physics::Track::segment::scifi>(),
+        kf_track.first_qop,
+        dev_kalman_params,
+        refit_track,
+        r1_f,
+        r1_b,
+        r2_f,
+        r2_b,
+        magSign,
+        outlier_threshold,
+        new_mask);
+
+      refit_track.skip_mask = new_mask;
+
+      const bool improved =
+        current_ndof > 0 && refit_track.ndof > 0 && refit_track.chi2 * current_ndof < current_chi2 * refit_track.ndof;
+
+      if (improved) {
+        kf_track = refit_track;
+        ParKalmanFilter::set_result(track_idx, refit_track, kalman_states);
+        parameters.dev_kalman_R1_F_view[track_idx] = r1_f;
+        parameters.dev_kalman_R1_B_view[track_idx] = r1_b;
+        parameters.dev_kalman_R2_F_view[track_idx] = r2_f;
+        parameters.dev_kalman_R2_B_view[track_idx] = r2_b;
+      }
+      else {
+        // Mark as converged so further passes do not recompute the same rejected refit.
+        kf_track.worst_chi2 = 0;
+      }
+    }
+  }
+}
+
+//----------------------------------------------------------------------
 // Kalman filter kernel.
 __global__ void kalman_filter::kalman_filter(
   kalman_filter::Parameters parameters,
   const float magnet_polarity,
-  const ParKalmanFilter::KalmanParametrizations* dev_kalman_params)
+  const ParKalmanFilter::KalmanParametrizations* dev_kalman_params,
+  const float outlier_chi2_threshold)
 {
   const KalmanFloat magSign = magnet_polarity;
 
@@ -285,21 +433,20 @@ __global__ void kalman_filter::kalman_filter(
       r1_b_state,
       r2_f_state,
       r2_b_state,
-      parkalman_shared::dev_UT_lay,
-      parkalman_shared::dev_T_lay,
-      parkalman_shared::dev_V_pars,
-      parkalman_shared::dev_VUT_pars,
-      parkalman_shared::dev_UT_pars,
-      parkalman_shared::dev_UTTF_pars,
-      parkalman_shared::dev_T_pars,
-      parkalman_shared::dev_TFT_pars,
-      parkalman_shared::dev_UTT_META,
-      magSign);
+      magSign,
+      outlier_chi2_threshold);
+    kalman_track.skip_mask = 0; // No hits removed yet; refit_outliers accumulates into this
     set_result(track_id, kalman_track, kalman_states);
     parameters.dev_kf_tracks[track_id] = kalman_track;
     parameters.dev_kalman_R1_F_view[track_id] = r1_f_state;
     parameters.dev_kalman_R1_B_view[track_id] = r1_b_state;
     parameters.dev_kalman_R2_F_view[track_id] = r2_f_state;
     parameters.dev_kalman_R2_B_view[track_id] = r2_b_state;
+
+    // If outlier removal is enabled, add tracks with outliers to the compact index list
+    if (outlier_chi2_threshold > 0.0f && kalman_track.worst_chi2 > outlier_chi2_threshold) {
+      auto idx = atomicAdd(&parameters.dev_n_outlier_tracks[0], 1u);
+      parameters.dev_outlier_track_indices[idx] = track_id;
+    }
   }
 }

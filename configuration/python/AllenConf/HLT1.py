@@ -1382,6 +1382,8 @@ def setup_hlt1_node(
     enableTupling=False,
     data_quality=False,
     with_fullKF=False,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
     with_ttracks=False,
     with_downstream_KF=False,
     with_quirks=True,
@@ -1412,6 +1414,8 @@ def setup_hlt1_node(
         with_ttracks=with_ttracks,
         with_downstream_KF=with_downstream_KF,
         track_max_chi2ndof=chi2_cuts.SV_track_max_chi2ndof,
+        outlier_chi2_threshold=outlier_chi2_threshold,
+        max_outlier_iterations=max_outlier_iterations,
     )
 
     preset_name = "pp_smog2_be" if withSMOG2 else "pp_default"  # noqa: F841
