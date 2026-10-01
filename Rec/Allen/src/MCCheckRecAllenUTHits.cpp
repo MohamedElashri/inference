@@ -105,7 +105,7 @@ void MCCheckRecAllenUTHits::operator()(
     auto index = std::find_if(
                    known_zAtYEq0.begin(),
                    known_zAtYEq0.end(),
-                   [&z, tol_z](const float& known_z) { return abs(z - known_z) < tol_z; }) -
+                   [&z, tol_z](const float& known_z) { return std::abs(z - known_z) < tol_z; }) -
                  known_zAtYEq0.begin();
     if (static_cast<std::decay<decltype(n_z_planes)>::type>(index) >= n_z_planes || index < 0) {
       // this happens for padded SIMD hits
