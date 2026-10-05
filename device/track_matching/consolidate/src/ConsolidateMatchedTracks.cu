@@ -281,10 +281,9 @@ __global__ void matching_consolidate_tracks::matching_consolidate_tracks(
     scifi_states[i] = seeding_states[track.scifi_track_index];
   }
 
-//
-// Monitoring
-//
-#ifndef ALLEN_STANDALONE
+  //
+  // Monitoring
+  //
   for (unsigned i = threadIdx.x; i < number_of_tracks_event; i += blockDim.x) {
     const SciFi::MatchedTrack& track = event_matched_tracks[i];
     const auto scifi_track = parameters.dev_scifi_tracks_view[event_number].track(track.scifi_track_index);
@@ -309,8 +308,6 @@ __global__ void matching_consolidate_tracks::matching_consolidate_tracks(
     dev_histogram_n_long_tracks_matching.increment(number_of_tracks_event);
     dev_n_long_tracks_matching_counter.add(number_of_tracks_event);
   }
-
-#endif
 }
 
 __device__ void matching_consolidate_tracks::matching_consolidate_tracks_t::monitor(

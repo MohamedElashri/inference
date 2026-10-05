@@ -95,7 +95,10 @@ Its main properties are:
     Number of events processed per slice (per GPU launch).
 ``Repetitions``
     Number of times each slice is processed.  A value greater than one is used
-    for benchmarking/throughput measurement.
+    for benchmarking/throughput measurement.  When measuring the throughput,
+    the first and last ``NStreams`` slice iterations are excluded to discard
+    the lazy loading of non-event data (geometry, conditions, ...) triggered by
+    the first iterations and the draining effects at the end of the run.
 ``DeviceMemoryPool`` / ``HostMemoryPool``
     Size (in MB) of the per-stream device and host memory pools.
 ``DeviceID``
