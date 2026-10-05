@@ -82,5 +82,6 @@ install(TARGETS bank_mapping
         LIBRARY DESTINATION
           ${GAUDI_INSTALL_PYTHONDIR}/Allen)
 
-file(GLOB TEST_OPTS "tests/options/*.py" "tests/options/*.yaml" "tests/options/*.sh")
+file(GLOB TEST_OPTS "tests/options/*.py" "tests/options/*.yaml")
 install(FILES ${TEST_OPTS} DESTINATION python/tests/options/)
+gaudi_install(SCRIPTS "tests/scripts/")
