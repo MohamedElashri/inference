@@ -21,9 +21,9 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1ODINCalib in: odin_error_filter
   MultiEventScheduler                    INFO    error_bank_filter in: true
   MultiEventScheduler                    INFO    Hlt1ErrorBank in: error_bank_filter
-  MultiEventScheduler                    INFO    tae_filter in: Hlt1ODINCalib
+  MultiEventScheduler                    INFO    tae_filter in: true
   MultiEventScheduler                    INFO    Hlt1TAEPassthrough in: tae_filter
-  MultiEventScheduler                    INFO    calo_count_digits_8f5cd83e in: true
+  MultiEventScheduler                    INFO    calo_count_digits_8f5cd83e in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    ODIN_EvenType_Lumi in: Hlt1ODINCalib
   MultiEventScheduler                    INFO    ODIN_Orbit_30_1 in: ODIN_EvenType_Lumi
   MultiEventScheduler                    INFO    Hlt1ODIN1kHzLumi in: ODIN_Orbit_30_1
@@ -32,34 +32,34 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1NonZeroSuppress in: ODIN_NonZSFilter
   MultiEventScheduler                    INFO    Hlt1Passthrough in: Hlt1ODINCalib
   MultiEventScheduler                    INFO    ODIN_EvenType_VeloOpen in: Hlt1ODINCalib
-  MultiEventScheduler                    INFO    host_scifi_banks in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    host_scifi_banks in: (ODIN_EvenType_VeloClosed|odin_error_filter)
   MultiEventScheduler                    INFO    scifi_gec in: (ODIN_EvenType_VeloClosed|odin_error_filter)
-  MultiEventScheduler                    INFO    velo_banks in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calculate_number_of_retinaclusters_each_sensor_pair in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    decode_retinaclusters in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    velo_banks in: (scifi_gec|ODIN_EvenType_VeloClosed|odin_error_filter|ODIN_EvenType_VeloOpen)
+  MultiEventScheduler                    INFO    calculate_number_of_retinaclusters_each_sensor_pair in: (scifi_gec|ODIN_EvenType_VeloClosed|odin_error_filter|ODIN_EvenType_VeloOpen)
+  MultiEventScheduler                    INFO    decode_retinaclusters in: calculate_number_of_retinaclusters_each_sensor_pair
   MultiEventScheduler                    INFO    velo_gec in: scifi_gec
   MultiEventScheduler                    INFO    prescaler_Hlt1MaterialVertexSeeds_DWFS in: (scifi_gec&velo_gec)
   MultiEventScheduler                    INFO    Hlt1GECPassthrough in: (scifi_gec&velo_gec)
   MultiEventScheduler                    INFO    BX_NoBeamBeam in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    prescaler_Hlt1MaterialVertexSeedsDownstreamz in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    velo_search_by_triplet in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    velo_three_hit_tracks_filter in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    velo_copy_track_hit_number in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    velo_consolidate_tracks in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    velo_kalman_filter in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    velo_search_by_triplet in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed|BX_NoBeamBeam|prescaler_Hlt1MaterialVertexSeedsDownstreamz|prescaler_Hlt1MaterialVertexSeeds_DWFS|odin_error_filter|ODIN_EvenType_VeloOpen)
+  MultiEventScheduler                    INFO    velo_three_hit_tracks_filter in: velo_search_by_triplet
+  MultiEventScheduler                    INFO    velo_copy_track_hit_number in: velo_search_by_triplet
+  MultiEventScheduler                    INFO    velo_consolidate_tracks in: ((scifi_gec&velo_gec)|BX_NoBeamBeam|prescaler_Hlt1MaterialVertexSeedsDownstreamz|prescaler_Hlt1MaterialVertexSeeds_DWFS|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    velo_kalman_filter in: velo_consolidate_tracks
   MultiEventScheduler                    INFO    BGIPseudoPVsIR in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsIRBeamBeam in: BGIPseudoPVsIR
-  MultiEventScheduler                    INFO    ut_select_velo_tracks_772c3d70 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    ut_select_velo_tracks_772c3d70 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    BGIPseudoPVsAll in: BX_NoBeamBeam
   MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsNoBeam in: BGIPseudoPVsAll
   MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsBeamOne in: Hlt1BGIPseudoPVsNoBeam
   MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsBeamTwo in: Hlt1BGIPseudoPVsNoBeam
-  MultiEventScheduler                    INFO    pv_beamline_extrapolate in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    pv_beamline_histo in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    pv_beamline_peak in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    pv_beamline_calculate_denom in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    pv_beamline_multi_fitter in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    pv_beamline_cleanup in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    pv_beamline_extrapolate in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    pv_beamline_histo in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_peak in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_calculate_denom in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_multi_fitter in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_cleanup in: pv_beamline_extrapolate
   MultiEventScheduler                    INFO    check_SMOG2_PV in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1PassthroughPVinSMOG2 in: check_SMOG2_PV
   MultiEventScheduler                    INFO    Hlt1SMOG2MinimumBias in: Hlt1GECPassthrough
@@ -67,65 +67,65 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsUpBeamBeam in: BGIPseudoPVsUp
   MultiEventScheduler                    INFO    BGIPseudoPVsDown in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsDownBeamBeam in: BGIPseudoPVsDown
-  MultiEventScheduler                    INFO    count_materialinteraction_candidates_fbc7c5e5 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    count_materialinteraction_vertices_5926ac13 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    count_materialinteraction_candidates_fbc7c5e5 in: (prescaler_Hlt1MaterialVertexSeedsDownstreamz|prescaler_Hlt1MaterialVertexSeeds_DWFS)
+  MultiEventScheduler                    INFO    count_materialinteraction_vertices_5926ac13 in: count_materialinteraction_candidates_fbc7c5e5
   MultiEventScheduler                    INFO    Hlt1MaterialVertexSeedsDownstreamz in: prescaler_Hlt1MaterialVertexSeedsDownstreamz
   MultiEventScheduler                    INFO    Hlt1MaterialVertexSeeds_DWFS in: prescaler_Hlt1MaterialVertexSeeds_DWFS
   MultiEventScheduler                    INFO    Hlt1VeloLargeClusters in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1BeamGas in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1VeloMicroBias in: Hlt1ODINCalib
   MultiEventScheduler                    INFO    Hlt1VeloMicroBiasVeloClosing in: ODIN_EvenType_VeloOpen
-  MultiEventScheduler                    INFO    quirks_tools in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    quirks_tools in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Quirks in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    muon_banks_ee050286 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    muon_calculate_srq_size_762053f8 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    muon_populate_tile_and_tdc_aaaf801a in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    muon_add_coords_crossing_maps_8ee987f2 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    muon_populate_hits_3d94b506 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    find_muon_hits_853c9dc3 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    consolidate_muon_t_d6c0a2a1 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    muon_banks_ee050286 in: ((scifi_gec&velo_gec)|check_SMOG2_PV|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    muon_calculate_srq_size_762053f8 in: ((scifi_gec&velo_gec)|check_SMOG2_PV|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    muon_populate_tile_and_tdc_aaaf801a in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    muon_add_coords_crossing_maps_8ee987f2 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    muon_populate_hits_3d94b506 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    find_muon_hits_853c9dc3 in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    consolidate_muon_t_d6c0a2a1 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1OneMuonTrackLine in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    scifi_banks_834c3679 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    scifi_calculate_cluster_count_3380ec70 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    scifi_pre_decode_92288b30 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    scifi_raw_bank_decoder_6dafd748 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    seed_xz_a1b8b6e8 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    seed_confirmTracks_715ef2c7 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    seeding_copy_track_hit_number_df7d1dab in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    scifi_consolidate_seeds_matching in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ut_banks in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ut_decoding_get_bank_offsets_eadfcf29 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ut_decoding_get_hit_offsets_1f232807 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ut_decoding_predecode_hits_15c72b09 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ut_decoding_hit_clustering_ed244ef2 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ut_decoding_decode_clusters_b623646a in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    track_matching_veloSciFi_a59fe43c in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    matching_copy_track_ut_hit_number_b5527ba6 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    matching_consolidate_tracks_matching in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    is_muon in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    consolidate_is_muon_ff568e97 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    kalman_velo_only_64637078 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    chi2_muon_4a6b79e5 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    muonid_nn_6bbef087 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    ecal_banks_77f78c36 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calo_decode_e508553f in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    track_digit_selective_matching_faae9f8e in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    electronid_nn_317af5a8 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_lepton_id_bfe81379 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_long_track_particles in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    scifi_banks_834c3679 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    scifi_calculate_cluster_count_3380ec70 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    scifi_pre_decode_92288b30 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    scifi_raw_bank_decoder_6dafd748 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    seed_xz_a1b8b6e8 in: ((scifi_gec&velo_gec)|check_SMOG2_PV)
+  MultiEventScheduler                    INFO    seed_confirmTracks_715ef2c7 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    seeding_copy_track_hit_number_df7d1dab in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    scifi_consolidate_seeds_matching in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_banks in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_get_bank_offsets_eadfcf29 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_get_hit_offsets_1f232807 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_predecode_hits_15c72b09 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_hit_clustering_ed244ef2 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_decode_clusters_b623646a in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    track_matching_veloSciFi_a59fe43c in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    matching_copy_track_ut_hit_number_b5527ba6 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    matching_consolidate_tracks_matching in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    is_muon in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    consolidate_is_muon_ff568e97 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    kalman_velo_only_64637078 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    chi2_muon_4a6b79e5 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    muonid_nn_6bbef087 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ecal_banks_77f78c36 in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed|check_SMOG2_PV)
+  MultiEventScheduler                    INFO    calo_decode_e508553f in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed|check_SMOG2_PV)
+  MultiEventScheduler                    INFO    track_digit_selective_matching_faae9f8e in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    electronid_nn_317af5a8 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    make_lepton_id_bfe81379 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    make_long_track_particles in: seed_xz_a1b8b6e8
   MultiEventScheduler                    INFO    Hlt1RICH1Alignment in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1TrackMVA in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1RICH2Alignment in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SMOG2SingleTrackHighPt in: Hlt1PassthroughPVinSMOG2
-  MultiEventScheduler                    INFO    filter_tracks_a408a317 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    fit_prompt_dihadron_secondary_vertices in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_tracks_a408a317 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_prompt_dihadron_secondary_vertices in: seed_xz_a1b8b6e8
   MultiEventScheduler                    INFO    Hlt1SMOG2JPsiToMuMuTaP_PosTag in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1DiProtonHighMass in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SMOG2etacTopp in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1SMOG22BodyGenericPrompt in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1SMOG2JPsiToMuMuTaP_NegTag in: Hlt1PassthroughPVinSMOG2
-  MultiEventScheduler                    INFO    filter_tracks_edb75c20 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    fit_dilepton_secondary_vertices in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_tracks_edb75c20 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_dilepton_secondary_vertices in: seed_xz_a1b8b6e8
   MultiEventScheduler                    INFO    Hlt1DiMuonNoIPNorm in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiMuonJpsiMassAlignment in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiMuonDisplaced in: Hlt1GECPassthrough
@@ -142,22 +142,22 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1SMOG2DisplacedDiMuon in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1SMOG2DiMuonHighMass in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1UpsilonAlignment in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_tracks_d5ed4e7a in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    fit_dihadron_secondary_vertices in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_tracks_d5ed4e7a in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_dihadron_secondary_vertices in: seed_xz_a1b8b6e8
   MultiEventScheduler                    INFO    Hlt1D2KK in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SMOG22BodyGeneric in: Hlt1PassthroughPVinSMOG2
-  MultiEventScheduler                    INFO    filter_sv_track_bc2987fa in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_3217e2d3 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_sv_track_bc2987fa in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_3217e2d3 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Dst2D0Pi in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Dst2D0PiAlignment in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DetJpsiToMuMuNegTagLine in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    two_track_mva_evaluator_ee342122 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    two_track_mva_evaluator_ee342122 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1TwoTrackMVA in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1D2KPi in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1D2PiPi in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_sv_track_49fd0b08 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_1fd356f8 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    flatten_svs_25b24e86 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_sv_track_49fd0b08 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_1fd356f8 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    flatten_svs_25b24e86 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Kplus2PiPiPi in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Kplus2PiEE in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Kplus2PiMuMu in: Hlt1GECPassthrough
@@ -167,44 +167,44 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1SMOG2KsTopipi in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1SingleHighPtMuonNoMuID in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SMOG2SingleMuon in: Hlt1PassthroughPVinSMOG2
-  MultiEventScheduler                    INFO    filter_tracks_935f55f1 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    fit_dihadrons_noipcut_secondary_vertices in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    filter_sv_track_73fa2e58 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_1e6c0d46 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_tracks_935f55f1 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    fit_dihadrons_noipcut_secondary_vertices in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_73fa2e58 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_1e6c0d46 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1TauToPhiMu in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_tracks_4b5826c8 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    fit_v0_secondary_vertices in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calc_max_combos_d8f3fd31 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    filter_svs_3c296589 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    svs_pair_candidate_5952759b in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_tracks_4b5826c8 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_v0_secondary_vertices in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    calc_max_combos_d8f3fd31 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_svs_3c296589 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    svs_pair_candidate_5952759b in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1TwoKs in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_sv_track_aa925f41 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_46fc7691 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_sv_track_aa925f41 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_46fc7691 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1LambdaLLDetachedTrack in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_sv_track_4949d903 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_f8c2bbbd in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    filter_sv_track_72ded4b0 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_1f2e714e in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_sv_track_4949d903 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_f8c2bbbd in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_72ded4b0 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_1f2e714e in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1XiOmegaLLL in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1KsToPiPi in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1KsToPiPiDoubleMuonMisID in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1TwoTrackKs in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_sv_track_2eeb5a0a in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    combine_sv_track_f79340ee in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_sv_track_2eeb5a0a in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_f79340ee in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1KsLLDetachedTrack in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    calc_max_combos_two_svs_22234a26 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    filter_two_svs_c22e8ec9 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    generic_svs_pair_candidate_40c4fc31 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    calc_max_combos_two_svs_22234a26 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_two_svs_c22e8ec9 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    generic_svs_pair_candidate_40c4fc31 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1D2Kshh in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SMOG2L0Toppi in: Hlt1PassthroughPVinSMOG2
   MultiEventScheduler                    INFO    Hlt1SingleHighPtMuon in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    filter_tracks_a52d6d2d in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    fit_dilepton_secondary_vertices_nopt in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    filter_tracks_a52d6d2d in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    fit_dilepton_secondary_vertices_nopt in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiMuonSoft in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1TrackMuonMVA in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SMOG2SingleTrackVeryHighPt in: Hlt1PassthroughPVinSMOG2
-  MultiEventScheduler                    INFO    brem_recovery_883739ee in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    momentum_brem_correction_74f15bf2 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    brem_recovery_883739ee in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    momentum_brem_correction_74f15bf2 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiElectronHighMass in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiElectronSoft in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1SingleHighPtElectron in: Hlt1GECPassthrough
@@ -217,23 +217,23 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_SS_NoIPNorm in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_Displaced in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_SS_Displaced in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    calo_seed_clusters_3a42dddc in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    calo_seed_clusters_3a42dddc in: pv_beamline_extrapolate
   MultiEventScheduler                    INFO    LowMultElectrons in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    Hlt1SMOG2BELowMultElectrons in: LowMultElectrons
   MultiEventScheduler                    INFO    LowMult_5 in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    Hlt1SMOG2PassThroughLowMult5 in: LowMult_5
-  MultiEventScheduler                    INFO    calo_overlap_clusters_60a76296 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calo_find_clusters in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_neutral_particles_d5bb4901 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    build_cone_jets_1b69cc3a in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_neutral_particles_3252639f in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    calo_overlap_clusters_60a76296 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_find_clusters in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    make_neutral_particles_d5bb4901 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    build_cone_jets_1b69cc3a in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    make_neutral_particles_3252639f in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1ConeJet30GeV in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1ConeJet15GeV in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1ConeJet50GeV in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1ConeJet100GeV in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    calo_prefilter_clusters_681cf9e5 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calo_filter_clusters_f5c112a0 in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calo_find_twoclusters_21db73c6 in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    calo_prefilter_clusters_681cf9e5 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_filter_clusters_f5c112a0 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_find_twoclusters_21db73c6 in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1DiPhotonHighMass in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaMiddle in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Pi02GammaGamma in: Hlt1GECPassthrough
@@ -241,26 +241,26 @@ stdout: |-
   MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaMiddleOuterMixed in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaMiddleInnerMixed in: Hlt1GECPassthrough
   MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaInner in: Hlt1GECPassthrough
-  MultiEventScheduler                    INFO    gather_selections in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    dec_reporter in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    global_decision in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    host_routingbits_writer in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_selected_object_lists in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_subbanks in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    make_selreps in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    calc_lumi_sum_size in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    gather_selections in: true
+  MultiEventScheduler                    INFO    dec_reporter in: true
+  MultiEventScheduler                    INFO    global_decision in: true
+  MultiEventScheduler                    INFO    host_routingbits_writer in: true
+  MultiEventScheduler                    INFO    make_selected_object_lists in: true
+  MultiEventScheduler                    INFO    make_subbanks in: make_selected_object_lists
+  MultiEventScheduler                    INFO    make_selreps in: make_selected_object_lists
+  MultiEventScheduler                    INFO    calc_lumi_sum_size in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    muon_lumi_counters in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    velo_total_tracks in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    pv_lumi_counters in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    calo_lumi_counters in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    scifi_lumi_counters in: Hlt1SMOG2BENoBias
-  MultiEventScheduler                    INFO    Plume_banks in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    plume_decode in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    Plume_banks in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    plume_decode in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    plume_lumi_counters in: Hlt1SMOG2BENoBias
   MultiEventScheduler                    INFO    make_lumi_summary in: Hlt1SMOG2BENoBias
-  MultiEventScheduler                    INFO    host_dummy_maker in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    output_handler in: calo_count_digits_8f5cd83e
-  MultiEventScheduler                    INFO    rate_validator in: calo_count_digits_8f5cd83e
+  MultiEventScheduler                    INFO    host_dummy_maker in: make_selected_object_lists
+  MultiEventScheduler                    INFO    output_handler in: make_selected_object_lists
+  MultiEventScheduler                    INFO    rate_validator in: make_selected_object_lists
   OutputWriter                           INFO Initialize
   MultiEventScheduler                    INFO Concurrency level information:
   MultiEventScheduler                    INFO  o Number of streams: 2
@@ -275,6 +275,7 @@ stdout: |-
   dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
   dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
   dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
+  MultiEventScheduler                    INFO Measured 1000 events over n s (skipped 2 warm-up and 2 cool-down iterations out of 2)
   Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_v3_hist_counts.json
   calo_find_clusters                     INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   error_bank_filter                      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
