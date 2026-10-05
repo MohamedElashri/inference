@@ -102,14 +102,20 @@ class MultiEventScheduler final : public extends<Service, IEventProcessor, LHCb:
   // Ordered sequence of algorithms:
   std::vector<Allen::Scheduler::ConfiguredAlgorithm> m_sequence;
   std::vector<Allen::Scheduler::BoolExpr> m_execution_masks;
+  std::vector<std::string> m_alg_names;
 
   std::vector<Allen::Scheduler::LifetimeDependencies> m_reserve_args;
   std::vector<Allen::Scheduler::LifetimeDependencies> m_free_args;
 
   std::unique_ptr<Allen::Scheduler::SliceThreadPool> m_workers = nullptr;
 
-  unsigned m_nextEvt = 0;
   std::atomic<bool> m_stopRequested {false};
+
+  // Throughput measurement: counters updated by the worker threads. An event
+  // count is published before the matching iteration count so that a reader
+  // observing the iteration count also observes the events.
+  std::atomic<size_t> m_processedIterations {0};
+  std::atomic<size_t> m_processedEvents {0};
 
   // Monitoring aggregation thread
   std::thread m_monitoring_thread;
@@ -186,11 +192,12 @@ public:
     auto algs = Allen::Scheduler::configured_algorithms(*appMgr, m_producers, cf_nodes);
     auto sorted = Allen::Scheduler::topological_sort(algs);
     m_execution_masks = Allen::Scheduler::find_execution_masks(sorted, algs, cf_nodes);
+    m_alg_names = Allen::Scheduler::algorithm_names(sorted);
     if (msgLevel(MSG::INFO)) {
       info() << "Configured sequence:" << endmsg;
-      const auto names = Allen::Scheduler::algorithm_names(sorted);
       for (const auto* alg : sorted) {
-        info() << "   " << alg->alg->name() << " in: " << m_execution_masks[alg->index].to_string(names) << endmsg;
+        info() << "   " << alg->alg->name() << " in: " << m_execution_masks[alg->index].to_string(m_alg_names)
+               << endmsg;
       }
     }
     m_sequence = Allen::Scheduler::finalizeConfiguration(sorted);
@@ -329,23 +336,23 @@ public:
               m_execution_masks[alg.index].evaluate(input_mask, wrkCtx.event_masks);
               wrkCtx.input_event_masks[alg.index] = input_mask; // copy
 
+              // keep the host/device masks in a cache, for reuse between algs:
+              if (m_execution_masks[alg.index].alg != -1) {
+                auto mask_id = m_execution_masks[alg.index].alg;
+                host_event_lists[alg.index] = host_event_lists[mask_id];
+                dev_event_lists[alg.index] = dev_event_lists[mask_id];
+              }
+              else {
+                input_mask.to_event_list(host_event_lists[alg.index]);
+                dev_event_lists[alg.index] = host_event_lists[alg.index].to_device();
+              }
+
               if (isMultiEvent) {
                 evtCtx.set(slice.start_event, wrkCtx.stores[0]);
                 Gaudi::Hive::setCurrentContext(evtCtx);
                 m_whiteboard->selectStore(evtCtx.slot()).ignore();
 
                 if (alg.inputMaskHandle) {
-                  // keep the host/device masks in a cache, for reuse between algs:
-                  if (m_execution_masks[alg.index].alg != -1) {
-                    auto mask_id = m_execution_masks[alg.index].alg;
-                    host_event_lists[alg.index] = host_event_lists[mask_id];
-                    dev_event_lists[alg.index] = dev_event_lists[mask_id];
-                  }
-                  else {
-                    input_mask.to_event_list(host_event_lists[alg.index]);
-                    dev_event_lists[alg.index] = host_event_lists[alg.index].to_device();
-                  }
-
                   m_EDS->unregisterObject(alg.inputMaskHandle->objKey()).ignore();
                   auto event_list = dev_event_lists[alg.index]; // need to copy before moving
                   alg.inputMaskHandle->put(std::move(event_list));
@@ -364,6 +371,7 @@ public:
               }
               else {
                 EventMask output_mask {slice.number_of_events};
+                bool mask_changed = false;
                 for (unsigned i : input_mask) { // iterate only over valid events
                   const unsigned evt_id = slice.start_event + i;
 
@@ -373,6 +381,8 @@ public:
 
                   auto ret = alg.alg->execute(evtCtx);
 
+                  if (ret == Gaudi::Functional::FilterDecision::FAILED) mask_changed = true;
+
                   bool filterpassed = [&] {
                     if (ret == Gaudi::Functional::FilterDecision::PASSED) return true;
                     if (ret == Gaudi::Functional::FilterDecision::FAILED) return false;
@@ -381,6 +391,10 @@ public:
                   }();
 
                   if (filterpassed) output_mask.set(i);
+                }
+                if (mask_changed) {
+                  output_mask.to_event_list(host_event_lists[alg.index]);
+                  dev_event_lists[alg.index] = host_event_lists[alg.index].to_device();
                 }
                 input_mask = output_mask;
               }
@@ -396,6 +410,13 @@ public:
               }
             }
           }
+
+          // Record the completion of this slice iteration for the throughput
+          // measurement. This happens after all the work of the iteration
+          // (including the store cleanup) so that lazy loading triggered by the
+          // first iterations is accounted as warm-up.
+          m_processedEvents.fetch_add(slice.number_of_events, std::memory_order_relaxed);
+          m_processedIterations.fetch_add(1, std::memory_order_release);
         }
 
         // Update node passed counters
@@ -496,10 +517,8 @@ public:
 
     auto print_indented = [&](const std::string& node_name, int const currentIndent, auto& itself) -> void {
       // to recursively call this lambda, use auto& itself
-      Allen::Scheduler::BoolExpr trueMask;
-      trueMask.type = Allen::Scheduler::BoolExpr::NodeType::CONST_TRUE;
       m_node_passed.emplace_back(
-        Allen::Scheduler::get_tree_for_node(node_name, m_execution_masks, algorithms, cf_nodes, trueMask));
+        Allen::Scheduler::get_tree_for_node2(node_name, m_execution_masks, algorithms, cf_nodes));
       m_node_names_with_indices.emplace(node_name, m_printableDependencyTree.size());
 
       auto it = cf_nodes.find(node_name);
@@ -532,8 +551,47 @@ public:
 
     info() << "Called nextEvent with: " << maxevt << endmsg;
 
+    // Reset throughput measurement counters.
+    m_processedEvents.store(0, std::memory_order_relaxed);
+    m_processedIterations.store(0, std::memory_order_relaxed);
+
+    // A slice iteration is one processing pass over a slice; with repetitions
+    // each repetition is one iteration. The first iterations trigger lazy
+    // loading of non-event data (geometry, conditions, ...) while the last ones
+    // are subject to draining effects, so nStreams iterations are excluded at
+    // both ends of the measurement window.
+    const size_t warmup_iterations = m_nStreams.value();
+    const size_t cooldown_iterations = m_nStreams.value();
+    size_t total_iterations = 0;
+    bool submission_complete = false;
+
+    bool measurement_started = false;
+    bool measurement_ended = false;
+    Clock::time_point measurement_start_time {};
+    Clock::time_point measurement_end_time {};
+    size_t measurement_start_events = 0;
+    size_t measurement_end_events = 0;
+
+    auto maybe_sample_measurement = [&]() {
+      const size_t processed = m_processedIterations.load(std::memory_order_acquire);
+      if (!measurement_started && processed >= warmup_iterations) {
+        measurement_start_events = m_processedEvents.load(std::memory_order_acquire);
+        measurement_start_time = Clock::now();
+        measurement_started = true;
+      }
+      if (
+        submission_complete && measurement_started && !measurement_ended &&
+        total_iterations > warmup_iterations + cooldown_iterations &&
+        processed >= total_iterations - cooldown_iterations) {
+        measurement_end_events = m_processedEvents.load(std::memory_order_acquire);
+        measurement_end_time = Clock::now();
+        measurement_ended = true;
+      }
+    };
+
     auto start_time = Clock::now();
     while (true) {
+      maybe_sample_measurement();
       if (m_stopRequested) {
         info() << "Stop requested, exiting event loop" << endmsg;
         break;
@@ -586,13 +644,15 @@ public:
 
         if (m_repetitions == 1u) {
           m_workers->submit({static_cast<unsigned>(slice_index), 0, static_cast<unsigned>(n_filled)});
-          m_nextEvt += n_filled;
+          total_iterations += 1;
         }
         else {
+          // With repetitions enabled a single slice is distributed to all
+          // streams and each worker repeats it Repetitions times.
           for (unsigned r = 0; r < m_nStreams; r++) {
             m_workers->submit({static_cast<unsigned>(slice_index), 0, static_cast<unsigned>(n_filled)});
-            m_nextEvt += n_filled * m_repetitions;
           }
+          total_iterations += static_cast<size_t>(m_nStreams.value()) * m_repetitions.value();
           break;
         }
       }
@@ -600,14 +660,39 @@ public:
         break;
       }
     }
-    m_workers->wait_for_completion();
+    // All slices have been submitted: from now on the end of the measurement
+    // window can be detected.
+    submission_complete = true;
+
+    // Wait for completion while sampling the measurement window boundaries.
+    while (!m_workers->is_complete()) {
+      maybe_sample_measurement();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    maybe_sample_measurement();
     auto end_time = Clock::now();
 
-    // TODO: warmup phase, cool down phase, measure only steady state, etc...
-    auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    double throughput = static_cast<double>(m_nextEvt) / totalTime * 1000.0;
+    const size_t total_events = m_processedEvents.load(std::memory_order_acquire);
+    const bool has_window = total_iterations > warmup_iterations + cooldown_iterations;
+    if (!measurement_started || !measurement_ended || !has_window) {
+      // Not enough work to exclude both ends: fall back to measuring the whole
+      // run so that a short test still reports something.
+      measurement_start_events = 0;
+      measurement_end_events = total_events;
+      measurement_start_time = start_time;
+      measurement_end_time = end_time;
+    }
+
+    const size_t measured_events = measurement_end_events - measurement_start_events;
+    const double elapsed = std::chrono::duration<double>(measurement_end_time - measurement_start_time).count();
+    const double throughput = elapsed > 0.0 ? static_cast<double>(measured_events) / elapsed : 0.0;
+    const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+
     info() << "Execution time: " << totalTime << " ms. Throughput: " << std::format("{:.2f}", throughput) << " events/s"
            << endmsg;
+    info() << "Measured " << measured_events << " events over " << std::format("{:.3f}", elapsed) << " s (skipped "
+           << warmup_iterations << " warm-up and " << cooldown_iterations << " cool-down iterations out of "
+           << total_iterations << ")" << endmsg;
     return StatusCode::SUCCESS;
   }
   StatusCode executeEvent(EventContext&&) override { return StatusCode::SUCCESS; }

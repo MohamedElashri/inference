@@ -210,7 +210,17 @@ namespace Allen::Scheduler {
     std::unique_ptr<Gaudi::Algorithm> alg;
     std::vector<DataObjID const*> inputs;
     std::vector<DataObjID const*> outputs;
+    // Keys coming from aggregate (list-style) inputs. Like the old standalone
+    // scheduler's all_producers(False), these are conditional inputs and must
+    // not be traversed when propagating execution masks: e.g. gather_selections
+    // aggregates every line output but does not force the lines to run on the
+    // masks of the algorithms that consume the gathered result (lumi, persistency).
+    std::unordered_set<std::string> aggregate_input_keys;
     std::vector<AlgEntry*> df_dependencies;
+    // Data dependencies excluding event-list (mask) handles, which the
+    // scheduler produces itself. Only these represent real producer/consumer
+    // relations for execution-mask propagation.
+    std::vector<AlgEntry*> data_df_dependencies;
     std::vector<AlgEntry*> all_df_dependencies;
     std::vector<AlgEntry*> cf_dependencies;
     bool isMultiEvent {false};
@@ -251,6 +261,17 @@ namespace Allen::Scheduler {
       for (Gaudi::DataHandle* handle : alg->outputHandles()) {
         outputMaskHandle = dynamic_cast<DataObjectWriteHandle<mask_vec_t>*>(handle);
         if (outputMaskHandle) break; // found it
+      }
+
+      // Aggregate handles are stored as Gaudi::Property<std::vector<DataObjID>>
+      // (e.g. host_input_line_data_t), which is distinct from the
+      // Gaudi::Property<DataObjIDColl> used for ExtraInputs/ExtraOutputs.
+      for (auto* prop : alg->getProperties()) {
+        if (auto* aggregate = dynamic_cast<Gaudi::Property<std::vector<DataObjID>>*>(prop)) {
+          for (const auto& id : aggregate->value()) {
+            aggregate_input_keys.insert(id.key());
+          }
+        }
       }
     }
     std::string to_string() const { return alg->name(); }
@@ -352,8 +373,13 @@ namespace Allen::Scheduler {
     // resolve dataflow dependencies
     for (auto& [name, alg] : algs) {
       alg.df_dependencies.reserve(alg.inputs.size());
+      alg.data_df_dependencies.reserve(alg.inputs.size());
+      const std::string mask_key = alg.inputMaskHandle ? alg.inputMaskHandle->objKey() : std::string {};
       for (auto& in : alg.inputs) {
         alg.df_dependencies.emplace_back(producers[in->key()]);
+        if (alg.aggregate_input_keys.contains(in->key())) continue;
+        if (!mask_key.empty() && in->key() == mask_key) continue;
+        alg.data_df_dependencies.emplace_back(producers[in->key()]);
       }
     }
 
@@ -375,6 +401,9 @@ namespace Allen::Scheduler {
       std::ranges::sort(alg.df_dependencies, std::less {});
       auto od = std::ranges::unique(alg.df_dependencies, std::equal_to {});
       alg.df_dependencies.erase(od.begin(), od.end());
+      std::ranges::sort(alg.data_df_dependencies, std::less {});
+      od = std::ranges::unique(alg.data_df_dependencies, std::equal_to {});
+      alg.data_df_dependencies.erase(od.begin(), od.end());
       std::ranges::sort(alg.cf_dependencies, std::less {});
       od = std::ranges::unique(alg.cf_dependencies, std::equal_to {});
       alg.cf_dependencies.erase(od.begin(), od.end());
@@ -488,15 +517,6 @@ namespace Allen::Scheduler {
       }
     }
 
-    // Debug print
-    /*std::cout << "\nConfigured sequence:\n";
-    int i = 0;
-    for (const auto& alg : sorted) {
-      std::cout << " + " << alg->alg->name() << " isMultiEvent: " << (int)(alg->isMultiEvent) << std::endl;
-      if (alg->inputMaskHandle) std::cout << "   in: " << alg->inputMaskHandle->fullKey() << std::endl;
-      if (alg->outputMaskHandle) std::cout << "   out: " << alg->outputMaskHandle->fullKey() << std::endl;
-    }*/
-
     // Detect circular dependencies that the sort cannot deadlock on:
     //  - DF-CF: A needs B's data, but B must run after A (or vice versa)
     //  - CF-CF: mutual CF dependencies (both have df=0, so they slip through df_only_ready)
@@ -547,18 +567,13 @@ namespace Allen::Scheduler {
       e.alg = alg.index;
       execution_masks[alg.index].addChild(parent_mask);
 
-      // Propagate parent_mask through data dependencies so that per-event
-      // producers that are only reachable through this algorithm's inputs run
-      // in the same mask as their consumer (HLT2/Moore "on demand" semantics).
-      // Multi-event algorithms are skipped: their mask is their input event
-      // list, which is defined by the control flow, not by their consumers.
-      if (!alg.isMultiEvent) {
-        auto mask_order = parent_mask.maxOrder();
-        for (auto* dep : alg.all_df_dependencies) {
-          if (dep->isMultiEvent) continue;
-          if (mask_order >= dep->index) continue;
-          execution_masks[dep->index].addChild(parent_mask);
-        }
+      // Propagate parent_mask through data dependencies so that producers that
+      // are only reachable through this algorithm's inputs run in the same mask
+      // as their consumer (HLT2/Moore "on demand" semantics).
+      auto mask_order = parent_mask.maxOrder();
+      for (auto* dep : alg.all_df_dependencies) {
+        if (mask_order >= dep->index) continue;
+        execution_masks[dep->index].addChild(parent_mask);
       }
     }
     else {
@@ -582,6 +597,43 @@ namespace Allen::Scheduler {
           auto ce = get_tree_for_node(nodeDef.children[i], execution_masks, algorithms, cf_nodes, parent_mask);
           e.addChild(ce);
           if (type == nodeType::LAZY_OR) parent_mask = BoolExpr::make_not(ce);
+        }
+      }
+    }
+    return e;
+  }
+
+  BoolExpr get_tree_for_node2(
+    const std::string& node,
+    const std::vector<BoolExpr>& execution_masks,
+    std::unordered_map<std::string, AlgEntry>& algorithms,
+    std::map<std::string, NodeDefinition>& cf_nodes)
+  {
+    BoolExpr e;
+    auto it = cf_nodes.find(node);
+    if (it == cf_nodes.end()) {
+      auto& alg = algorithms.at(node);
+      e.alg = alg.index;
+    }
+    else {
+      auto& nodeDef = cf_nodes.at(node);
+      const nodeType type = toNodeType(nodeDef.type);
+      if (type == nodeType::NOT) {
+        e.type = BoolExpr::NodeType::NOT;
+        e.addChild(get_tree_for_node2(nodeDef.children[0], execution_masks, algorithms, cf_nodes));
+      }
+      else if (type == nodeType::LAZY_AND || type == nodeType::NONLAZY_AND) {
+        e.type = BoolExpr::NodeType::AND;
+        for (unsigned i = 0; i < nodeDef.children.size(); i++) {
+          auto ce = get_tree_for_node2(nodeDef.children[i], execution_masks, algorithms, cf_nodes);
+          e.addChild(ce);
+        }
+      }
+      else if (type == nodeType::LAZY_OR || type == nodeType::NONLAZY_OR) {
+        e.type = BoolExpr::NodeType::OR;
+        for (unsigned i = 0; i < nodeDef.children.size(); i++) {
+          auto ce = get_tree_for_node2(nodeDef.children[i], execution_masks, algorithms, cf_nodes);
+          e.addChild(ce);
         }
       }
     }
@@ -613,8 +665,6 @@ namespace Allen::Scheduler {
     std::vector<BoolExpr> execution_masks;
     execution_masks.reserve(sorted.size());
 
-    // Execution mask is (CF_MASK AND DF_MASK)
-
     // Init CF_MASK:
     int i = 0;
     for (auto& alg : sorted) {
@@ -625,9 +675,8 @@ namespace Allen::Scheduler {
       falseMask.type = BoolExpr::NodeType::CONST_FALSE;
 
       // Compute flattened and deduplicated all_df_dependencies, in linear time using dynamic programming:
-      if (alg->isMultiEvent) continue;
-      alg->all_df_dependencies = alg->df_dependencies;
-      for (auto* dep : alg->df_dependencies) {
+      alg->all_df_dependencies = alg->data_df_dependencies;
+      for (auto* dep : alg->data_df_dependencies) {
         auto& deps_of_dep = dep->all_df_dependencies;
         alg->all_df_dependencies.insert(alg->all_df_dependencies.end(), deps_of_dep.begin(), deps_of_dep.end());
       }
@@ -651,26 +700,6 @@ namespace Allen::Scheduler {
       }
     }
 
-    // Apply data dependencies (DF_MASK)
-    /*for (auto& alg : sorted) {
-      BoolExpr cf_mask = execution_masks[alg->index];
-      BoolExpr mask;
-      mask.type = BoolExpr::NodeType::AND;
-      mask.addChild(cf_mask);
-      for (auto* dep : alg->df_dependencies) {
-        if (dep->outputMaskHandle != nullptr) { // if dep is a filter alg
-          BoolExpr m;
-          m.type = BoolExpr::NodeType::ALGORITHM;
-          m.alg = dep->index;
-          mask.addChild(m);
-        }
-        else {
-          mask.addChild(execution_masks[dep->index]);
-        }
-      }
-      execution_masks[alg->index] = mask;
-    }*/
-
     for (const auto& alg : sorted) {
       execution_masks[alg->index] = execution_masks[alg->index].simplify();
 
@@ -682,8 +711,6 @@ namespace Allen::Scheduler {
         }
       }
     }
-
-    // TODO: simplification (CSE)
 
     return execution_masks;
   }
@@ -705,10 +732,6 @@ namespace Allen::Scheduler {
         last_usage_index[input->key()] = alg->index; // Keep overwriting - we want the max index
       }
     }
-
-    /*for (auto [k,v] : last_usage_index) {
-      std::cout << "last_usage of " << k << " is at " << v << std::endl;
-    }*/
 
     std::unordered_set<const DataObjID*> live_args {};
 

@@ -48,6 +48,7 @@ class AllenOptions(Options):
     process: ProcessTypes | None = ProcessTypes.Hlt1
     events_per_slice: int = 500
     repetitions: int = 1
+    profile: bool = False
     device_memory_pool: int = 500
     host_memory_pool: int = 500
     event_store: EventStores = EventStores.EvtStoreSvc
@@ -165,6 +166,7 @@ def make_MultiEventScheduler(
             NStreams=options.n_threads,
             EvtsPerSlice=options.events_per_slice,
             Repetitions=options.repetitions,
+            EnableProfileRange=options.profile,
             DeviceMemoryPool=options.device_memory_pool,
             HostMemoryPool=options.host_memory_pool,
             InputProvider=input_provider,
