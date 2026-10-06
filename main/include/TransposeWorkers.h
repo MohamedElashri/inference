@@ -571,13 +571,7 @@ namespace Allen {
   struct FilePrefetcher {
     FilePrefetcher(InputProviderConfig config) : m_config {config} {}
 
-    virtual ~FilePrefetcher()
-    {
-      m_done = true;
-      if (m_thread && m_thread->joinable()) {
-        m_thread->join();
-      }
-    };
+    virtual ~FilePrefetcher() { stopAndJoin(); }
 
     void start()
     {
@@ -593,6 +587,16 @@ namespace Allen {
     bool read_error() const { return m_read_error; }
 
   protected:
+    // Derived prefetchers must wake blocked reads and join before destroying
+    // the resources used by their prefetch thread.
+    void stopAndJoin()
+    {
+      m_done = true;
+      if (m_thread && m_thread->joinable()) {
+        m_thread->join();
+      }
+    }
+
     // Atomics to flag errors and completion
     std::atomic<bool> m_done = false;
     std::atomic<bool> m_read_error = false;

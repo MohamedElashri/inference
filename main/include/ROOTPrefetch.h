@@ -30,7 +30,8 @@ struct ROOTPrefetcher : Allen::FilePrefetcher {
     std::string eventTreeName,
     std::vector<std::pair<std::string, DataObjID>> const& eventBranches) :
     Allen::FilePrefetcher(config),
-    m_transpose_workers {transpose_workers}, m_provider {provider}, m_ioHandler {*provider, connections}
+    m_transpose_workers {transpose_workers}, m_provider {provider}, m_ioHandler {*provider, connections},
+    m_batch_pool {config.n_slices}
   {
     SmartIF<IService> service = provider->service("IncidentSvc/IncidentSvc");
     IIncidentSvc* incidentSvc = service.as<IIncidentSvc>();
@@ -41,6 +42,13 @@ struct ROOTPrefetcher : Allen::FilePrefetcher {
     bool allowMissingInput = true;
     m_ioHandler.initialize(
       *provider, incidentSvc, config.events_per_buffer, 0, 0, eventTreeName, eventBranches, allowMissingInput, false);
+  }
+
+  ~ROOTPrefetcher() override
+  {
+    m_done = true;
+    m_batch_pool.stop();
+    stopAndJoin();
   }
 
   void prefetch() override
@@ -69,6 +77,14 @@ struct ROOTPrefetcher : Allen::FilePrefetcher {
     // Loop while there are no errors and the flag to exit is not set
     while (!m_done && !m_read_error && (!to_read || *to_read > 0)) {
       try {
+        // Unlike MDF input, ROOT input does not acquire a bounded ReadBuffer.
+        // Keep a token with each batch until slice_free releases its buffers,
+        // so the reader cannot queue the entire remaining dataset in memory.
+        if (batch.empty()) {
+          auto token = m_batch_pool.acquire();
+          if (!token) break;
+          batch.buffers.push_back(std::move(token));
+        }
         EventContext ctx {}; // fake event context, the handler ignore it anyway..
         auto&& [eventData, buffer] = m_ioHandler.next(*m_provider, ctx);
 
@@ -131,4 +147,6 @@ private:
   /// Pointers to services
   Service* m_provider {nullptr};
   LHCb::IO::RootIOHandler<false> m_ioHandler;
+
+  Allen::BufferPool<char> m_batch_pool;
 };
