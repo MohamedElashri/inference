@@ -12,5 +12,12 @@
     "raw_bytes": 469946,
     "raw_sha256": "e86984146bb722b5245bf7538f511671e01910cfa4749a98627548c46862ff0b",
     "samples": 135
+  },
+  {
+    "source": "/data/home/melashri/iris/inference/benchmark_results/20261006_111926_variance_local_cpu/telemetry.jsonl",
+    "archive": "telemetry_local_cpu.jsonl.gz",
+    "raw_bytes": 1027727,
+    "raw_sha256": "9f6cd42b27e5d7e1484863d15184910511b41e9bec052f83e44359e35de3903a",
+    "samples": 290
   }
 ]

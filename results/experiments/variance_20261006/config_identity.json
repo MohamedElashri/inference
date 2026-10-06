@@ -1,0 +1,206 @@
+{
+  "normalization": "Sort only sequence.argument_dependencies lists, emitted from Python sets. Preserve configured algorithm and argument order, and all algorithm properties.",
+  "source_evidence": [
+    "Allen/configuration/python/AllenCore/AllenSequenceGenerator.py:120",
+    "Allen/stream/gear/include/Scheduler.cuh:93",
+    "Allen/stream/gear/include/Scheduler.cuh:140"
+  ],
+  "checks": [
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_01/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_01/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_02/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_02/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_03/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_03/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_04/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_04/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_05/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_101221_rta_2025_run321834/run_05/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_01/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_01/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_02/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_02/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_03/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_03/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_105549_variance_unbound/run_04/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_111411_variance_unbound_completion/run_01/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_111411_variance_unbound_completion/run_01/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_111926_variance_local_cpu/run_01/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_111926_variance_local_cpu/run_01/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_111926_variance_local_cpu/run_02/pvs_effective_config.json",
+      "role": "pvs",
+      "dependency_set_normalized_sha256": "17a031e19ade5a3debe72ca7375a1b19720bc87166676dccab33f8ec55b72a8e",
+      "matches_reference": true
+    },
+    {
+      "path": "benchmark_results/20261006_111926_variance_local_cpu/run_02/baseline_effective_config.json",
+      "role": "baseline",
+      "dependency_set_normalized_sha256": "c194d7c5bf17e0e61c3913042061ae1415b268b19eb33e61995a1a2563c9cb9e",
+      "matches_reference": true
+    }
+  ],
+  "run_record_checks": [
+    {
+      "record": "results/runs/20261006_101221_rtx3090_unet16-lc4-scnone-asym5-best-bf16_rta-2025-run321834.json",
+      "same_workload_fields": {
+        "mdf": true,
+        "geometry": true,
+        "events": true,
+        "memory_mb": true,
+        "repetitions": true,
+        "threads": true,
+        "device": true
+      },
+      "same_gpu_uuid": true,
+      "same_model_sha256": true
+    },
+    {
+      "record": "results/runs/20261006_105549_rtx3090_unet16-lc4-scnone-asym5-best-bf16_variance-unbound.json",
+      "same_workload_fields": {
+        "mdf": true,
+        "geometry": true,
+        "events": true,
+        "memory_mb": true,
+        "repetitions": true,
+        "threads": true,
+        "device": true
+      },
+      "same_gpu_uuid": true,
+      "same_model_sha256": true
+    },
+    {
+      "record": "results/runs/20261006_111411_rtx3090_unet16-lc4-scnone-asym5-best-bf16_variance-unbound-completion.json",
+      "same_workload_fields": {
+        "mdf": true,
+        "geometry": true,
+        "events": true,
+        "memory_mb": true,
+        "repetitions": true,
+        "threads": true,
+        "device": true
+      },
+      "same_gpu_uuid": true,
+      "same_model_sha256": true
+    },
+    {
+      "record": "results/runs/20261006_111926_rtx3090_unet16-lc4-scnone-asym5-best-bf16_variance-local-cpu.json",
+      "same_workload_fields": {
+        "mdf": true,
+        "geometry": true,
+        "events": true,
+        "memory_mb": true,
+        "repetitions": true,
+        "threads": true,
+        "device": true
+      },
+      "same_gpu_uuid": true,
+      "same_model_sha256": true
+    }
+  ]
+}

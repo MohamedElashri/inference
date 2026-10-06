@@ -107,6 +107,8 @@ repeats, and `--telemetry` records GPU clocks, power, throttling, competing
 processes, host CPU load and Allen's scheduling/NUMA placement. Telemetry uses
 line-buffered output to identify Allen's timed window. `--cpu-affinity LIST`
 applies `taskset` to Allen for an explicit CPU-placement comparison.
+The [RTA-data variance investigation](results/experiments/variance_20261006/README.md)
+shows why absolute baseline rates and host scheduling matter when interpreting loss.
 
 ## Physics validation
 

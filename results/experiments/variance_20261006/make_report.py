@@ -70,6 +70,12 @@ def main():
             for ax in axes:
                 ax.axvline(x + .5, color='#888888', linestyle=':', linewidth=1)
         x += len(rows)
+    last = local['runs'][-1]
+    wait = 100 * last['telemetry']['baseline']['runqueue_wait_over_runtime']
+    axes[0].annotate(f'Baseline CPU wait: {wait:.2f}%',
+                     xy=(x, last['events_per_s']['baseline'] / 1000),
+                     xytext=(x - 2, 71.5), fontsize=9,
+                     arrowprops={'arrowstyle': '->', 'color': '#555555'})
     axes[0].set_ylabel('Throughput (k events/s)')
     axes[0].legend(loc='lower right', fontsize=9)
     axes[1].axhline(5, color='#a03030', linestyle='--', linewidth=1, label='5% target')

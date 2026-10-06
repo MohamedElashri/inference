@@ -1,0 +1,89 @@
+{
+  "original_record": "results/runs/20261006_101221_rtx3090_unet16-lc4-scnone-asym5-best-bf16_rta-2025-run321834.json",
+  "batches": {
+    "Original": {
+      "pairs": 5,
+      "losses_pct": [
+        8.170484788693633,
+        0.2607889088538151,
+        2.1219662266437345,
+        4.4674659497423,
+        5.0479334949452
+      ],
+      "mean_loss_pct": 4.0137278737757365,
+      "median_loss_pct": 4.4674659497423,
+      "loss_sample_sd_pp": 3.009044722256007,
+      "loss_range_pct": [
+        0.2607889088538151,
+        8.170484788693633
+      ],
+      "median_events_per_s": {
+        "baseline": 69737.6,
+        "pvs": 67925.3
+      },
+      "baseline_spread_pct": 15.310535493048222,
+      "baseline_sample_cv_pct": 6.8058066894824565,
+      "approx_mean_loss_95pct_t_interval_pct": [
+        0.27750537316243884,
+        7.749950374389034
+      ]
+    },
+    "Instrumented, unbound": {
+      "pairs": 4,
+      "losses_pct": [
+        5.040768570394061,
+        4.484468961751031,
+        5.405071342306589,
+        4.441399343592578
+      ],
+      "mean_loss_pct": 4.8429270545110645,
+      "median_loss_pct": 4.762618766072546,
+      "loss_sample_sd_pp": 0.46363210005657834,
+      "loss_range_pct": [
+        4.441399343592578,
+        5.405071342306589
+      ],
+      "median_events_per_s": {
+        "baseline": 77803.6,
+        "pvs": 74190.15
+      },
+      "baseline_spread_pct": 0.6675783639831501,
+      "baseline_sample_cv_pct": 0.31573067678327743,
+      "approx_mean_loss_95pct_t_interval_pct": [
+        4.105184922589296,
+        5.580669186432833
+      ]
+    },
+    "GPU-local CPUs": {
+      "pairs": 2,
+      "losses_pct": [
+        4.823644613976585,
+        2.9228893908730846
+      ],
+      "mean_loss_pct": 3.873267002424835,
+      "median_loss_pct": 3.873267002424835,
+      "loss_sample_sd_pp": 1.344036907632234,
+      "loss_range_pct": [
+        2.9228893908730846,
+        4.823644613976585
+      ],
+      "median_events_per_s": {
+        "baseline": 77332.1,
+        "pvs": 74329.3
+      },
+      "baseline_spread_pct": 2.046756780172791,
+      "baseline_sample_cv_pct": 1.4472755986997243,
+      "approx_mean_loss_95pct_t_interval_pct": [
+        -8.20242550684253,
+        15.948959511692202
+      ]
+    }
+  },
+  "notes": [
+    "All batches use the same GPU, input, geometry, inference settings and built binary.",
+    "Later batches include telemetry and alternate sequence order.",
+    "CPU-local control changes affinity, which can also change first-touch memory placement.",
+    "Student-t intervals are descriptive; few repeats and shared-host drift limit inference.",
+    "The original batch had no timed telemetry; its specific variance cause cannot be reconstructed."
+  ]
+}
