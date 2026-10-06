@@ -24,7 +24,9 @@
       ],
       "difference_mm": 0.0010323981605324661,
       "float32_spacing_mm": 0.0009765625,
-      "in_model_window": false
+      "in_model_window": false,
+      "event_index": 13,
+      "present_in_fc_work_list": false
     }
   ],
   "in_model_window_max_diff_mm": 6.344936394953038e-05

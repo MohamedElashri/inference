@@ -1,0 +1,8 @@
+override: pvfinder_fc_aggregation.precision = 'bfloat16'
+override: pvfinder_unet.precision = 'bfloat16'
+override: pvfinder_fc_aggregation.gpu_work_list = True
+override: pvfinder_fc_aggregation.fused_grid_fraction = 0.0625
+override: pvfinder_unet.fused_grid_fraction = 0.125
+[pvfinder_fc_aggregation] validation dump written to /data/home/melashri/iris/inference/benchmark_results/rta_2025_321834_20261006/full_chain_smoke (500 events, 118002 tracks)
+[pvfinder_unet] Validation dump written to /data/home/melashri/iris/inference/benchmark_results/rta_2025_321834_20261006/full_chain_smoke (500 events)
+[pvfinder_peak] validation dump written to /data/home/melashri/iris/inference/benchmark_results/rta_2025_321834_20261006/full_chain_smoke (500 events)

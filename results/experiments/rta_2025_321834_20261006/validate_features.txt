@@ -1,0 +1,14 @@
+1. Allen features vs the rules recomputed in double precision (118002 tracks, 500 events; A..F from pv-finder_v2 tools/ellipsoid.py):
+   POCA: max |diff| 1.03e-03 mm (limit 0.001); ellipsoid A..F: max relative matrix difference 6.09e-07 (limit 0.0001); tracks without an ellipsoid (c00 <= 0): 85, A..F zero: True; all finite: True
+   FAIL
+2. the rules vs the training sample, per track (459132 tracks, 2000 events; fraction agreeing):
+   poca_within_1um: 99.997%
+   major_axis_within_0.01deg_of_track: 100.000%
+   major_minor_ratio_within_0.1pct: 99.873%
+   ellipsoid_matrix_within_1pct: 99.387%
+   (minor axis 1 vs beam x track, degrees, median / 99%: 0.0028 / 0.352; the ntuples build it from the POCA offset, the same direction up to rounding, which grows as the track passes closer to the beam; ellipsoid matrix difference median 4.4e-05, 99% 6.0e-03)
+   PASS (each above 99%)
+3. minor-axis length (mm), training |minor axis| vs Allen sqrt(c00), quantiles 5/25/50/75/95%:
+   training 0.0304 0.0377 0.0462 0.0657 0.1595
+   Allen    0.0279 0.0359 0.0457 0.0665 0.1565
+FAIL

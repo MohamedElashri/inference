@@ -1,0 +1,49 @@
+{
+  "run_record": "results/runs/20261006_101221_rtx3090_unet16-lc4-scnone-asym5-best-bf16_rta-2025-run321834.json",
+  "source_commit": "babae82cb19165f6da6aba0af35eba6c91d31e3c",
+  "paired_repeats": [
+    {
+      "repeat": 1,
+      "baseline_events_per_s": 69737.6,
+      "pvfinder_shadow_events_per_s": 64039.7,
+      "loss_pct": 8.170484788693633
+    },
+    {
+      "repeat": 2,
+      "baseline_events_per_s": 66950.7,
+      "pvfinder_shadow_events_per_s": 66776.1,
+      "loss_pct": 0.2607889088538151
+    },
+    {
+      "repeat": 3,
+      "baseline_events_per_s": 69397.9,
+      "pvfinder_shadow_events_per_s": 67925.3,
+      "loss_pct": 2.1219662266437345
+    },
+    {
+      "repeat": 4,
+      "baseline_events_per_s": 77627.9,
+      "pvfinder_shadow_events_per_s": 74159.9,
+      "loss_pct": 4.4674659497423
+    },
+    {
+      "repeat": 5,
+      "baseline_events_per_s": 77263.3,
+      "pvfinder_shadow_events_per_s": 73363.1,
+      "loss_pct": 5.0479334949452
+    }
+  ],
+  "summary": {
+    "median_loss_pct": 4.4674659497423,
+    "mean_loss_pct": 4.0137278737757365,
+    "sample_sd_pct": 3.009044722256007,
+    "mean_loss_student_t_95_interval_pct": [
+      0.2775053731654009,
+      7.7499503743860725
+    ],
+    "baseline_spread_pct": 15.310535493048222,
+    "recorded_contention_status": "contended",
+    "no_slice_splits": true
+  },
+  "interpretation": "The median is below 5%, but baseline variability and the repeat interval do not support a dependable below-5% claim."
+}

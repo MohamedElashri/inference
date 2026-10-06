@@ -1,0 +1,57 @@
+/data/home/melashri/.config/matplotlib is not a writable directory
+Matplotlib created a temporary cache directory at /tmp/matplotlib-j4ohj_cf because there was an issue with the default path (/data/home/melashri/.config/matplotlib); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+Loading weights from weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt ...
+  checkpoint: N_FEAT=16  latentChannels=4  FC hidden=20,20,20,20,20
+Reading benchmark_results/rta_2025_321834_20261006/full_chain_smoke/allen_ncw_input.bin ...
+Reading benchmark_results/rta_2025_321834_20261006/full_chain_smoke/allen_kde_output.bin ...
+  n_events=500  ncw=(20000, 4, 100)  allen_kde=(20000, 100)
+Running PyTorch UNet inference (from y0) ...
+
+  PyTorch intermediate stage statistics
+    x1_rcbn1       shape=[20000, 16, 100]         mean=7.2120e-01 std=1.5067e+00 min=0.0000e+00 max=2.4145e+02 non-finite=0
+    x2_rcbn2_mp    shape=[20000, 16, 50]          mean=5.2861e-01 std=1.2787e+00 min=0.0000e+00 max=1.9132e+02 non-finite=0
+    x3_rcbn3_mp    shape=[20000, 16, 25]          mean=1.0452e+00 std=1.8172e+00 min=0.0000e+00 max=1.6333e+02 non-finite=0
+    xu1_up1        shape=[20000, 16, 50]          mean=6.1214e-01 std=1.2239e+00 min=0.0000e+00 max=7.5247e+01 non-finite=0
+    xu2_up2        shape=[20000, 16, 100]         mean=6.1980e-02 std=1.4834e-01 min=0.0000e+00 max=1.7908e+01 non-finite=0
+    x_oint         shape=[20000, 16, 100]         mean=-3.1063e-01 std=2.8433e+00 min=-1.4191e+02 max=9.5939e+02 non-finite=0
+    logits         shape=[20000, 1, 100]          mean=-2.7803e+01 std=7.3688e+01 min=-2.3015e+02 max=6.3363e+03 non-finite=0
+    pt_kde         shape=[20000, 100]             mean=3.7160e-03 std=7.0630e-02 min=0.0000e+00 max=6.3363e+00 non-finite=0
+
+  Intervals with non-finite FC input (excluded): 0 / 20000
+  Non-finite outputs on finite-input intervals: 0
+
+=== Numerical Comparison ===
+  Max  abs diff : 7.522821e-02
+  Mean abs diff : 1.970589e-05
+  Median abs diff : 1.111999e-15
+  Max  rel diff : 1.237151e+02
+  Mean rel diff : 7.233811e-03
+  RMS  diff     : 4.547431e-04
+
+  Per-event max abs diff (first 10): ['1.533e-10', '1.533e-10', '1.062e-02', '1.428e-02', '1.912e-02', '1.973e-02', '1.215e-02', '2.604e-03', '9.611e-03', '1.179e-02']
+
+  Percentile        Abs diff        Rel diff
+  P50           1.111999e-15    1.111997e-06
+  P90           4.531092e-11    1.090006e-02
+  P95           2.486995e-10    4.444354e-02
+  P99           9.026325e-06    1.473178e-01
+  P99.9         5.124334e-03    4.997268e-01
+  Pmax          7.522821e-02    1.237151e+02
+
+  Pearson r: 0.9999804665   R^2: 0.9999586732
+  Signal bins (PyTorch KDE > 1e-3): 19485, worst abs diff 7.523e-02
+  Background bins (PyTorch KDE < 1e-4): 1978368, worst abs diff 6.245e-05
+  Worst event 114, interval 14: max abs diff 7.523e-02, PyTorch peak 6.3363e+00, Allen peak 6.4115e+00
+
+  fp32_noise  (< 1e-5, ideal)        worst=7.523e-02  FAIL
+  tight       (< 1e-4, good)         worst=7.523e-02  FAIL
+  acceptable  (< 1e-3, fp32 ok)      worst=7.523e-02  FAIL
+  loose       (< 1e-2, marginal)     worst=7.523e-02  FAIL
+
+  Float32 threshold: 1e-03  (worst=7.523e-02, exceeds every tier)
+  bins with |Allen - PyTorch| > 0.01: 0.04%; peaks > 0.07: 2344, height change median 0.31%, max 6.1%; highest bin moved in 11 of 2092 intervals with a peak (0 by more than one bin)
+  criterion (BF16 path: bins off by > 0.01 < 1%, median peak height change < 2%, highest bin moved > 1 bin < 1% of intervals with a peak): PASS
+  Signal region (worst 7.523e-02) under 1e-4: no
+  JSON report written to results/experiments/rta_2025_321834_20261006/numerical/validate_unet.json
+
+Done.

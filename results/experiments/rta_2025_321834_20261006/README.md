@@ -41,6 +41,7 @@ track: 0.0010324 mm difference, compared with the 0.001 mm limit. That track
 has z approximately −15,078 mm, far outside the network input range; the
 float32 spacing there is 0.0009766 mm. The maximum difference for tracks
 within −100 to 300 mm is 0.00006345 mm.
+The outlier is absent from the dumped FC work list and does not enter the network.
 
 [The outlier diagnostic](feature_outliers.json) and all five numerical
 reports preserve this outcome. The tolerance and GPU implementation are
@@ -62,8 +63,41 @@ numerical checks and its MC reference counts for physics checks.
 
 ## Throughput measurement
 
-Five paired repeats at the existing production settings are the next check:
+Five paired repeats completed at the existing production settings:
 GPU 2 (RTX 3090), 500 events, 500 MB per stream, 1,000 repetitions and
 16 streams. The comparison retains the baseline PV finder and adds the
 full PVFinder shadow chain. Historical 2024 throughput numbers remain tied
 to that sample and must not be relabeled as 2025 results.
+
+| Repeat | Baseline events/s | Full PVFinder shadow events/s | Loss |
+|---|---:|---:|---:|
+| 1 | 69,737.6 | 64,039.7 | 8.17% |
+| 2 | 66,950.7 | 66,776.1 | 0.26% |
+| 3 | 69,397.9 | 67,925.3 | 2.12% |
+| 4 | 77,627.9 | 74,159.9 | 4.47% |
+| 5 | 77,263.3 | 73,363.1 | 5.05% |
+
+The median paired loss is **4.47%**. The mean is **4.01%**, with sample
+standard deviation **3.01 percentage points**. A Student-t 95% interval
+across these five paired repeat losses is **0.28–7.75%**. This describes
+repeat variability on the same 500-event slice, not uncertainty across all
+collision conditions.
+
+Baseline throughput spread is **15.31%**, so the run recorder marks the batch
+`contended`. No competing GPU 2 compute process was observed at the start or
+in the saved [process probe](gpu_process_probe.csv); that spread-based label
+does not establish its cause. A [clock/power probe](gpu_probe.csv) is also
+retained. There were no slice splits. **This batch does not establish a
+dependable margin below 5%.** A more controlled timing study is needed before
+using that claim.
+
+The [run record](../../runs/20261006_101221_rtx3090_unet16-lc4-scnone-asym5-best-bf16_rta-2025-run321834.json)
+captures the new dataset, geometry, effective configuration and clean source
+commit `babae82cb1`. [Paired statistics](throughput.json),
+[the batch summary](benchmark_summary.md), and
+[the command](benchmark_command.cmd) preserve the measurement. The existing
+mtime heuristic flags `CMakeLists.txt` and `PVFinderModel.h` relative to the
+older host library link time; the shared builder completed successfully
+before the smoke test and measurement, and no Allen source changed during
+this migration. [Compatibility provenance](compatibility.json) records the
+executable and model hashes.

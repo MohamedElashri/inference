@@ -1,0 +1,67 @@
+{
+  "source_at_smoke": "830ad71cae",
+  "configuration_commit": "babae82cb19165f6da6aba0af35eba6c91d31e3c",
+  "build_dir": "/data/home/melashri/iris/inference/Allen/buildupstreamgpu12",
+  "upstream": {
+    "schema": "allen-upstream-tracking/1",
+    "upstream_url": "https://gitlab.cern.ch/lhcb/Allen.git",
+    "upstream_branch": "master",
+    "upstream_commit": "b567e104f23ebfd0670d6272e47d9b1ce37d905c",
+    "fork_branch": "allen/pvfinder",
+    "fork_commit": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+    "vendor_tree": "c006ff2aad391d7f4427a758fb03a203ca55ca01",
+    "excluded_from_vendor": [
+      "input/"
+    ],
+    "validation": "results/experiments/allen_master_20261006/preview_verification.json"
+  },
+  "build_completed": true,
+  "build_log": "benchmark_results/rta_2025_321834_20261006/build.log",
+  "command": {
+    "script": "weights/scripts/allen_dump.sh",
+    "sequence": "hlt1_pp_pvs_pvfinder_unet_benchmark",
+    "events": 500,
+    "repetitions": 2,
+    "threads": 1,
+    "device": 2,
+    "MDF_FILE": "/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/rta/samples/data/321834-LHCb-MEP/MEP_2025_pp_pD2_bu_321834_LHCb_ECEB01_BU_0.mdf",
+    "GEOMETRY_DIR": "/data/home/melashri/iris/inference/Allen/input/allen_geometries/geometry_run3_2025-v00.01",
+    "model_file": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+    "properties": {
+      "pvfinder_fc_aggregation.precision": "bfloat16",
+      "pvfinder_unet.precision": "bfloat16",
+      "pvfinder_fc_aggregation.gpu_work_list": true,
+      "pvfinder_fc_aggregation.fused_grid_fraction": 0.0625,
+      "pvfinder_unet.fused_grid_fraction": 0.125
+    }
+  },
+  "smoke": {
+    "status": "PASS",
+    "events": 500,
+    "tracks": 118002
+  },
+  "validators": {
+    "fc": "PASS",
+    "unet": "PASS",
+    "model": "PASS",
+    "features": "FAIL",
+    "peaks": "PASS"
+  },
+  "artifacts": [
+    {
+      "path": "Allen/build/Allen",
+      "bytes": 54057128,
+      "sha256": "e61964e198b55a16aabdd638ff5dc66fa42765713ea84ad93884c4adc5f2cda4"
+    },
+    {
+      "path": "Allen/build/libAllenLib.so",
+      "bytes": 1099128,
+      "sha256": "c7995a2f64d60b226926cf686f783f3bbddb632720e15b40297b5cac1fecc02b"
+    },
+    {
+      "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+      "bytes": 217205,
+      "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+    }
+  ]
+}

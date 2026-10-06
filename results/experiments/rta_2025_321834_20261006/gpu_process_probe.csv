@@ -1,0 +1,3 @@
+gpu_uuid, pid, process_name, used_gpu_memory [MiB]
+GPU-da4f0d93-9113-e01e-f478-be1ea459ed85, 960193, /data/home/melashri/iris/inference/Allen/build/Allen, 154 MiB
+GPU-45d31422-143d-4539-334e-69eac0bc7b97, 960193, /data/home/melashri/iris/inference/Allen/build/Allen, 8524 MiB

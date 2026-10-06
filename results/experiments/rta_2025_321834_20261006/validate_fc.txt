@@ -1,0 +1,6 @@
+dump: 500 events, 118002 tracks, latentChannels=4
+checkpoint: weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt
+track-to-interval assignment vs training rules: 0 of 20000 intervals differ  -> OK
+interval features: slots compared 20000, non-finite slots skipped 0; max|diff| 3.980e+04, max rel diff 3.126e+03, max error 5.29e-05 bfloat16 ulps (limit 1; largest term magnitude 1.094e+13)  -> PASS
+histogram        : slots compared 20000, non-finite slots skipped 0; max|diff| 7.051e+03, max rel diff 5.953e+03, max error 1.73e-05 bfloat16 ulps (limit 1; largest term magnitude 5.903e+11)  -> PASS
+PASS
