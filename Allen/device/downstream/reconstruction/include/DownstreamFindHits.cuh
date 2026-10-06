@@ -93,7 +93,7 @@ namespace downstream_find_hits {
   template<bool filter_used_scifi_seeds, bool use_constant_tolerance_window>
   __global__ void downstream_create_candidates(
     Parameters parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const float tolerance_window_x4_multiplier,
     const float tolerance_window_y4_multiplier,
     const float ttracks_probability_threshold,
@@ -123,58 +123,71 @@ namespace downstream_find_hits {
 
   private:
     Allen::Monitoring::Counter<> m_n_overflow_downstream_tracking {this, "n_overflow_downstream_tracking"};
-    Allen::Property<float> m_ttracks_probability_threshold {this,
-                                                            "ttracks_probability_threshold",
-                                                            0.5,
-                                                            "the threshold of the T track propability"};
-    Allen::Property<bool> m_require_four_ut_hits {this,
-                                                  "require_four_ut_hits",
-                                                  true,
-                                                  "Require 4 UT hits to create downstream tracks"};
-    Allen::Property<dim3> m_num_threads_create_candidates {this,
-                                                           "num_threads_create_candidates",
-                                                           {64, 1, 1},
-                                                           "number of threads for candidate creation"};
-    Allen::Property<dim3> m_num_threads_find_rest_hits {this,
-                                                        "num_threads_find_rest_hits",
-                                                        {192, 1, 1},
-                                                        "number of threads for finding rest of hits"};
-    Allen::Property<bool> m_enable_constant_tolerance_window {this,
-                                                              "enable_constant_tolerance_window",
-                                                              false,
-                                                              "switch for constant tolerance window"};
-    Allen::Property<float> m_tolerance_window_x1_multiplier {this,
-                                                             "tolerance_window_x1_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_y1_multiplier {this,
-                                                             "tolerance_window_y1_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_x2_multiplier {this,
-                                                             "tolerance_window_x2_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_y2_multiplier {this,
-                                                             "tolerance_window_y2_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_x3_multiplier {this,
-                                                             "tolerance_window_x3_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_y3_multiplier {this,
-                                                             "tolerance_window_y3_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_x4_multiplier {this,
-                                                             "tolerance_window_x4_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
-    Allen::Property<float> m_tolerance_window_y4_multiplier {this,
-                                                             "tolerance_window_y4_multiplier",
-                                                             1.f,
-                                                             "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_ttracks_probability_threshold {
+      this,
+      "ttracks_probability_threshold",
+      0.5,
+      "the threshold of the T track propability"};
+    Allen::Property<bool> m_require_four_ut_hits {
+      this,
+      "require_four_ut_hits",
+      true,
+      "Require 4 UT hits to create downstream tracks"};
+    Allen::Property<dim3> m_num_threads_create_candidates {
+      this,
+      "num_threads_create_candidates",
+      {64, 1, 1},
+      "number of threads for candidate creation"};
+    Allen::Property<dim3> m_num_threads_find_rest_hits {
+      this,
+      "num_threads_find_rest_hits",
+      {192, 1, 1},
+      "number of threads for finding rest of hits"};
+    Allen::Property<bool> m_enable_constant_tolerance_window {
+      this,
+      "enable_constant_tolerance_window",
+      false,
+      "switch for constant tolerance window"};
+    Allen::Property<float> m_tolerance_window_x1_multiplier {
+      this,
+      "tolerance_window_x1_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_y1_multiplier {
+      this,
+      "tolerance_window_y1_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_x2_multiplier {
+      this,
+      "tolerance_window_x2_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_y2_multiplier {
+      this,
+      "tolerance_window_y2_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_x3_multiplier {
+      this,
+      "tolerance_window_x3_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_y3_multiplier {
+      this,
+      "tolerance_window_y3_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_x4_multiplier {
+      this,
+      "tolerance_window_x4_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
+    Allen::Property<float> m_tolerance_window_y4_multiplier {
+      this,
+      "tolerance_window_y4_multiplier",
+      1.f,
+      "constant value, at which defaut value is multiplied"};
 
     TTrackSelector dev_ttrack_selector {"dev_ttrack_selector", "/HLT1Downstream/Hlt1_Downstream_TTrackSelector.json"};
   };

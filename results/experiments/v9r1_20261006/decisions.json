@@ -1,0 +1,55 @@
+{
+  "fitter": {
+    "decision": "retain block_dim_y=4",
+    "screen": "measurements/fit_screen/result.json",
+    "rejected": [
+      2,
+      8
+    ],
+    "reason": "No repeatable throughput gain over the four-warp reference"
+  },
+  "unet": {
+    "status": "rejected; source changes reverted",
+    "build": "builds/unet_variants",
+    "validation": {
+      "unet_w2": "all five validators PASS; KDE byte-identical to original",
+      "unet_w3": "all five validators PASS; KDE byte-identical to original"
+    },
+    "screen": "measurements/unet_screen/result.json",
+    "reason": "No repeatable gain over rebuilt four-warp control. Best nominal gains (~0.19%) were smaller than sample spread (~0.42%)."
+  },
+  "gpu_work_list": {
+    "status": "accepted and preserved",
+    "unit_tests": "12 cases, 299 assertions PASS",
+    "validation": "All five validators PASS; FC histogram, CSR and KDE byte-identical to original on 500 events",
+    "memcheck": "0 errors on two streams, two repetitions, 500 events",
+    "coverage": {
+      "intervals": 20000,
+      "empty": 14550,
+      "split_over_64": 566,
+      "maximum_entries": 220
+    },
+    "screen": "measurements/gpu_screen/result.json",
+    "gain_vs_rebuilt_host_mean_pct": 1.9651589608657671,
+    "gain_vs_rebuilt_host_sd_pct": 0.26459557089312596,
+    "full_physics": "PASS: full-sample counts unchanged at both thresholds; host/GPU vertices, KDE and seeds byte-identical",
+    "decision": "Retain GPU-built BF16 work list",
+    "confirmation": "measurements/confirmation/result.json",
+    "accepted_commit": "b427d449b0c393734e361279e3922aa8aebea57c"
+  },
+  "gpu_grid": {
+    "status": "accepted and preserved",
+    "screen": "measurements/gpu_grid_screen/result.json",
+    "fc": 0.0625,
+    "unet": 0.125,
+    "short_screen_loss_mean_pct": 4.796287266533235,
+    "short_screen_loss_sd_pct": 0.17370640759524109,
+    "note": "The 1/8,1/8 result is statistically indistinguishable; use fewer FC blocks.",
+    "loss_mean_pct": 4.647627416454026,
+    "loss_sd_pct": 0.5698336294700588,
+    "ci95_mean_loss_pct": [
+      3.9400855138256756,
+      5.355169319082377
+    ]
+  }
+}

@@ -104,13 +104,13 @@ void lookup(
   int station = tile.station();
   auto index = lookup_index(table, tile);
   auto& p = table.table[station][index];
-  x = p[0];
-  y = p[1];
-  z = p[2];
+  x = static_cast<double>(p[0]);
+  y = static_cast<double>(p[1]);
+  z = static_cast<double>(p[2]);
 
   auto dxi = 4 * tile.station() + tile.region();
-  deltax = table.sizeX[dxi];
-  deltay = table.sizeY[dxi];
+  deltax = static_cast<double>(table.sizeX[dxi]);
+  deltay = static_cast<double>(table.sizeY[dxi]);
 }
 
 unsigned int getLayoutX(MuonTable const& table, unsigned int station, unsigned int region)

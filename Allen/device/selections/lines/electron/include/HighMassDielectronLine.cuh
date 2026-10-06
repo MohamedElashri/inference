@@ -106,28 +106,32 @@ namespace highmass_dielectron_line {
 
   private:
     // Low-mass no-IP dielectron selections.
-    Allen::Property<float> m_minTrackP {this,
-                                        "minTrackP",
-                                        14.f * Allen::Units::GeV,
-                                        "Minimal momentum for both daughters "};
+    Allen::Property<float> m_minTrackP {
+      this,
+      "minTrackP",
+      14.f * Allen::Units::GeV,
+      "Minimal momentum for both daughters "};
     Allen::Property<float> m_minTrackPt {this, "minTrackPt", 1.5f * Allen::Units::GeV, "Minimal pT for both daughters"};
     Allen::Property<float> m_maxTrackEta {this, "maxTrackEta", 5.0, "Maximal ETA for both daughters"};
     Allen::Property<float> m_minMass {this, "minMass", 8.0f * Allen::Units::GeV, "Min mass of the composite"};
     Allen::Property<float> m_maxMass {this, "maxMass", 140.f * Allen::Units::GeV, "Max mass of the composite"};
     Allen::Property<float> m_maxDoca {this, "maxDoca", .2f * Allen::Units::mm, "maxDoca description"};
     Allen::Property<float> m_MinZ {this, "MinZ", -330.f * Allen::Units::mm, "Min z dielectron coordinate"};
-    Allen::Property<bool> m_only_select_opposite_sign {this,
-                                                       "OppositeSign",
-                                                       true,
-                                                       "Selects opposite sign dimuon combinations"};
+    Allen::Property<bool> m_only_select_opposite_sign {
+      this,
+      "OppositeSign",
+      true,
+      "Selects opposite sign dimuon combinations"};
 
-    Allen::Monitoring::Histogram<> m_histogram_dielectron_Z_mass {this,
-                                                                  "dielectron_Z_mass_counts",
-                                                                  "dielectron masses w/brem (Z)",
-                                                                  {100u, 60000.f, 120000.f}};
-    Allen::Monitoring::Histogram<> m_histogram_dielectron_upsilon_mass {this,
-                                                                        "dielectron_upsilon_mass_counts_ss",
-                                                                        "dielectron masses w/brem (Upsilon)",
-                                                                        {100u, 8000.f, 11500.f}};
+    Allen::Monitoring::Histogram<> m_histogram_dielectron_Z_mass {
+      this,
+      "dielectron_Z_mass_counts",
+      "dielectron masses w/brem (Z)",
+      {100u, 60000.f, 120000.f}};
+    Allen::Monitoring::Histogram<> m_histogram_dielectron_upsilon_mass {
+      this,
+      "dielectron_upsilon_mass_counts_ss",
+      "dielectron masses w/brem (Upsilon)",
+      {100u, 8000.f, 11500.f}};
   };
 } // namespace highmass_dielectron_line

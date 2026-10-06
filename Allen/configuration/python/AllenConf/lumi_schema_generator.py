@@ -8,12 +8,13 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from sys import argv, exit
-from random import Random
-import math
 import copy
 import json
 import logging
+import math
+from random import Random
+from sys import argv, exit
+
 """Script to generate a LumiSummary bank layout for a set of counters specified in
    the input files. The script produces a JSON representation of the layout, which is used
    to encode and decode the luminosity summary counters. If the PyConf module  is available
@@ -111,38 +112,39 @@ class Bucket:
 def concatinate_lumi_schemata(schemata):
     total_size = 0
     all_counters = []
-    mk_counter = lambda s,c : { 'name' : c['name'], 'offset' : 8 * s + c['offset'], 'size' : c['size'] }
+    mk_counter = lambda s, c: {
+        "name": c["name"],
+        "offset": 8 * s + c["offset"],
+        "size": c["size"],
+    }
 
     for schema in schemata:
-        for counter in schema['counters']:
+        for counter in schema["counters"]:
             all_counters.append(mk_counter(total_size, counter))
-            if 'shift' in counter:
-                all_counters[-1]['shift'] = counter['shift']
-            if 'scale' in counter:
-                all_counters[-1]['scale'] = counter['scale']
+            if "shift" in counter:
+                all_counters[-1]["shift"] = counter["shift"]
+            if "scale" in counter:
+                all_counters[-1]["scale"] = counter["scale"]
 
-        total_size += schema['size']
+        total_size += schema["size"]
 
-    return {'version': 0, 'size': total_size, 'counters': all_counters}
+    return {"version": 0, "size": total_size, "counters": all_counters}
 
 
 class LumiSchemaGenerator:
     """Class to produce a JSON representation of a LumiSummary bank layout.
-     Counter names are associated with a size and an offset within the bank.
-     Multiple counters may be packed into a single 32-bit integer, however,
-     a single counter may not span more than one integer.
-  """
-
-    def __init__(self,
-                 inputs=[],
-                 shiftsAndScales={},
-                 addEncodingKey=True,
-                 verbose=False):
-        """Optionally, provide counters as the argument "input" in the form [(counterName1, MAXENTRIES1), (counterName2, MAXENTRIES2) ... ]
+    Counter names are associated with a size and an offset within the bank.
+    Multiple counters may be packed into a single 32-bit integer, however,
+    a single counter may not span more than one integer.
     """
+
+    def __init__(
+        self, inputs=[], shiftsAndScales={}, addEncodingKey=True, verbose=False
+    ):
+        """Optionally, provide counters as the argument "input" in the form [(counterName1, MAXENTRIES1), (counterName2, MAXENTRIES2) ... ]"""
         self.inputs = []
         if addEncodingKey:
-            self.inputs.append(Counter("encodingKey", 0xffffffff))
+            self.inputs.append(Counter("encodingKey", 0xFFFFFFFF))
         for name, maxEntry in inputs:
             self.inputs.append(Counter(name, maxEntry))
         self.buckets = []
@@ -153,29 +155,28 @@ class LumiSchemaGenerator:
 
     def readInput(self, inputFileName):
         """Append the contents of the input file to the list of requested counters.
-       Input files should be formatted as follows:
+        Input files should be formatted as follows:
 
-       counterName1 MAXENTRIES1
-       counterName2 MAXENTRIES2
-       ...
+        counterName1 MAXENTRIES1
+        counterName2 MAXENTRIES2
+        ...
 
-       where MAXENTRIES is the maximum value that a given counter may be required to store.
-       Counter names may not contain whitespace. An "encodingKey" counter will be automatically
-       added to the start of the schema so must not be specified in the input.
-       If no input file is given then the example from the module docstring is used.
-    """
-        if inputFileName == None:
-            #Extract the example
+        where MAXENTRIES is the maximum value that a given counter may be required to store.
+        Counter names may not contain whitespace. An "encodingKey" counter will be automatically
+        added to the start of the schema so must not be specified in the input.
+        If no input file is given then the example from the module docstring is used.
+        """
+        if inputFileName is None:
+            # Extract the example
             lines = open(argv[0]).readlines()
-            lines = lines[lines.index("EXAMPLE\n") + 1:]
-            lines = lines[:lines.index("EOF\n")]
+            lines = lines[lines.index("EXAMPLE\n") + 1 :]
+            lines = lines[: lines.index("EOF\n")]
         else:
             lines = open(inputFileName).readlines()
         for line in lines:
             line = line.split()
             if len(line) != 2:
-                print("Input file, %s, is not in the correct format" %
-                      (inputFileName))
+                print("Input file, %s, is not in the correct format" % (inputFileName))
                 print(
                     "Expect lines of counter name and maximum value separated by white space"
                 )
@@ -189,21 +190,21 @@ class LumiSchemaGenerator:
         """Pack counters into 32-bit bins sequentially without running any optimisation.
         If a counter does not fit into the current last bin a new bin is appended.
         To use this functionality set the --no-opt command line option.
-     """
+        """
         self.buckets = []
         self.size = 0
         self.sumSizes = 0
         self.nInputs = len(self.inputs)
         self.pack(False)
 
-    def process(self, mutationAttempts=10, stopThreshold=100.):
+    def process(self, mutationAttempts=10, stopThreshold=100.0):
         """Pack requested counters into 32-bit bins according to 'first-fit decreasing' procedure.
-       Counters are sorted in order of descending size and packed into the first available 32-bit 'bucket'.
-       The schema is further optimised by randomly removing a random fraction of those counters that occupy
-       less than half a bucket and attempting to re-insert them in a random order. If the number of buckets
-       is reduced then the 'mutated' schema is retained. This procedure is repeated up to the specified
-       number of attempts or until the efficiency achieved exceeds the specified stopping threshold.
-    """
+        Counters are sorted in order of descending size and packed into the first available 32-bit 'bucket'.
+        The schema is further optimised by randomly removing a random fraction of those counters that occupy
+        less than half a bucket and attempting to re-insert them in a random order. If the number of buckets
+        is reduced then the 'mutated' schema is retained. This procedure is repeated up to the specified
+        number of attempts or until the efficiency achieved exceeds the specified stopping threshold.
+        """
         self.buckets = []
         self.size = 0
         self.sumSizes = 0
@@ -212,7 +213,7 @@ class LumiSchemaGenerator:
         self.inputs.sort(reverse=True)
         self.pack()
 
-        #if all buckets contain a counter of 16 bits or larger then no optimisation will reduce the number of buckets
+        # if all buckets contain a counter of 16 bits or larger then no optimisation will reduce the number of buckets
         runMutationStep = False
         for bucket in self.buckets:
             if bucket.counters[0].size < 16:
@@ -220,10 +221,11 @@ class LumiSchemaGenerator:
                 break
         if runMutationStep:
             for i in range(mutationAttempts):
-                if 100. * self.sumSizes / self.size >= stopThreshold:
+                if 100.0 * self.sumSizes / self.size >= stopThreshold:
                     log.debug(
                         "Packing efficiency of %.1f%% has reached or exceeded %.1f%%"
-                        % (100. * self.sumSizes / self.size, stopThreshold))
+                        % (100.0 * self.sumSizes / self.size, stopThreshold)
+                    )
                     log.debug("Stopping mutation")
                     break
                 self.mutate(lumi_rand.random())
@@ -239,7 +241,7 @@ class LumiSchemaGenerator:
                         bucketFound = True
                         break
             else:
-                #if packing is not being optimised then only check the last bucket
+                # if packing is not being optimised then only check the last bucket
                 if len(self.buckets) > 0:
                     if self.buckets[-1].addCounter(counter):
                         bucketFound = True
@@ -250,7 +252,8 @@ class LumiSchemaGenerator:
                 else:
                     print(
                         "Counter %s is too large, ensure it fits within 32 bits"
-                        % counter.name)
+                        % counter.name
+                    )
                     exit()
             self.sumSizes += counter.size
 
@@ -258,19 +261,20 @@ class LumiSchemaGenerator:
         bucket = self.buckets[-1]
         counter = bucket.counters[-1]
         self.sumSizes = math.ceil(self.sumSizes / 32) * 32
-        self.size = math.ceil(
-            (32 * bucket.pos + counter.offset + counter.size) / 32) * 32
-        log.debug("Packed %d counters into %d bytes" % (self.nInputs,
-                                                        self.size / 8.))
-        log.debug("Counter packing is %.1f%% efficient" %
-                  (100 * self.sumSizes / self.size))
+        self.size = (
+            math.ceil((32 * bucket.pos + counter.offset + counter.size) / 32) * 32
+        )
+        log.debug("Packed %d counters into %d bytes" % (self.nInputs, self.size / 8.0))
+        log.debug(
+            "Counter packing is %.1f%% efficient" % (100 * self.sumSizes / self.size)
+        )
 
     def mutate(self, prob):
-        log.debug("Mutating with a %.1f%% removal rate" % (prob * 100.))
+        log.debug("Mutating with a %.1f%% removal rate" % (prob * 100.0))
         originalBuckets = copy.deepcopy(self.buckets)
         originalSize = self.size
         originalSumSizes = self.sumSizes
-        #randomly select counters to re-insert - counters of 16 bits or larger are left intact as removing them is analogous to simply reordering buckets
+        # randomly select counters to re-insert - counters of 16 bits or larger are left intact as removing them is analogous to simply reordering buckets
         for bucket in self.buckets:
             if bucket.bitsRemaining > 0:
                 for counter in list(bucket.counters):
@@ -280,23 +284,23 @@ class LumiSchemaGenerator:
                         self.sumSizes -= counter.size
                         self.inputs.append(counter)
                 offset = 0
-                #re-pack remaining counters from the start of the bucket
+                # re-pack remaining counters from the start of the bucket
                 for counter in bucket.counters:
                     counter.offset = offset
                     offset += counter.size
-        #remove any buckets that are now empty
+        # remove any buckets that are now empty
         runMutation = False
         for bucket in list(self.buckets):
             if len(bucket.counters) == 0:
                 self.buckets.remove(bucket)
                 runMutation = True
-        #renumber buckets if one has been removed
+        # renumber buckets if one has been removed
         for i, bucket in enumerate(self.buckets):
             bucket.pos = i
-        #size can only be reduced if a bucket is removed so skip if no empty buckets
+        # size can only be reduced if a bucket is removed so skip if no empty buckets
         if runMutation:
             if len(self.inputs) != 0:
-                #rerun the packing with a random ordering
+                # rerun the packing with a random ordering
                 log.debug("repacking %d counters" % len(self.inputs))
                 lumi_rand.shuffle(self.inputs)
                 self.pack()
@@ -316,20 +320,25 @@ class LumiSchemaGenerator:
 
     def getJSON(self):
         """Return a JSON representation of the lumi counter scheme."""
-        mk_counter = lambda b,c : { 'name':c.name, 'offset' : 32 * b.pos + c.offset, 'size': c.size }
+        mk_counter = lambda b, c: {
+            "name": c.name,
+            "offset": 32 * b.pos + c.offset,
+            "size": c.size,
+        }
 
         counters = [
-            mk_counter(bucket, counter) for bucket in self.buckets
+            mk_counter(bucket, counter)
+            for bucket in self.buckets
             for counter in bucket.counters
         ]
 
         for c in counters:
-            if c['name'] in self.shiftsAndScales:
-                s_s = self.shiftsAndScales[c['name']]
+            if c["name"] in self.shiftsAndScales:
+                s_s = self.shiftsAndScales[c["name"]]
                 c["shift"] = s_s[0]
                 c["scale"] = s_s[1]
 
-        return {'version': 0, 'size': int(self.size / 8), 'counters': counters}
+        return {"version": 0, "size": int(self.size / 8), "counters": counters}
 
     def printJSON(self):
         """Print a JSON representation of the lumi counter scheme."""
@@ -340,13 +349,12 @@ class LumiSchemaGenerator:
         outputName = "output.json"
         try:
             from PyConf.filecontent_metadata import _get_hash_for_text
+
             schemaKey = _get_hash_for_text(schema)[:8]
             print("Encoding key: %s" % (schemaKey))
             outputName = schemaKey + ".json"
         except ModuleNotFoundError:
-            print(
-                "PyConf module unavailable: schema encoding key cannot be calculated"
-            )
+            print("PyConf module unavailable: schema encoding key cannot be calculated")
 
         print("Writing %s" % (outputName))
         f = open(outputName, "w")
@@ -365,7 +373,7 @@ class LumiSchemaGenerator:
         """Print a schematic layout of the counter packing within bins."""
         print("Counter packing:")
         for bucket in self.buckets:
-            c = '0'
+            c = "0"
             for counter in bucket.counters:
                 print(c * counter.size, end="")
                 c = chr(ord(c) + 1)
@@ -374,47 +382,49 @@ class LumiSchemaGenerator:
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input",
-        default=None,
-        help="Input file giving counters and maximum values")
+        "--input", default=None, help="Input file giving counters and maximum values"
+    )
     parser.add_argument(
         "--no-opt",
         metavar="0/1",
-        nargs='?',
+        nargs="?",
         const=True,
         default=False,
-        help="Don't perform any optimisation")
+        help="Don't perform any optimisation",
+    )
     parser.add_argument(
         "--mutations",
         metavar="N",
         type=int,
         default=20,
-        help=
-        "Number of mutations to perform in the second phase of optimisation")
+        help="Number of mutations to perform in the second phase of optimisation",
+    )
     parser.add_argument(
         "--stop-threshold",
         metavar="PC",
         type=float,
-        default=100.,
-        help=
-        "Packing efficiency at which further mutation attempts should be skipped"
+        default=100.0,
+        help="Packing efficiency at which further mutation attempts should be skipped",
     )
     parser.add_argument(
         "--write-header",
         metavar="0/1",
-        nargs='?',
+        nargs="?",
         const=True,
         default=False,
-        help="Generate a header file for the legacy enum interface")
+        help="Generate a header file for the legacy enum interface",
+    )
     parser.add_argument(
         "--verbose",
         metavar="0/1",
-        nargs='?',
+        nargs="?",
         const=True,
         default=False,
-        help="Turn on verbose printing")
+        help="Turn on verbose printing",
+    )
     args = parser.parse_args()
 
     l = LumiSchemaGenerator(verbose=args.verbose)

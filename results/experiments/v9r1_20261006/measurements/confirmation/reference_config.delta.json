@@ -1,0 +1,21 @@
+{
+  "schema": "allen-config-delta/1",
+  "canonical": "../../configurations/gpu_final.json",
+  "original_sha256": "a7ecd08123cbee7a695e4071d93a59b8f866c0b0cc9147b08c0d236c2d329aaa",
+  "overrides": {
+    "pvfinder_fc_aggregation": {
+      "block_dim": [
+        512,
+        1,
+        1
+      ],
+      "dump_validation": "",
+      "fused_grid_fraction": 0.0625,
+      "model": "/tmp/pvfinder-v9r1-port/weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+      "precision": "bfloat16",
+      "unet_batch_events": 20,
+      "verbosity": 3
+    }
+  },
+  "removed_keys": []
+}

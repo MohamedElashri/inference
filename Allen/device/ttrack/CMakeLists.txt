@@ -12,7 +12,7 @@ file(GLOB ttrack_test "test/src/*.cu")
 file(GLOB ttrack_prepare_tracks "prepare_tracks/src/*.cu")
 file(GLOB ttrack_make_vertices "make_vertices/src/*.cu")
 
-allen_add_device_library(TTrack STATIC
+allen_add_device_library(TTrack OBJECT
   ${ttrack_test}
   ${ttrack_prepare_tracks}
   ${ttrack_make_vertices}
@@ -25,12 +25,9 @@ target_include_directories(TTrack PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prepare_tracks/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/make_vertices/include>)
-  
+
   target_include_directories(WrapperInterface INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/prepare_tracks/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/make_vertices/include>)
-
-
-

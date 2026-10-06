@@ -45,9 +45,10 @@ namespace host_tae_filter {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<bool> m_accept_sub_events {this,
-                                               "accept_sub_events",
-                                               true,
-                                               "Accept all sub events of a TAE batch as separate events"};
+    Allen::Property<bool> m_accept_sub_events {
+      this,
+      "accept_sub_events",
+      true,
+      "Accept all sub events of a TAE batch as separate events"};
   };
 } // namespace host_tae_filter

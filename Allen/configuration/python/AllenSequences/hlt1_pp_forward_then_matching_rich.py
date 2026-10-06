@@ -8,10 +8,11 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
+from AllenConf.enum_types import TrackingType
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
-from AllenConf.enum_types import TrackingType
 
 hlt1_node = setup_hlt1_node(
-    with_rich=True, tracking_type=TrackingType.FORWARD_THEN_MATCHING)
+    with_fullKF=True, with_rich=True, tracking_type=TrackingType.FORWARD_THEN_MATCHING
+)
 generate(hlt1_node)

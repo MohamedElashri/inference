@@ -39,14 +39,16 @@ namespace check_cyl_pvs {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
-    Allen::Property<float> m_min_vtx_z {this,
-                                        "min_vtx_z",
-                                        -99999.,
-                                        "min z coordinate to accept a reconstructed primary vertex"};
-    Allen::Property<float> m_max_vtz_z {this,
-                                        "max_vtz_z",
-                                        99999.,
-                                        "max z coordinate to accept a reconstructed primary vertex"};
+    Allen::Property<float> m_min_vtx_z {
+      this,
+      "min_vtx_z",
+      -99999.,
+      "min z coordinate to accept a reconstructed primary vertex"};
+    Allen::Property<float> m_max_vtx_z {
+      this,
+      "max_vtx_z",
+      99999.,
+      "max z coordinate to accept a reconstructed primary vertex"};
     Allen::Property<float> m_max_vtx_rho_sq {
       this,
       "max_vtx_rho_sq",

@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB jets_src "src/*cu")
 
-allen_add_device_library(Jets STATIC
+allen_add_device_library(Jets OBJECT
   ${jets_src}
 )
 

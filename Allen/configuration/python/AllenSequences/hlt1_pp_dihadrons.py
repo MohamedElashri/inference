@@ -12,5 +12,6 @@ from AllenConf.HLT1 import setup_hlt1_node
 from AllenCore.generator import generate
 
 hlt1_node = setup_hlt1_node(
-    enableRateValidator=True, with_calo=False, with_muon=False, with_v0s=False)
+    enableRateValidator=True, with_calo=False, with_muon=False, with_v0s=False
+)
 generate(hlt1_node)

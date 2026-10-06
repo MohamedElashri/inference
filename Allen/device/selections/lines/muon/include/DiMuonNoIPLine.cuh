@@ -98,20 +98,23 @@ namespace di_muon_no_ip_line {
     using monitoring_types = std::tuple<dev_muon_nn_t, pt_t, ipchi2_t, evtNo_t, runNo_t>;
 
   private:
-    Allen::Monitoring::LogHistogram<> m_histogram_prompt_q {this,
-                                                            "dimuon_q",
-                                                            "dimuon q",
-                                                            {10390, 0.f, 70e3, 2.71998658e-03f, 2.34546735e+03f, 1.f}};
+    Allen::Monitoring::LogHistogram<> m_histogram_prompt_q {
+      this,
+      "dimuon_q",
+      "dimuon q",
+      {10390, 0.f, 70e3, 2.71998658e-03f, 2.34546735e+03f, 1.f}};
 
   private:
-    Allen::Property<float> m_minTrackPtPROD {this,
-                                             "minTrackPtPROD",
-                                             1.f * Allen::Units::GeV* Allen::Units::GeV,
-                                             "minTrackPtPROD description"}; // run 2 value: 1.*GeV*GeV
-    Allen::Property<float> m_minTrackP {this,
-                                        "minTrackP",
-                                        5000.f * Allen::Units::MeV,
-                                        "minTrackP description"};                   // run 2 value: 10000
+    Allen::Property<float> m_minTrackPtPROD {
+      this,
+      "minTrackPtPROD",
+      1.f * Allen::Units::GeV* Allen::Units::GeV,
+      "minTrackPtPROD description"}; // run 2 value: 1.*GeV*GeV
+    Allen::Property<float> m_minTrackP {
+      this,
+      "minTrackP",
+      5000.f * Allen::Units::MeV,
+      "minTrackP description"};                                                     // run 2 value: 10000
     Allen::Property<float> m_maxDoca {this, "maxDoca", .3f, "maxDoca description"}; // run 2 value: 0.1
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 9.f, "maxVertexChi2 description"}; // run 2 value: 9
     Allen::Property<float> m_maxTrChi2 {this, "maxTrChi2", 3.f, "maxTrChi2 description"};             // run 2 value: 3

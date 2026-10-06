@@ -44,7 +44,7 @@ void downstream_kalman_filter::downstream_kalman_filter_t::operator()(
   int _gridDim = (first<host_number_of_downstream_tracks_t>(arguments) + (block_dim.x) - 1) / (block_dim.x);
 
   global_function(downstream_kalman_filter)(dim3(_gridDim), m_block_dim, context)(
-    arguments, constants.dev_magnet_polarity.data(), constants.dev_kalman_params);
+    arguments, constants.magnet_polarity, constants.dev_kalman_params);
 
   // Create KalmanStates views (per-event structure matching input, so we don't have to touch the Particle maker)
   const unsigned n_events = first<host_number_of_events_t>(arguments);
@@ -212,10 +212,10 @@ namespace {
 // Downstream Kalman filter kernel.
 __global__ void downstream_kalman_filter::downstream_kalman_filter(
   downstream_kalman_filter::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const ParKalmanFilter::KalmanParametrizations* dev_kalman_params)
 {
-  const KalmanFloat magSign = dev_magnet_polarity[0];
+  const KalmanFloat magSign = magnet_polarity;
 
   const unsigned total_number_of_tracks = parameters.dev_downstream_track_view.size();
 

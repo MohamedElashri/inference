@@ -43,8 +43,9 @@ void DumpFTHits::operator()(const LHCb::ODIN& odin, const LHCb::Pr::FT::Hits& ft
 {
 
   /*Write SciFi variables for GPU to binary file */
-  DumpUtils::FileWriter outfile {m_outputDirectory.value() + "/" + std::to_string(odin.runNumber()) + "_" +
-                                 std::to_string(odin.eventNumber()) + ".bin"};
+  DumpUtils::FileWriter outfile {
+    m_outputDirectory.value() + "/" + std::to_string(odin.runNumber()) + "_" + std::to_string(odin.eventNumber()) +
+    ".bin"};
 
   // SciFi
   constexpr int n_layers_scifi = 24;

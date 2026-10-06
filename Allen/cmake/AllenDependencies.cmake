@@ -30,7 +30,7 @@ if (NOT STANDALONE)
   endif()
 
   # -- Public dependencies
-  lhcb_find_package(Rec 34.0 REQUIRED)
+  lhcb_find_package(Rec 39.2 REQUIRED)
 
   find_package(AIDA REQUIRED)
   find_package(TBB REQUIRED)
@@ -104,6 +104,7 @@ pkg_check_modules(sodium libsodium REQUIRED IMPORTED_TARGET)
 if(NOT STANDALONE)
   pkg_check_modules(git2 libgit2 REQUIRED IMPORTED_TARGET)  # for GitEntityResolver
 endif()
+find_package(cppzmq CONFIG REQUIRED)
 
 if(WITH_Allen_PRIVATE_DEPENDENCIES)
   # We need a Python 3 interpreter
@@ -111,30 +112,6 @@ if(WITH_Allen_PRIVATE_DEPENDENCIES)
 
   # Catch2 for tests
   find_package(Catch2 REQUIRED)
-
-  # Find libClang, required for parsing the Allen codebase
-  find_package(Clang QUIET)
-  if (TARGET libclang)
-    get_target_property(LIBCLANG_CONFIG libclang IMPORTED_CONFIGURATIONS)
-    get_target_property(LIBCLANG_LIBDIR libclang IMPORTED_LOCATION_${LIBCLANG_CONFIG})
-    get_filename_component(LIBCLANG_LIBDIR "${LIBCLANG_LIBDIR}" PATH)
-  else()
-    # As a last resort, try from a number of hard-coded directory in cvmfs
-    set(LIBCLANG_LIBDIR_x86_64_centos7  /cvmfs/lhcb.cern.ch/lib/lcg/releases/clang/12.0.0/x86_64-centos7)
-    set(LIBCLANG_LIBDIR_x86_64_el9      /cvmfs/lhcb.cern.ch/lib/lcg/releases/clang/16.0.3-9dda8/x86_64-el9)
-    set(LIBCLANG_LIBDIR_aarch64_centos7 /cvmfs/sft.cern.ch/lcg/releases/clang/13.0.1-721c8/aarch64-centos7)
-    set(LIBCLANG_LIBDIR_aarch64_el9     /cvmfs/lhcb.cern.ch/lib/lcg/releases/clang/16.0.3-9dda8/aarch64-el9)
-
-    set(LIBCLANG_LIBDIR ${LIBCLANG_LIBDIR_${CMAKE_SYSTEM_PROCESSOR}_${LCG_OS}}/lib)
-    set(LIBCLANG_ALTERNATIVE_FOUND ON)
-    message(STATUS "Trying predefined CVMFS libclang directory")
-  endif()
-  if(LIBCLANG_LIBDIR AND EXISTS "${LIBCLANG_LIBDIR}")
-    message(STATUS "Found libclang at ${LIBCLANG_LIBDIR}")
-  else()
-    message(FATAL_ERROR "No suitable libClang installation found. "
-                        "You may provide a custom path by setting LIBCLANG_LIBDIR manually")
-  endif()
 
   # https://github.com/nlohmann/json
   find_package(nlohmann_json REQUIRED)
@@ -171,7 +148,7 @@ else()
   set(Allen_PERSISTENT_OPTIONS TARGET_DEVICE)
 endif()
 
-find_package(ROOT REQUIRED HINTS ${ALLEN_ROOT_CMAKE} COMPONENTS RIO Core Cling Hist Tree)
+find_package(ROOT REQUIRED HINTS ${ALLEN_ROOT_CMAKE} COMPONENTS RIO Core Hist Tree)
 if (NOT ROOT_FOUND)
   message(FATAL_ERROR "ROOT could not be found, please either set ROOTSYS or alternatively add the ROOT path to the CMAKE_PREFIX_PATH")
 endif()

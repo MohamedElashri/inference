@@ -62,7 +62,7 @@ namespace seed_confirmTracks_consolidate {
   };
   __global__ void seed_confirmTracks_consolidate(
     Parameters,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
@@ -92,16 +92,18 @@ namespace seed_confirmTracks_consolidate {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
 
     Allen::Monitoring::AveragingCounter<> m_seed_tracks {this, "n_seed_tracks"};
-    Allen::Monitoring::Histogram<> m_histogram_n_scifi_seeds {this,
-                                                              "n_scifi_seeds_event",
-                                                              "n_scifi_seeds_event",
-                                                              {501u, -0.5f, 500.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_n_scifi_seeds {
+      this,
+      "n_scifi_seeds_event",
+      "n_scifi_seeds_event",
+      {501u, -0.5f, 500.5f}};
     Allen::Monitoring::Histogram<> m_histogram_scifi_track_eta {this, "scifi_track_eta", "#eta", {400u, 0.f, 10.f}};
     Allen::Monitoring::Histogram<> m_histogram_scifi_track_phi {this, "scifi_track_phi", "#phi", {160u, -4.f, 4.f}};
-    Allen::Monitoring::Histogram<> m_histogram_scifi_track_nhits {this,
-                                                                  "scifi_track_nhits",
-                                                                  "N. hits / track",
-                                                                  {15u, -0.5f, 14.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_scifi_track_nhits {
+      this,
+      "scifi_track_nhits",
+      "N. hits / track",
+      {15u, -0.5f, 14.5f}};
     Allen::Monitoring::Histogram<> m_histogram_scifi_track_qop {this, "scifi_track_qop", "q/p", {200u, -1e-3f, 1e-3f}};
   };
 } // namespace seed_confirmTracks_consolidate

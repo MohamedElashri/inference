@@ -89,19 +89,22 @@ Vertices GaudiAllenPVsToPrimaryVertexContainer::operator()(
     const PV::Vertex& vertex = reconstructed_multi_pvs[i_event * PatPV::max_number_vertices + i];
 
     Gaudi::SymMatrix3x3 poscov;
-    poscov(0, 0) = vertex.cov00;
-    poscov(1, 0) = vertex.cov10;
-    poscov(1, 1) = vertex.cov11;
-    poscov(2, 0) = vertex.cov20;
-    poscov(2, 1) = vertex.cov21;
-    poscov(2, 2) = vertex.cov22;
-    auto& recvertex = vertices.emplace_back(Gaudi::XYZPoint {vertex.position.x, vertex.position.y, vertex.position.z});
+    poscov(0, 0) = static_cast<double>(vertex.cov00);
+    poscov(1, 0) = static_cast<double>(vertex.cov10);
+    poscov(1, 1) = static_cast<double>(vertex.cov11);
+    poscov(2, 0) = static_cast<double>(vertex.cov20);
+    poscov(2, 1) = static_cast<double>(vertex.cov21);
+    poscov(2, 2) = static_cast<double>(vertex.cov22);
+    auto& recvertex = vertices.emplace_back(Gaudi::XYZPoint {
+      static_cast<double>(vertex.position.x),
+      static_cast<double>(vertex.position.y),
+      static_cast<double>(vertex.position.z)});
     recvertex.setCovMatrix(poscov);
-    recvertex.setChi2(vertex.chi2);
+    recvertex.setChi2(static_cast<double>(vertex.chi2));
     // vertex.nTracks contains the sum of weights from Allen TBLV. To convert it to Number of Degrees of Freedom ->
     // Nubmer of Tracks we can use linear parametrisation described here
     // https://indico.cern.ch/event/1370630/contributions/5849852. nTrack = (nDoF+3)/2
-    recvertex.setNDoF(std::lround(2 * (1 + 1.58 * vertex.nTracks) - 3));
+    recvertex.setNDoF(std::lround(2 * (1 + 1.58 * static_cast<double>(vertex.nTracks)) - 3));
   }
 
   m_nbPVsCounter += vertices.size();

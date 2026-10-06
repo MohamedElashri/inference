@@ -9,6 +9,7 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "PVFinderFCAggregation.cuh"
+#include "PVFinderGPUWorkList.cuh"
 
 INSTANTIATE_ALGORITHM(pvfinder_fc_aggregation::pvfinder_fc_aggregation_t)
 
@@ -545,6 +546,7 @@ namespace pvfinder_fc_aggregation {
   // done by different warps; each writes its partial sums and the last one to
   // finish adds them up in chunk order (deterministic); see FCWorkItem.
   constexpr unsigned FT_CHUNK = 64u;
+  static_assert(FT_CHUNK == gpu_work_list::CHUNK);
   // Per warp: the staged layer-1 outputs [32][FT_H] words, reused for the
   // slot's sums [L6A_WIDTH] once its tiles are done.
   constexpr unsigned FT_WARP_WORDS = (32u * FT_H > L6A_WIDTH) ? 32u * FT_H : L6A_WIDTH;
@@ -650,7 +652,8 @@ namespace pvfinder_fc_aggregation {
     // m-tile, k half l / 16 (16-deep step); the 8-deep step uses lanes 0-15.
     const unsigned a_row = (lane & 7u) + ((lane >> 3) & 1u) * 8u, a_half = lane >> 4;
 
-    const unsigned total = n_items;
+    const unsigned total = n_items == std::numeric_limits<unsigned>::max() ?
+                             static_cast<unsigned>(slot_row[n_events * N_INTERVALS + 1u]) : n_items;
     while (true) {
       unsigned item = 0;
       if (lane == 0) item = atomicAdd(work_counter, 1u);
@@ -898,19 +901,20 @@ namespace pvfinder_fc_aggregation {
 
     set_size<dev_pvfinder_track_features_t>(arguments, n_tracks * 9u);
     set_size<dev_pvfinder_interval_start_t>(arguments, n_events * CSR_STRIDE);
-    set_size<host_pvfinder_interval_start_t>(arguments, n_events * CSR_STRIDE);
+    set_size<host_pvfinder_interval_start_t>(arguments, m_gpu_work_list ? 0u : n_events * CSR_STRIDE);
     set_size<dev_pvfinder_track_idx_t>(arguments, max_entries);
     set_size<dev_pvfinder_track_idx_unsorted_t>(arguments, max_entries);
     set_size<dev_pvfinder_interval_features_t>(arguments, padded_events * INTERVAL_FEATURES_STRIDE);
     set_size<host_pvfinder_unet_rows_t>(arguments, 4u);
-    set_size<dev_pvfinder_slot_row_t>(arguments, n_slots);
-    set_size<host_pvfinder_slot_row_t>(arguments, n_slots);
+    set_size<dev_pvfinder_slot_row_t>(arguments, n_slots + (m_gpu_work_list ? 3u : 0u));
+    set_size<host_pvfinder_slot_row_t>(arguments, m_gpu_work_list && m_dump_dir.value().empty() ? 0u : n_slots);
     set_size<dev_pvfinder_row_slot_t>(arguments, n_slots);
     set_size<dev_pvfinder_slot_order_t>(arguments, max_items * FC_WORK_ITEM_WORDS);
-    set_size<host_pvfinder_slot_order_t>(arguments, max_items * FC_WORK_ITEM_WORDS);
+    set_size<host_pvfinder_slot_order_t>(arguments, m_gpu_work_list ? 0u : max_items * FC_WORK_ITEM_WORDS);
     set_size<dev_pvfinder_work_counter_t>(arguments, 1u);
     set_size<dev_pvfinder_fc_partial_t>(arguments, m_bf16 ? max_partial * L6A_WIDTH : 0u);
-    set_size<dev_pvfinder_fc_arrive_t>(arguments, m_bf16 ? max_partial : 0u);
+    set_size<dev_pvfinder_fc_arrive_t>(
+      arguments, m_bf16 ? (m_gpu_work_list ? std::max(max_partial, n_slots + FT_CHUNK + 1u) : max_partial) : 0u);
     set_size<dev_pvfinder_output_histogram_t>(arguments, m_dump_dir.value().empty() ? 0u : n_events * KDE_BINS);
   }
 
@@ -968,6 +972,7 @@ namespace pvfinder_fc_aggregation {
       m_grid = std::max(1u, (unsigned) (sm_count * std::max(per_sm, 1) * m_fused_grid_fraction.value()));
     }
     else {
+      if (m_gpu_work_list) throw StrException("pvfinder_fc_aggregation: gpu_work_list requires bfloat16 precision");
       cudaCheck(cudaFuncSetAttribute(
         pvfinder_fused_fc_warp_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, (int) fw_smem_bytes()));
       cudaCheck(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
@@ -1001,6 +1006,36 @@ namespace pvfinder_fc_aggregation {
     }
     if (n_selected > 0) {
       global_function(pvfinder_build_csr_kernel)(dim3(n_selected), m_block_dim, context)(arguments);
+    }
+
+    if (m_gpu_work_list) {
+      // The BF16 consumer obtains its exact row count from slot_row's tail.
+      // Host metadata retains only the layout, precision and capacity.
+      host_unet_rows[0] = 2u;
+      host_unet_rows[1] = n_slots;
+      global_function(gpu_work_list::make_layout)(dim3(1), dim3(gpu_work_list::THREADS), context)(
+        arguments, n_slots, write_histogram);
+      global_function(gpu_work_list::emit_items)(
+        dim3((n_slots + gpu_work_list::THREADS - 1u) / gpu_work_list::THREADS),
+        dim3(gpu_work_list::THREADS), context)(arguments, n_slots, write_histogram);
+      const unsigned n_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
+      const unsigned max_partial = n_tracks * 4u / FT_CHUNK + 1u;
+      Allen::memset_async<dev_pvfinder_fc_arrive_t>(arguments, 0, context, max_partial);
+      Allen::memset_async<dev_pvfinder_work_counter_t>(arguments, 0, context);
+      global_function(pvfinder_fused_fc_tc_kernel)(dim3(m_grid), dim3(FT_THREADS), context, ft_smem_bytes())(
+        arguments, m_dev_weights, n_events, data<dev_pvfinder_work_counter_t>(arguments),
+        data<dev_pvfinder_slot_row_t>(arguments), 2,
+        reinterpret_cast<const FCWorkItem*>(data<dev_pvfinder_slot_order_t>(arguments)),
+        std::numeric_limits<unsigned>::max(), write_histogram,
+        data<dev_pvfinder_fc_partial_t>(arguments), data<dev_pvfinder_fc_arrive_t>(arguments));
+      if (write_histogram && !m_dump_done.exchange(true)) {
+        Allen::memcpy_async(host_unet_rows + 1u, data<dev_pvfinder_slot_row_t>(arguments) + n_slots,
+                            sizeof(unsigned), Allen::memcpyDeviceToHost, context);
+        Allen::copy_async<host_pvfinder_slot_row_t, dev_pvfinder_slot_row_t>(arguments, context, n_slots);
+        Allen::synchronize(context);
+        dump(arguments, context);
+      }
+      return;
     }
 
     // 2. Its host copy, on this sequence's stream into Allen's (pinned) host

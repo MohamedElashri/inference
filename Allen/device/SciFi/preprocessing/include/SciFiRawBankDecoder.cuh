@@ -43,10 +43,11 @@ namespace scifi_raw_bank_decoder {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimensions"};
-    Allen::Property<bool> m_decode_v8_as_v7 {this,
-                                             "decode_v8_as_v7",
-                                             {false},
-                                             "Decode v8 banks as v7 to reproduce a bug in July 2023 (MC only)"};
+    Allen::Property<bool> m_decode_v8_as_v7 {
+      this,
+      "decode_v8_as_v7",
+      {false},
+      "Decode v8 banks as v7 to reproduce a bug in July 2023 (MC only)"};
     Allen::Monitoring::Counter<> m_invalid_chanid {this, "n_invalid_chanid"};
   };
 } // namespace scifi_raw_bank_decoder

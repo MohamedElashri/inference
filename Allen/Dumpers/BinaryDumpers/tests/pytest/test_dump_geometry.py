@@ -8,17 +8,18 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from LHCbTesting import LHCbExeTest
 from AllenTesting.preprocessors import preprocessor as AllenPreprocessor
+from LHCbTesting import LHCbExeTest
 from LHCbTesting.preprocessors import ignore_missing_hepmc_dicts
 
 
 class Test(LHCbExeTest):
     command = [
-        'gaudirun.py', '../../options/sim10aU1_input.py',
-        '../../options/dump_geometry.py'
+        "gaudirun.py",
+        "../../options/sim10aU1_input.py",
+        "../../options/dump_geometry.py",
     ]
-    reference = '../refs/dump_geometry.yaml'
+    reference = "../refs/dump_geometry.yaml"
     timeout = 600
 
     preprocessor = AllenPreprocessor + ignore_missing_hepmc_dicts

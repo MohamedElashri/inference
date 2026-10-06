@@ -132,7 +132,7 @@ void downstream_find_hits::downstream_find_hits_t::operator()(
   Allen::memset_async<dev_findhits_candidate_cache_t>(arguments, 0, context);
   Allen::memset_async<dev_findhits_selected_scifi_tracks_t>(arguments, 0, context);
 
-  const auto dev_magnet_polarity = constants.dev_magnet_polarity.data();
+  const auto magnet_polarity = constants.magnet_polarity;
   const auto dev_ut_layer_geometry = constants.dev_ut_layer_geometry;
 
   const bool filter_used_scifi_seeds = size<dev_matched_is_scifi_track_used_t>(arguments) > 0;
@@ -144,7 +144,7 @@ void downstream_find_hits::downstream_find_hits_t::operator()(
                                   global_function(downstream_create_candidates<true, false>);
     candidates_condition(dim3(size<dev_event_list_t>(arguments)), m_num_threads_create_candidates, context)(
       arguments,
-      dev_magnet_polarity,
+      magnet_polarity,
       m_tolerance_window_x4_multiplier,
       m_tolerance_window_y4_multiplier,
       m_ttracks_probability_threshold,
@@ -158,7 +158,7 @@ void downstream_find_hits::downstream_find_hits_t::operator()(
                                   global_function(downstream_create_candidates<false, false>);
     candidates_condition(dim3(size<dev_event_list_t>(arguments)), m_num_threads_create_candidates, context)(
       arguments,
-      dev_magnet_polarity,
+      magnet_polarity,
       m_tolerance_window_x4_multiplier,
       m_tolerance_window_y4_multiplier,
       m_ttracks_probability_threshold,
@@ -211,7 +211,7 @@ void downstream_find_hits::downstream_find_hits_t::operator()(
 template<bool filter_used_scifi_seeds, bool use_constant_tolerance_window>
 __global__ void downstream_find_hits::downstream_create_candidates(
   downstream_find_hits::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const float tolerance_window_x4_multiplier,
   const float tolerance_window_y4_multiplier,
   const float ttracks_probability_threshold,
@@ -397,7 +397,7 @@ __global__ void downstream_find_hits::downstream_create_candidates(
           const auto hit = hit_cache.hit(hit_idx);
           // const auto expected_hit_y = exTrack.yAtZ(hit.zAtYEq0());
           const auto new_tx = exTrack.get_new_tx(hit.zAtYEq0(), hit.xAtYEq0());
-          const auto new_qop = exTrack.get_new_qop(new_tx, scifi_states[SciFi_idx].tx(), *dev_magnet_polarity);
+          const auto new_qop = exTrack.get_new_qop(new_tx, scifi_states[SciFi_idx].tx(), magnet_polarity);
 
           // Fill output
           const auto candidate_idx = offset + x3hits_idx;
@@ -554,18 +554,19 @@ __global__ void downstream_find_hits::downstream_find_rest_hits(
     for (unsigned candidate_idx = threadIdx.x; candidate_idx < num_output; candidate_idx += blockDim.x) {
       auto& findhits_output = findhits_outputs[candidate_idx];
       if constexpr (require_four_hits) {
-        if (findhits_output.score == std::numeric_limits<float>::infinity()) continue;
+        if (std::isinf(findhits_output.score)) continue;
       }
 
       // Load extrapolation
       using Downstream::DownstreamExtrapolation::ExtrapolateTrack;
       auto findhits_extrapolation = findhits_extrapolations[candidate_idx];
-      ExtrapolateTrack exTrack {findhits_extrapolation.xMagnet,
-                                findhits_extrapolation.yMagnet,
-                                findhits_extrapolation.zMagnet,
-                                findhits_extrapolation.tx,
-                                findhits_extrapolation.ty,
-                                findhits_extrapolation.qop};
+      ExtrapolateTrack exTrack {
+        findhits_extrapolation.xMagnet,
+        findhits_extrapolation.yMagnet,
+        findhits_extrapolation.zMagnet,
+        findhits_extrapolation.tx,
+        findhits_extrapolation.ty,
+        findhits_extrapolation.qop};
 
       auto xTol = 0.f;
       auto yTol = 0.f;
@@ -691,7 +692,7 @@ __global__ void downstream_find_hits::downstream_find_rest_hits(
     auto& findhits_output = findhits_outputs[candidate_idx];
 
     if constexpr (require_four_hits) {
-      if (findhits_output.score == std::numeric_limits<float>::infinity()) continue;
+      if (std::isinf(findhits_output.score)) continue;
 
       const auto& findhits_cache = findhits_caches[candidate_idx];
 

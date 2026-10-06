@@ -1,0 +1,162 @@
+###############################################################################
+# (c) Copyright 2025 CERN for the benefit of the LHCb Collaboration           #
+#                                                                             #
+# This software is distributed under the terms of the Apache License          #
+# version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
+#                                                                             #
+# In applying this licence, CERN does not waive the privileges and immunities #
+# granted to it by virtue of its status as an Intergovernmental Organization  #
+# or submit itself to any jurisdiction.                                       #
+###############################################################################
+
+from AllenConf.enum_types import TrackingType
+from AllenConf.filters import sd_error_filter
+from AllenConf.hlt1_calibration_lines import make_passthrough_line
+from AllenConf.HLT1_common import (
+    config_velo_large_clusters_lines,
+    default_bgi_activity_lines,
+)
+from AllenConf.hlt1_reconstruction import hlt1_reconstruction
+from AllenConf.lumi_reconstruction import lumi_reconstruction
+from AllenConf.odin import (
+    make_event_type,
+    make_odin_orbit,
+    odin_error_filter,
+    tae_filter,
+)
+from AllenConf.persistency import make_gather_selections, make_persistency
+from AllenConf.utils import line_maker, make_invert_event_list
+from AllenConf.validators import rate_validation
+from AllenConf.velo_reconstruction import decode_velo, make_pr_velo_tracks
+from AllenCore.generator import generate
+from PyConf.control_flow import CompositeNode, NodeLogic
+
+
+def setup_hlt1_node(velo_open=False, enableBGI=True, enableBGI_full=False):
+    hlt1_config = {}
+    lines = []
+    odin_err_filter = [odin_error_filter("odin_error_filter")]
+
+    # Reconstruct objects needed as input for selection lines
+    reconstructed_objects = hlt1_reconstruction(
+        with_calo=True,
+        with_ut=True,
+        with_muon=True,
+        enableDownstream=False,
+        tracking_type=TrackingType.FORWARD_THEN_MATCHING,
+        velo_open=velo_open,
+        with_AC_split=False,
+        with_rich=False,
+    )
+
+    lumiline_name = "Hlt1ODINLumi"
+    lumilinefull_name = "Hlt1ODIN1kHzLumi"
+    odin_lumi_event = make_event_type(event_type="Lumi")
+    with line_maker.bind(prefilter=odin_err_filter + [odin_lumi_event]):
+        lines += [line_maker(make_passthrough_line(name=lumiline_name, pre_scaler=1.0))]
+
+    odin_orbit = make_odin_orbit(odin_orbit_modulo=30, odin_orbit_remainder=1)
+    with line_maker.bind(prefilter=odin_err_filter + [odin_lumi_event, odin_orbit]):
+        lines += [
+            line_maker(make_passthrough_line(name=lumilinefull_name, pre_scaler=1.0))
+        ]
+    if enableBGI:
+        lines += default_bgi_activity_lines(
+            reconstructed_objects["pvs"],
+            reconstructed_objects["velo_states"],
+            enableBGI_full=enableBGI_full,
+            prefilter=odin_err_filter,
+        )
+
+    with line_maker.bind(
+        prefilter=odin_err_filter + [tae_filter(accept_sub_events=True)]
+    ):
+        lines += [
+            line_maker(make_passthrough_line(name="Hlt1TAEPassthrough", pre_scaler=1))
+        ]
+
+    with line_maker.bind(prefilter=[sd_error_filter()]):
+        lines += [
+            line_maker(make_passthrough_line(name="Hlt1ErrorBank", pre_scaler=0.0001))
+        ]
+
+    lines += config_velo_large_clusters_lines(
+        reconstructed_objects=reconstructed_objects,
+        prefilters=None,
+        preset="PbPb",
+        enable_tupling=False,
+    )
+
+    # list of line algorithms, required for the gather selection and DecReport algorithms
+    line_algorithms = [tup[0] for tup in lines]
+    # lost of line nodes, required to set up the CompositeNode
+    line_nodes = [tup[1] for tup in lines]
+
+    gather_selections = make_gather_selections(lines=line_algorithms)
+    lumi_reco = lumi_reconstruction(
+        gather_selections=gather_selections,
+        lumiline_name=lumiline_name,
+        lumilinefull_name=lumilinefull_name,
+        with_muon=True,
+        velo_open=False,
+    )
+
+    lumi_node = CompositeNode(
+        "AllenLumiNode",
+        lumi_reco["algorithms"],
+        NodeLogic.NONLAZY_AND,
+        force_order=False,
+    )
+
+    velo_open_event = make_event_type(event_type="VeloOpen")
+    DisableLinesDuringVPClosing = False
+    velo_closed = (
+        [make_invert_event_list(velo_open_event, name="VeloClosedEvent")]
+        if DisableLinesDuringVPClosing
+        else []
+    )
+
+    lumi_with_prefilter = CompositeNode(
+        "LumiWithPrefilter",
+        odin_err_filter + velo_closed + [lumi_node],
+        NodeLogic.LAZY_AND,
+        force_order=True,
+    )
+
+    hlt1_config["lumi_reconstruction"] = lumi_reco
+    hlt1_config["lumi_node"] = lumi_with_prefilter
+
+    persistency_node, persistency_algorithms = make_persistency(line_algorithms)
+
+    lines = CompositeNode(
+        "SetupAllLines", line_nodes, NodeLogic.NONLAZY_OR, force_order=False
+    )
+
+    hlt1_node = CompositeNode(
+        "Allen",
+        [lines, persistency_node, lumi_with_prefilter],
+        NodeLogic.NONLAZY_AND,
+        force_order=True,
+    )
+
+    hlt1_node = CompositeNode(
+        "AllenRateValidation",
+        [
+            hlt1_node,
+            rate_validation(lines=line_algorithms),
+        ],
+        NodeLogic.NONLAZY_AND,
+        force_order=True,
+    )
+
+    hlt1_config["line_nodes"] = line_nodes
+    hlt1_config["line_algorithms"] = line_algorithms
+    hlt1_config.update(persistency_algorithms)
+    hlt1_config["control_flow_node"] = hlt1_node
+    return hlt1_config
+
+
+with decode_velo.bind(retina_decoding=False), make_pr_velo_tracks.bind(skip_forward=2):
+    hlt1_node = setup_hlt1_node(enableBGI_full=True)
+
+generate(hlt1_node)

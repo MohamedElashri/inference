@@ -70,7 +70,7 @@ __global__ void muon_add_coords_crossing_maps_kernel(
             const int localCurrentHitIndex = atomicAdd(&current_hit_index[padTile.station()], 1);
 
             const uint64_t compact_hit =
-              (((uint64_t)(digitsOneIndex & 0x7FFF)) << 48) | (((uint64_t)(digitsTwoIndex & 0xFFFF)) << 32) |
+              (((uint64_t) (digitsOneIndex & 0x7FFF)) << 48) | (((uint64_t) (digitsTwoIndex & 0xFFFF)) << 32) |
               ((layout1.xGrid() & 0x3FFF) << 18) | ((layout2.yGrid() & 0x3FFF) << 4) | (padTile.station() & 0xF);
 
             muon_compact_hit[localCurrentHitIndex + station_ocurrences_offsets[padTile.station()]] = compact_hit;
@@ -96,7 +96,7 @@ __global__ void muon_add_coords_crossing_maps_kernel(
         const int localCurrentHitIndex = atomicAdd(&current_hit_index[tile.station()], 1);
 
         const unsigned int uncrossed = 1;
-        const uint64_t compact_hit = (((uint64_t)(uncrossed & 0x1)) << 63) | (((uint64_t)(index & 0x7FFF)) << 48) |
+        const uint64_t compact_hit = (((uint64_t) (uncrossed & 0x1)) << 63) | (((uint64_t) (index & 0x7FFF)) << 48) |
                                      (condition << 4) | (tile.station() & 0xF);
 
         muon_compact_hit[localCurrentHitIndex + station_ocurrences_offsets[tile.station()]] = compact_hit;

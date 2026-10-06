@@ -81,7 +81,9 @@ function(test_program)
       AllenLib
       Boost::program_options
       fmt::fmt)
-  target_compile_definitions(${test_name} PRIVATE ODIN_WITHOUT_GAUDI)
+  if(STANDALONE)
+    target_compile_definitions(${test_name} PRIVATE ODIN_WITHOUT_GAUDI)
+  endif()
   if (NOT STANDALONE)
     target_link_libraries(${test_name} PRIVATE LHCb::DAQEventLib)
   endif()

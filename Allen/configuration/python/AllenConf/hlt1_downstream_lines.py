@@ -9,26 +9,32 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import (
-    downstream_lambdatoppi_line_t, downstream_mva_busca_line_t,
-    downstream_kstopipi_line_t, downstream_two_track_ks_line_t,
-    downstream_gammatoee_line_t)
-from AllenConf.utils import initialize_number_of_events
-from AllenCore.generator import make_algorithm
+    downstream_gammatoee_line_t,
+    downstream_kstopipi_line_t,
+    downstream_lambdatoppi_line_t,
+    downstream_mva_busca_line_t,
+    downstream_two_track_ks_line_t,
+)
 from AllenCore.configuration_options import is_allen_standalone
+from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
+
+from AllenConf.utils import initialize_number_of_events
 
 
 @configurable
-def make_downstream_kshort_line(downstream_tracks,
-                                downstream_secondary_vertices,
-                                pre_scaler_hash_string=None,
-                                post_scaler_hash_string=None,
-                                post_scaler=1.0,
-                                mva_ks_threshold=0.5,
-                                mva_detached_ks_threshold=0.5,
-                                name='Hlt1DownstreamKsToPiPi',
-                                enable_monitoring=False,
-                                enable_tupling=False):
+def make_downstream_kshort_line(
+    downstream_tracks,
+    downstream_secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    post_scaler=1.0,
+    mva_ks_threshold=0.5,
+    mva_detached_ks_threshold=0.5,
+    name="Hlt1DownstreamKsToPiPi",
+    enable_monitoring=False,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -39,32 +45,35 @@ def make_downstream_kshort_line(downstream_tracks,
         mva_ks_threshold=mva_ks_threshold,
         mva_detached_ks_threshold=mva_detached_ks_threshold,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        dev_downstream_mva_ks_t=downstream_secondary_vertices[
-            'dev_downstream_mva_ks'],
+        dev_downstream_mva_ks_t=downstream_secondary_vertices["dev_downstream_mva_ks"],
         dev_downstream_mva_detached_ks_t=downstream_secondary_vertices[
-            'dev_downstream_mva_detached_ks'],
+            "dev_downstream_mva_detached_ks"
+        ],
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=downstream_secondary_vertices[
-            "host_number_of_svs"],
+        host_number_of_svs_t=downstream_secondary_vertices["host_number_of_svs"],
         dev_particle_container_t=downstream_secondary_vertices[
-            "dev_multi_event_composites"],
+            "dev_multi_event_composites"
+        ],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         post_scaler=post_scaler,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_downstream_lambda_line(downstream_tracks,
-                                downstream_secondary_vertices,
-                                pre_scaler_hash_string=None,
-                                post_scaler_hash_string=None,
-                                post_scaler=1.0,
-                                mva_l0_threshold=0.5,
-                                mva_detached_l0_threshold=0.5,
-                                name='Hlt1DownstreamLambdaToPPi',
-                                enable_monitoring=False,
-                                enable_tupling=False):
+def make_downstream_lambda_line(
+    downstream_tracks,
+    downstream_secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    post_scaler=1.0,
+    mva_l0_threshold=0.5,
+    mva_detached_l0_threshold=0.5,
+    name="Hlt1DownstreamLambdaToPPi",
+    enable_monitoring=False,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -75,31 +84,34 @@ def make_downstream_lambda_line(downstream_tracks,
         mva_l0_threshold=mva_l0_threshold,
         mva_detached_l0_threshold=mva_detached_l0_threshold,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        dev_downstream_mva_l0_t=downstream_secondary_vertices[
-            'dev_downstream_mva_l0'],
+        dev_downstream_mva_l0_t=downstream_secondary_vertices["dev_downstream_mva_l0"],
         dev_downstream_mva_detached_l0_t=downstream_secondary_vertices[
-            'dev_downstream_mva_detached_l0'],
+            "dev_downstream_mva_detached_l0"
+        ],
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=downstream_secondary_vertices[
-            "host_number_of_svs"],
+        host_number_of_svs_t=downstream_secondary_vertices["host_number_of_svs"],
         dev_particle_container_t=downstream_secondary_vertices[
-            "dev_multi_event_composites"],
+            "dev_multi_event_composites"
+        ],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         post_scaler=post_scaler,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_downstream_gamma_line(downstream_tracks,
-                               downstream_secondary_vertices,
-                               pre_scaler_hash_string=None,
-                               post_scaler_hash_string=None,
-                               post_scaler=1.0,
-                               minPt=1500.0,
-                               name='Hlt1DownstreamGammaToEE',
-                               enable_monitoring=False,
-                               enable_tupling=False):
+def make_downstream_gamma_line(
+    downstream_tracks,
+    downstream_secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    post_scaler=1.0,
+    minPt=1500.0,
+    name="Hlt1DownstreamGammaToEE",
+    enable_monitoring=False,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -112,44 +124,47 @@ def make_downstream_gamma_line(downstream_tracks,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=downstream_secondary_vertices[
-            "host_number_of_leptonic_svs"],
+            "host_number_of_leptonic_svs"
+        ],
         dev_particle_container_t=downstream_secondary_vertices[
-            "dev_multi_event_leptonic_composites"],
+            "dev_multi_event_leptonic_composites"
+        ],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         post_scaler=post_scaler,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )
 
 
 @configurable
-def make_BuSca_line(downstream_secondary_vertices,
-                    pre_scaler_hash_string=None,
-                    post_scaler_hash_string=None,
-                    pre_scaler=1.0,
-                    post_scaler=1.0,
-                    name='Hlt1DownstreamBuSca',
-                    mva_busca_threshold=0.75,
-                    enable_monitoring=True,
-                    enable_tupling=False,
-                    enable_trigger=False,
-                    line_type="muon",
-                    clean_region=False,
-                    trigger_mass_min=200,
-                    trigger_mass_max=5000,
-                    trigger_fd_min=500,
-                    trigger_fd_max=2500,
-                    histogram_ks_fd_min=0,
-                    histogram_ks_fd_max=2500,
-                    histogram_ks_fd_nbins=20,
-                    histogram_ks_mass_min=200,
-                    histogram_ks_mass_max=5000,
-                    histogram_ks_mass_nbins=80,
-                    disable_R_cut=False):
-
+def make_BuSca_line(
+    downstream_secondary_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    pre_scaler=1.0,
+    post_scaler=1.0,
+    name="Hlt1DownstreamBuSca",
+    mva_busca_threshold=0.75,
+    enable_monitoring=True,
+    enable_tupling=False,
+    enable_trigger=False,
+    line_type="muon",
+    clean_region=False,
+    trigger_mass_min=200,
+    trigger_mass_max=5000,
+    trigger_fd_min=500,
+    trigger_fd_max=2500,
+    histogram_ks_fd_min=0,
+    histogram_ks_fd_max=2500,
+    histogram_ks_fd_nbins=20,
+    histogram_ks_mass_min=200,
+    histogram_ks_mass_max=5000,
+    histogram_ks_mass_nbins=80,
+    disable_R_cut=False,
+):
     number_of_events = initialize_number_of_events()
 
-    busca_mva = downstream_secondary_vertices[
-        'dev_downstream_mva_combined_busca']
+    busca_mva = downstream_secondary_vertices["dev_downstream_mva_combined_busca"]
     number_of_svs = downstream_secondary_vertices["host_number_of_svs"]
     svs_container = downstream_secondary_vertices["dev_multi_event_composites"]
 
@@ -173,7 +188,7 @@ def make_BuSca_line(downstream_secondary_vertices,
         muon_line=(line_type == "muon"),
         electron_line=(line_type == "electron"),
         hadron_line=(line_type == "hadron"),
-        KK_line=(line_type == 'kaon'),
+        KK_line=(line_type == "kaon"),
         disable_R_cut=disable_R_cut,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
         enable_tupling=enable_tupling,
@@ -184,19 +199,21 @@ def make_BuSca_line(downstream_secondary_vertices,
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         pre_scaler=pre_scaler,
-        post_scaler=post_scaler)
+        post_scaler=post_scaler,
+    )
 
 
 @configurable
-def make_downstream_two_track_ks_line(downstream_tracks,
-                                      downstream_vertices,
-                                      pre_scaler_hash_string=None,
-                                      post_scaler_hash_string=None,
-                                      name='Hlt1DownstreamTwoTrackKs',
-                                      minTrackPt_piKs=475.0,
-                                      enable_monitoring=False,
-                                      enable_tupling=False):
-
+def make_downstream_two_track_ks_line(
+    downstream_tracks,
+    downstream_vertices,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    name="Hlt1DownstreamTwoTrackKs",
+    minTrackPt_piKs=475.0,
+    enable_monitoring=False,
+    enable_tupling=False,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -204,10 +221,10 @@ def make_downstream_two_track_ks_line(downstream_tracks,
         name=name,
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_number_of_svs_t=downstream_vertices["host_number_of_svs"],
-        dev_particle_container_t=downstream_vertices[
-            "dev_multi_event_composites"],
+        dev_particle_container_t=downstream_vertices["dev_multi_event_composites"],
         pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
         post_scaler_hash_string=post_scaler_hash_string or name + "_post",
         minTrackPt_piKs=minTrackPt_piKs,
         enable_monitoring=is_allen_standalone() and enable_monitoring,
-        enable_tupling=enable_tupling)
+        enable_tupling=enable_tupling,
+    )

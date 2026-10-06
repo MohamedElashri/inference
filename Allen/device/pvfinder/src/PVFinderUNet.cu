@@ -511,7 +511,7 @@ namespace pvfinder_unet {
           state.fused_blob,
           kde,
           KDE_SCALE,
-          (int) n_rows,
+          (unet_rows[0] == 2u ? -1 : (int) n_rows),
           data<dev_pvfinder_row_slot_t>(arguments),
           data<dev_pvfinder_slot_row_t>(arguments),
           state.empty_response,

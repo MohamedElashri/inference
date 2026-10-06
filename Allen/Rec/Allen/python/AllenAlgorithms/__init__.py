@@ -11,7 +11,8 @@
 import os
 
 __path__ += [
-    d for d in [
+    d
+    for d in [
         os.path.realpath(
             os.path.join(
                 os.path.dirname(__file__),
@@ -20,6 +21,8 @@ __path__ += [
                 "code_generation",
                 "sequences",
                 "AllenAlgorithms",
-            ))
-    ] if os.path.exists(d)
+            )
+        )
+    ]
+    if os.path.exists(d)
 ]

@@ -2044,4 +2044,16 @@ namespace Categories {
     return std::vector<HistoCategory> {};
   }
 
+  template<>
+  inline std::vector<TrackEffReport> make_track_eff_report_vector<Checker::Subdetector::Rich>()
+  {
+    return std::vector<TrackEffReport> {};
+  }
+
+  template<>
+  inline std::vector<HistoCategory> make_histo_category_vector<Checker::Subdetector::Rich>()
+  {
+    return std::vector<HistoCategory> {};
+  }
+
 } // namespace Categories

@@ -38,7 +38,7 @@ void downstream_vertexing::downstream_vertexing_t::operator()(
   if (m_same_sign_reco.value())
     global_function(downstream_vertexing<true>)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
       arguments,
-      constants.dev_magnet_polarity.data(),
+      constants.magnet_polarity,
       composite_quality_nn.getDevicePointer(),
       m_minpt_both,
       m_minip_both,
@@ -54,7 +54,7 @@ void downstream_vertexing::downstream_vertexing_t::operator()(
   else
     global_function(downstream_vertexing<false>)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
       arguments,
-      constants.dev_magnet_polarity.data(),
+      constants.magnet_polarity,
       composite_quality_nn.getDevicePointer(),
       m_minpt_both,
       m_minip_both,
@@ -155,7 +155,7 @@ namespace {
 template<bool same_sign_reco>
 __global__ void downstream_vertexing::downstream_vertexing(
   downstream_vertexing::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const CompositeQualityEvaluator::DeviceType* dev_downstream_composite_quality_evaluator,
   const float track_min_pt_both,
   const float track_min_ip_both,
@@ -236,7 +236,7 @@ __global__ void downstream_vertexing::downstream_vertexing(
       const auto sA = daughterA.state();
       const auto sB = daughterB.state();
       const auto vtx = vertexing<5>(
-        sA.x(), sA.tx(), sA.y(), sA.ty(), sA.qop(), sB.x(), sB.tx(), sB.y(), sB.ty(), sB.qop(), *dev_magnet_polarity);
+        sA.x(), sA.tx(), sA.y(), sA.ty(), sA.qop(), sB.x(), sB.tx(), sB.y(), sB.ty(), sB.qop(), magnet_polarity);
 
       // Recompute doca
       const auto doca = sqrtf(vtx.dx2 + vtx.dy2);

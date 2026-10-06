@@ -17,7 +17,6 @@
 #include "VeloConsolidated.cuh"
 #include "VeloDefinitions.cuh"
 #include "VeloEventModel.cuh"
-#include "FloatOperations.cuh"
 #include <cstdint>
 
 #include "AllenMonitoring.h"
@@ -44,7 +43,9 @@ namespace pv_beamline_cleanup {
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
     Allen::Monitoring::Histogram<>::DeviceType,
-    Allen::Monitoring::Histogram<>::DeviceType);
+    Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram2D<>::DeviceType,
+    Allen::Monitoring::Histogram2D<>::DeviceType);
 
   struct pv_beamline_cleanup_t : public DeviceAlgorithm, Parameters {
     void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
@@ -57,24 +58,31 @@ namespace pv_beamline_cleanup {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {32, 1, 1}, "block dimensions"};
-    Allen::Property<float> m_minChi2Dist {this,
-                                          "minChi2Dist",
-                                          BeamlinePVConstants::CleanUp::minChi2Dist,
-                                          "minimum chi2 distance"};
+    Allen::Property<float> m_minChi2Dist {
+      this,
+      "minChi2Dist",
+      BeamlinePVConstants::CleanUp::minChi2Dist,
+      "minimum chi2 distance"};
 
     Allen::Monitoring::AveragingCounter<> m_pvs {this, "n_PVs"};
     Allen::Monitoring::Histogram<> m_histogram_n_pvs {this, "n_pvs_event", "n_pvs_event", {21u, -0.5f, 20.5f}};
     Allen::Monitoring::Histogram<> m_histogram_pv_x {this, "pv_x", "pv_x", {1000u, -2.f, 2.f}};
     Allen::Monitoring::Histogram<> m_histogram_pv_y {this, "pv_y", "pv_y", {1000u, -2.f, 2.f}};
     Allen::Monitoring::Histogram<> m_histogram_pv_z {this, "pv_z", "pv_z", {2000u, -600.f, 200.f}};
-    Allen::Monitoring::Histogram<> m_histogram_pv_z_only_pp {this,
-                                                             "pv_z_only_pp",
-                                                             "pv_z_only_pp",
-                                                             {2000u, -200.f, 200.f}};
-    Allen::Monitoring::Histogram<> m_histogram_pv_z_only_smog {this,
-                                                               "pv_z_only_smog",
-                                                               "pv_z_only_smog",
-                                                               {2000u, -600.f, -200.f}};
+    Allen::Monitoring::Histogram<> m_histogram_pv_z_only_pp {
+      this,
+      "pv_z_only_pp",
+      "pv_z_only_pp",
+      {2000u, -200.f, 200.f}};
+    Allen::Monitoring::Histogram<> m_histogram_pv_z_only_smog {
+      this,
+      "pv_z_only_smog",
+      "pv_z_only_smog",
+      {2000u, -600.f, -200.f}};
     Allen::Monitoring::Histogram<> m_histogram_n_smogpvs {this, "n_smog2_PVs", "n_smog2_PVs", {10, -0.5f, 9.5f}};
+    Allen::Monitoring::Histogram2D<>
+      m_histogram_2D_pv_xz {this, "pv_x_vs_z", "pv_x_vs_z", {100u, -600, 200.f}, {100u, -2.f, 2.f}};
+    Allen::Monitoring::Histogram2D<>
+      m_histogram_2D_pv_yz {this, "pv_y_vs_z", "pv_y_vs_z", {100u, -600, 200.f}, {100u, -2.f, 2.f}};
   };
 } // namespace pv_beamline_cleanup

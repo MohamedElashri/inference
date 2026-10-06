@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB saxpy_sources "src/*cu")
 
-allen_add_device_library(Examples STATIC
+allen_add_device_library(Examples OBJECT
   ${saxpy_sources}
 )
 

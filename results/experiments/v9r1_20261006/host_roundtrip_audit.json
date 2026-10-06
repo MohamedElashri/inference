@@ -1,0 +1,8 @@
+{
+  "csr_launches": 1600,
+  "copy_sync_wait_mean_us": 963.784571875,
+  "copy_sync_wait_median_us": 914.935,
+  "csr_queue_wait_mean_us": 828.4168425,
+  "csr_queue_wait_median_us": 773.9545,
+  "csr_kernel_mean_us": 99.73158875
+}

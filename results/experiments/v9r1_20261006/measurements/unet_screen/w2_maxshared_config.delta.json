@@ -1,0 +1,36 @@
+{
+  "schema": "allen-config-delta/1",
+  "canonical": "../../configurations/gpu_final.json",
+  "original_sha256": "59878902e3f894feb6c7c2bf87c7ce00f1c1162a3cca206d6a2d4fad088e631a",
+  "overrides": {
+    "pvfinder_fc_aggregation": {
+      "block_dim": [
+        512,
+        1,
+        1
+      ],
+      "dump_validation": "",
+      "fused_grid_fraction": 0.0625,
+      "model": "/tmp/pvfinder-v9r1-port/weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+      "precision": "bfloat16",
+      "unet_batch_events": 20,
+      "verbosity": 3
+    },
+    "pvfinder_unet": {
+      "block_dim": [
+        256,
+        1,
+        1
+      ],
+      "dump_validation": "",
+      "fused_grid_fraction": 0.0625,
+      "model": "/tmp/pvfinder-v9r1-port/weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+      "precision": "bfloat16",
+      "unet_batch_events": 20,
+      "verbosity": 3,
+      "fused_block_warps": 2,
+      "shared_memory_carveout": 100
+    }
+  },
+  "removed_keys": []
+}

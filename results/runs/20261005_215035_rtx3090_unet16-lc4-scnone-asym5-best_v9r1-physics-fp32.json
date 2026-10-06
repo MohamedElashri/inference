@@ -1,0 +1,460 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "physics",
+  "id": "20261005_215035_v9r1-physics-fp32",
+  "label": "v9r1_physics_fp32",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-10-05T21:50:35-04:00",
+  "finished_at": "2026-10-05T21:50:35-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+    "branch": "port/pvfinder-v9r1",
+    "subject": "Record working CUDA port and both precision validation results",
+    "dirty": true,
+    "dirty_files": [
+      "monitoring.root"
+    ],
+    "diff_sha256": null
+  },
+  "build": {
+    "name": "buildgpu12",
+    "dir": "Allen/buildgpu12",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_SHARED_LINKER_FLAGS": "",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-05T20:07:29-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_best.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "asym 5, best val loss (epoch 5 of 70)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+      "sha256": "480f7a2bd6f7637b1f4e245be478803eccc99f7f003333824b1ec0ed0678bcbc"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+        "sha256": "a2540cf30a082caf0acaab785d026834c67a9cf557cb221b4c3fd16cfc66ec76"
+      }
+    },
+    "verified": false
+  },
+  "workload": {
+    "events": 10000,
+    "threads": 1,
+    "device": 2,
+    "sequence": "pvfinder_pv_validation"
+  },
+  "config": null,
+  "results": {
+    "points": [
+      {
+        "run_dir": "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.07",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+            "precision": "float32",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.07",
+            "integral_threshold": 0.699999988079071,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.07,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.07",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+            "precision": "float32",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.9114262727561884,
+              "found": 48713,
+              "mc": 53447,
+              "efficiency_isolated": 0.9045867510207084,
+              "efficiency_close": 0.9185072353389185,
+              "found_isolated": 24593,
+              "mc_isolated": 27187,
+              "found_close": 24120,
+              "mc_close": 26260,
+              "false_rate": 0.0158989898989899,
+              "fake": 787,
+              "reconstructed": 49502,
+              "reconstructed_with_cov22_not_positive": 0,
+              "dz_mean_um": -0.9907706240297532,
+              "dz_rms_um": 122.25692503939376,
+              "dz_core_sigma_um": 61.432318644105436,
+              "dx_core_sigma_um": 10.974577564926168,
+              "dy_core_sigma_um": 10.776947205266938,
+              "sigma_z_median_um": 50.11329453275092
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9547753469771818,
+              "found": 48705,
+              "mc": 51012,
+              "efficiency_isolated": 0.9809140534725266,
+              "efficiency_close": 0.9294617017171523,
+              "found_isolated": 24618,
+              "mc_isolated": 25097,
+              "found_close": 24087,
+              "mc_close": 25915,
+              "false_rate": 0.015941326221360165,
+              "fake": 789,
+              "reconstructed": 49496,
+              "reconstructed_with_cov22_not_positive": 0,
+              "dz_mean_um": -0.9897647299654947,
+              "dz_rms_um": 122.26022022281926,
+              "dz_core_sigma_um": 61.421225672605715,
+              "dx_core_sigma_um": 10.973855837059062,
+              "dy_core_sigma_um": 10.775805204515452,
+              "sigma_z_median_um": 50.10444063497046
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 8347,
+            "mc_found_by_both": 47470,
+            "mc_found_by_a_only": 206,
+            "mc_found_by_b_only": 1079,
+            "mc_found_by_neither": 2257,
+            "a_only_isolated": 97,
+            "b_only_isolated": 184,
+            "a_only_median_mc_tracks": 7.0,
+            "b_only_median_mc_tracks": 12.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 30.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": 0.0,
+              "rms": 50.54520228989765,
+              "fraction_within_100um": 0.9894038340004213
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.07,
+            "integral_threshold": 0.699999988079071,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4843,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 4,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.1",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+            "precision": "float32",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.1",
+            "integral_threshold": 0.699999988079071,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.1,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.1",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+            "precision": "float32",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.9060377570303291,
+              "found": 48425,
+              "mc": 53447,
+              "efficiency_isolated": 0.8980762864604407,
+              "efficiency_close": 0.9142802741812642,
+              "found_isolated": 24416,
+              "mc_isolated": 27187,
+              "found_close": 24009,
+              "mc_close": 26260,
+              "false_rate": 0.011250408363279974,
+              "fake": 551,
+              "reconstructed": 48977,
+              "reconstructed_with_cov22_not_positive": 0,
+              "dz_mean_um": -1.053775146861404,
+              "dz_rms_um": 112.83614247404387,
+              "dz_core_sigma_um": 61.039818787384206,
+              "dx_core_sigma_um": 10.898568971042613,
+              "dy_core_sigma_um": 10.723721836194983,
+              "sigma_z_median_um": 49.93375132257599
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9491296165608092,
+              "found": 48417,
+              "mc": 51012,
+              "efficiency_isolated": 0.9738614176993267,
+              "efficiency_close": 0.9251784680686861,
+              "found_isolated": 24441,
+              "mc_isolated": 25097,
+              "found_close": 23976,
+              "mc_close": 25915,
+              "false_rate": 0.011292628139677354,
+              "fake": 553,
+              "reconstructed": 48971,
+              "reconstructed_with_cov22_not_positive": 0,
+              "dz_mean_um": -1.0527744197878772,
+              "dz_rms_um": 112.83810641989274,
+              "dz_core_sigma_um": 61.03678452243657,
+              "dx_core_sigma_um": 10.898118198585463,
+              "dy_core_sigma_um": 10.723490070736391,
+              "sigma_z_median_um": 49.931627371200854
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 8356,
+            "mc_found_by_both": 47328,
+            "mc_found_by_a_only": 348,
+            "mc_found_by_b_only": 968,
+            "mc_found_by_neither": 2368,
+            "a_only_isolated": 189,
+            "b_only_isolated": 120,
+            "a_only_median_mc_tracks": 6.0,
+            "b_only_median_mc_tracks": 13.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 30.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": 0.0,
+              "rms": 46.08743706052614,
+              "fraction_within_100um": 0.9894565584854631
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.1,
+            "integral_threshold": 0.699999988079071,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4784,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 3,
+          "status": "PASS"
+        }
+      }
+    ]
+  },
+  "profile": null,
+  "artifacts": {
+    "run_dirs": [
+      "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.07",
+      "benchmark_results/20261005_215006_v9r1_physics_fp32/threshold0.1"
+    ]
+  },
+  "duration_s": 0
+}

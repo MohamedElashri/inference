@@ -54,10 +54,11 @@ namespace CountMaterialInteractionCandidates {
 
   private:
     Allen::Property<float> m_beamdoca_r {this, "beamdoca_r", 3.5f, "radial doca to the beamspot"};
-    Allen::Property<float> m_max_doca_for_close_track_pairs {this,
-                                                             "max_doca_for_close_track_pairs",
-                                                             0.15f,
-                                                             "doca to define close track pairs"};
+    Allen::Property<float> m_max_doca_for_close_track_pairs {
+      this,
+      "max_doca_for_close_track_pairs",
+      0.15f,
+      "doca to define close track pairs"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {256, 1, 1}, "block dimension"};
   };
 

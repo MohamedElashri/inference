@@ -1,0 +1,293 @@
+{
+  "status": "complete",
+  "started_utc": "2026-10-06T08:16:22.469207+00:00",
+  "gpu": "index, name, uuid, driver_version\n0, NVIDIA GeForce RTX 2080 Ti, GPU-da4f0d93-9113-e01e-f478-be1ea459ed85, 570.124.06\n1, NVIDIA GeForce RTX 2080 Ti, GPU-af7dce0a-35b7-b893-324a-446db3c68ff1, 570.124.06\n2, NVIDIA GeForce RTX 3090, GPU-45d31422-143d-4539-334e-69eac0bc7b97, 570.124.06\n",
+  "processes_at_start": "pid, process_name, gpu_uuid\n",
+  "variants": [
+    {
+      "name": "baseline",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/reference/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/baseline_config.json",
+      "binary_sha256": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+      "config_sha256": "fd21f5d0b45a4f4b6a3425925f019293253e74bc7c7aa1dc1ae10fa4640dc608",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "Allen": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "reference",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/reference/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/reference_config.json",
+      "binary_sha256": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+      "config_sha256": "6f4288a484cb1b6b2b0e2d4f13a5adbc523aa701375b349f9b860f28f3eb6d61",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "Allen": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "new4_default",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/unet_variants/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/new4_default_config.json",
+      "binary_sha256": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+      "config_sha256": "5ee313687d562fcdf749ced056cfb72a1c5c358392ce175edf1b713a82b8fa9c",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "ace17c9de786a18665699ccc329caab29896e9d5f009fb704194dde7ca35a0d7",
+          "Allen": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "w4_maxshared",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/unet_variants/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/w4_maxshared_config.json",
+      "binary_sha256": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+      "config_sha256": "b1dbf5935cc98b30bc6d97a66dc236f03cf86eb15f8b6e7d8541c0de7f1e4007",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "ace17c9de786a18665699ccc329caab29896e9d5f009fb704194dde7ca35a0d7",
+          "Allen": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "w2_default",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/unet_variants/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/w2_default_config.json",
+      "binary_sha256": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+      "config_sha256": "fbdf34005b2c034ce25e82c18e8e265fa59a2976220784e8f148c799b552a249",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "ace17c9de786a18665699ccc329caab29896e9d5f009fb704194dde7ca35a0d7",
+          "Allen": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "w2_maxshared",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/unet_variants/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/w2_maxshared_config.json",
+      "binary_sha256": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+      "config_sha256": "59878902e3f894feb6c7c2bf87c7ce00f1c1162a3cca206d6a2d4fad088e631a",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "ace17c9de786a18665699ccc329caab29896e9d5f009fb704194dde7ca35a0d7",
+          "Allen": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "w3_maxshared",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/unet_variants/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/unet_screen/w3_maxshared_config.json",
+      "binary_sha256": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+      "config_sha256": "4637443cea382613d31b1a9ac39696febf5991866ed317b16f4b1d426d42a06d",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "ace17c9de786a18665699ccc329caab29896e9d5f009fb704194dde7ca35a0d7",
+          "Allen": "a56fc879dce877f9d6e4fe0089a583446941ea33f03874a36c53dd0c8b1ceea7",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    }
+  ],
+  "workload": {
+    "variants": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/unet_variants.json",
+    "label": "unet_screen",
+    "repetitions": 200,
+    "repeats": 3,
+    "events": 500,
+    "streams": 16
+  },
+  "rows": [
+    {
+      "repeat": 1,
+      "order": [
+        "baseline",
+        "reference",
+        "new4_default",
+        "w4_maxshared",
+        "w2_default",
+        "w2_maxshared",
+        "w3_maxshared"
+      ],
+      "rates": {
+        "baseline": 87699.484091,
+        "reference": 80966.762356,
+        "new4_default": 80847.499771,
+        "w4_maxshared": 80852.68114,
+        "w2_default": 80407.080909,
+        "w2_maxshared": 80407.544752,
+        "w3_maxshared": 80890.736675
+      }
+    },
+    {
+      "repeat": 2,
+      "order": [
+        "baseline",
+        "w3_maxshared",
+        "w2_maxshared",
+        "w2_default",
+        "w4_maxshared",
+        "new4_default",
+        "reference"
+      ],
+      "rates": {
+        "baseline": 86771.857334,
+        "w3_maxshared": 80815.780511,
+        "w2_maxshared": 80043.71278,
+        "w2_default": 80557.053163,
+        "w4_maxshared": 80775.029143,
+        "new4_default": 80426.768129,
+        "reference": 80274.090496
+      }
+    },
+    {
+      "repeat": 3,
+      "order": [
+        "baseline",
+        "reference",
+        "new4_default",
+        "w4_maxshared",
+        "w2_default",
+        "w2_maxshared",
+        "w3_maxshared"
+      ],
+      "rates": {
+        "baseline": 86747.046188,
+        "reference": 80901.071208,
+        "new4_default": 81126.625408,
+        "w4_maxshared": 80963.483853,
+        "w2_default": 80890.679482,
+        "w2_maxshared": 80611.59937,
+        "w3_maxshared": 80903.64497
+      }
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "mean_events_per_s": 87072.795871,
+      "loss_mean_pct": 0.0,
+      "loss_sd_pct": 0.0,
+      "gain_vs_reference_mean_pct": 7.8786562313855875,
+      "gain_vs_reference_sd_pct": 0.5758442882114501,
+      "individual_gains_pct": [
+        8.315414299755641,
+        8.094475811374991,
+        7.22607858302613
+      ]
+    },
+    "reference": {
+      "mean_events_per_s": 80713.97468666667,
+      "loss_mean_pct": 7.3014922649130565,
+      "loss_sd_pct": 0.49609605218920955,
+      "gain_vs_reference_mean_pct": 0.0,
+      "gain_vs_reference_sd_pct": 0.0,
+      "individual_gains_pct": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "new4_default": {
+      "mean_events_per_s": 80800.29776933334,
+      "loss_mean_pct": 7.201500075202324,
+      "loss_sd_pct": 0.6738447395663548,
+      "gain_vs_reference_mean_pct": 0.10723323128258855,
+      "gain_vs_reference_sd_pct": 0.22483881240009743,
+      "individual_gains_pct": [
+        -0.14729820179251174,
+        0.19019540683256064,
+        0.27880248880771674
+      ]
+    },
+    "w4_maxshared": {
+      "mean_events_per_s": 80863.73137866666,
+      "loss_mean_pct": 7.128435156274485,
+      "loss_sd_pct": 0.6002724104441093,
+      "gain_vs_reference_mean_pct": 0.1867611096453984,
+      "gain_vs_reference_sd_pct": 0.39407170366464733,
+      "individual_gains_pct": [
+        -0.14089882401177034,
+        0.6240352820004347,
+        0.07714687094753092
+      ]
+    },
+    "w2_default": {
+      "mean_events_per_s": 80618.27118466666,
+      "loss_mean_pct": 7.409512518296224,
+      "loss_sd_pct": 0.8108561655649759,
+      "gain_vs_reference_mean_pct": -0.11719924639135663,
+      "gain_vs_reference_sd_pct": 0.5296392755448894,
+      "individual_gains_pct": [
+        -0.6912483971375338,
+        0.35249563744867984,
+        -0.012844979485215902
+      ]
+    },
+    "w2_maxshared": {
+      "mean_events_per_s": 80354.285634,
+      "loss_mean_pct": 7.713774523768769,
+      "loss_sd_pct": 0.6219118136772773,
+      "gain_vs_reference_mean_pct": -0.4451580158896647,
+      "gain_vs_reference_sd_pct": 0.21555284144335407,
+      "individual_gains_pct": [
+        -0.6906755163819001,
+        -0.28698888343242634,
+        -0.35780964785466773
+      ]
+    },
+    "w3_maxshared": {
+      "mean_events_per_s": 80870.05405199999,
+      "loss_mean_pct": 7.121309812679174,
+      "loss_sd_pct": 0.5600133634423317,
+      "gain_vs_reference_mean_pct": 0.19469484585669475,
+      "gain_vs_reference_sd_pct": 0.41860744943663825,
+      "individual_gains_pct": [
+        -0.09389739540990316,
+        0.6748005634856558,
+        0.003181369494331676
+      ]
+    }
+  },
+  "baseline_spread_pct": 1.0938409562626972,
+  "finished_utc": "2026-10-06T08:32:15.286106+00:00"
+}

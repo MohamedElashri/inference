@@ -17,7 +17,6 @@
 #include "VeloConsolidated.cuh"
 #include "VeloDefinitions.cuh"
 #include "VeloEventModel.cuh"
-#include "FloatOperations.cuh"
 #include <cstdint>
 
 namespace pv_beamline_multi_fitter {
@@ -62,39 +61,46 @@ namespace pv_beamline_multi_fitter {
     Allen::Property<unsigned> m_block_dim_y {this, "block_dim_y", 4, "block dimension Y"};
     Allen::Property<float> m_zmin {this, "zmin", BeamlinePVConstants::Common::zmin, "Minimum histogram z"};
     Allen::Property<float> m_zmax {this, "zmax", BeamlinePVConstants::Common::zmax, "Maximum histogram z"};
-    Allen::Property<float> m_SMOG2_pp_separation {this,
-                                                  "SMOG2_pp_separation",
-                                                  BeamlinePVConstants::Common::SMOG2_pp_separation,
-                                                  "z separation between the pp and SMOG2 luminous region"};
+    Allen::Property<float> m_SMOG2_pp_separation {
+      this,
+      "SMOG2_pp_separation",
+      BeamlinePVConstants::Common::SMOG2_pp_separation,
+      "z separation between the pp and SMOG2 luminous region"};
     Allen::Property<unsigned> m_SMOG2_minNumTracksPerVertex {
       this,
       "SMOG2_minNumTracksPerVertex",
       BeamlinePVConstants::MultiFitter::SMOG2_minNumTracksPerVertex,
       "Min number of tracks to accpet a SMOG2 vertex"};
-    Allen::Property<unsigned> m_pp_minNumTracksPerVertex {this,
-                                                          "pp_minNumTracksPerVertex",
-                                                          BeamlinePVConstants::MultiFitter::pp_minNumTracksPerVertex,
-                                                          "Min number of tracks to accpet a pp vertex"};
-    Allen::Property<float> m_maxVertexRho2 {this,
-                                            "maxVertexRho2",
-                                            BeamlinePVConstants::MultiFitter::maxVertexRho2,
-                                            "Maximum vertex Rho2"};
-    Allen::Property<unsigned> m_maxFitIter {this,
-                                            "maxFitIter",
-                                            BeamlinePVConstants::MultiFitter::maxFitIter,
-                                            "maximum fit iteration"};
-    Allen::Property<float> m_chi2CutExp {this,
-                                         "chi2CutExp",
-                                         BeamlinePVConstants::MultiFitter::chi2CutExp,
-                                         "chi2 cut exp"};
-    Allen::Property<float> m_minWeight {this,
-                                        "minWeight",
-                                        BeamlinePVConstants::MultiFitter::minWeight,
-                                        "Minimum weight"};
+    Allen::Property<unsigned> m_pp_minNumTracksPerVertex {
+      this,
+      "pp_minNumTracksPerVertex",
+      BeamlinePVConstants::MultiFitter::pp_minNumTracksPerVertex,
+      "Min number of tracks to accpet a pp vertex"};
+    Allen::Property<float> m_maxVertexRho2 {
+      this,
+      "maxVertexRho2",
+      BeamlinePVConstants::MultiFitter::maxVertexRho2,
+      "Maximum vertex Rho2"};
+    Allen::Property<unsigned> m_maxFitIter {
+      this,
+      "maxFitIter",
+      BeamlinePVConstants::MultiFitter::maxFitIter,
+      "maximum fit iteration"};
+    Allen::Property<float> m_chi2CutExp {
+      this,
+      "chi2CutExp",
+      BeamlinePVConstants::MultiFitter::chi2CutExp,
+      "chi2 cut exp"};
+    Allen::Property<float> m_minWeight {
+      this,
+      "minWeight",
+      BeamlinePVConstants::MultiFitter::minWeight,
+      "Minimum weight"};
     Allen::Property<float> m_maxChi2 {this, "maxChi2", BeamlinePVConstants::MultiFitter::maxChi2, "Maximum chi2"};
-    Allen::Property<float> m_maxDeltaZConverged {this,
-                                                 "maxDeltaZConverged",
-                                                 BeamlinePVConstants::MultiFitter::maxDeltaZConverged,
-                                                 "Max deltaz in fit convergence"};
+    Allen::Property<float> m_maxDeltaZConverged {
+      this,
+      "maxDeltaZConverged",
+      BeamlinePVConstants::MultiFitter::maxDeltaZConverged,
+      "Max deltaz in fit convergence"};
   };
 } // namespace pv_beamline_multi_fitter

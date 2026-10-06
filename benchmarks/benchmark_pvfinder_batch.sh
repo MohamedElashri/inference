@@ -33,6 +33,7 @@ Options:
                              (default: weights/out/<--model>/pvfinder_model.json)
   --use-bf16 BOOL            precision = bfloat16 for pvfinder_fc_aggregation and
                              pvfinder_unet (default: false, i.e. float32)
+  --gpu-work-list BOOL      Build FC work lists on the GPU (BF16 only; default false)
   --unet-batch-events N      Set pvfinder_unet.unet_batch_events and
                              pvfinder_fc_aggregation.unet_batch_events together
                              (default: 20); float32 cuDNN batch size in events
@@ -69,6 +70,7 @@ REPEATS=3
 MODEL=unet16_lc4_scnone_asym5_final
 MODEL_FILE_OVERRIDE=""
 USE_BF16=false
+GPU_WORK_LIST=false
 UNET_BATCH_EVENTS=20
 FC_GRID_FRACTION=0.125
 UNET_GRID_FRACTION=0.25
@@ -91,6 +93,7 @@ while [[ $# -gt 0 ]]; do
         --cnn-weights|--fc-weights)
             echo "ERROR: $1 was replaced by --model-file (one pvfinder_model.json for both algorithms)" >&2; exit 1 ;;
         --use-bf16) USE_BF16="$2"; shift 2 ;;
+        --gpu-work-list) GPU_WORK_LIST="$2"; shift 2 ;;
         --unet-batch-events) UNET_BATCH_EVENTS="$2"; shift 2 ;;
         --fc-grid-fraction) FC_GRID_FRACTION="$2"; shift 2 ;;
         --unet-grid-fraction) UNET_GRID_FRACTION="$2"; shift 2 ;;
@@ -121,6 +124,14 @@ case "${USE_BF16}" in
     false) PRECISION=float32 ;;
     *) echo "ERROR: --use-bf16 must be true or false" >&2; exit 1 ;;
 esac
+
+case "${GPU_WORK_LIST}" in
+    true|false) ;;
+    *) echo "ERROR: --gpu-work-list must be true or false" >&2; exit 1 ;;
+esac
+if [[ $GPU_WORK_LIST == true && $USE_BF16 != true ]]; then
+    echo "ERROR: --gpu-work-list true requires --use-bf16 true" >&2; exit 1
+fi
 
 if ! [[ "${UNET_BATCH_EVENTS}" =~ ^[0-9]+$ ]] || [[ "${UNET_BATCH_EVENTS}" -lt 1 ]]; then
     echo "ERROR: --unet-batch-events must be a positive integer" >&2
@@ -236,11 +247,11 @@ PY
 
 patch_fc_config() {
     local config="$1"
-    python3 - "$config" "$MODEL_FILE" "$PRECISION" "$UNET_BATCH_EVENTS" "$FC_GRID_FRACTION" <<'PY'
+    python3 - "$config" "$MODEL_FILE" "$PRECISION" "$UNET_BATCH_EVENTS" "$FC_GRID_FRACTION" "$GPU_WORK_LIST" <<'PY'
 import json
 import sys
 
-path, weights, precision, unet_batch_events, fc_grid_fraction = sys.argv[1:]
+path, weights, precision, unet_batch_events, fc_grid_fraction, gpu_work_list = sys.argv[1:]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 fc = data.setdefault("pvfinder_fc_aggregation", {})
@@ -248,6 +259,7 @@ fc["model"] = weights
 fc["precision"] = precision
 fc["unet_batch_events"] = int(unet_batch_events)
 fc["fused_grid_fraction"] = float(fc_grid_fraction)
+fc["gpu_work_list"] = gpu_work_list == "true"
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, sort_keys=True)
     handle.write("\n")
@@ -369,6 +381,7 @@ run_sequence() {
     echo "model=${MODEL}"
     echo "model_file=${MODEL_FILE}"
     echo "use_bf16=${USE_BF16}"
+    echo "gpu_work_list=${GPU_WORK_LIST}"
     echo "precision=${PRECISION}"
     echo "unet_batch_events=${UNET_BATCH_EVENTS}"
     echo "fc_grid_fraction=${FC_GRID_FRACTION}"

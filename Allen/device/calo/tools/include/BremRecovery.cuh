@@ -50,10 +50,11 @@ namespace brem_recovery {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {32, 1, 1}, "block dimensions"};
-    Allen::Property<float> m_min_et_gamma {this,
-                                           "ecal_min_et_gamma",
-                                           50.f * Allen::Units::MeV,
-                                           "minimum transverse energy to correct energy with gamma factor"};
+    Allen::Property<float> m_min_et_gamma {
+      this,
+      "ecal_min_et_gamma",
+      50.f * Allen::Units::MeV,
+      "minimum transverse energy to correct energy with gamma factor"};
   };
 
   __global__ void brem_recovery(Parameters parameters, const char* raw_ecal_geometry, const float min_et_gamma);

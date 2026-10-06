@@ -19,11 +19,9 @@
 
 namespace UTHitCache::details {
   template<typename, typename = void>
-  struct has_isNotYCompatible : std::false_type {
-  };
+  struct has_isNotYCompatible : std::false_type {};
   template<typename T>
-  struct has_isNotYCompatible<T, std::void_t<decltype(&T::isNotYCompatible)>> : std::true_type {
-  };
+  struct has_isNotYCompatible<T, std::void_t<decltype(&T::isNotYCompatible)>> : std::true_type {};
 
   template<typename T>
   __device__ __host__ inline int lower_bound_at_x(T arr[], int start, int end, float target)

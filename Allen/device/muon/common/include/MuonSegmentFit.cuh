@@ -79,7 +79,7 @@ __device__ bool applyWeightedFit(MuonTrack& muon_track, T container, bool xz, fl
   float slope, a, chi2ndof;
   slope = a = chi2ndof = 9999.f;
   float det = sz2 * s0 - sz * sz;
-  if (det != 0.f) {
+  if (!LHCb::essentiallyZero(det)) {
     slope = (sxz * s0 - sx * sz) / det;
     a = (sx * sz2 - sxz * sz) / det;
 

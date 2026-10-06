@@ -1,0 +1,265 @@
+diff --git a/Allen/device/pvfinder/include/PVFinderFCAggregation.cuh b/Allen/device/pvfinder/include/PVFinderFCAggregation.cuh
+index ac989dc..e4f4972 100644
+--- a/Allen/device/pvfinder/include/PVFinderFCAggregation.cuh
++++ b/Allen/device/pvfinder/include/PVFinderFCAggregation.cuh
+@@ -95,11 +95,12 @@ namespace pvfinder_fc_aggregation {
+     // writes its response to an all-zero input there.
+     DEVICE_OUTPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
+     // Row layout for the UNet:
+-    //   host_pvfinder_unet_rows[0]: 1 (rows are compact)
+-    //   host_pvfinder_unet_rows[1]: number of rows in use
++    //   host_pvfinder_unet_rows[0]: 1 (host-built) or 2 (GPU-built compact rows)
++    //   host_pvfinder_unet_rows[1]: rows in use, or capacity for GPU-built rows
+     //   host_pvfinder_unet_rows[2]: 1 when the features are bfloat16
+     //   host_pvfinder_unet_rows[3]: 1 when rows are channels last ([bin][channel])
+     //   dev_pvfinder_slot_row[event * 40 + interval]: the interval's row, -1 if none
++    //   GPU-built rows append three words: actual rows, work items and partial rows
+     //   dev_pvfinder_row_slot[row]: its inverse, event * 40 + interval
+     HOST_OUTPUT(host_pvfinder_unet_rows_t, unsigned) host_pvfinder_unet_rows;
+     DEVICE_OUTPUT(dev_pvfinder_slot_row_t, int) dev_pvfinder_slot_row;
+@@ -184,6 +185,9 @@ namespace pvfinder_fc_aggregation {
+       0.125f,
+       "fraction of the full-occupancy grid for the BF16 FC kernel"};
+ 
++    Allen::Property<bool> m_gpu_work_list {
++      this, "gpu_work_list", false, "bfloat16: build compact rows and the chunked FC work list on the GPU"};
++
+     // Validation dump: when non-empty, the first operator() call writes the
+     // FC's inputs and outputs (CSR, per-event track offsets, track features,
+     // interval features, histogram, track states, beamline) to this directory.
+diff --git a/Allen/device/pvfinder/include/PVFinderGPUWorkList.cuh b/Allen/device/pvfinder/include/PVFinderGPUWorkList.cuh
+new file mode 100644
+index 0000000..95e2c43
+--- /dev/null
++++ b/Allen/device/pvfinder/include/PVFinderGPUWorkList.cuh
+@@ -0,0 +1,103 @@
++#pragma once
++
++#include "PVFinderFCAggregation.cuh"
++
++namespace pvfinder_fc_aggregation::gpu_work_list {
++  constexpr unsigned CHUNK = 64u;
++  constexpr unsigned THREADS = 256u;
++
++  // Preserve compact row order and split-slot partial order. The arrival
++  // buffer is scratch here: [slots] partial offsets, then [CHUNK+1] bucket
++  // cursors. It is reset after emit_items, before the FC consumes it.
++  // slot_row's three trailing words contain row, item and partial counts.
++  __global__ void make_layout(Parameters p, unsigned n_slots, bool write_histogram)
++  {
++    __shared__ unsigned histogram[CHUNK + 1];
++    __shared__ unsigned long long warp_prefix[THREADS / 32];
++    __shared__ unsigned long long carry;
++    const unsigned tid = threadIdx.x, lane = tid % 32u, warp = tid / 32u;
++    if (tid <= CHUNK) histogram[tid] = 0u;
++    if (tid == 0) carry = 0ull;
++    __syncthreads();
++
++    for (unsigned base = 0; base < n_slots; base += THREADS) {
++      const unsigned slot = base + tid;
++      unsigned n = 0u;
++      if (slot < n_slots) {
++        const int* csr = p.dev_pvfinder_interval_start + (slot / N_INTERVALS) * CSR_STRIDE;
++        const unsigned iv = slot % N_INTERVALS;
++        n = static_cast<unsigned>(csr[iv + 1] - csr[iv]);
++      }
++      const unsigned chunks = n > CHUNK ? (n + CHUNK - 1u) / CHUNK : 1u;
++      const unsigned partials = n > CHUNK ? chunks : 0u;
++      const unsigned occupied = n > 0u ? 1u : 0u;
++      // Two independent scans packed into 64 bits; each count is bounded by
++      // the already allocated buffers and fits in 32 bits.
++      unsigned long long prefix = (static_cast<unsigned long long>(partials) << 32) | occupied;
++      for (unsigned offset = 1u; offset < 32u; offset <<= 1) {
++        const auto previous = __shfl_up_sync(0xffffffffu, prefix, offset);
++        if (lane >= offset) prefix += previous;
++      }
++      if (lane == 31u) warp_prefix[warp] = prefix;
++      __syncthreads();
++      if (warp == 0u) {
++        unsigned long long sum = lane < THREADS / 32u ? warp_prefix[lane] : 0ull;
++        for (unsigned offset = 1u; offset < THREADS / 32u; offset <<= 1) {
++          const auto previous = __shfl_up_sync(0xffffffffu, sum, offset);
++          if (lane >= offset) sum += previous;
++        }
++        if (lane < THREADS / 32u) warp_prefix[lane] = sum;
++      }
++      __syncthreads();
++      if (warp > 0u) prefix += warp_prefix[warp - 1u];
++      prefix += carry;
++      if (slot < n_slots) {
++        p.dev_pvfinder_slot_row[slot] = occupied ? static_cast<int>(static_cast<unsigned>(prefix) - 1u) : -1;
++        p.dev_pvfinder_fc_arrive[slot] = static_cast<unsigned>(prefix >> 32) - partials;
++        if (n > 0u) {
++          if (n <= CHUNK) atomicAdd(histogram + n, 1u);
++          else {
++            atomicAdd(histogram + CHUNK, n / CHUNK);
++            if (n % CHUNK) atomicAdd(histogram + n % CHUNK, 1u);
++          }
++        }
++        else if (write_histogram) atomicAdd(histogram, 1u);
++      }
++      __syncthreads();
++      if (tid == THREADS - 1u) carry = prefix;
++      __syncthreads();
++    }
++    if (tid == 0u) {
++      unsigned items = 0u;
++      for (int size = CHUNK; size >= 0; --size) {
++        p.dev_pvfinder_fc_arrive[n_slots + size] = items;
++        items += histogram[size];
++      }
++      p.dev_pvfinder_slot_row[n_slots] = static_cast<int>(static_cast<unsigned>(carry));
++      p.dev_pvfinder_slot_row[n_slots + 1u] = static_cast<int>(items);
++      p.dev_pvfinder_slot_row[n_slots + 2u] = static_cast<int>(carry >> 32);
++    }
++  }
++
++  // Descending chunk size, with arbitrary order within each size bucket.
++  // Each split slot still reduces its partial sums in canonical chunk order.
++  __global__ void emit_items(Parameters p, unsigned n_slots, bool write_histogram)
++  {
++    auto* items = reinterpret_cast<FCWorkItem*>(static_cast<unsigned*>(p.dev_pvfinder_slot_order));
++    for (unsigned slot = blockIdx.x * blockDim.x + threadIdx.x; slot < n_slots; slot += gridDim.x * blockDim.x) {
++      const unsigned iv = slot % N_INTERVALS;
++      const int* csr = p.dev_pvfinder_interval_start + (slot / N_INTERVALS) * CSR_STRIDE;
++      const unsigned first = static_cast<unsigned>(csr[iv]);
++      const unsigned n = static_cast<unsigned>(csr[iv + 1] - csr[iv]);
++      if (n == 0u && !write_histogram) continue;
++      const unsigned chunks = n > CHUNK ? (n + CHUNK - 1u) / CHUNK : 1u;
++      const unsigned partial = chunks > 1u ? p.dev_pvfinder_fc_arrive[slot] : 0u;
++      for (unsigned chunk = 0u; chunk < chunks; ++chunk) {
++        const unsigned entries = chunks > 1u ? min(CHUNK, n - chunk * CHUNK) : n;
++        const unsigned position = atomicAdd(p.dev_pvfinder_fc_arrive + n_slots + entries, 1u);
++        items[position] = FCWorkItem {
++          slot, first + chunk * CHUNK, entries, p.dev_pvfinder_slot_row[slot], partial, chunk, chunks, 0u};
++      }
++    }
++  }
++} // namespace pvfinder_fc_aggregation::gpu_work_list
+diff --git a/Allen/device/pvfinder/include/PVFinderUNetFused.cuh b/Allen/device/pvfinder/include/PVFinderUNetFused.cuh
+index fa2abcd..faf77e1 100644
+--- a/Allen/device/pvfinder/include/PVFinderUNetFused.cuh
++++ b/Allen/device/pvfinder/include/PVFinderUNetFused.cuh
+@@ -407,6 +407,8 @@ namespace pvfinder_unet {
+       const float* __restrict__ empty,
+       int n_slots)
+     {
++      // GPU-built layouts keep their exact row count after the slot map.
++      if (rows < 0) rows = slot_row[n_slots];
+       extern __shared__ __align__(16) unsigned char smem[];
+       {
+         const uint4* src = reinterpret_cast<const uint4*>(blob);
+diff --git a/Allen/device/pvfinder/src/PVFinderFCAggregation.cu b/Allen/device/pvfinder/src/PVFinderFCAggregation.cu
+index 971e400..954dd32 100644
+--- a/Allen/device/pvfinder/src/PVFinderFCAggregation.cu
++++ b/Allen/device/pvfinder/src/PVFinderFCAggregation.cu
+@@ -9,6 +9,7 @@
+ * or submit itself to any jurisdiction.                                       *
+ \*****************************************************************************/
+ #include "PVFinderFCAggregation.cuh"
++#include "PVFinderGPUWorkList.cuh"
+ 
+ INSTANTIATE_ALGORITHM(pvfinder_fc_aggregation::pvfinder_fc_aggregation_t)
+ 
+@@ -545,6 +546,7 @@ namespace pvfinder_fc_aggregation {
+   // done by different warps; each writes its partial sums and the last one to
+   // finish adds them up in chunk order (deterministic); see FCWorkItem.
+   constexpr unsigned FT_CHUNK = 64u;
++  static_assert(FT_CHUNK == gpu_work_list::CHUNK);
+   // Per warp: the staged layer-1 outputs [32][FT_H] words, reused for the
+   // slot's sums [L6A_WIDTH] once its tiles are done.
+   constexpr unsigned FT_WARP_WORDS = (32u * FT_H > L6A_WIDTH) ? 32u * FT_H : L6A_WIDTH;
+@@ -650,7 +652,8 @@ namespace pvfinder_fc_aggregation {
+     // m-tile, k half l / 16 (16-deep step); the 8-deep step uses lanes 0-15.
+     const unsigned a_row = (lane & 7u) + ((lane >> 3) & 1u) * 8u, a_half = lane >> 4;
+ 
+-    const unsigned total = n_items;
++    const unsigned total = n_items == std::numeric_limits<unsigned>::max() ?
++                             static_cast<unsigned>(slot_row[n_events * N_INTERVALS + 1u]) : n_items;
+     while (true) {
+       unsigned item = 0;
+       if (lane == 0) item = atomicAdd(work_counter, 1u);
+@@ -898,19 +901,20 @@ namespace pvfinder_fc_aggregation {
+ 
+     set_size<dev_pvfinder_track_features_t>(arguments, n_tracks * 9u);
+     set_size<dev_pvfinder_interval_start_t>(arguments, n_events * CSR_STRIDE);
+-    set_size<host_pvfinder_interval_start_t>(arguments, n_events * CSR_STRIDE);
++    set_size<host_pvfinder_interval_start_t>(arguments, m_gpu_work_list ? 0u : n_events * CSR_STRIDE);
+     set_size<dev_pvfinder_track_idx_t>(arguments, max_entries);
+     set_size<dev_pvfinder_track_idx_unsorted_t>(arguments, max_entries);
+     set_size<dev_pvfinder_interval_features_t>(arguments, padded_events * INTERVAL_FEATURES_STRIDE);
+     set_size<host_pvfinder_unet_rows_t>(arguments, 4u);
+-    set_size<dev_pvfinder_slot_row_t>(arguments, n_slots);
+-    set_size<host_pvfinder_slot_row_t>(arguments, n_slots);
++    set_size<dev_pvfinder_slot_row_t>(arguments, n_slots + (m_gpu_work_list ? 3u : 0u));
++    set_size<host_pvfinder_slot_row_t>(arguments, m_gpu_work_list && m_dump_dir.value().empty() ? 0u : n_slots);
+     set_size<dev_pvfinder_row_slot_t>(arguments, n_slots);
+     set_size<dev_pvfinder_slot_order_t>(arguments, max_items * FC_WORK_ITEM_WORDS);
+-    set_size<host_pvfinder_slot_order_t>(arguments, max_items * FC_WORK_ITEM_WORDS);
++    set_size<host_pvfinder_slot_order_t>(arguments, m_gpu_work_list ? 0u : max_items * FC_WORK_ITEM_WORDS);
+     set_size<dev_pvfinder_work_counter_t>(arguments, 1u);
+     set_size<dev_pvfinder_fc_partial_t>(arguments, m_bf16 ? max_partial * L6A_WIDTH : 0u);
+-    set_size<dev_pvfinder_fc_arrive_t>(arguments, m_bf16 ? max_partial : 0u);
++    set_size<dev_pvfinder_fc_arrive_t>(
++      arguments, m_bf16 ? (m_gpu_work_list ? std::max(max_partial, n_slots + FT_CHUNK + 1u) : max_partial) : 0u);
+     set_size<dev_pvfinder_output_histogram_t>(arguments, m_dump_dir.value().empty() ? 0u : n_events * KDE_BINS);
+   }
+ 
+@@ -968,6 +972,7 @@ namespace pvfinder_fc_aggregation {
+       m_grid = std::max(1u, (unsigned) (sm_count * std::max(per_sm, 1) * m_fused_grid_fraction.value()));
+     }
+     else {
++      if (m_gpu_work_list) throw StrException("pvfinder_fc_aggregation: gpu_work_list requires bfloat16 precision");
+       cudaCheck(cudaFuncSetAttribute(
+         pvfinder_fused_fc_warp_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, (int) fw_smem_bytes()));
+       cudaCheck(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+@@ -1003,6 +1008,36 @@ namespace pvfinder_fc_aggregation {
+       global_function(pvfinder_build_csr_kernel)(dim3(n_selected), m_block_dim, context)(arguments);
+     }
+ 
++    if (m_gpu_work_list) {
++      // The BF16 consumer obtains its exact row count from slot_row's tail.
++      // Host metadata retains only the layout, precision and capacity.
++      host_unet_rows[0] = 2u;
++      host_unet_rows[1] = n_slots;
++      global_function(gpu_work_list::make_layout)(dim3(1), dim3(gpu_work_list::THREADS), context)(
++        arguments, n_slots, write_histogram);
++      global_function(gpu_work_list::emit_items)(
++        dim3((n_slots + gpu_work_list::THREADS - 1u) / gpu_work_list::THREADS),
++        dim3(gpu_work_list::THREADS), context)(arguments, n_slots, write_histogram);
++      const unsigned n_tracks = first<host_number_of_reconstructed_velo_tracks_t>(arguments);
++      const unsigned max_partial = n_tracks * 4u / FT_CHUNK + 1u;
++      Allen::memset_async<dev_pvfinder_fc_arrive_t>(arguments, 0, context, max_partial);
++      Allen::memset_async<dev_pvfinder_work_counter_t>(arguments, 0, context);
++      global_function(pvfinder_fused_fc_tc_kernel)(dim3(m_grid), dim3(FT_THREADS), context, ft_smem_bytes())(
++        arguments, m_dev_weights, n_events, data<dev_pvfinder_work_counter_t>(arguments),
++        data<dev_pvfinder_slot_row_t>(arguments), 2,
++        reinterpret_cast<const FCWorkItem*>(data<dev_pvfinder_slot_order_t>(arguments)),
++        std::numeric_limits<unsigned>::max(), write_histogram,
++        data<dev_pvfinder_fc_partial_t>(arguments), data<dev_pvfinder_fc_arrive_t>(arguments));
++      if (write_histogram && !m_dump_done.exchange(true)) {
++        Allen::memcpy_async(host_unet_rows + 1u, data<dev_pvfinder_slot_row_t>(arguments) + n_slots,
++                            sizeof(unsigned), Allen::memcpyDeviceToHost, context);
++        Allen::copy_async<host_pvfinder_slot_row_t, dev_pvfinder_slot_row_t>(arguments, context, n_slots);
++        Allen::synchronize(context);
++        dump(arguments, context);
++      }
++      return;
++    }
++
+     // 2. Its host copy, on this sequence's stream into Allen's (pinned) host
+     //    memory. (A plain cudaMemcpy runs on the legacy default stream, which
+     //    Allen's blocking streams all synchronise with: every slice would then
+diff --git a/Allen/device/pvfinder/src/PVFinderUNet.cu b/Allen/device/pvfinder/src/PVFinderUNet.cu
+index 74501ce..1857097 100644
+--- a/Allen/device/pvfinder/src/PVFinderUNet.cu
++++ b/Allen/device/pvfinder/src/PVFinderUNet.cu
+@@ -511,7 +511,7 @@ namespace pvfinder_unet {
+           state.fused_blob,
+           kde,
+           KDE_SCALE,
+-          (int) n_rows,
++          (unet_rows[0] == 2u ? -1 : (int) n_rows),
+           data<dev_pvfinder_row_slot_t>(arguments),
+           data<dev_pvfinder_slot_row_t>(arguments),
+           state.empty_response,

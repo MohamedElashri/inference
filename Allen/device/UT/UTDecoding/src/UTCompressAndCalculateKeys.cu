@@ -65,8 +65,8 @@ __global__ void ut_compress_and_calculate_keys::ut_compress_and_calculate_keys(
   const unsigned number_of_clusters = cluster_offsets[UT::Constants::n_groups] - cluster_offsets[0];
 
   // Use the output LHCbIDs to temporarily store compressed index
-  UT::PreDecodedHits ut_compressed_hits {parameters.dev_ut_compressed_hits,
-                                         parameters.dev_ut_cluster_offsets[number_of_events * UT::Constants::n_groups]};
+  UT::PreDecodedHits ut_compressed_hits {
+    parameters.dev_ut_compressed_hits, parameters.dev_ut_cluster_offsets[number_of_events * UT::Constants::n_groups]};
 
   // Binary search for compressed offset
   for (unsigned hit_index = threadIdx.x; hit_index < number_of_clusters; hit_index += blockDim.x) {

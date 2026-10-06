@@ -47,8 +47,8 @@ __global__ void package_kalman_tracks::package_kalman_tracks(package_kalman_trac
     // Prepare fit input.
     const auto long_track = event_long_tracks.track(i_long_track);
     const auto velo_track = long_track.track_segment<Allen::Views::Physics::Track::segment::velo>();
-    Velo::Consolidated::ConstStates kalmanvelo_states {parameters.dev_velo_kalman_beamline_states,
-                                                       velo_tracks.total_number_of_tracks()};
+    Velo::Consolidated::ConstStates kalmanvelo_states {
+      parameters.dev_velo_kalman_beamline_states, velo_tracks.total_number_of_tracks()};
     parameters.dev_kf_tracks[event_long_tracks.offset() + i_long_track] = ParKalmanFilter::FittedTrack {
       kalmanvelo_states.get_kalman_state(velo_tracks.tracks_offset(event_number) + velo_track.track_index()),
       long_track.qop(),

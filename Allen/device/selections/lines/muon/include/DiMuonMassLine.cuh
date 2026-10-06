@@ -86,14 +86,16 @@ namespace di_muon_mass_line {
     using monitoring_types = std::tuple<pt_t, ipchi2_t, muonchi2_t, muon_nn_t, evtNo_t, runNo_t>;
 
   private:
-    Allen::Property<float> m_minHighMassTrackPt {this,
-                                                 "minHighMassTrackPt",
-                                                 300.f / Allen::Units::MeV,
-                                                 "minHighMassTrackPt description"};
-    Allen::Property<float> m_minHighMassTrackP {this,
-                                                "minHighMassTrackP",
-                                                6000.f / Allen::Units::MeV,
-                                                "minHighMassTrackP description"};
+    Allen::Property<float> m_minHighMassTrackPt {
+      this,
+      "minHighMassTrackPt",
+      300.f / Allen::Units::MeV,
+      "minHighMassTrackPt description"};
+    Allen::Property<float> m_minHighMassTrackP {
+      this,
+      "minHighMassTrackP",
+      6000.f / Allen::Units::MeV,
+      "minHighMassTrackP description"};
     Allen::Property<float> m_minMass {this, "minMass", 2700.f / Allen::Units::MeV, "minMass description"};
     Allen::Property<float> m_maxDoca {this, "maxDoca", 0.2f, "maxDoca description"};
     Allen::Property<float> m_maxVertexChi2 {this, "maxVertexChi2", 25.0f, "maxVertexChi2 description"};

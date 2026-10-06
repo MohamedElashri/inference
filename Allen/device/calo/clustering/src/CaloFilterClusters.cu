@@ -57,5 +57,5 @@ __global__ void calo_filter_clusters::calo_filter_clusters(
 
   const unsigned n_clusters_event =
     parameters.dev_ecal_cluster_offsets[event_number + 1] - parameters.dev_ecal_cluster_offsets[event_number];
-  device_counter.add(n_clusters_event);
+  if (threadIdx.x == 0 && threadIdx.y == 0) device_counter.add(n_clusters_event);
 }

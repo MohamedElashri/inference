@@ -9,6 +9,7 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from collections import OrderedDict
+
 from PyConf.dataflow import GaudiDataHandle
 
 
@@ -24,7 +25,7 @@ class AllenAlgorithm(object):
 
     @classmethod
     def getGaudiType(cls):
-        return 'Algorithm'
+        return "Algorithm"
 
     @classmethod
     def getDefaultProperties(cls):

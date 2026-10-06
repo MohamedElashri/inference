@@ -14,7 +14,18 @@
 
 namespace Allen::Monitoring {
 
-  AccumulatorBase::~AccumulatorBase() {}
+  AccumulatorBase::~AccumulatorBase()
+  {
+#ifndef ALLEN_STANDALONE
+    // Only remove the entity if this instance actually registered one -- calling
+    // Gaudi::svcLocator() unconditionally here lazily creates (and, if none was
+    // running to begin with, leaks) a whole ApplicationMgr. See m_registered's
+    // declaration for the two ways an AccumulatorBase can reach here unregistered.
+    if (m_registered) {
+      Gaudi::svcLocator()->monitoringHub().removeEntity(*this);
+    }
+#endif
+  }
 
   void AccumulatorManager::registerAccumulator(AccumulatorBase* acc)
   {
@@ -28,10 +39,15 @@ namespace Allen::Monitoring {
     // Algorithms have finished their initializations for all streams
     // This function will init the memory and communicate back pointers to algorithms
 
-    // Allocate memory for buffer here to avoid segfault in sequences that do not use monitoring
-    m_stream_current_buffer.resize(number_of_streams);
-    m_stream_done.resize(number_of_streams);
-    std::fill(m_stream_done.begin(), m_stream_done.end(), true);
+    // Allocate memory for buffer here to avoid segfault in sequences that do not use monitoring.
+    // std::atomic<T> is neither copy- nor move-constructible, so resize() would not compile on
+    // these vectors -- move-assign freshly-constructed ones instead. Safe without synchronization
+    // since this runs once, single-threaded, strictly before any worker/aggregation thread starts.
+    m_stream_current_buffer = std::vector<std::atomic<unsigned>>(number_of_streams);
+    m_stream_done = std::vector<std::atomic<bool>>(number_of_streams);
+    for (auto& done : m_stream_done) {
+      done.store(true, std::memory_order_relaxed);
+    }
 
     if (m_registered_accumulators.empty()) return;
 
@@ -83,13 +99,15 @@ namespace Allen::Monitoring {
     // This function is called by the monitoring thread
 
     // * Signal all streams to switch to the 2nd buffer
-    auto buf = m_current_buffer;
-    m_current_buffer = !m_current_buffer;
+    auto buf = m_current_buffer.load(std::memory_order_acquire);
+    m_current_buffer.store(!buf, std::memory_order_release);
 
     // * Wait acknowledge from the streams
     if (!singlethreaded) {
+      auto const next_buf = !buf;
       for (unsigned i = 0; i < m_stream_current_buffer.size(); i++) {
-        while (m_stream_current_buffer[i] != m_current_buffer && !m_stream_done[i]) {
+        while (m_stream_current_buffer[i].load(std::memory_order_acquire) != next_buf &&
+               !m_stream_done[i].load(std::memory_order_acquire)) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
       }

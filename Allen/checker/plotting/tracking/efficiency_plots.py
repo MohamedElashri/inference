@@ -21,37 +21,29 @@
 # date:   10/2018
 #
 
-import os, sys
-import argparse
+import sys
+
 import ROOT
-from ROOT import gStyle
-from ROOT import gROOT
-from ROOT import TStyle
-from ROOT import TLegend
-from ROOT import gPad
-from ROOT import TMultiGraph
-from ROOT import THStack
-from ROOT import TMath
+from ROOT import TLegend, TMath, TMultiGraph, gPad, gROOT
 
-sys.path.append('../')
-from common.LHCbStyle import *
-from common.Legend import *
-
+sys.path.append("../")
 from common.ConfigHistos import *
+from common.Legend import *
+from common.LHCbStyle import *
 
 
 def getEfficiencyHistoNames():
     return ["eta", "p", "pt", "phi", "nPV", "nSciFiHits", "docaz"]
-    #return ["p"]
+    # return ["p"]
 
 
 def getTrackers():
     return ["velo_validator", "long_validator", "seed_validator"]
-    #return ["seed_xz_validator"]
+    # return ["seed_xz_validator"]
 
 
 def getGhostHistoNames():
-    #return ["nPV", "eta"] # currently no eta information available from track
+    # return ["nPV", "eta"] # currently no eta information available from track
     return ["nSciFiHits"]
 
 
@@ -64,10 +56,7 @@ def getGhostHistoNames():
 # ]
 
 outputdir = "../../../build_standalone/output/seedxz/"
-f = [
-    ROOT.TFile.Open("../../../build_standalone/output/PrCheckerPlots.root",
-                    "read")
-]
+f = [ROOT.TFile.Open("../../../build_standalone/output/PrCheckerPlots.root", "read")]
 outputfile = ROOT.TFile(outputdir + "plots/efficiency_plots.root", "recreate")
 
 setLHCbStyle()
@@ -95,14 +84,14 @@ for tracker in trackers:
 
         # calculate efficiency
         for histo in efficiencyHistos:
-            title = "efficiency vs. " + histo + ", " + categories[tracker][
-                cut]["title"]
+            title = "efficiency vs. " + histo + ", " + categories[tracker][cut]["title"]
             name = "efficiency vs. " + histo
             canvas = ROOT.TCanvas(name, title)
             ROOT.gPad.SetTicks()
             # get efficiency for not electrons category
-            histoName = histoBaseName + "notElectrons_" + efficiencyHistoDict[
-                histo]["variable"]
+            histoName = (
+                histoBaseName + "notElectrons_" + efficiencyHistoDict[histo]["variable"]
+            )
             print("not electrons: " + histoName)
             numeratorName = histoName + "_reconstructed"
             numerator = f[0].Get(numeratorName)
@@ -120,8 +109,9 @@ for tracker in trackers:
             denominator.Sumw2()
 
             g_efficiency_notElectrons = ROOT.TGraphAsymmErrors()
-            g_efficiency_notElectrons.Divide(numerator, denominator,
-                                             "cl=0.683 b(1,1) mode")
+            g_efficiency_notElectrons.Divide(
+                numerator, denominator, "cl=0.683 b(1,1) mode"
+            )
             if categories[tracker][cut]["plotElectrons"]:
                 g_efficiency_notElectrons.SetTitle("efficiency, not electrons")
             else:
@@ -129,8 +119,11 @@ for tracker in trackers:
 
             # get efficiency for electrons category
             if categories[tracker][cut]["plotElectrons"]:
-                histoName = histoBaseName + "electrons_" + efficiencyHistoDict[
-                    histo]["variable"]
+                histoName = (
+                    histoBaseName
+                    + "electrons_"
+                    + efficiencyHistoDict[histo]["variable"]
+                )
                 print("electrons: " + histoName)
                 numeratorName = histoName + "_reconstructed"
                 numerator = f[0].Get(numeratorName)
@@ -140,15 +133,15 @@ for tracker in trackers:
                 denominator = f[0].Get(denominatorName)
                 for infile in f[1:]:
                     denominator.Add(infile.Get(denominatorName))
-                if numerator.GetEntries() == 0 or denominator.GetEntries(
-                ) == 0:
+                if numerator.GetEntries() == 0 or denominator.GetEntries() == 0:
                     continue
                 numerator.Sumw2()
                 denominator.Sumw2()
 
                 g_efficiency_electrons = ROOT.TGraphAsymmErrors()
-                g_efficiency_electrons.Divide(numerator, denominator,
-                                              "cl=0.683 b(1,1) mode")
+                g_efficiency_electrons.Divide(
+                    numerator, denominator, "cl=0.683 b(1,1) mode"
+                )
                 g_efficiency_electrons.SetTitle("efficiency, electrons")
                 g_efficiency_electrons.SetMarkerColor(ROOT.kAzure - 3)
                 g_efficiency_electrons.SetLineColor(ROOT.kAzure - 3)
@@ -167,8 +160,9 @@ for tracker in trackers:
             mg.GetYaxis().SetRangeUser(0, 1.05)
 
             # draw variable distribution in same canvas
-            histoName = histoBaseName + "notElectrons_" + efficiencyHistoDict[
-                histo]["variable"]
+            histoName = (
+                histoBaseName + "notElectrons_" + efficiencyHistoDict[histo]["variable"]
+            )
             variableHistoName = histoName + "_reconstructed"
             variable = f[0].Get(variableHistoName)
             for infile in f[1:]:
@@ -176,26 +170,30 @@ for tracker in trackers:
             norm = 0.9 / variable.GetMaximum()
             variable.Scale(norm)
             if categories[tracker][cut]["plotElectrons"]:
-                variable.SetTitle(efficiencyHistoDict[histo]["title"] +
-                                  " distribution, not electrons")
+                variable.SetTitle(
+                    efficiencyHistoDict[histo]["title"] + " distribution, not electrons"
+                )
             else:
-                variable.SetTitle(efficiencyHistoDict[histo]["title"] +
-                                  " distribution")
+                variable.SetTitle(efficiencyHistoDict[histo]["title"] + " distribution")
             variable.SetLineColor(ROOT.kWhite)
             variable.SetFillColorAlpha(ROOT.kBlack, 0.2)
             variable.Draw("hist bar same")
 
             if categories[tracker][cut]["plotElectrons"]:
-                histoName = histoBaseName + "electrons_" + efficiencyHistoDict[
-                    histo]["variable"]
+                histoName = (
+                    histoBaseName
+                    + "electrons_"
+                    + efficiencyHistoDict[histo]["variable"]
+                )
                 variableHistoName = histoName + "_reconstructed"
                 variable_electrons = f[0].Get(variableHistoName)
                 for infile in f[1:]:
                     variable_electrons.Add(infile.Get(variableHistoName))
                 norm = 0.9 / variable_electrons.GetMaximum()
                 variable_electrons.Scale(norm)
-                variable_electrons.SetTitle(efficiencyHistoDict[histo]["title"]
-                                            + " distribution, electrons")
+                variable_electrons.SetTitle(
+                    efficiencyHistoDict[histo]["title"] + " distribution, electrons"
+                )
                 variable_electrons.SetLineColor(ROOT.kWhite)
                 variable_electrons.SetFillColorAlpha(ROOT.kAzure - 3, 0.2)
                 variable_electrons.Draw("hist bar same")
@@ -203,25 +201,30 @@ for tracker in trackers:
             place = find_place(canvas)
             legend = TLegend(place[0], place[1], place[2], place[3])
             if categories[tracker][cut]["plotElectrons"]:
-                legend.AddEntry(g_efficiency_notElectrons,
-                                "efficiency, not electrons", "ep")
+                legend.AddEntry(
+                    g_efficiency_notElectrons, "efficiency, not electrons", "ep"
+                )
             else:
                 legend.AddEntry(g_efficiency_notElectrons, "efficiency", "ep")
             if categories[tracker][cut]["plotElectrons"]:
-                legend.AddEntry(g_efficiency_electrons,
-                                "efficiency, electrons", "ep")
-                legend.AddEntry(
-                    variable, efficiencyHistoDict[histo]["title"] +
-                    " distribution, not electrons", "f")
-            else:
+                legend.AddEntry(g_efficiency_electrons, "efficiency, electrons", "ep")
                 legend.AddEntry(
                     variable,
-                    efficiencyHistoDict[histo]["title"] + " distribution", "f")
+                    efficiencyHistoDict[histo]["title"]
+                    + " distribution, not electrons",
+                    "f",
+                )
+            else:
+                legend.AddEntry(
+                    variable, efficiencyHistoDict[histo]["title"] + " distribution", "f"
+                )
             if categories[tracker][cut]["plotElectrons"]:
                 legend.AddEntry(
-                    variable_electrons, efficiencyHistoDict[histo]["title"] +
-                    " distribution, electrons", "f")
-            legend.SetFillColorAlpha(ROOT.kWhite, 0.)
+                    variable_electrons,
+                    efficiencyHistoDict[histo]["title"] + " distribution, electrons",
+                    "f",
+                )
+            legend.SetFillColorAlpha(ROOT.kWhite, 0.0)
             legend.SetTextSize(0.04)
             legend.Draw("same")
 
@@ -229,8 +232,15 @@ for tracker in trackers:
             low = 0
             high = 1.05
             axis = ROOT.TGaxis(
-                gPad.GetUxmax(), gPad.GetUymin(), gPad.GetUxmax(),
-                gPad.GetUymax(), low, high, 510, "+L")
+                gPad.GetUxmax(),
+                gPad.GetUymin(),
+                gPad.GetUxmax(),
+                gPad.GetUymax(),
+                low,
+                high,
+                510,
+                "+L",
+            )
             axis.SetTitleFont(132)
             axis.SetTitleSize(0.06)
             axis.SetTitleOffset(0.55)
@@ -239,11 +249,16 @@ for tracker in trackers:
             axis.Draw()
 
             canvas.Write()
-            cleantitle = categories[tracker][cut]["title"].replace(
-                " ", "").replace(",", "_").replace("<", "_")
-            canvas.SaveAs(outputdir + "plots/" + tracker + "Eff" + histo +
-                          cleantitle + ".pdf")
-            #canvas.Print("../../../output/checkerplots/forreviewdoc/"+histoBaseName.replace("/","_")+efficiencyHistoDict[histo]["variable"]+"_eff.pdf")
+            cleantitle = (
+                categories[tracker][cut]["title"]
+                .replace(" ", "")
+                .replace(",", "_")
+                .replace("<", "_")
+            )
+            canvas.SaveAs(
+                outputdir + "plots/" + tracker + "Eff" + histo + cleantitle + ".pdf"
+            )
+            # canvas.Print("../../../output/checkerplots/forreviewdoc/"+histoBaseName.replace("/","_")+efficiencyHistoDict[histo]["variable"]+"_eff.pdf")
 
     # calculate ghost rate
     histoBaseName = tracker + "/"
@@ -252,11 +267,9 @@ for tracker in trackers:
         title = "ghost rate vs " + histo
         canvas = ROOT.TCanvas(title, title)
         ROOT.gPad.SetTicks()
-        numeratorName = histoBaseName + ghostHistoDict[histo][
-            "variable"] + "_Ghosts"
+        numeratorName = histoBaseName + ghostHistoDict[histo]["variable"] + "_Ghosts"
         print("ghosts numerator: " + numeratorName)
-        denominatorName = histoBaseName + ghostHistoDict[histo][
-            "variable"] + "_Total"
+        denominatorName = histoBaseName + ghostHistoDict[histo]["variable"] + "_Total"
         print("ghosts denominator: " + denominatorName)
         print("ghost histo: " + histoBaseName)
         numerator = f[0].Get(numeratorName)
@@ -272,7 +285,7 @@ for tracker in trackers:
         g_efficiency.Divide(numerator, denominator, "cl=0.683 b(1,1) mode")
 
         xtitle = ghostHistoDict[histo]["xTitle"]
-        #g_efficiency.GetXaxis().SetRangeUser(1, 14)
+        # g_efficiency.GetXaxis().SetRangeUser(1, 14)
         g_efficiency.GetXaxis().SetTitle(xtitle)
         g_efficiency.GetYaxis().SetTitle("ghost rate")
         g_efficiency.Draw("ap")
@@ -283,25 +296,25 @@ for tracker in trackers:
         print("norm:")
         print(norm)
         numerator.Scale(norm)
-        numerator.SetTitle(efficiencyHistoDict[histo]["title"] +
-                           " distribution")
+        numerator.SetTitle(efficiencyHistoDict[histo]["title"] + " distribution")
         numerator.SetFillColorAlpha(ROOT.kBlack, 0.2)
         numerator.SetLineColor(ROOT.kWhite)
         numerator.Draw("hist bar same")
 
-        #place = find_place(canvas)
-        #legend = TLegend(place[0], place[1], place[2], place[3])
+        # place = find_place(canvas)
+        # legend = TLegend(place[0], place[1], place[2], place[3])
         legend = TLegend()
         legend.AddEntry(g_efficiency, "ghost rate", "ep")
-        legend.AddEntry(numerator,
-                        efficiencyHistoDict[histo]["title"] + " distribution",
-                        "f")
+        legend.AddEntry(
+            numerator, efficiencyHistoDict[histo]["title"] + " distribution", "f"
+        )
         legend.Draw("same")
 
         canvas.Write()
-        canvas.SaveAs(outputdir + "plots/" + tracker + "_" + histo + "_" +
-                      "GhostRate.pdf")
-        #canvas.Print("../../../output/checkerplots/forreviewdoc/"+histoBaseName.replace("/","_")+ghostHistoDict[histo]["variable"]+"_ghost.pdf")
+        canvas.SaveAs(
+            outputdir + "plots/" + tracker + "_" + histo + "_" + "GhostRate.pdf"
+        )
+        # canvas.Print("../../../output/checkerplots/forreviewdoc/"+histoBaseName.replace("/","_")+ghostHistoDict[histo]["variable"]+"_ghost.pdf")
 
 outputfile.Write()
 outputfile.Close()

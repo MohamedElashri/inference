@@ -350,10 +350,11 @@ void error_bank_filter::error_bank_filter_t::error_bank_filter(
   }
 
   for_each(
-    std::tuple {std::tuple {m_data_banks.get(), data_counts},
-                std::tuple {m_other_banks.get(), other_counts},
-                std::tuple {m_error_banks.get(), error_counts},
-                std::tuple {m_error_per_source.get(), source_counts}},
+    std::tuple {
+      std::tuple {m_data_banks.get(), data_counts},
+      std::tuple {m_other_banks.get(), other_counts},
+      std::tuple {m_error_banks.get(), error_counts},
+      std::tuple {m_error_per_source.get(), source_counts}},
     [&add_counts](auto entry) {
       auto [histo, counts] = entry;
       add_counts(*histo, counts);

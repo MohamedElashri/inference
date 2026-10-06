@@ -52,8 +52,13 @@ void velo_search_by_triplet::velo_search_by_triplet_t::operator()(
   Allen::memset_async<dev_hit_used_t>(arguments, 0, context);
   Allen::memset_async<dev_offsets_velo_tracks_t>(arguments, 0, context);
 
+  uint32_t missing_pairs = constants.host_velo_geometry->missing_module_pairs_hlt1;
+  if (m_use_missing_modules_prop.value()) {
+    missing_pairs = m_missing_module_pairs.value();
+  }
+
   global_function(velo_search_by_triplet)(size<dev_event_list_t>(arguments), dim3(m_block_dim_x), context)(
-    arguments, constants.dev_velo_geometry, m_tolerance, m_max_scatter, m_skip, m_missing_module_pairs);
+    arguments, constants.dev_velo_geometry, m_tolerance, m_max_scatter, m_skip, missing_pairs);
 
   if (m_verbosity >= logger::debug) {
     info_cout << "VELO tracks found:\n";
@@ -321,11 +326,12 @@ __device__ std::tuple<int16_t, int16_t> velo_search_by_triplet::find_forward_can
   const auto y_prediction = h0.y + predy;
   const auto track_extrapolation_phi = hit_phi_16(x_prediction, y_prediction);
 
-  return {binary_search_leftmost(
-            hit_phis + module_pair.hit_start,
-            module_pair.hit_num,
-            static_cast<int16_t>(track_extrapolation_phi - phi_tolerance)),
-          track_extrapolation_phi};
+  return {
+    binary_search_leftmost(
+      hit_phis + module_pair.hit_start,
+      module_pair.hit_num,
+      static_cast<int16_t>(track_extrapolation_phi - phi_tolerance)),
+    track_extrapolation_phi};
 }
 
 /**

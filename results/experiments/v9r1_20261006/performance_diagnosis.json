@@ -1,0 +1,1083 @@
+{
+  "records": [
+    {
+      "label": "head_bf16_t16",
+      "record": "/data/home/melashri/iris/inference/results/runs/20260929_034830_rtx3090_unet16-lc4-scnone-asym5-best-bf16_head-bf16-t16.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvfinder_unet_benchmark",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark",
+          "hlt1_pp_pvfinder_replace_benchmark",
+          "hlt1_pp_pvfinder_hybrid_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 87085.1543502,
+      "baseline_spread_pct": 0.4419796575799688,
+      "roles": {
+        "unet": {
+          "mean_events_per_s": 83980.3320818,
+          "mean_paired_loss_pct": 3.5648821942402087,
+          "paired_loss_sample_sd_pct": 0.26146033190364554,
+          "individual_losses_pct": [
+            3.943194525310534,
+            3.3547646294587397,
+            3.6494310449946665,
+            3.591951308593011,
+            3.2850694628440924
+          ],
+          "added_effective_us_per_event": 0.4245364959924828
+        },
+        "pvs": {
+          "mean_events_per_s": 83107.6193748,
+          "mean_paired_loss_pct": 4.567022176462463,
+          "paired_loss_sample_sd_pct": 0.25004425312366535,
+          "individual_losses_pct": [
+            4.896019045202049,
+            4.378012144440868,
+            4.603936786777085,
+            4.689657966963079,
+            4.2674849389292335
+          ],
+          "added_effective_us_per_event": 0.549577620239836
+        },
+        "replace": {
+          "mean_events_per_s": 82511.86913600001,
+          "mean_paired_loss_pct": 5.2510773245813125,
+          "paired_loss_sample_sd_pct": 0.3599256275757799,
+          "individual_losses_pct": [
+            5.701892829889621,
+            5.268915870453994,
+            5.380379461614904,
+            5.196166999592078,
+            4.708031461355966
+          ],
+          "added_effective_us_per_event": 0.6364550487533631
+        },
+        "hybrid": {
+          "mean_events_per_s": 84006.3719766,
+          "mean_paired_loss_pct": 3.5350984149914244,
+          "paired_loss_sample_sd_pct": 0.21809373703929497,
+          "individual_losses_pct": [
+            3.8785376567026075,
+            3.498849897002576,
+            3.5340045675723353,
+            3.4919276347053607,
+            3.2721723189742424
+          ],
+          "added_effective_us_per_event": 0.42084545040852717
+        }
+      }
+    },
+    {
+      "label": "v9r1_head_bf16_t16",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_201431_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-head-bf16-t16.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvfinder_unet_benchmark",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark",
+          "hlt1_pp_pvfinder_replace_benchmark",
+          "hlt1_pp_pvfinder_hybrid_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86773.5840552,
+      "baseline_spread_pct": 0.09917837316164461,
+      "roles": {
+        "unet": {
+          "mean_events_per_s": 81618.9904586,
+          "mean_paired_loss_pct": 5.94028742974579,
+          "paired_loss_sample_sd_pct": 0.1122932938135175,
+          "individual_losses_pct": [
+            6.068028066033948,
+            6.009117184471513,
+            5.942601919493762,
+            5.771559437889728,
+            5.910130540839997
+          ],
+          "added_effective_us_per_event": 0.7278060736019248
+        },
+        "pvs": {
+          "mean_events_per_s": 80144.876867,
+          "mean_paired_loss_pct": 7.639107375212948,
+          "paired_loss_sample_sd_pct": 0.1403247863288271,
+          "individual_losses_pct": [
+            7.722830934495317,
+            7.635131866185308,
+            7.694922524351666,
+            7.398938533828048,
+            7.743713017204401
+          ],
+          "added_effective_us_per_event": 0.9531593962601722
+        },
+        "replace": {
+          "mean_events_per_s": 81461.143322,
+          "mean_paired_loss_pct": 6.122223594119441,
+          "paired_loss_sample_sd_pct": 0.2977157671102021,
+          "individual_losses_pct": [
+            6.290052577492078,
+            6.264878797760442,
+            6.205608985666244,
+            5.592496158302962,
+            6.258081451375475
+          ],
+          "added_effective_us_per_event": 0.7515468538543174
+        },
+        "hybrid": {
+          "mean_events_per_s": 81488.9162688,
+          "mean_paired_loss_pct": 6.0901315964011244,
+          "paired_loss_sample_sd_pct": 0.1896391115871341,
+          "individual_losses_pct": [
+            6.111677885509847,
+            6.161911764982364,
+            5.8814430415707,
+            6.357610423502003,
+            5.93801486644071
+          ],
+          "added_effective_us_per_event": 0.7473630345547695
+        }
+      }
+    },
+    {
+      "label": "v9r1_streams_bf16_t1",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_215050_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-streams-bf16-t1.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 1,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 14802.3435526,
+      "baseline_spread_pct": 13.253958658832751,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 13977.399035,
+          "mean_paired_loss_pct": 5.35176360672315,
+          "paired_loss_sample_sd_pct": 5.728289731459888,
+          "individual_losses_pct": [
+            -3.2103144848539156,
+            6.559574647917287,
+            2.96764123695602,
+            11.5215486653383,
+            8.92036796825806
+          ],
+          "added_effective_us_per_event": 3.9871988661501923
+        }
+      }
+    },
+    {
+      "label": "v9r1_streams_bf16_t2",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_220037_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-streams-bf16-t2.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 2,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 28659.90205,
+      "baseline_spread_pct": 3.546945457896295,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 26997.8856778,
+          "mean_paired_loss_pct": 5.7790090219478,
+          "paired_loss_sample_sd_pct": 1.9413573426692134,
+          "individual_losses_pct": [
+            8.064904942315287,
+            2.68329531586603,
+            6.083828669508895,
+            5.8793843886321255,
+            6.183631793416666
+          ],
+          "added_effective_us_per_event": 2.1479830097639865
+        }
+      }
+    },
+    {
+      "label": "v9r1_streams_bf16_t4",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_221032_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-streams-bf16-t4.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 4,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 48893.3070818,
+      "baseline_spread_pct": 1.721759480477763,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 46131.5436088,
+          "mean_paired_loss_pct": 5.636236326622326,
+          "paired_loss_sample_sd_pct": 2.081673362974518,
+          "individual_losses_pct": [
+            3.475537938517592,
+            3.7380288496181358,
+            5.566710743685121,
+            8.217578675886571,
+            7.183325425404208
+          ],
+          "added_effective_us_per_event": 1.224444433429312
+        }
+      }
+    },
+    {
+      "label": "v9r1_streams_bf16_t8",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_222138_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-streams-bf16-t8.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 8,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 72472.0808286,
+      "baseline_spread_pct": 0.6760993715067026,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 67422.435066,
+          "mean_paired_loss_pct": 6.967358297104996,
+          "paired_loss_sample_sd_pct": 1.9583218205384716,
+          "individual_losses_pct": [
+            5.630191171643006,
+            10.342727722352919,
+            6.018456039011788,
+            5.845967456200174,
+            6.99944909631709
+          ],
+          "added_effective_us_per_event": 1.0334411448464995
+        }
+      }
+    },
+    {
+      "label": "v9r1_streams_bf16_t12",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_223526_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-streams-bf16-t12.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 12,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 82070.5091806,
+      "baseline_spread_pct": 0.9346454916126254,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 76695.7929166,
+          "mean_paired_loss_pct": 6.547421366633537,
+          "paired_loss_sample_sd_pct": 0.5004114614872024,
+          "individual_losses_pct": [
+            6.582609166554343,
+            6.598814599625491,
+            6.99502764899842,
+            6.8524892463144305,
+            5.708166171675
+          ],
+          "added_effective_us_per_event": 0.853880061681604
+        }
+      }
+    },
+    {
+      "label": "v9r1_grid_bf16_f1",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_225229_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-grid-bf16-f1.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 1,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 1,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86887.2158778,
+      "baseline_spread_pct": 0.3263100965264597,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 78963.54799600001,
+          "mean_paired_loss_pct": 9.119420198888482,
+          "paired_loss_sample_sd_pct": 0.09037910672365691,
+          "individual_losses_pct": [
+            9.203293725641416,
+            9.184801331776827,
+            9.0684500388876,
+            9.153753071277325,
+            8.986802826859241
+          ],
+          "added_effective_us_per_event": 1.1548982644451067
+        }
+      }
+    },
+    {
+      "label": "v9r1_grid_bf16_f0.5",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_231315_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-grid-bf16-f0.5.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.5,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.5,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86839.8684986,
+      "baseline_spread_pct": 0.28532202234275844,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 79563.6204512,
+          "mean_paired_loss_pct": 8.378897913739644,
+          "paired_loss_sample_sd_pct": 0.15323590075636115,
+          "individual_losses_pct": [
+            8.46455480049868,
+            8.182262717649714,
+            8.370250978795102,
+            8.581350981603608,
+            8.296070090151119
+          ],
+          "added_effective_us_per_event": 1.0531101574536594
+        }
+      }
+    },
+    {
+      "label": "v9r1_grid_bf16_f0.25",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_233352_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-grid-bf16-f0.25.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.25,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86795.078405,
+      "baseline_spread_pct": 0.2133846969246386,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 80176.1288584,
+          "mean_paired_loss_pct": 7.625847792690221,
+          "paired_loss_sample_sd_pct": 0.20451159213209757,
+          "individual_losses_pct": [
+            7.862785810392314,
+            7.665321809021908,
+            7.313170662493751,
+            7.569222141489062,
+            7.718738540054071
+          ],
+          "added_effective_us_per_event": 0.9511497267166698
+        }
+      }
+    },
+    {
+      "label": "v9r1_grid_bf16_f0.125",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261005_235425_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-grid-bf16-f0.125.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.125,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86930.1351532,
+      "baseline_spread_pct": 0.12692245537816582,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 80823.7878714,
+          "mean_paired_loss_pct": 7.024348946143986,
+          "paired_loss_sample_sd_pct": 0.18630508812250796,
+          "individual_losses_pct": [
+            7.096463488961991,
+            6.8863242210285724,
+            6.95797862424925,
+            7.3156923575087855,
+            6.86528603897133
+          ],
+          "added_effective_us_per_event": 0.869104392740032
+        }
+      }
+    },
+    {
+      "label": "v9r1_grid_bf16_f0.0625",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_001457_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-grid-bf16-f0.0625.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 16,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.0625,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.0625,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86711.2661124,
+      "baseline_spread_pct": 1.0134901223340897,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 80896.5749974,
+          "mean_paired_loss_pct": 6.704275593017204,
+          "paired_loss_sample_sd_pct": 0.44336410529256026,
+          "individual_losses_pct": [
+            6.800232710150422,
+            6.848785028902771,
+            7.092982698389083,
+            5.938483037968312,
+            6.840894489675431
+          ],
+          "added_effective_us_per_event": 0.8289359728676221
+        }
+      }
+    },
+    {
+      "label": "v9r1_fullgrid_bf16_t1",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_003532_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-fullgrid-bf16-t1.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 1,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 1,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 1,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 14867.9842886,
+      "baseline_spread_pct": 6.21440150235053,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 14450.1040216,
+          "mean_paired_loss_pct": 2.7342975870524766,
+          "paired_loss_sample_sd_pct": 4.161908732874363,
+          "individual_losses_pct": [
+            9.003540940903786,
+            3.943485427333282,
+            2.7498066567965274,
+            -1.4820225580395752,
+            -0.5433225317316381
+          ],
+          "added_effective_us_per_event": 1.9450411622183643
+        }
+      }
+    },
+    {
+      "label": "v9r1_streams_bf16_t1",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_031902_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-streams-bf16-t1.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 1,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.25,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 14884.762944,
+      "baseline_spread_pct": 6.608753278106627,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 14262.7130032,
+          "mean_paired_loss_pct": 4.117699315245688,
+          "paired_loss_sample_sd_pct": 3.305394712182383,
+          "individual_losses_pct": [
+            4.246865383949395,
+            2.1838930864398254,
+            3.8272981822848995,
+            9.504996141580445,
+            0.825443781973878
+          ],
+          "added_effective_us_per_event": 2.930091531944473
+        }
+      }
+    },
+    {
+      "label": "v9r1_fullgrid_bf16_t1",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_032847_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-fullgrid-bf16-t1.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 1000,
+        "threads": 1,
+        "repeats": 5,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 1,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 1,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 15260.7393572,
+      "baseline_spread_pct": 3.214370742585058,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 14839.1893438,
+          "mean_paired_loss_pct": 2.746332474895239,
+          "paired_loss_sample_sd_pct": 1.7008593889293844,
+          "individual_losses_pct": [
+            5.107214797393922,
+            2.5240808436367,
+            2.5723798929195296,
+            3.176135406407765,
+            0.3518514341182777
+          ],
+          "added_effective_us_per_event": 1.8615013526704263
+        }
+      }
+    },
+    {
+      "label": "v9r1_diag_fc0.0625_unet0.0625",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_033937_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-diag-fc0.0625-unet0.0625.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 100,
+        "threads": 16,
+        "repeats": 3,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.0625,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.0625,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86142.43478266666,
+      "baseline_spread_pct": 0.36380674262420803,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 80328.824761,
+          "mean_paired_loss_pct": 6.748435855138764,
+          "paired_loss_sample_sd_pct": 0.5255211809053499,
+          "individual_losses_pct": [
+            6.404313381038729,
+            7.353344991218691,
+            6.487649193158873
+          ],
+          "added_effective_us_per_event": 0.8401509831530807
+        }
+      }
+    },
+    {
+      "label": "v9r1_diag_fc0.03125_unet0.03125",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_034327_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-diag-fc0.03125-unet0.03125.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 100,
+        "threads": 16,
+        "repeats": 3,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.03125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.03125,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86818.24892333333,
+      "baseline_spread_pct": 0.26011535915614464,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 74853.10844766667,
+          "mean_paired_loss_pct": 13.781679781696132,
+          "paired_loss_sample_sd_pct": 0.2779272412355517,
+          "individual_losses_pct": [
+            14.101435109918548,
+            13.598117756165706,
+            13.645486479004143
+          ],
+          "added_effective_us_per_event": 1.8411829288597124
+        }
+      }
+    },
+    {
+      "label": "v9r1_diag_fc0.0625_unet0.03125",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_034714_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-diag-fc0.0625-unet0.03125.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 100,
+        "threads": 16,
+        "repeats": 3,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.0625,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.03125,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86426.75917633333,
+      "baseline_spread_pct": 0.7451494446136234,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 75816.17417733333,
+          "mean_paired_loss_pct": 12.276853624568151,
+          "paired_loss_sample_sd_pct": 0.12213434909639254,
+          "individual_losses_pct": [
+            12.339224148511763,
+            12.136127331304646,
+            12.355209393888044
+          ],
+          "added_effective_us_per_event": 1.6193071564761308
+        }
+      }
+    },
+    {
+      "label": "v9r1_diag_fc0.03125_unet0.0625",
+      "record": "/tmp/pvfinder-v9r1-port/results/runs/20261006_035110_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-diag-fc0.03125-unet0.0625.json",
+      "status": "ok",
+      "workload": {
+        "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+        "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+        "events": 500,
+        "memory_mb": 500,
+        "repetitions": 100,
+        "threads": 16,
+        "repeats": 3,
+        "device": 2,
+        "sequences": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ]
+      },
+      "options": {
+        "fc_grid_fraction": 0.03125,
+        "precision": "bfloat16",
+        "unet_batch_events": 20,
+        "unet_grid_fraction": 0.0625,
+        "use_bf16": true
+      },
+      "baseline_mean_events_per_s": 86636.68612066667,
+      "baseline_spread_pct": 0.46611493015505323,
+      "roles": {
+        "pvs": {
+          "mean_events_per_s": 80214.090113,
+          "mean_paired_loss_pct": 7.41309045424503,
+          "paired_loss_sample_sd_pct": 0.15793008199086506,
+          "individual_losses_pct": [
+            7.421892513333395,
+            7.250943414879696,
+            7.566435434522001
+          ],
+          "added_effective_us_per_event": 0.9241832890471291
+        }
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "version": "v7r9",
+      "role": "baseline",
+      "path": "/data/home/melashri/iris/inference/benchmark_results/20260929_033328_camp_profile_bf16_t16/run_01/pvfinder_profile_baseline_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pv_beamline_multi_fitter::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 383.140704375
+        },
+        "pv_beamline_histo::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 58.077815
+        }
+      }
+    },
+    {
+      "version": "v7r9",
+      "role": "pvs",
+      "path": "/data/home/melashri/iris/inference/benchmark_results/20260929_033328_camp_profile_bf16_t16/run_01/pvfinder_profile_pvs_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pvfinder_build_csr_kernel": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 101.1500075
+        },
+        "pvfinder_fused_fc_tc_kernel": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 826.443153125
+        },
+        "fused_unet_bf16_kernel": {
+          "instances": 1601,
+          "mean_kernel_duration_us": 1250.6228994378512
+        },
+        "pvfinder_peak::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 69.00798375
+        },
+        "pv_beamline_multi_fitter::": {
+          "instances": 3200,
+          "mean_kernel_duration_us": 410.819039375
+        },
+        "pv_beamline_histo::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 58.21071875
+        }
+      }
+    },
+    {
+      "version": "v9r1",
+      "role": "baseline",
+      "path": "/tmp/pvfinder-v9r1-port/benchmark_results/20261006_004812_v9r1_profile_bf16_t16/run_01/pvfinder_profile_baseline_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pv_beamline_multi_fitter::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 538.288779375
+        },
+        "pv_beamline_histo::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 99.07256562500001
+        }
+      }
+    },
+    {
+      "version": "v9r1",
+      "role": "pvs",
+      "path": "/tmp/pvfinder-v9r1-port/benchmark_results/20261006_004812_v9r1_profile_bf16_t16/run_01/pvfinder_profile_pvs_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pvfinder_build_csr_kernel": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 99.73158875
+        },
+        "pvfinder_fused_fc_tc_kernel": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 800.1810575
+        },
+        "fused_unet_bf16_kernel": {
+          "instances": 1601,
+          "mean_kernel_duration_us": 1206.3540518425984
+        },
+        "pvfinder_peak::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 68.84201625
+        },
+        "pv_beamline_multi_fitter::": {
+          "instances": 3200,
+          "mean_kernel_duration_us": 584.1512559375001
+        },
+        "pv_beamline_histo::": {
+          "instances": 1600,
+          "mean_kernel_duration_us": 100.486768125
+        }
+      }
+    },
+    {
+      "version": "v7r9",
+      "role": "baseline",
+      "path": "/data/home/melashri/iris/inference/benchmark_results/20260929_033635_camp_profile_bf16_full_grids_t1/run_01/pvfinder_profile_baseline_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pv_beamline_multi_fitter::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 113.56351
+        },
+        "pv_beamline_histo::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 28.70376
+        }
+      }
+    },
+    {
+      "version": "v7r9",
+      "role": "pvs",
+      "path": "/data/home/melashri/iris/inference/benchmark_results/20260929_033635_camp_profile_bf16_full_grids_t1/run_01/pvfinder_profile_pvs_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pvfinder_build_csr_kernel": {
+          "instances": 100,
+          "mean_kernel_duration_us": 50.29143
+        },
+        "pvfinder_fused_fc_tc_kernel": {
+          "instances": 100,
+          "mean_kernel_duration_us": 104.97455000000001
+        },
+        "fused_unet_bf16_kernel": {
+          "instances": 101,
+          "mean_kernel_duration_us": 212.60833663366336
+        },
+        "pvfinder_peak::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 28.19066
+        },
+        "pv_beamline_multi_fitter::": {
+          "instances": 200,
+          "mean_kernel_duration_us": 132.788785
+        },
+        "pv_beamline_histo::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 29.08256
+        }
+      }
+    },
+    {
+      "version": "v9r1",
+      "role": "baseline",
+      "path": "/tmp/pvfinder-v9r1-port/benchmark_results/20261006_005125_v9r1_profile_bf16_full_grids_t1/run_01/pvfinder_profile_baseline_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pv_beamline_multi_fitter::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 326.58006
+        },
+        "pv_beamline_histo::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 49.36624
+        }
+      }
+    },
+    {
+      "version": "v9r1",
+      "role": "pvs",
+      "path": "/tmp/pvfinder-v9r1-port/benchmark_results/20261006_005125_v9r1_profile_bf16_full_grids_t1/run_01/pvfinder_profile_pvs_cuda_gpu_kern_sum.csv",
+      "stages": {
+        "pvfinder_build_csr_kernel": {
+          "instances": 100,
+          "mean_kernel_duration_us": 50.06545
+        },
+        "pvfinder_fused_fc_tc_kernel": {
+          "instances": 100,
+          "mean_kernel_duration_us": 103.92909
+        },
+        "fused_unet_bf16_kernel": {
+          "instances": 101,
+          "mean_kernel_duration_us": 209.44223762376237
+        },
+        "pvfinder_peak::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 28.05056
+        },
+        "pv_beamline_multi_fitter::": {
+          "instances": 200,
+          "mean_kernel_duration_us": 346.80076
+        },
+        "pv_beamline_histo::": {
+          "instances": 100,
+          "mean_kernel_duration_us": 49.36312
+        }
+      }
+    }
+  ]
+}

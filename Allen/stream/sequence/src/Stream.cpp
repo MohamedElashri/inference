@@ -33,8 +33,8 @@ Stream::Stream(
   const Constants& param_constants,
   HostBuffersManager* buffers_manager) :
   stream_id {stream_id},
-  do_print_memory_manager {param_do_print_memory_manager}, host_buffers_manager {buffers_manager}, constants {
-                                                                                                     param_constants}
+  do_print_memory_manager {param_do_print_memory_manager}, host_buffers_manager {buffers_manager},
+  constants {param_constants}
 {
   scheduler = new Scheduler {configuration, sched_seq, do_print_memory_manager, reserve_mb, required_memory_alignment};
 

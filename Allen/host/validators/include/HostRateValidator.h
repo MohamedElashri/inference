@@ -31,9 +31,10 @@ namespace host_rate_validator {
       const Allen::Context&) const;
 
   private:
-    Allen::Property<std::string> m_json_string {this,
-                                                "json_string",
-                                                "",
-                                                "Names of lines, grouped by type in a JSON compatible string."};
+    Allen::Property<std::string> m_json_string {
+      this,
+      "json_string",
+      "",
+      "Names of lines, grouped by type in a JSON compatible string."};
   };
 } // namespace host_rate_validator

@@ -1,0 +1,223 @@
+{
+  "status": "complete",
+  "started_utc": "2026-10-06T08:56:51.035749+00:00",
+  "gpu": "index, name, uuid, driver_version\n0, NVIDIA GeForce RTX 2080 Ti, GPU-da4f0d93-9113-e01e-f478-be1ea459ed85, 570.124.06\n1, NVIDIA GeForce RTX 2080 Ti, GPU-af7dce0a-35b7-b893-324a-446db3c68ff1, 570.124.06\n2, NVIDIA GeForce RTX 3090, GPU-45d31422-143d-4539-334e-69eac0bc7b97, 570.124.06\n",
+  "processes_at_start": "pid, process_name, gpu_uuid\n",
+  "variants": [
+    {
+      "name": "baseline",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/reference/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/confirmation/baseline_config.json",
+      "binary_sha256": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+      "config_sha256": "fd21f5d0b45a4f4b6a3425925f019293253e74bc7c7aa1dc1ae10fa4640dc608",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "Allen": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "reference",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/reference/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/confirmation/reference_config.json",
+      "binary_sha256": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+      "config_sha256": "a7ecd08123cbee7a695e4071d93a59b8f866c0b0cc9147b08c0d236c2d329aaa",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "Allen": "ba04a9f09a16acd3686c9fd7a136779ce55d6f48de75f75390965023bba87c64",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "new_host_control",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/gpu_work_list/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/confirmation/new_host_control_config.json",
+      "binary_sha256": "e14bb2355c77f799a473a556c479b56714c2e8de3f93d965904e5dbdb4a26951",
+      "config_sha256": "d1ae3028c4c2bf0dc3d32adcedbf8042716fa6e014256aa0ae934b5a3464b57f",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "bb27c4a7b722da8bd0705c4fe7e082cff7de35f5618629e55eae1a80ed8b301a",
+          "Allen": "e14bb2355c77f799a473a556c479b56714c2e8de3f93d965904e5dbdb4a26951",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    },
+    {
+      "name": "gpu_final",
+      "binary": "/tmp/pvfinder-v9r1-port/optimization/binaries/gpu_work_list/Allen",
+      "config": "/data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/measurements/confirmation/gpu_final_config.json",
+      "binary_sha256": "e14bb2355c77f799a473a556c479b56714c2e8de3f93d965904e5dbdb4a26951",
+      "config_sha256": "1dcfdad10acb2306c20b5a7e1cf9f12324e0416329701a56b6a2f2db80df55f3",
+      "build_manifest": {
+        "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+        "files": {
+          "source.patch": "bb27c4a7b722da8bd0705c4fe7e082cff7de35f5618629e55eae1a80ed8b301a",
+          "Allen": "e14bb2355c77f799a473a556c479b56714c2e8de3f93d965904e5dbdb4a26951",
+          "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+          "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+          "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+          "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+        }
+      }
+    }
+  ],
+  "workload": {
+    "variants": "local_scripts/rebase_v9r1/optimization/confirm_variants.json",
+    "label": "confirmation",
+    "repetitions": 1000,
+    "repeats": 5,
+    "events": 500,
+    "streams": 16
+  },
+  "rows": [
+    {
+      "repeat": 1,
+      "order": [
+        "baseline",
+        "reference",
+        "new_host_control",
+        "gpu_final"
+      ],
+      "rates": {
+        "baseline": 86993.878102,
+        "reference": 80698.541971,
+        "new_host_control": 80932.028195,
+        "gpu_final": 82497.606077
+      }
+    },
+    {
+      "repeat": 2,
+      "order": [
+        "baseline",
+        "gpu_final",
+        "new_host_control",
+        "reference"
+      ],
+      "rates": {
+        "baseline": 86835.759159,
+        "gpu_final": 82520.697091,
+        "new_host_control": 81078.079151,
+        "reference": 80787.152322
+      }
+    },
+    {
+      "repeat": 3,
+      "order": [
+        "baseline",
+        "reference",
+        "new_host_control",
+        "gpu_final"
+      ],
+      "rates": {
+        "baseline": 85891.948876,
+        "reference": 80805.755559,
+        "new_host_control": 80819.896154,
+        "gpu_final": 82722.695827
+      }
+    },
+    {
+      "repeat": 4,
+      "order": [
+        "baseline",
+        "gpu_final",
+        "new_host_control",
+        "reference"
+      ],
+      "rates": {
+        "baseline": 86671.82688,
+        "gpu_final": 82598.30929,
+        "new_host_control": 80918.010444,
+        "reference": 80743.673531
+      }
+    },
+    {
+      "repeat": 5,
+      "order": [
+        "baseline",
+        "reference",
+        "new_host_control",
+        "gpu_final"
+      ],
+      "rates": {
+        "baseline": 86545.454048,
+        "reference": 80811.900081,
+        "new_host_control": 81105.081001,
+        "gpu_final": 82468.578546
+      }
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "mean_events_per_s": 86587.773413,
+      "loss_mean_pct": 0.0,
+      "loss_sd_pct": 0.0,
+      "gain_vs_reference_mean_pct": 7.203873562208778,
+      "gain_vs_reference_sd_pct": 0.5689917350168882,
+      "individual_gains_pct": [
+        7.801053125919322,
+        7.487090042351752,
+        6.294345349306618,
+        7.341941590908663,
+        7.0949377025575355
+      ]
+    },
+    "reference": {
+      "mean_events_per_s": 80769.4046928,
+      "loss_mean_pct": 6.717678392377575,
+      "loss_sd_pct": 0.49696091255454733,
+      "gain_vs_reference_mean_pct": 0.0,
+      "gain_vs_reference_sd_pct": 0.0,
+      "individual_gains_pct": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "new_host_control": {
+      "mean_events_per_s": 80970.618989,
+      "loss_mean_pct": 6.485719653208187,
+      "loss_sd_pct": 0.40433939020482457,
+      "gain_vs_reference_mean_pct": 0.24913087478348306,
+      "gain_vs_reference_sd_pct": 0.14283681728658434,
+      "individual_gains_pct": [
+        0.28933140339004737,
+        0.3601152171330835,
+        0.017499489859584827,
+        0.21591402196119436,
+        0.36279424157350526
+      ]
+    },
+    "gpu_final": {
+      "mean_events_per_s": 82561.5773662,
+      "loss_mean_pct": 4.647627416454026,
+      "loss_sd_pct": 0.5698336294700588,
+      "gain_vs_reference_mean_pct": 2.2188896572019523,
+      "gain_vs_reference_sd_pct": 0.1260753405731267,
+      "individual_gains_pct": [
+        2.229363829951869,
+        2.1458173969178596,
+        2.3722818439589455,
+        2.29694250694199,
+        2.050042708239097
+      ]
+    }
+  },
+  "baseline_spread_pct": 1.2726152695301522,
+  "finished_utc": "2026-10-06T09:37:41.496695+00:00"
+}

@@ -93,9 +93,10 @@ namespace make_selected_object_lists {
 
   private:
     Allen::Property<dim3> m_block_dim {this, "block_dim", {64, 1, 1}, "block dimensions"};
-    Allen::Property<unsigned> m_max_children_per_object {this,
-                                                         "max_children_per_object",
-                                                         4,
-                                                         "Maximum number of children per selected object"};
+    Allen::Property<unsigned> m_max_children_per_object {
+      this,
+      "max_children_per_object",
+      4,
+      "Maximum number of children per selected object"};
   };
 } // namespace make_selected_object_lists

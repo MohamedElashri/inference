@@ -1,0 +1,22 @@
+{
+  "base_commit": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+  "accepted_commit": "b427d449b0c393734e361279e3922aa8aebea57c",
+  "branch": "optimize/v9r1-20261006",
+  "patch_apply_check": "PASS",
+  "changed_files": [
+    "Allen/device/pvfinder/include/PVFinderFCAggregation.cuh",
+    "Allen/device/pvfinder/include/PVFinderGPUWorkList.cuh",
+    "Allen/device/pvfinder/include/PVFinderUNetFused.cuh",
+    "Allen/device/pvfinder/src/PVFinderFCAggregation.cu",
+    "Allen/device/pvfinder/src/PVFinderUNet.cu"
+  ],
+  "files": {
+    "accepted_changes.patch": "bb27c4a7b722da8bd0705c4fe7e082cff7de35f5618629e55eae1a80ed8b301a",
+    "accepted_source.tar.gz": "c3adda1e0db4b210b86d6d14e75466232a229cdff94f5a8e82f00f6e4e7dcd15",
+    "accepted_binaries.tar.gz": "cebc5673c3ea1faae807079777273d39771042cbe81912dcd3b616f782c6b2b5",
+    "models/unet16_lc4_scnone_asym5_best_bf16.pyt": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914",
+    "models/unet16_lc4_scnone_asym5_best.pyt": "480f7a2bd6f7637b1f4e245be478803eccc99f7f003333824b1ec0ed0678bcbc",
+    "models/unet16_lc4_scnone_asym5_best.json": "a2540cf30a082caf0acaab785d026834c67a9cf557cb221b4c3fd16cfc66ec76",
+    "models/unet16_lc4_scnone_asym5_best_bf16.json": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+  }
+}

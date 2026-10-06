@@ -48,10 +48,11 @@ private:
   mutable std::deque<Gaudi::Accumulators::BinomialCounter<uint32_t>> m_hlt1_line_rates {};
   mutable Gaudi::Accumulators::BinomialCounter<uint32_t> m_hlt1_global_rate {this, "Selected by Hlt1GlobalDecision"};
 
-  Gaudi::Property<bool> m_check_names {this,
-                                       "CheckLineNamesAndOrder",
-                                       true,
-                                       "Flag to perform line name check for each event."};
+  Gaudi::Property<bool> m_check_names {
+    this,
+    "CheckLineNamesAndOrder",
+    true,
+    "Flag to perform line name check for each event."};
   Gaudi::Property<std::vector<std::string>> m_line_names {
     this,
     "Hlt1LineNames",

@@ -1,0 +1,115 @@
+{
+  "batch": "/tmp/pvfinder-v9r1-port/benchmark_results/20261006_045536_v9r1_gpu_worklist_physics",
+  "events": 10000,
+  "thresholds": {
+    "0.07": {
+      "host_vs_gpu_count_differences": {},
+      "gpu_vs_original_count_differences": {},
+      "byte_equal": {
+        "pvs_pvfinder.bin": true,
+        "pvs_beamline.bin": true,
+        "allen_kde_output.bin": true,
+        "allen_zpeaks.bin": true
+      },
+      "physics_in_range": {
+        "beamline": {
+          "efficiency": 0.9375637104994903,
+          "found": 47827,
+          "mc": 51012,
+          "efficiency_isolated": 0.9773279674861537,
+          "efficiency_close": 0.8990546015820953,
+          "found_isolated": 24528,
+          "mc_isolated": 25097,
+          "found_close": 23299,
+          "mc_close": 25915,
+          "false_rate": 0.01420150053590568,
+          "fake": 689,
+          "reconstructed": 48517,
+          "reconstructed_with_cov22_not_positive": 1,
+          "dz_mean_um": -1.0929656573285689,
+          "dz_rms_um": 121.82814178215482,
+          "dz_core_sigma_um": 60.415307243346874,
+          "dx_core_sigma_um": 10.77419555044174,
+          "dy_core_sigma_um": 10.646792656898507,
+          "sigma_z_median_um": 49.591301546584695
+        },
+        "pvfinder": {
+          "efficiency": 0.9545597114404454,
+          "found": 48694,
+          "mc": 51012,
+          "efficiency_isolated": 0.9806351356735865,
+          "efficiency_close": 0.9293073509550454,
+          "found_isolated": 24611,
+          "mc_isolated": 25097,
+          "found_close": 24083,
+          "mc_close": 25915,
+          "false_rate": 0.015745962444161463,
+          "fake": 779,
+          "reconstructed": 49474,
+          "reconstructed_with_cov22_not_positive": 1,
+          "dz_mean_um": -0.7478984479003818,
+          "dz_rms_um": 122.19886734055584,
+          "dz_core_sigma_um": 61.329108951472286,
+          "dx_core_sigma_um": 10.967647982692737,
+          "dy_core_sigma_um": 10.794150977849954,
+          "sigma_z_median_um": 50.090826832244225
+        }
+      }
+    },
+    "0.1": {
+      "host_vs_gpu_count_differences": {},
+      "gpu_vs_original_count_differences": {},
+      "byte_equal": {
+        "pvs_pvfinder.bin": true,
+        "pvs_beamline.bin": true,
+        "allen_kde_output.bin": true,
+        "allen_zpeaks.bin": true
+      },
+      "physics_in_range": {
+        "beamline": {
+          "efficiency": 0.9375637104994903,
+          "found": 47827,
+          "mc": 51012,
+          "efficiency_isolated": 0.9773279674861537,
+          "efficiency_close": 0.8990546015820953,
+          "found_isolated": 24528,
+          "mc_isolated": 25097,
+          "found_close": 23299,
+          "mc_close": 25915,
+          "false_rate": 0.01420150053590568,
+          "fake": 689,
+          "reconstructed": 48517,
+          "reconstructed_with_cov22_not_positive": 1,
+          "dz_mean_um": -1.0929656573285689,
+          "dz_rms_um": 121.82814178215482,
+          "dz_core_sigma_um": 60.415307243346874,
+          "dx_core_sigma_um": 10.77419555044174,
+          "dy_core_sigma_um": 10.646792656898507,
+          "sigma_z_median_um": 49.591301546584695
+        },
+        "pvfinder": {
+          "efficiency": 0.9487375519485611,
+          "found": 48397,
+          "mc": 51012,
+          "efficiency_isolated": 0.9736223453002351,
+          "efficiency_close": 0.9246382404013119,
+          "found_isolated": 24435,
+          "mc_isolated": 25097,
+          "found_close": 23962,
+          "mc_close": 25915,
+          "false_rate": 0.011034595500337169,
+          "fake": 540,
+          "reconstructed": 48938,
+          "reconstructed_with_cov22_not_positive": 1,
+          "dz_mean_um": -0.6361707995467928,
+          "dz_rms_um": 112.10676386257576,
+          "dz_core_sigma_um": 60.865449749450406,
+          "dx_core_sigma_um": 10.90052008966443,
+          "dy_core_sigma_um": 10.74439459858418,
+          "sigma_z_median_um": 49.884622137004406
+        }
+      }
+    }
+  },
+  "physics_counts_unchanged": true
+}

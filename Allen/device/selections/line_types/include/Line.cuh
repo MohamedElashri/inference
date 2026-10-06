@@ -290,8 +290,9 @@ __device__ void process_line(
   // * 1 thread per event
   // * 1 thread per object
   // * balanced: (32 threads per objects, 8 event per block)
-  const auto threads_per_event =
-    (dev_line_data->decisions_size == number_of_events) ? 1 : (pre_scale_event_list_size == 1) ? blockDim.x : warp_size;
+  const auto threads_per_event = (dev_line_data->decisions_size == number_of_events) ? 1 :
+                                 (pre_scale_event_list_size == 1)                    ? blockDim.x :
+                                                                                       warp_size;
   const auto events_per_block = blockDim.x / threads_per_event;
 
   for (unsigned j = threadIdx.x / threads_per_event; j < pre_scale_event_list_size; j += events_per_block) {

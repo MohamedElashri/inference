@@ -111,14 +111,15 @@ LHCb::Event::v2::RecVertices GaudiAllenSVsToRecVertexV2::operator()(
     if (msgLevel(MSG::DEBUG)) debug() << "  Processing SV " << i << endmsg;
     const VertexFit::TrackMVAVertex& sv = allen_secondary_vertices[sv_offset + i];
     Gaudi::SymMatrix3x3 poscov;
-    poscov(0, 0) = sv.cov00;
-    poscov(1, 0) = sv.cov10;
-    poscov(1, 1) = sv.cov11;
-    poscov(2, 0) = sv.cov20;
-    poscov(2, 1) = sv.cov21;
-    poscov(2, 2) = sv.cov22;
-    Gaudi::XYZPoint position {sv.x, sv.y, sv.z};
-    auto& new_sv = sv_container.emplace_back(position, poscov, LHCb::Event::v2::Track::Chi2PerDoF {sv.chi2 / 2, 2});
+    poscov(0, 0) = static_cast<double>(sv.cov00);
+    poscov(1, 0) = static_cast<double>(sv.cov10);
+    poscov(1, 1) = static_cast<double>(sv.cov11);
+    poscov(2, 0) = static_cast<double>(sv.cov20);
+    poscov(2, 1) = static_cast<double>(sv.cov21);
+    poscov(2, 2) = static_cast<double>(sv.cov22);
+    Gaudi::XYZPoint position {static_cast<double>(sv.x), static_cast<double>(sv.y), static_cast<double>(sv.z)};
+    auto& new_sv = sv_container.emplace_back(
+      position, poscov, LHCb::Event::v2::Track::Chi2PerDoF {static_cast<double>(sv.chi2) / 2., 2});
     const unsigned i_trackA = sv.trk1;
     const unsigned i_trackB = sv.trk2;
     if (msgLevel(MSG::DEBUG)) debug() << "    Track indexes " << i_trackA << ", " << i_trackB << endmsg;

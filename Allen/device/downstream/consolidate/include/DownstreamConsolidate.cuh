@@ -179,21 +179,25 @@ namespace downstream_consolidate {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {32, 1, 1}, "block dimensions"};
 
     Allen::Monitoring::AveragingCounter<> m_downstream_tracks {this, "n_downstream_tracks"};
-    Allen::Monitoring::Histogram<> m_histogram_n_downstream_tracks {this,
-                                                                    "n_downstream_tracks_event",
-                                                                    "n_downstream_tracks_event",
-                                                                    {201u, -0.5f, 200.5f}};
-    Allen::Monitoring::Histogram<> m_histogram_downstream_track_eta {this,
-                                                                     "downstream_track_eta",
-                                                                     "#eta",
-                                                                     {400u, 0.f, 10.f}};
-    Allen::Monitoring::Histogram<> m_histogram_downstream_track_phi {this,
-                                                                     "downstream_track_phi",
-                                                                     "#phi",
-                                                                     {16u, -4.f, 4.f}};
-    Allen::Monitoring::Histogram<> m_histogram_downstream_track_nhits {this,
-                                                                       "downstream_track_nhits",
-                                                                       "N. hits / track",
-                                                                       {50u, 0.f, 50.f}};
+    Allen::Monitoring::Histogram<> m_histogram_n_downstream_tracks {
+      this,
+      "n_downstream_tracks_event",
+      "n_downstream_tracks_event",
+      {201u, -0.5f, 200.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_downstream_track_eta {
+      this,
+      "downstream_track_eta",
+      "#eta",
+      {400u, 0.f, 10.f}};
+    Allen::Monitoring::Histogram<> m_histogram_downstream_track_phi {
+      this,
+      "downstream_track_phi",
+      "#phi",
+      {16u, -4.f, 4.f}};
+    Allen::Monitoring::Histogram<> m_histogram_downstream_track_nhits {
+      this,
+      "downstream_track_nhits",
+      "N. hits / track",
+      {50u, 0.f, 50.f}};
   };
 } // namespace downstream_consolidate

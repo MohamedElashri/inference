@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB combiners_src "src/*cu")
 
-allen_add_device_library(Combiners STATIC
+allen_add_device_library(Combiners OBJECT
   ${combiners_src}
 )
 

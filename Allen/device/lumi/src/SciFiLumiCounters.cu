@@ -86,8 +86,8 @@ __global__ void scifi_lumi_counters::scifi_lumi_counters(
 
   const SciFi::SciFiGeometry geom {scifi_geometry};
 
-  SciFi::ConstHits hits {parameters.dev_scifi_hits,
-                         parameters.dev_scifi_hit_offsets[number_of_events * SciFi::Constants::n_zones]};
+  SciFi::ConstHits hits {
+    parameters.dev_scifi_hits, parameters.dev_scifi_hit_offsets[number_of_events * SciFi::Constants::n_zones]};
   SciFi::ConstHitCount hit_count {parameters.dev_scifi_hit_offsets, event_number};
 
   __shared__ unsigned SciFiCounters[Lumi::Constants::n_scifi_counters];

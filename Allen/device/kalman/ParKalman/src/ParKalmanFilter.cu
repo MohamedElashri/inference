@@ -15,40 +15,7 @@ INSTANTIATE_ALGORITHM(kalman_filter::kalman_filter_t)
 
 void kalman_filter::kalman_filter_t::update(const Constants& constants) const
 {
-  struct BeamlinePVConstants::Common::Beamline host_beamline;
-
-  host_beamline.pos.x = constants.host_beamline[0];
-  host_beamline.pos.y = constants.host_beamline[1];
-  host_beamline.pos.z = constants.host_beamline[2];
-
-  for (long unsigned int i = 0; i < 6; i++) { // spread matrix have 6 elements
-    host_beamline.sprd[i] = constants.host_beamline[3 + i];
-  }
-  double beamlineTx = 0.;
-  double beamlineTy = 0.; // Beamline inclination is set at zero for now. This will be modified later
-  host_beamline.tx.x = beamlineTx;
-  host_beamline.tx.y = beamlineTy;
-
-  // To stay backward compatible we need to check the size of host_beamline. In version 0 and 1 of the beamline only
-  // position with 3 elements and spread matrix with 6 were included
-  double CrossingAngleh = constants.host_beamline.size() == 9 ?
-                            0 :
-                            static_cast<double>(constants.host_beamline[9]) /
-                              (2 * std::pow(10, 6)); // Convert crossing angles between beams from microrad to rad,
-                                                     // take half to convert the angle to the beam inclination
-  if ((CrossingAngleh == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
-    CrossingAngleh = fabs(static_cast<double>(constants.host_gen_crossing_angles[0])) / 2.;
-  }
-  double CrossingAnglev =
-    constants.host_beamline.size() == 9 ? 0 : static_cast<double>(constants.host_beamline[10]) / (2 * std::pow(10, 6));
-
-  if ((CrossingAnglev == 0.0) & (constants.host_gen_crossing_angles.size() == 2)) {
-    CrossingAnglev = fabs(static_cast<double>(constants.host_gen_crossing_angles[1])) / 2.;
-  }
-  host_beamline.tx_SMOG.x = beamlineTx + CrossingAngleh;
-  host_beamline.tx_SMOG.y = beamlineTy + CrossingAnglev;
-  Allen::memcpyToSymbol(dev_beamline, &host_beamline, sizeof(struct BeamlinePVConstants::Common::Beamline));
-
+  updateCommon(constants);
   // Load shared ParKF parameters
   parkalman_shared::update_shared_constants(constants);
 }
@@ -64,6 +31,11 @@ void kalman_filter::kalman_filter_t::set_arguments_size(
   set_size<dev_kalman_fit_results_t>(arguments, n_scifi_tracks * Velo::Consolidated::States::size);
   set_size<dev_kalman_states_view_t>(arguments, first<host_number_of_events_t>(arguments));
   set_size<dev_kalman_pv_tables_t>(arguments, first<host_number_of_events_t>(arguments));
+
+  set_size<dev_kalman_R1_F_view_t>(arguments, n_scifi_tracks);
+  set_size<dev_kalman_R1_B_view_t>(arguments, n_scifi_tracks);
+  set_size<dev_kalman_R2_F_view_t>(arguments, n_scifi_tracks);
+  set_size<dev_kalman_R2_B_view_t>(arguments, n_scifi_tracks);
 }
 
 void kalman_filter::kalman_filter_t::operator()(
@@ -75,12 +47,10 @@ void kalman_filter::kalman_filter_t::operator()(
   dim3 block_dim = m_block_dim;
   int _gridDim = (first<host_number_of_reconstructed_scifi_tracks_t>(arguments) + (block_dim.x) - 1) / (block_dim.x);
   global_function(kalman_filter)(dim3(_gridDim), m_block_dim, context)(
-    arguments, constants.dev_magnet_polarity.data(), constants.dev_kalman_params);
+    arguments, constants.magnet_polarity, constants.dev_kalman_params);
 
   global_function(kalman_pv_ip)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(arguments);
 }
-
-__constant__ struct BeamlinePVConstants::Common::Beamline dev_beamline;
 
 namespace ParKalmanFilter {
   //----------------------------------------------------------------------
@@ -92,6 +62,10 @@ namespace ParKalmanFilter {
     const KalmanFloat init_qop,
     const KalmanParametrizations* kalman_params,
     FittedTrack& track,
+    SimpleKalmanState& r1_f_state,
+    SimpleKalmanState& r1_b_state,
+    SimpleKalmanState& r2_f_state,
+    SimpleKalmanState& r2_b_state,
     const float* dev_UT_lay,
     const float* dev_T_lay,
     const float* dev_V_pars,
@@ -194,6 +168,15 @@ namespace ParKalmanFilter {
         UpdateStateT(scifi_track, dev_T_lay, x, C, tI, hit_counter, layer);
       }
     }
+    // Extrapolate to R2 states
+    Vector5 x_tmp = x;
+    ExtrapolateToR2(PAR_RICH2_F, RICH2_F_zTo, x_tmp, tI);
+    r2_f_state = SimpleKalmanState(x_tmp[0], x_tmp[1], RICH2_F_zTo, x_tmp[2], x_tmp[3], x_tmp[4]);
+
+    x_tmp = x;
+    ExtrapolateToR2(PAR_RICH2_B, RICH2_B_zTo, x_tmp, tI);
+    r2_b_state = SimpleKalmanState(x_tmp[0], x_tmp[1], RICH2_B_zTo, x_tmp[2], x_tmp[3], x_tmp[4]);
+    __syncthreads();
     //------------------------------ End forward fit.
 
     // Set state and covariance for VELO-only backward fit
@@ -202,11 +185,20 @@ namespace ParKalmanFilter {
     x[1] = tI.m_RefStateForward[1];
     x[2] = tI.m_RefStateForward[2];
     x[3] = tI.m_RefStateForward[3];
+    tI.m_Lastz = endVeloZ;
 
     C = similarity_5_5(inverse(tI.m_RefPropForwardTotal), C);
 
+    // get the RICH1 states
+    x_tmp = x;
+    ExtrapolateVR1(PAR_RICH1_F, RICH1_F_zTo, x_tmp, tI);
+    r1_f_state = SimpleKalmanState(x_tmp[0], x_tmp[1], RICH1_F_zTo, x_tmp[2], x_tmp[3], x_tmp[4]);
+
+    x_tmp = x;
+    ExtrapolateVR1(PAR_RICH1_B, RICH1_B_zTo, x_tmp, tI);
+    r1_b_state = SimpleKalmanState(x_tmp[0], x_tmp[1], RICH1_B_zTo, x_tmp[2], x_tmp[3], x_tmp[4]);
+
     const unsigned n_velo_hits2 = velo_track.number_of_hits();
-    tI.m_Lastz = endVeloZ;
 
     //------------------------------ Start backward fit.
     // Velo loop.
@@ -251,14 +243,15 @@ namespace ParKalmanFilter {
     return;
   }
 } // End namespace ParKalmanFilter.
+
 //----------------------------------------------------------------------
 // Kalman filter kernel.
 __global__ void kalman_filter::kalman_filter(
   kalman_filter::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const ParKalmanFilter::KalmanParametrizations* dev_kalman_params)
 {
-  const KalmanFloat magSign = dev_magnet_polarity[0];
+  const KalmanFloat magSign = magnet_polarity;
 
   // Base pointer for the list of all tracks (contiguous in memory), regardless of events boundaries
   const Allen::Views::Physics::LongTrack* track_base = parameters.dev_long_track_view.data();
@@ -277,6 +270,10 @@ __global__ void kalman_filter::kalman_filter(
     const auto scifi_track = long_track.track_segment<Allen::Views::Physics::Track::segment::scifi>();
     const KalmanFloat init_qop = (KalmanFloat) long_track.qop(); // Tracking estimate of qop
     ParKalmanFilter::FittedTrack kalman_track;
+    SimpleKalmanState r1_f_state;
+    SimpleKalmanState r1_b_state;
+    SimpleKalmanState r2_f_state;
+    SimpleKalmanState r2_b_state;
     fit(
       velo_track,
       ut_track,
@@ -284,6 +281,10 @@ __global__ void kalman_filter::kalman_filter(
       init_qop,
       dev_kalman_params,
       kalman_track,
+      r1_f_state,
+      r1_b_state,
+      r2_f_state,
+      r2_b_state,
       parkalman_shared::dev_UT_lay,
       parkalman_shared::dev_T_lay,
       parkalman_shared::dev_V_pars,
@@ -296,5 +297,9 @@ __global__ void kalman_filter::kalman_filter(
       magSign);
     set_result(track_id, kalman_track, kalman_states);
     parameters.dev_kf_tracks[track_id] = kalman_track;
+    parameters.dev_kalman_R1_F_view[track_id] = r1_f_state;
+    parameters.dev_kalman_R1_B_view[track_id] = r1_b_state;
+    parameters.dev_kalman_R2_F_view[track_id] = r2_f_state;
+    parameters.dev_kalman_R2_B_view[track_id] = r2_b_state;
   }
 }

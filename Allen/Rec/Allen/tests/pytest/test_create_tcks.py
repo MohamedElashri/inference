@@ -12,8 +12,8 @@ import pytest
 from LHCbTesting import LHCbExeTest
 
 
-@pytest.mark.ctest_fixture_setup('allen.create_tcks')
-@pytest.mark.shared_cwd('Allen')
+@pytest.mark.ctest_fixture_setup("allen.create_tcks")
+@pytest.mark.shared_cwd("Allen")
 class Test(LHCbExeTest):
-    command = ['python', '../options/create_hlt1_tcks.py']
+    command = ["python", "../options/create_hlt1_tcks.py"]
     timeout = 1800

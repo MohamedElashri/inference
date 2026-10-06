@@ -50,6 +50,29 @@ void pv_beamline_multi_fitter::pv_beamline_multi_fitter_t::update(const Constant
   updateCommon(constants);
 }
 
+namespace {
+  // Fixed-point quantum for the multi-vertex fit's per-track chi2/Hessian accumulation. Integer
+  // addition is associative regardless of order, unlike the float addition it replaces -- so the
+  // fitted vertex no longer depends on which physical VELO track lands on which GPU thread/warp-lane,
+  // which is itself not run-to-run reproducible (track storage order is assigned via an atomicAdd
+  // counter during search_by_triplet's track-finding).
+  //
+  // Chosen to comfortably cover the physical range of these quantities: track_weight is in (0,1],
+  // the chi2 contribution is bounded below maxChi2 (an O(10) property, via the `chi2 < maxChi2` cut
+  // above) and the Hessian terms (trk.HWH_*, built from trk.W_00/W_11 -- inverse VELO position-
+  // covariance terms) are bounded in practice by realistic VELO hit resolution (a few microns at
+  // best), giving per-contribution magnitudes up to ~1e6 in the most extreme case. A 2^-20 quantum
+  // with a 64-bit accumulator keeps quantisation error far below float32's own ~2^-23 relative
+  // precision at these magnitudes, while leaving several orders of magnitude of headroom before the
+  // sum (over at most a few hundred contributing tracks) could approach the 64-bit range.
+  constexpr float fit_fixed_point_inv_precision = 1048576.f; // 2^20
+  constexpr float fit_fixed_point_precision = 1.f / fit_fixed_point_inv_precision;
+
+  __device__ long long to_fixed_point(float value) { return llrintf(value * fit_fixed_point_inv_precision); }
+
+  __device__ float from_fixed_point(long long value) { return static_cast<float>(value) * fit_fixed_point_precision; }
+} // namespace
+
 __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
   pv_beamline_multi_fitter::Parameters parameters,
   const float SMOG2_pp_separation,
@@ -94,8 +117,8 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
       tx_beam_seed = dev_beamline.tx_SMOG.x;
       ty_beam_seed = dev_beamline.tx_SMOG.y;
     }
-    const float2 seed_pos_xy {dev_beamline.pos.x + tx_beam_seed * zseeds[i_thisseed],
-                              dev_beamline.pos.y + ty_beam_seed * zseeds[i_thisseed]};
+    const float2 seed_pos_xy {
+      dev_beamline.pos.x + tx_beam_seed * zseeds[i_thisseed], dev_beamline.pos.y + ty_beam_seed * zseeds[i_thisseed]};
 
     float2 vtxpos_xy = seed_pos_xy;
 
@@ -107,18 +130,20 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
       seed_pos_z <= SMOG2_pp_separation ? SMOG2_minNumTracksPerVertex : pp_minNumTracksPerVertex;
 
     for (unsigned iter = 0; iter < maxFitIter && !converged; ++iter) {
-      auto halfD2Chi2DX2_00 = 0.f;
-      auto halfD2Chi2DX2_11 = 0.f;
-      auto halfD2Chi2DX2_20 = 0.f;
-      auto halfD2Chi2DX2_21 = 0.f;
-      auto halfD2Chi2DX2_22 = 0.f;
-      float3 halfDChi2DX {0.f, 0.f, 0.f};
+      long long halfD2Chi2DX2_00_fixed = 0;
+      long long halfD2Chi2DX2_11_fixed = 0;
+      long long halfD2Chi2DX2_20_fixed = 0;
+      long long halfD2Chi2DX2_21_fixed = 0;
+      long long halfD2Chi2DX2_22_fixed = 0;
+      long long halfDChi2DX_x_fixed = 0;
+      long long halfDChi2DX_y_fixed = 0;
+      long long halfDChi2DX_z_fixed = 0;
       sum_weights = 0.f;
 
       nselectedtracks = 0;
       chi2tot = 0.f;
-      float local_chi2tot = 0.f;
-      float local_sum_weights = 0.f;
+      long long local_chi2tot_fixed = 0;
+      long long local_sum_weights_fixed = 0;
 
       for (unsigned i = threadIdx.x; i < velo_tracks_view.size(); i += blockDim.x) {
         // compute the chi2
@@ -163,15 +188,17 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
           if (track_weight > minWeight) {
             const float3 HWr {res.x * trk.W_00, res.y * trk.W_11, -tx.x * res.x * trk.W_00 - tx.y * res.y * trk.W_11};
 
-            halfDChi2DX = halfDChi2DX + HWr * track_weight;
-            halfD2Chi2DX2_00 += track_weight * trk.HWH_00;
-            halfD2Chi2DX2_11 += track_weight * trk.HWH_11;
-            halfD2Chi2DX2_20 += track_weight * trk.HWH_20;
-            halfD2Chi2DX2_21 += track_weight * trk.HWH_21;
-            halfD2Chi2DX2_22 += track_weight * trk.HWH_22;
+            halfDChi2DX_x_fixed += to_fixed_point(HWr.x * track_weight);
+            halfDChi2DX_y_fixed += to_fixed_point(HWr.y * track_weight);
+            halfDChi2DX_z_fixed += to_fixed_point(HWr.z * track_weight);
+            halfD2Chi2DX2_00_fixed += to_fixed_point(track_weight * trk.HWH_00);
+            halfD2Chi2DX2_11_fixed += to_fixed_point(track_weight * trk.HWH_11);
+            halfD2Chi2DX2_20_fixed += to_fixed_point(track_weight * trk.HWH_20);
+            halfD2Chi2DX2_21_fixed += to_fixed_point(track_weight * trk.HWH_21);
+            halfD2Chi2DX2_22_fixed += to_fixed_point(track_weight * trk.HWH_22);
 
-            local_chi2tot += track_weight * chi2;
-            local_sum_weights += track_weight;
+            local_chi2tot_fixed += to_fixed_point(track_weight * chi2);
+            local_sum_weights_fixed += to_fixed_point(track_weight);
           }
         }
       }
@@ -180,32 +207,40 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
       // Use CUDA warp-level primitives for adding up some numbers onto a single
       // thread without using any shared memory.
       // See https://developer.nvidia.com/blog/using-cuda-warp-level-primitives/
+      // Integer addition is associative, unlike the float addition it replaces, so this reduction no
+      // longer depends on which physical track's contribution landed on which lane.
       for (int i = warp_size / 2; i > 0; i = i / 2) {
-        halfD2Chi2DX2_00 += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_00, i);
-        halfD2Chi2DX2_11 += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_11, i);
-        halfD2Chi2DX2_20 += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_20, i);
-        halfD2Chi2DX2_21 += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_21, i);
-        halfD2Chi2DX2_22 += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_22, i);
-        halfDChi2DX.x += __shfl_down_sync(0xFFFFFFFF, halfDChi2DX.x, i);
-        halfDChi2DX.y += __shfl_down_sync(0xFFFFFFFF, halfDChi2DX.y, i);
-        halfDChi2DX.z += __shfl_down_sync(0xFFFFFFFF, halfDChi2DX.z, i);
-        local_chi2tot += __shfl_down_sync(0xFFFFFFFF, local_chi2tot, i);
-        local_sum_weights += __shfl_down_sync(0xFFFFFFFF, local_sum_weights, i);
+        halfD2Chi2DX2_00_fixed += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_00_fixed, i);
+        halfD2Chi2DX2_11_fixed += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_11_fixed, i);
+        halfD2Chi2DX2_20_fixed += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_20_fixed, i);
+        halfD2Chi2DX2_21_fixed += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_21_fixed, i);
+        halfD2Chi2DX2_22_fixed += __shfl_down_sync(0xFFFFFFFF, halfD2Chi2DX2_22_fixed, i);
+        halfDChi2DX_x_fixed += __shfl_down_sync(0xFFFFFFFF, halfDChi2DX_x_fixed, i);
+        halfDChi2DX_y_fixed += __shfl_down_sync(0xFFFFFFFF, halfDChi2DX_y_fixed, i);
+        halfDChi2DX_z_fixed += __shfl_down_sync(0xFFFFFFFF, halfDChi2DX_z_fixed, i);
+        local_chi2tot_fixed += __shfl_down_sync(0xFFFFFFFF, local_chi2tot_fixed, i);
+        local_sum_weights_fixed += __shfl_down_sync(0xFFFFFFFF, local_sum_weights_fixed, i);
         nselectedtracks += __shfl_down_sync(0xFFFFFFFF, nselectedtracks, i);
       }
 #endif
 
       if (threadIdx.x == 0) {
+        const float local_chi2tot = from_fixed_point(local_chi2tot_fixed);
+        const float local_sum_weights = from_fixed_point(local_sum_weights_fixed);
+        const float3 halfDChi2DX {from_fixed_point(halfDChi2DX_x_fixed),
+                                  from_fixed_point(halfDChi2DX_y_fixed),
+                                  from_fixed_point(halfDChi2DX_z_fixed)};
+
         chi2tot += local_chi2tot;
         sum_weights += local_sum_weights;
         if (nselectedtracks >= minTracks) {
           // compute the new vertex covariance using analytical inversion
           // dividing matrix elements not important for resoltuon of high mult pvs
-          const auto a00 = halfD2Chi2DX2_00;
-          const auto a11 = halfD2Chi2DX2_11;
-          const auto a20 = halfD2Chi2DX2_20;
-          const auto a21 = halfD2Chi2DX2_21;
-          const auto a22 = halfD2Chi2DX2_22;
+          const auto a00 = from_fixed_point(halfD2Chi2DX2_00_fixed);
+          const auto a11 = from_fixed_point(halfD2Chi2DX2_11_fixed);
+          const auto a20 = from_fixed_point(halfD2Chi2DX2_20_fixed);
+          const auto a21 = from_fixed_point(halfD2Chi2DX2_21_fixed);
+          const auto a22 = from_fixed_point(halfD2Chi2DX2_22_fixed);
 
           const auto det = a00 * (a22 * a11 - a21 * a21) + a20 * (-a11 * a20);
           const auto inv_det = 1.f / det;
@@ -256,8 +291,16 @@ __global__ void pv_beamline_multi_fitter::pv_beamline_multi_fitter(
       vertex.setCovMatrix(vtxcov);
       vertex.nTracks = sum_weights;
 
-      const auto beamlinedx = vertex.position.x - dev_beamline.pos.x;
-      const auto beamlinedy = vertex.position.y - dev_beamline.pos.y;
+      float2 tx_beam;
+      if (vertex.position.z > SMOG2_pp_separation) {
+        tx_beam = dev_beamline.tx;
+      }
+      else {
+        tx_beam = dev_beamline.tx_SMOG;
+      }
+
+      const auto beamlinedx = vertex.position.x - dev_beamline.pos.x - tx_beam.x * vertex.position.z;
+      const auto beamlinedy = vertex.position.y - dev_beamline.pos.y - tx_beam.y * vertex.position.z;
       const auto beamlinerho2 = beamlinedx * beamlinedx + beamlinedy * beamlinedy;
       const auto minTracks =
         vertex.position.z <= SMOG2_pp_separation ? SMOG2_minNumTracksPerVertex : pp_minNumTracksPerVertex;

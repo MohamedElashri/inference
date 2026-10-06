@@ -10,7 +10,7 @@
 ###############################################################################
 file(GLOB validators "src/*cpp")
 
-allen_add_host_library(Validators STATIC
+allen_add_host_library(Validators OBJECT
   ${validators}
 )
 

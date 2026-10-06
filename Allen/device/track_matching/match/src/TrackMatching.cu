@@ -67,7 +67,7 @@ namespace {
     const float tolY = TrackMatchingConsts::dyTol * TrackMatchingConsts::dyTol +
                        teta2 * TrackMatchingConsts::dyTolSlope * TrackMatchingConsts::dyTolSlope;
     float chi2 =
-      (tolX != 0.f and tolY != 0.f ?
+      (!LHCb::essentiallyZero(tolX) and !LHCb::essentiallyZero(tolY) ?
          multiplication_factor_dX * distX * distX / tolX + multiplication_factor_dY * distY * distY / tolY :
          9999.f);
     // float chi2 = ( tolX != 0 and tolY != 0 ? distX * distX / tolX : 9999. );
@@ -107,7 +107,7 @@ void track_matching::track_matching_t::operator()(
     // Velo SciFi matching
     global_function(track_matching_veloSciFi<void>)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
       arguments,
-      constants.dev_magnet_polarity.data(),
+      constants.magnet_polarity,
       nullptr,
       m_momentum_parameters,
       m_z_magnet_parameters,
@@ -124,7 +124,7 @@ void track_matching::track_matching_t::operator()(
       global_function(track_matching_veloSciFi<MatchingGhostKiller::DeviceType>)(
         dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
         arguments,
-        constants.dev_magnet_polarity.data(),
+        constants.magnet_polarity,
         matching_ghost_killer.getDevicePointer(),
         m_momentum_parameters,
         m_z_magnet_parameters,
@@ -139,7 +139,7 @@ void track_matching::track_matching_t::operator()(
       global_function(track_matching_veloSciFi<MatchingNoUTV2GhostKiller::DeviceType>)(
         dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
         arguments,
-        constants.dev_magnet_polarity.data(),
+        constants.magnet_polarity,
         matching_no_ut_v2_ghost_killer.getDevicePointer(),
         m_momentum_parameters,
         m_z_magnet_parameters,
@@ -159,7 +159,7 @@ void track_matching::track_matching_t::operator()(
     // Add UT hits
     global_function(track_matching_add_ut_hits)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
       arguments,
-      constants.dev_magnet_polarity.data(),
+      constants.magnet_polarity,
       m_ut_x_loose_tolerance_parameters,
       m_ut_x_tight_tolerance_parameters,
       m_ut_y_tolerance_parameters,
@@ -217,7 +217,7 @@ void track_matching::track_matching_t::operator()(
 template<typename GhostKiller_t>
 __global__ void track_matching::track_matching_veloSciFi(
   track_matching::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const GhostKiller_t* dev_matching_ghost_killer,
   const std::array<float, 16> momentum_parameters,
   const std::array<float, 5> z_magnet_parameters,
@@ -284,25 +284,27 @@ __global__ void track_matching::track_matching_veloSciFi(
         float ghost_killer_score = 0.f;
         if constexpr (!std::is_same_v<GhostKiller_t, void>) {
           if constexpr (std::is_same_v<GhostKiller_t, MatchingGhostKiller::DeviceType>) {
-            float ghost_killer_inputs[MatchingGhostKiller::DeviceType::nInput] = {matchingInfo.zForX,
-                                                                                  matchingInfo.distX,
-                                                                                  matchingInfo.distY,
-                                                                                  matchingInfo.dSlopeX,
-                                                                                  matchingInfo.dSlopeY,
-                                                                                  logf(matchingInfo.chi2),
-                                                                                  velo_eta};
+            float ghost_killer_inputs[MatchingGhostKiller::DeviceType::nInput] = {
+              matchingInfo.zForX,
+              matchingInfo.distX,
+              matchingInfo.distY,
+              matchingInfo.dSlopeX,
+              matchingInfo.dSlopeY,
+              logf(matchingInfo.chi2),
+              velo_eta};
             ghost_killer_score = dev_matching_ghost_killer->evaluate(ghost_killer_inputs);
           }
           else {
             const auto number_of_scifi_hits = float(scifi_seeds.track(i).number_of_scifi_hits());
-            float ghost_killer_inputs[MatchingNoUTV2GhostKiller::DeviceType::nInput] = {matchingInfo.zForX,
-                                                                                        matchingInfo.distX,
-                                                                                        matchingInfo.distY,
-                                                                                        matchingInfo.dSlopeX,
-                                                                                        matchingInfo.dSlopeY,
-                                                                                        matchingInfo.chi2,
-                                                                                        velo_eta,
-                                                                                        number_of_scifi_hits};
+            float ghost_killer_inputs[MatchingNoUTV2GhostKiller::DeviceType::nInput] = {
+              matchingInfo.zForX,
+              matchingInfo.distX,
+              matchingInfo.distY,
+              matchingInfo.dSlopeX,
+              matchingInfo.dSlopeY,
+              matchingInfo.chi2,
+              velo_eta,
+              number_of_scifi_hits};
             ghost_killer_score = dev_matching_ghost_killer->evaluate(ghost_killer_inputs);
           }
 
@@ -315,7 +317,7 @@ __global__ void track_matching::track_matching_veloSciFi(
 
         auto& matched_track = matched_tracks_event[idx];
 
-        const auto magSign = -dev_magnet_polarity[0];
+        const auto magSign = -magnet_polarity;
 
         const auto qop = LongTrack::computeQoverP(
           endvelo_state.tx(), endvelo_state.ty(), scifi_state.tx(), magSign, momentum_parameters);
@@ -354,7 +356,7 @@ __global__ void track_matching::track_matching_veloSciFi(
 
 __global__ void track_matching::track_matching_add_ut_hits(
   track_matching::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   const std::array<float, 4 * 3> ut_x_loose_tolerance_parameters,
   const std::array<float, 4 * 3> ut_x_tight_tolerance_parameters,
   const float ut_y_tolerance_parameters,
@@ -445,7 +447,7 @@ __global__ void track_matching::track_matching_add_ut_hits(
                                         endvelo_state.y(),
                                         endvelo_state.tx(),
                                         endvelo_state.ty(),
-                                        matched_track.qop * dev_magnet_polarity[0]) :
+                                        matched_track.qop * magnet_polarity) :
                                       track_matching::tools::VeloToUTExtrapolator(
                                         endvelo_state.x(),
                                         endvelo_state.y(),

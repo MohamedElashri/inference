@@ -8,35 +8,28 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import os
 import json
-from itertools import chain
-from Configurables import ApplicationMgr, AllenUpdater
-from collections import OrderedDict
-from PyConf import configurable
-from PyConf.control_flow import CompositeNode, NodeLogic
-from PyConf.application import ApplicationOptions, configure_input, configure
-from PyConf.Algorithms import (
-    DumpBeamline, DumpCaloGeometry, DumpMagneticField,
-    DumpMagneticFieldPolarity, DumpVPGeometry, DumpCrossingAngles,
-    DumpFTGeometry, DumpUTGeometry, DumpUTLookupTables, DumpMuonGeometry,
-    DumpMuonTable, AllenODINProducer, DumpRichPDMDBMapping,
-    DumpRichCableMapping, DumpRichGeometry)
-from DDDB.CheckDD4Hep import UseDD4Hep
-from PyConf.reading import get_generator_BeamParameters
-from GaudiConf.LbExec import Options as DefaultOptions
+import os
 from importlib import import_module
 
-
-@configurable
-def allen_non_event_data_config(dump_geometry=False,
-                                out_dir="geometry",
-                                beamline_offset=(0., 0.)):
-    return dump_geometry, out_dir, beamline_offset
+from Configurables import AllenUpdater, ApplicationMgr
+from DDDB.CheckDD4Hep import UseDD4Hep
+from GaudiConf.LbExec import Options as DefaultOptions
+from PyConf import configurable
+from PyConf.Algorithms import AllenODINProducer, ProvideConstants
+from PyConf.application import ApplicationOptions, configure, configure_input
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 
 def allen_odin(stream=""):
     return AllenODINProducer().ODIN
+
+
+@configurable
+def allen_non_event_data_config(
+    dump_geometry=False, out_dir="geometry", beamline_offset=(0.0, 0.0)
+):
+    return dump_geometry, out_dir, beamline_offset
 
 
 @configurable
@@ -52,16 +45,16 @@ def allen_json_sequence(sequence="hlt1_pp_default", json=None):
 
     if json is None:
         config_path = "${ALLEN_INSTALL_DIR}/constants"
-        json_dir = os.path.join(
-            os.path.expandvars('${ALLEN_INSTALL_DIR}'), 'constants')
+        json_dir = os.path.join(os.path.expandvars("${ALLEN_INSTALL_DIR}"), "constants")
         available_sequences = [
-            os.path.splitext(json_file)[0]
-            for json_file in os.listdir(json_dir)
+            os.path.splitext(json_file)[0] for json_file in os.listdir(json_dir)
         ]
         if sequence not in available_sequences:
-            raise AttributeError("Sequence {} was not built in to Allen;"
-                                 "available sequences: {}".format(
-                                     sequence, ' '.join(available_sequences)))
+            raise AttributeError(
+                "Sequence {} was not built in to Allen;available sequences: {}".format(
+                    sequence, " ".join(available_sequences)
+                )
+            )
         json = os.path.join(config_path, "{}.json".format(sequence))
     elif not os.path.exists(json):
         raise OSError("JSON file does not exist")
@@ -75,151 +68,48 @@ def configured_bank_types(sequence_json):
     bank_types = set()
     for t, n, c in sequence_json["sequence"]["configured_algorithms"]:
         props = sequence_json.get(n, {})
-        if c == "ProviderAlgorithm" and not bool(props.get('empty', False)):
-            bank_types.add(props['bank_type'])
+        if c == "ProviderAlgorithm" and not bool(props.get("empty", False)):
+            bank_types.add(props["bank_type"])
     return bank_types
 
 
-def setup_allen_non_event_data_service(allen_event_loop=False,
-                                       bank_types=None):
+def setup_allen_non_event_data_service(allen_event_loop=False, bank_types=None):
     """Setup Allen non-event data
 
     An ExtSvc is added to the ApplicationMgr to provide the Allen non-event
     data (geometries etc.)
     """
     dump_geometry, out_dir, beamline_offset = allen_non_event_data_config()
-    options = ApplicationOptions(_enabled=False)
+    options = ApplicationOptions(_enabled=False)  # noqa: F841
     try:
         app = import_module(os.environ.get("GAUDIAPPNAME"))
     except ModuleNotFoundError:
         GaudiOptions = DefaultOptions
     else:
-        GaudiOptions = getattr(app, "Options", DefaultOptions)
-    if (getattr(options, "input_type", None) == "ROOT") or (getattr(
-            GaudiOptions, "input_type", None) == "ROOT"):
-        converter_types = {
-            'VP': [(DumpBeamline, 'DeviceBeamline', {
-                "Offset": beamline_offset
-            }, 'beamline'),
-                   (DumpVPGeometry, 'DeviceVPGeometry', {}, 'velo_geometry')],
-            'Gen': [(DumpCrossingAngles, 'DeviceCrossingAngles', {
-                "GenBeamlineLocation": get_generator_BeamParameters()
-            }, 'crossing_angles')],
-            'UT': [(DumpUTGeometry, 'DeviceUTGeometry', {}, 'ut_geometry'),
-                   (DumpUTLookupTables, 'DeviceUTLookupTables', {},
-                    'ut_tables')],
-            'ECal': [(DumpCaloGeometry, 'DeviceCaloGeometry', {},
-                      'ecal_geometry')],
-            'Magnet':
-            [(DumpMagneticField, 'DeviceMagneticField', {}, 'magfield'),
-             (DumpMagneticFieldPolarity, 'DeviceMagneticFieldPolarity', {},
-              'polarity')],
-            'FTCluster': [(DumpFTGeometry, 'DeviceFTGeometry', {},
-                           'scifi_geometry')],
-            'Muon': [(DumpMuonGeometry, 'DeviceMuonGeometry', {},
-                      'muon_geometry'),
-                     (DumpMuonTable, 'DeviceMuonTable', {}, 'muon_tables')],
-            'Rich': [(DumpRichPDMDBMapping, 'DeviceRichPDMDBMapping', {},
-                      'rich_pdmdbmaps'),
-                     (DumpRichCableMapping, 'DeviceRichCableMapping', {},
-                      'rich_tel40maps'),
-                     (DumpRichGeometry, 'DeviceRichGeometry', {},
-                      'rich_geometry')]
-        }
-    else:
-        converter_types = {
-            'VP': [(DumpBeamline, 'DeviceBeamline', {
-                "Offset": beamline_offset
-            }, 'beamline'),
-                   (DumpVPGeometry, 'DeviceVPGeometry', {}, 'velo_geometry')],
-            'UT': [(DumpUTGeometry, 'DeviceUTGeometry', {}, 'ut_geometry'),
-                   (DumpUTLookupTables, 'DeviceUTLookupTables', {},
-                    'ut_tables')],
-            'ECal': [(DumpCaloGeometry, 'DeviceCaloGeometry', {},
-                      'ecal_geometry')],
-            'Magnet':
-            [(DumpMagneticField, 'DeviceMagneticField', {}, 'magfield'),
-             (DumpMagneticFieldPolarity, 'DeviceMagneticFieldPolarity', {},
-              'polarity')],
-            'FTCluster': [(DumpFTGeometry, 'DeviceFTGeometry', {},
-                           'scifi_geometry')],
-            'Muon': [(DumpMuonGeometry, 'DeviceMuonGeometry', {},
-                      'muon_geometry'),
-                     (DumpMuonTable, 'DeviceMuonTable', {}, 'muon_tables')],
-            'Rich': [(DumpRichPDMDBMapping, 'DeviceRichPDMDBMapping', {},
-                      'rich_pdmdbmaps'),
-                     (DumpRichCableMapping, 'DeviceRichCableMapping', {},
-                      'rich_tel40maps'),
-                     (DumpRichGeometry, 'DeviceRichGeometry', {},
-                      'rich_geometry')]
-        }
+        GaudiOptions = getattr(app, "Options", DefaultOptions)  # noqa: F841
 
-    detector_names = {
-        'ECal': 'Ecal',
-        'FTCluster': 'FT',
-        'PVs': None,
-        'tracks': None,
-        'Plume': None,
-    }
-
-    set_detector_list = bank_types is not None
-    if type(bank_types) == list:
-        bank_types = set(bank_types)
-    elif bank_types is None:
-        bank_types = set(converter_types.keys())
-        bank_types.remove('Rich')
-        bank_types.add('Rich1')
-        bank_types.add('Rich2')
-
-    if 'VPRetinaCluster' in bank_types:
-        bank_types.remove('VPRetinaCluster')
-        bank_types.add('VP')
-
-    # Always include the magnetic field polarity
-    bank_types.add('Magnet')
     appMgr = ApplicationMgr()
     if not UseDD4Hep:
         # MagneticFieldSvc is required for non-DD4hep builds
         appMgr.ExtSvc.append("MagneticFieldSvc")
-    elif set_detector_list:
-        # Configure those detectors that we need
-        from Configurables import LHCb__Det__LbDD4hep__DD4hepSvc as DD4hepSvc
-        DD4hepSvc().DetectorList = ["/world"] + list(
-            filter(lambda d: d is not None,
-                   [detector_names.get(det, det) for det in bank_types]))
 
-    data_bank_types = bank_types.copy()
-    data_bank_types.remove('Magnet')
-    appMgr.ExtSvc.extend(AllenUpdater(TriggerEventLoop=allen_event_loop))
-
-    if getattr(options, "input_type", None) == "ROOT":
-        appMgr.ExtSvc.extend(AllenUpdater(ProdiveGenCrossingAngles=True))
-        bank_types.add('Gen')
-
-    algorithm_converters = []
-
-    if allen_event_loop:
-        algorithm_converters.append(AllenODINProducer())
-
-    bank_types = set(
-        [t if not t.startswith('Rich') else 'Rich' for t in bank_types])
-    converters = [(bt, t, tn, props, f)
-                  for bt, convs in converter_types.items()
-                  for t, tn, props, f in convs if bt in bank_types]
-
-    for bt, converter_type, converter_name, properties, filename in converters:
-        converter = converter_type(
-            name=converter_name,
+    appMgr.ExtSvc.append(
+        AllenUpdater(
+            TriggerEventLoop=allen_event_loop,
+            BeamlineOffset=beamline_offset,
             DumpToFile=dump_geometry,
             OutputDirectory=out_dir,
-            **properties)
-        algorithm_converters.append(converter)
+        )
+    )
 
+    # Detdesc need the ProvideConstants algorithm to be initialized first,
+    # algorithms are initialized in alphabetical order:
     converters_node = CompositeNode(
         "allen_non_event_data",
-        algorithm_converters,
+        [ProvideConstants(name="AAAAProvideConstants")],
         combine_logic=NodeLogic.NONLAZY_OR,
-        force_order=True)
+        force_order=True,
+    )
 
     return converters_node
 
@@ -239,16 +129,18 @@ def run_allen_reconstruction(options, make_reconstruction, public_tools=[]):
 
     config = configure_input(options)
     reconstruction = make_reconstruction()
-    reco_node = reconstruction if not hasattr(reconstruction,
-                                              "node") else reconstruction.node
+    reco_node = (
+        reconstruction if not hasattr(reconstruction, "node") else reconstruction.node
+    )
 
     non_event_data_node = setup_allen_non_event_data_service()
 
     allen_node = CompositeNode(
-        'allen_reconstruction',
+        "allen_reconstruction",
         combine_logic=NodeLogic.NONLAZY_OR,
         children=[non_event_data_node, reco_node],
-        force_order=True)
+        force_order=True,
+    )
 
     config.update(configure(options, allen_node, public_tools=public_tools))
     return config

@@ -36,21 +36,17 @@ namespace Checker {
   };
 
   namespace Subdetector {
-    struct Velo {
-    };
-    struct UT {
-    };
-    struct SciFi {
-    };
-    struct SciFiSeeding {
-    };
-    struct Muon {
-    };
-    struct Downstream {
-    };
+    struct Velo {};
+    struct UT {};
+    struct SciFi {};
+    struct SciFiSeeding {};
+    struct Muon {};
+    struct Downstream {};
+    struct Rich {};
 
     template<typename T>
-    using muon_as_scifi_t = std::conditional_t<std::is_same_v<T, Muon>, SciFi, T>;
+    using muon_as_scifi_t =
+      std::conditional_t<std::is_same_v<T, Muon>, SciFi, std::conditional_t<std::is_same_v<T, Rich>, SciFi, T>>;
   } // namespace Subdetector
 
   struct TruthCounter {

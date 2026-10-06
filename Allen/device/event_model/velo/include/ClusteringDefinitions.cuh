@@ -49,7 +49,7 @@ namespace Allen {
 
 } // namespace Allen
 
-namespace VP {
+namespace Allen::VP {
   static constexpr unsigned NModules = Velo::Constants::n_modules;
   static constexpr unsigned NSensorsPerModule = 4;
   static constexpr unsigned NSensors = NModules * NSensorsPerModule;
@@ -68,7 +68,7 @@ namespace VP {
     // 2 halfs are linked or one of the half is empty
     return 1 + !(((sp & 0x22) != 0 && (sp & 0x44) != 0) || (sp & 0x33) == 0 || (sp & 0xCC) == 0);
   }
-} // namespace VP
+} // namespace Allen::VP
 
 namespace Velo {
   template<int decoding_version>
@@ -162,52 +162,23 @@ namespace Velo {
 } // namespace Velo
 
 /**
- * @brief Velo geometry description typecast.
+ * @brief Velo geometry description
  */
 struct VeloGeometry {
-  size_t n_trans;
-  float module_zs[Velo::Constants::n_modules];
-  float local_x[Velo::Constants::number_of_sensor_columns];
-  float x_pitch[Velo::Constants::number_of_sensor_columns];
+  size_t n_module_zs {Velo::Constants::n_modules};
+  std::array<float, Velo::Constants::n_modules> module_zs {};
+
+  size_t n_local_x {Velo::Constants::number_of_sensor_columns};
+  std::array<float, Velo::Constants::number_of_sensor_columns> local_x {};
+
+  size_t n_x_pitch {Velo::Constants::number_of_sensor_columns};
+  std::array<float, Velo::Constants::number_of_sensor_columns> x_pitch {};
+
+  size_t n_ltg {Velo::Constants::n_sensors};
+  size_t n_trans {12};
   float ltg[12 * Velo::Constants::n_sensors];
 
-  /**
-   * @brief Typecast from std::vector.
-   */
-  VeloGeometry(std::vector<char> const& geometry)
-  {
-    char const* p = geometry.data();
-
-    auto copy_array = [&p](const size_t N, float* d) {
-      const size_t n = ((size_t*) p)[0];
-      if (n != N) {
-        error_cout << n << " != " << N << std::endl;
-      }
-      p += sizeof(size_t);
-      std::memcpy(d, p, sizeof(float) * n);
-      p += sizeof(float) * n;
-    };
-
-    copy_array(Velo::Constants::n_modules, module_zs);
-    copy_array(Velo::Constants::number_of_sensor_columns, local_x);
-    copy_array(Velo::Constants::number_of_sensor_columns, x_pitch);
-
-    size_t n_ltg = ((size_t*) p)[0];
-    assert(n_ltg == Velo::Constants::n_sensors);
-    p += sizeof(size_t);
-    n_trans = ((size_t*) p)[0];
-    assert(n_trans == 12);
-    p += sizeof(size_t);
-    for (size_t i = 0; i < n_ltg; ++i) {
-      std::memcpy(ltg + n_trans * i, p, n_trans * sizeof(float));
-      p += sizeof(float) * n_trans;
-    }
-    const size_t size = p - geometry.data();
-
-    if (size != geometry.size()) {
-      error_cout << "Size mismatch for geometry" << std::endl;
-    }
-  }
+  uint32_t missing_module_pairs_hlt1 {0};
 };
 
 __device__ __host__ inline uint32_t get_channel_id(

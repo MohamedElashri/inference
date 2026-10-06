@@ -1,0 +1,9 @@
+{
+  "binary": "/tmp/pvfinder-v9r1-port/Allen/buildgpu12/Allen",
+  "returncode": 0,
+  "functions": 512,
+  "tensor_instruction_functions": {
+    "pvfinder_fc_aggregation::pvfinder_fused_fc_tc_kernel(pvfinder_fc_aggregation::Parameters, float const*, unsigned int, unsigned int*, int const*, int, pvfinder_fc_aggregation::FCWorkItem const*, unsigned int, bool, float*, unsigned int*)": 248,
+    "pvfinder_unet::fused::fused_unet_bf16_kernel(__nv_bfloat16 const*, unsigned char const*, float*, float, int, int const*, int const*, float const*, int)": 398
+  }
+}

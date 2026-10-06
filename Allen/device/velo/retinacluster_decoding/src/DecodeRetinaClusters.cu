@@ -13,8 +13,42 @@
 #include <VeloTools.cuh>
 #include <BinarySearch.cuh>
 #include <SegSort.h>
+#include <RetinaClusterSizeDecoder.cuh>
+
+namespace decode_retinaclusters {
+  // Create LUT in global memory (2KB in total)
+  __device__ const auto velo_cluster_size_iso = decode_retinaclusters::h_velo_cluster_size_iso;
+  __device__ const auto velo_cluster_size_noniso = decode_retinaclusters::h_velo_cluster_size_noniso;
+  __device__ const auto velo_cluster_size_noniso_rev = decode_retinaclusters::h_velo_cluster_size_noniso_rev;
+} // namespace decode_retinaclusters
 
 INSTANTIATE_ALGORITHM(decode_retinaclusters::decode_retinaclusters_t)
+
+namespace {
+  __device__ inline uint8_t compute_cluster_size(uint32_t raw_bank_word, unsigned raw_bank_sensor_index)
+  {
+    const uint32_t fx = (raw_bank_word >> 10) & 0x3;
+    const uint32_t fy = (raw_bank_word) &0x3;
+    const uint32_t isoBit = (raw_bank_word >> 30) & 0x1;
+
+    if (isoBit) {
+      // Isolated cluster: 6-bit topoID2x4 in bits [28:23]
+      const uint32_t topoID = (raw_bank_word >> 23) & 0x3F;
+      return decode_retinaclusters::velo_cluster_size_iso[(topoID << 4) | (fx << 2) | fy];
+    }
+    else {
+      // Non-isolated cluster: 5-bit topoID3x3 in bits [27:23]
+      const uint32_t topoID = (raw_bank_word >> 23) & 0x1F;
+      const uint32_t key = (topoID << 4) | (fx << 2) | fy;
+      const unsigned smod = raw_bank_sensor_index % 4;
+      if (smod == 0 || smod == 3)
+        return decode_retinaclusters::velo_cluster_size_noniso[key];
+      else
+        return decode_retinaclusters::velo_cluster_size_noniso_rev[key];
+    }
+  }
+
+} // namespace
 
 template<int decoding_version>
 __global__ void populate_module_pair_offsets_and_sizes(
@@ -102,8 +136,8 @@ __device__ void populate_sorting_key(
   }
 
   // Decode ID
-  const uint32_t chip = cx >> VP::ChipColumns_division;
-  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & VP::ChipColumns_mask, cy, or_fx, or_fy);
+  const uint32_t chip = cx >> Allen::VP::ChipColumns_division;
+  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & Allen::VP::ChipColumns_mask, cy, or_fx, or_fy);
   const uint32_t id = get_lhcb_id(cid);
 
   // Calculate phi
@@ -154,12 +188,12 @@ __global__ void velo_calculate_sorting_key(
   const VeloGeometry& g = *dev_velo_geometry;
 
   // Read raw event
-  const auto velo_raw_event =
-    Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_retina_raw_input,
-                                                  parameters.dev_velo_retina_raw_input_offsets,
-                                                  parameters.dev_velo_retina_raw_input_sizes,
-                                                  parameters.dev_velo_retina_raw_input_types,
-                                                  event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_retina_raw_input,
+    parameters.dev_velo_retina_raw_input_offsets,
+    parameters.dev_velo_retina_raw_input_sizes,
+    parameters.dev_velo_retina_raw_input_types,
+    event_number + event_start};
 
   // Populate retina clusters
   const auto event_clusters_offset = sensor_pair_offsets[0];
@@ -189,7 +223,7 @@ __global__ void velo_calculate_sorting_key(
         Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module / 2,
         cluster_number + event_clusters_offset);
     }
-    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair];
+    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair + offset];
 
     unsigned index_within_raw_bank = cluster_number - (sensor_pair_offsets[sensor_pair] - event_clusters_offset);
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
@@ -256,7 +290,16 @@ __device__ void populate_retinacluster(
     or_fy = (cy_frac_half | cy_frac_quarter);
   }
 
-  const uint32_t chip = cx >> VP::ChipColumns_division;
+  uint16_t cluster_size;
+  if constexpr (decoding_version == 4) {
+    cluster_size = compute_cluster_size(raw_bank_word, raw_bank_sensor_index);
+  }
+  else {
+    // TODO: add cluster size decoding for old rawbanks
+    cluster_size = 0;
+  }
+
+  const uint32_t chip = cx >> Allen::VP::ChipColumns_division;
   const float local_x = g.local_x[cx] + fx * g.x_pitch[cx];
   const float local_y = (0.5f + fy) * Velo::Constants::pixel_size;
 
@@ -264,13 +307,14 @@ __device__ void populate_retinacluster(
   const float gy = (ltg[3] * local_x + ltg[4] * local_y + ltg[10]);
   const float gz = (ltg[6] * local_x + ltg[7] * local_y + ltg[11]);
 
-  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & VP::ChipColumns_mask, cy, or_fx, or_fy);
+  const unsigned cid = get_channel_id(raw_bank_sensor_index, chip, cx & Allen::VP::ChipColumns_mask, cy, or_fx, or_fy);
 
   velo_cluster_container.set_id(cluster_index, get_lhcb_id(cid));
   velo_cluster_container.set_x(cluster_index, gx);
   velo_cluster_container.set_y(cluster_index, gy);
   velo_cluster_container.set_z(cluster_index, gz);
   velo_cluster_container.set_phi(cluster_index, hit_phi_16(gx, gy));
+  velo_cluster_container.set_cluster_size(cluster_index, cluster_size);
 }
 
 template<int decoding_version, bool mep_layout>
@@ -316,12 +360,12 @@ __global__ void decode_retinaclusters_sorted(
   const VeloGeometry& g = *dev_velo_geometry;
 
   // Read raw event
-  const auto velo_raw_event =
-    Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_retina_raw_input,
-                                                  parameters.dev_velo_retina_raw_input_offsets,
-                                                  parameters.dev_velo_retina_raw_input_sizes,
-                                                  parameters.dev_velo_retina_raw_input_types,
-                                                  event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_retina_raw_input,
+    parameters.dev_velo_retina_raw_input_offsets,
+    parameters.dev_velo_retina_raw_input_sizes,
+    parameters.dev_velo_retina_raw_input_types,
+    event_number + event_start};
 
   // Populate retina clusters
   const auto event_clusters_offset = sensor_pair_offsets[0];
@@ -349,7 +393,7 @@ __global__ void decode_retinaclusters_sorted(
       sensor_pair = binary_search_rightmost(
         sensor_pair_offsets, Velo::Constants::n_modules * Velo::Constants::n_sensors_per_module / 2, cluster_number);
     }
-    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair];
+    unsigned raw_bank_number = parameters.dev_retina_bank_index[sensor_pair + offset];
 
     unsigned index_within_raw_bank = cluster_number - sensor_pair_offsets[sensor_pair];
     const auto raw_bank = velo_raw_event.raw_bank(raw_bank_number);
@@ -415,22 +459,20 @@ void decode_retinaclusters::decode_retinaclusters_t::operator()(
                            Velo::Tracking::block_dim_x_populate_module_pair_offsets_and_sizes - 1) /
                           Velo::Tracking::block_dim_x_populate_module_pair_offsets_and_sizes;
 
-  auto kernel_fn0 = (bank_version == 2) ?
-                      (global_function(populate_module_pair_offsets_and_sizes<2>)) :
-                      (bank_version == 3) ? (global_function(populate_module_pair_offsets_and_sizes<3>)) :
-                                            (global_function(populate_module_pair_offsets_and_sizes<4>));
+  auto kernel_fn0 = (bank_version == 2) ? (global_function(populate_module_pair_offsets_and_sizes<2>)) :
+                    (bank_version == 3) ? (global_function(populate_module_pair_offsets_and_sizes<3>)) :
+                                          (global_function(populate_module_pair_offsets_and_sizes<4>));
 
   kernel_fn0(grid_dim_x, Velo::Tracking::block_dim_x_populate_module_pair_offsets_and_sizes, context)(
     arguments, size<dev_module_cluster_num_t>(arguments));
 
-  auto kernel_fn1 = (bank_version == 2) ?
-                      (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<2, true>) :
-                                                    global_function(velo_calculate_sorting_key<2, false>)) :
-                      (bank_version == 3) ?
-                      (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<3, true>) :
-                                                    global_function(velo_calculate_sorting_key<3, false>)) :
-                      (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<4, true>) :
-                                                    global_function(velo_calculate_sorting_key<4, false>));
+  auto kernel_fn1 =
+    (bank_version == 2) ? (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<2, true>) :
+                                                        global_function(velo_calculate_sorting_key<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<3, true>) :
+                                                        global_function(velo_calculate_sorting_key<3, false>)) :
+                          (runtime_options.mep_layout ? global_function(velo_calculate_sorting_key<4, true>) :
+                                                        global_function(velo_calculate_sorting_key<4, false>));
 
   kernel_fn1(dim3(size<dev_event_list_t>(arguments)), dim3(m_block_dim_x_calculate_key), context)(
     arguments,
@@ -447,14 +489,13 @@ void decode_retinaclusters::decode_retinaclusters_t::operator()(
     size<dev_offsets_module_pair_cluster_t>(arguments) - 1,
     data<dev_hit_permutations_t>(arguments));
 
-  auto kernel_fn3 = (bank_version == 2) ?
-                      (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<2, true>) :
-                                                    global_function(decode_retinaclusters_sorted<2, false>)) :
-                      (bank_version == 3) ?
-                      (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<3, true>) :
-                                                    global_function(decode_retinaclusters_sorted<3, false>)) :
-                      (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<4, true>) :
-                                                    global_function(decode_retinaclusters_sorted<4, false>));
+  auto kernel_fn3 =
+    (bank_version == 2) ? (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<2, true>) :
+                                                        global_function(decode_retinaclusters_sorted<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<3, true>) :
+                                                        global_function(decode_retinaclusters_sorted<3, false>)) :
+                          (runtime_options.mep_layout ? global_function(decode_retinaclusters_sorted<4, true>) :
+                                                        global_function(decode_retinaclusters_sorted<4, false>));
 
   kernel_fn3(dim3(size<dev_event_list_t>(arguments)), dim3(m_block_dim_x_decode_retina), context)(
     arguments, std::get<0>(runtime_options.event_interval), constants.dev_velo_geometry);

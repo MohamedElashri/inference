@@ -1,0 +1,67 @@
+{
+  "allen_kde_output.bin": {
+    "byte_identical": true,
+    "size": 8000008,
+    "sha256": "53678d1f11915c0537bb71ae9caccde26d654b08a2307bab9856d2eae4f3d3a4"
+  },
+  "allen_ncw_input.bin": {
+    "byte_identical": true,
+    "size": 32000008,
+    "sha256": "3a524a216a76c80b31e251400ac525b676d5f0d1e2cc758a82a71faf36c9d5a1"
+  },
+  "allen_fc_track_idx.bin": {
+    "byte_identical": false,
+    "size": 976632,
+    "sha256": "dd2a66f6ceae580e59cd42abf390cfb62bbb0621e19db5220408a151944f0ea9"
+  },
+  "pvs_pvfinder.bin": {
+    "byte_identical": true,
+    "size": 428712,
+    "sha256": "b587c522b32ee07315a51766e82177edb5f1740d17893d1b0d9dca5b8511db01"
+  },
+  "pvs_beamline.bin": {
+    "byte_identical": true,
+    "size": 433392,
+    "sha256": "97f0d75aa5865cba6734a69816a9803fdf46bcd29be72e8646ba71a1587ee125"
+  },
+  "allen_fc_beamline.bin": {
+    "byte_identical": true,
+    "size": 36,
+    "sha256": "ff71d1b55d5625dec00be5fdfbc958b4582d05055fd56cef02619f3c75c2c94a"
+  },
+  "allen_zpeaks.bin": {
+    "byte_identical": true,
+    "size": 66008,
+    "sha256": "8fde883aedceefc5c3c551f3a49d8334fe3669cd55e30fecfa52a55f06289209"
+  },
+  "allen_fc_track_offsets.bin": {
+    "byte_identical": true,
+    "size": 2016,
+    "sha256": "6ee35ec81a35e25bd6bdb4cb17d11e912c3705f76dc1c256c71c5b3225373653"
+  },
+  "allen_fc_track_states.bin": {
+    "byte_identical": false,
+    "size": 2929864,
+    "sha256": "110109e1abd2f3e19845511e2f08e54dab41bd329df1faf97e57d577d340d881"
+  },
+  "allen_fc_csr.bin": {
+    "byte_identical": true,
+    "size": 84016,
+    "sha256": "e3508d612e077d462acf83754971e7e22d7e343dc871f3fc5590f9aa734f3a1e"
+  },
+  "allen_fc_histogram.bin": {
+    "byte_identical": true,
+    "size": 8000016,
+    "sha256": "8b22906f3d0f00e637c50c0b66d8acbb71949f675f3dc56fbd930524b1597228"
+  },
+  "allen_fc_interval_features.bin": {
+    "byte_identical": true,
+    "size": 32000016,
+    "sha256": "f580ec087826140e85a551530493692e23a494fd197ba063adf304fdfbef29cd"
+  },
+  "allen_fc_track_features.bin": {
+    "byte_identical": false,
+    "size": 4394788,
+    "sha256": "945e5b7442644f6fd3f6c84671092e7a37ec00b2559cfca7bc2eb10743f9e266"
+  }
+}

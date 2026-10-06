@@ -1,0 +1,11 @@
+{
+  "git_head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+  "files": {
+    "source.patch": "bb27c4a7b722da8bd0705c4fe7e082cff7de35f5618629e55eae1a80ed8b301a",
+    "Allen": "e14bb2355c77f799a473a556c479b56714c2e8de3f93d965904e5dbdb4a26951",
+    "libHostCommon.so": "9afc72707bc2c452e64619b4d2bea047f3feba03377e8092bbc1761490080774",
+    "libAllenZMQ.so": "33626e3a62b615d886acb365bc63fe3c12cfe9f4c02ad387262e506458c7983e",
+    "libAllenLib.so": "4e6687f4fec785afa7c5315474fabcea191b73915d4f827af97f8be95f6685d5",
+    "libAllenCuDNN.so": "d195c8f193e3281a4028b4d1283b50e12cedd52590402252979d6ccae5439a67"
+  }
+}

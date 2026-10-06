@@ -8,17 +8,17 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1 import setup_hlt1_node
-from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1 import setup_hlt1_node
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
+from AllenCore.generator import generate
 
 with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-        threshold_settings=get_thresholds(
-            "forward_then_matching_tuned_mu5p3_1000KHz"),
-        with_ut=True)
+        threshold_settings=get_thresholds("forward_then_matching_tuned_mu5p3_1000KHz"),
+        with_ut=True,
+    )
 
 generate(hlt1_node)

@@ -14,6 +14,7 @@ under `artifacts`.
 | Producer | `kind` |
 |---|---|
 | `benchmarks/benchmark_pvfinder_batch.sh` | `benchmark` (or `profile` with `--profile`) |
+| `benchmarks/benchmark_v9r1_optimized.sh` | `benchmark`, using the accepted v9r1 BF16 full-PV shadow settings |
 | `make -C weights dump validate` | `validation` |
 | `benchmarks/pv_comparison.sh` | `physics` (PVFinder vs the beamline PV finder on MC, one point per configuration) |
 | `benchmarks/runs.py import <batch_dir>` | an older batch, marked `"imported": true` |
@@ -67,3 +68,9 @@ tree means the binary was built from the recorded commit.
 - Commit records together with the change they measure, or on their own right after the run. Do not edit a record by hand; rerun instead.
 - Numbers quoted in notes, slides or reviews should cite the record `id`.
 - The production operating point is `-n 500 -m 500 -r 1000 -t 16`, on GPU 2 (RTX 3090) of this host.
+
+`experiments/v9r1_20261006/` also tracks the compact evidence from the ordered
+optimization campaign: commands, rates, reconstructable configurations,
+validation reports and the acceptance decision. Its historical records keep
+their original isolated-checkout provenance; verification after transferring
+the accepted source to master is recorded separately.

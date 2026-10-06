@@ -1,0 +1,53 @@
+{
+  "controls": {
+    "reference": {
+      "individual_gains_pct": [
+        2.229363829951869,
+        2.1458173969178596,
+        2.3722818439589455,
+        2.29694250694199,
+        2.050042708239097
+      ],
+      "mean_gain_pct": 2.2188896572019523,
+      "sd_gain_pct": 0.1260753405731267,
+      "ci95_mean_gain_pct": [
+        2.0623464457621745,
+        2.37543286864173
+      ],
+      "repeatable_gain": true
+    },
+    "new_host_control": {
+      "individual_gains_pct": [
+        1.9344354971901234,
+        1.779294668924325,
+        2.354370351298485,
+        2.076544933297475,
+        1.6811493536184274
+      ],
+      "mean_gain_pct": 1.9651589608657671,
+      "sd_gain_pct": 0.26459557089312596,
+      "ci95_mean_gain_pct": [
+        1.636620166427006,
+        2.2936977553045286
+      ],
+      "repeatable_gain": true
+    }
+  },
+  "retain_code": true,
+  "loss_mean_pct": 4.647627416454026,
+  "loss_sd_pct": 0.5698336294700588,
+  "individual_losses_pct": [
+    5.168492453834661,
+    4.969222483676261,
+    3.6898138771718436,
+    4.699932765510884,
+    4.710675502076478
+  ],
+  "ci95_mean_loss_pct": [
+    3.9400855138256756,
+    5.355169319082377
+  ],
+  "mean_loss_below_5pct": true,
+  "ci95_mean_loss_below_5pct": false,
+  "note": "Confidence intervals describe repeat variation on this fixed sample/GPU, not generalization to other conditions."
+}

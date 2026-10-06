@@ -8,15 +8,14 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenCore.algorithms import host_dummy_odin_provider_t
-from AllenConf.utils import initialize_number_of_events
-from AllenConf.odin import decode_odin
-from AllenCore.generator import make_algorithm
 import AllenConf
+from AllenConf.odin import decode_odin
+from AllenConf.utils import initialize_number_of_events
+from AllenCore.algorithms import host_dummy_odin_provider_t
+from AllenCore.generator import make_algorithm
 
 
-def decode_dummy_odin(lumi_fraction=[0.5, 0.5, 0.5, 0.5]):
-
+def decode_dummy_odin(lumi_fraction=(0.5, 0.5, 0.5, 0.5)):
     number_of_events = initialize_number_of_events()
     odin = decode_odin()
 
@@ -25,14 +24,15 @@ def decode_dummy_odin(lumi_fraction=[0.5, 0.5, 0.5, 0.5]):
         name="dummy_odin_lumi_throughput",
         host_number_of_events_t=number_of_events["host_number_of_events"],
         host_odin_data_t=odin["host_odin_data"],
-        lumi_frac=lumi_fraction)
+        lumi_frac=lumi_fraction,
+    )
 
     return {
         "dev_odin_data": dummy_odin_banks.dev_odin_dummy_t,
         "host_odin_data": dummy_odin_banks.host_odin_dummy_t,
         "host_odin_version": odin["host_odin_version"],
         "host_event_list": odin["host_event_list"],
-        "dev_event_mask": odin["dev_event_mask"]
+        "dev_event_mask": odin["dev_event_mask"],
     }
 
 

@@ -42,10 +42,11 @@ namespace dec_reporter {
     Allen::Property<unsigned> m_tck {this, "tck", 0, "TCK"};
     Allen::Property<unsigned> m_key {this, "encoding_key", 0xDEADBEEF, "encoding key"};
     Allen::Property<unsigned> m_taskID {this, "task_id", 1, "Task ID"};
-    Allen::Property<unsigned> m_warn_mean_event_limit {this,
-                                                       "warn_mean_event_limit",
-                                                       1000,
-                                                       "Warning mean limit per event"};
+    Allen::Property<unsigned> m_warn_mean_event_limit {
+      this,
+      "warn_mean_event_limit",
+      1000,
+      "Warning mean limit per event"};
     Allen::Property<unsigned> m_warn_line_limit {this, "warn_line_limit", 1000, "Warning limit per line"};
   };
 } // namespace dec_reporter

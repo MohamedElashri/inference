@@ -18,6 +18,7 @@
 #include <vector>
 #include <sstream>
 #include <ios>
+#include <chrono>
 
 // boost
 #ifdef __CLING__
@@ -65,7 +66,7 @@
 #include <TBufferFile.h>
 
 // ZeroMQ
-#include <zmq/zmq.hpp>
+#include <zmq.hpp>
 
 #include "Utility.h"
 #include "SerializeTuple.h"
@@ -115,8 +116,7 @@ template<int PERIOD = 0>
 struct ZmqLingeringSocketPtrDeleter {
   void operator()(zmq::socket_t* socket)
   {
-    auto period = PERIOD;
-    if (socket) socket->setsockopt(ZMQ_LINGER, &period, sizeof(period));
+    if (socket) socket->set(zmq::sockopt::linger, PERIOD);
     delete socket;
   }
 };
@@ -147,7 +147,7 @@ public:
   IZeroMQSvc() = default;
   virtual Encoding encoding() const = 0;
   virtual zmq::context_t& context() const = 0;
-  virtual zmq::socket_t socket(int type) const = 0;
+  virtual zmq::socket_t socket(zmq::socket_type type) const = 0;
 #else
   Encoding encoding() const { return m_enc; };
   void setEncoding(const Encoding& e) { m_enc = e; };
@@ -158,11 +158,10 @@ public:
     }
     return *m_context;
   }
-  virtual zmq::socket_t socket(int type) const
+  virtual zmq::socket_t socket(zmq::socket_type type) const
   {
     auto socket = zmq::socket_t {context(), type};
-    int period = 0;
-    socket.setsockopt(zmq::LINGER, &period, sizeof(period));
+    socket.set(zmq::sockopt::linger, 0);
     return socket;
   }
 #endif
@@ -373,7 +372,7 @@ public:
 
   zmq::message_t encode(const TObject& item) const
   {
-    auto deleteBuffer = [](void* data, void * /* hint */) -> void { delete[](char*) data; };
+    auto deleteBuffer = [](void* data, void* /* hint */) -> void { delete[] (char*) data; };
 
     TBufferFile buffer(TBuffer::kWrite);
     buffer.WriteObject(&item);
@@ -456,7 +455,7 @@ public:
   {
     while (true) {
       try {
-        return zmq::poll(items, nitems, timeout);
+        return zmq::poll(items, nitems, std::chrono::milliseconds {timeout});
       } catch (const zmq::error_t& error) {
         if (error.num() != EINTR) {
           throw;

@@ -13,7 +13,6 @@
 #include "TrackTrajectory.cuh"
 #include "LinearAlgebra.cuh"
 #include "SystemOfUnits.h"
-#include "FloatOperations.cuh"
 
 // This algorithm is a simplified version of the LHCb TrajPoca:
 // https://gitlab.cern.ch/lhcb/LHCb/-/blob/master/Kernel/LHCbAlgs/src/TrajPoca.cpp

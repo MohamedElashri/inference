@@ -33,17 +33,41 @@ namespace Allen::Rich::Detector {
       return transform3DTimesPoint(localToGlobal(), panelDetectionPoint(id));
     }
 
-    __host__ __device__ inline float getEffectivePixelXSize() const noexcept { return m_effectivePixelXSize; }
-    __host__ __device__ inline float getEffectivePixelYSize() const noexcept { return m_effectivePixelYSize; }
-    __host__ __device__ inline float getLocalZcoord() const noexcept { return m_localZcoord; }
-    __host__ __device__ inline float getNumPixRowFrac() const { return m_numPixRowFrac; }
-    __host__ __device__ inline float getNumPixColFrac() const noexcept { return m_numPixColFrac; }
+    __host__ float2 pixelLocalPosition(unsigned pix, const std::array<float, 12>& g2panel) const
+    {
+      const auto fPixCol = pix & 0x7;
+      const auto fPixRow = pix >> 3;
+      const auto xh = (fPixCol - m_numPixColFrac) * m_effectivePixelXSize;
+      const auto yh = (fPixRow - m_numPixRowFrac) * m_effectivePixelYSize;
+      auto gpos = transform3DTimesPoint(localToGlobal(), Point {xh, yh, m_localZcoord});
+      auto lpos = transform3DTimesPoint(g2panel, gpos);
+      return {lpos.x, lpos.y};
+    }
+
+    __host__ __device__ float2 centrePointPanel(const std::array<float, 12>& g2panel) const
+    {
+      auto gpos = transform3DTimesPoint(localToGlobal(), Point {0, 0, 0});
+      auto lpos = transform3DTimesPoint(g2panel, gpos);
+      return {lpos.x, lpos.y};
+    }
+
+    __host__ __device__ float getEffectivePixelXSize() const noexcept { return m_effectivePixelXSize; }
+    __host__ __device__ float getEffectivePixelYSize() const noexcept { return m_effectivePixelYSize; }
+    __host__ __device__ float getLocalZcoord() const noexcept { return m_localZcoord; }
+    __host__ __device__ float getNumPixRowFrac() const { return m_numPixRowFrac; }
+    __host__ __device__ float getNumPixColFrac() const noexcept { return m_numPixColFrac; }
 
     /// Effective pixel area
-    __host__ __device__ inline auto effectivePixelArea() const noexcept { return m_effPixelArea; }
+    __host__ __device__ auto effectivePixelArea() const noexcept { return m_effPixelArea; }
 
     /// Access the local to global transform
-    __host__ __device__ inline const std::array<float, 12>& localToGlobal() const noexcept { return m_locToGloM; }
+    __host__ __device__ const std::array<float, 12>& localToGlobal() const noexcept { return m_locToGloM; }
+
+    __host__ __device__ float3 localToGlobal(float2 lpos) const
+    {
+      return transform3DTimesPoint(
+        localToGlobal(), float3 {lpos.x * m_effectivePixelXSize, lpos.y * m_effectivePixelYSize, m_localZcoord});
+    }
 
     std::string toString() const
     {
@@ -70,6 +94,8 @@ namespace Allen::Rich::Detector {
     __host__ __device__ bool getIsNull() const { return m_isNull; }
 
     __host__ __device__ void setIsNull(bool value) { m_isNull = value; }
+
+    __host__ __device__ bool isLarge() const { return m_isHType; }
 
     std::array<float, 12> m_locToGloM {};
     std::array<float, 3> m_zeroInPanelFrame {};

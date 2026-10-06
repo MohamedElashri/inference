@@ -96,11 +96,11 @@ namespace CompassUT::Helper {
         return;
       }
     }
-    __device__ __host__ bool exist() { return (m_best_n_val[0] != std::numeric_limits<float>::infinity()); }
+    __device__ __host__ bool exist() { return (m_best_n_val[0] < std::numeric_limits<float>::infinity()); }
     __device__ __host__ auto& size()
     {
-      return (m_best_n_val[0] != std::numeric_limits<float>::infinity()) +
-             (m_best_n_val[1] != std::numeric_limits<float>::infinity());
+      return (m_best_n_val[0] < std::numeric_limits<float>::infinity()) +
+             (m_best_n_val[1] < std::numeric_limits<float>::infinity());
     }
     __device__ __host__ auto& get(unsigned i) { return m_best_n_key[i]; }
 

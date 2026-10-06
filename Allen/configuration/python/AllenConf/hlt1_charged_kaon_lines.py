@@ -9,19 +9,19 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenCore.algorithms import kplus_to_three_tracks_line_t
-from AllenConf.utils import initialize_number_of_events
-from AllenCore.generator import make_algorithm
 from AllenCore.configuration_options import is_allen_standalone
-from PyConf.tonic import configurable
+from AllenCore.generator import make_algorithm
 
-#Cuts for k2pimumu
+from AllenConf.utils import initialize_number_of_events
+
+# Cuts for k2pimumu
 minIP_k2pimumu = 0.5
 minFD_k2pimumu = 0.0
 minP_k2pimumu = 3000
 massWindow_k2pimumu_min = 30
 massWindow_k2pimumu_max = 30
 
-#Cuts for k2pipipi
+# Cuts for k2pipipi
 minPt = 80.0
 mincomPt = 100.0
 minIP = 0.5
@@ -30,7 +30,7 @@ minP = 3000
 massWindow_min = 60
 massWindow_max = 130
 
-#Cuts for k2piee
+# Cuts for k2piee
 minPt_k2piee = 80.0
 mincomPt_k2piee = 100.0
 minIP_k2piee = 0.5
@@ -40,13 +40,14 @@ massWindow_min_k2piee = 100
 massWindow_max_k2piee = 50
 
 
-def make_kplus_to_piee_line(kplus_to_three_tracks,
-                            name="Hlt1Kplus2PiEE",
-                            enable_monitoring=True,
-                            enable_tupling=False,
-                            pre_scaler_hash_string=None,
-                            post_scaler_hash_string=None):
-
+def make_kplus_to_piee_line(
+    kplus_to_three_tracks,
+    name="Hlt1Kplus2PiEE",
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -64,22 +65,23 @@ def make_kplus_to_piee_line(kplus_to_three_tracks,
         minTrackP=minP_k2piee,
         minComboPt=mincomPt_k2piee,
         minFlightDistance=minFD_k2piee,
-        minPairMass=50.,
+        minPairMass=50.0,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=kplus_to_three_tracks[
-            "host_number_of_three_body_svs"],
-        dev_particle_container_t=kplus_to_three_tracks["dev_three_body_svs"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        host_number_of_svs_t=kplus_to_three_tracks["host_number_of_svs"],
+        dev_particle_container_t=kplus_to_three_tracks["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+    )
 
 
-def make_kplus_to_pimumu_line(kplus_to_three_tracks,
-                              name="Hlt1Kplus2PiMuMu",
-                              enable_monitoring=True,
-                              enable_tupling=False,
-                              pre_scaler_hash_string=None,
-                              post_scaler_hash_string=None):
-
+def make_kplus_to_pimumu_line(
+    kplus_to_three_tracks,
+    name="Hlt1Kplus2PiMuMu",
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -98,21 +100,22 @@ def make_kplus_to_pimumu_line(kplus_to_three_tracks,
         minComboPt=mincomPt,
         minFlightDistance=minFD_k2pimumu,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=kplus_to_three_tracks[
-            "host_number_of_three_body_svs"],
-        dev_particle_container_t=kplus_to_three_tracks["dev_three_body_svs"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post')
+        host_number_of_svs_t=kplus_to_three_tracks["host_number_of_svs"],
+        dev_particle_container_t=kplus_to_three_tracks["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+    )
 
 
-def make_kplus_to_3pi_line(kplus_to_three_tracks,
-                           name="Hlt1Kplus2PiPiPi",
-                           enable_monitoring=True,
-                           enable_tupling=False,
-                           pre_scaler_hash_string=None,
-                           post_scaler_hash_string=None,
-                           pre_scaler=0.01):
-
+def make_kplus_to_3pi_line(
+    kplus_to_three_tracks,
+    name="Hlt1Kplus2PiPiPi",
+    enable_monitoring=True,
+    enable_tupling=False,
+    pre_scaler_hash_string=None,
+    post_scaler_hash_string=None,
+    pre_scaler=0.01,
+):
     number_of_events = initialize_number_of_events()
 
     return make_algorithm(
@@ -128,9 +131,9 @@ def make_kplus_to_3pi_line(kplus_to_three_tracks,
         minComboPt=mincomPt,
         minFlightDistance=minFD,
         host_number_of_events_t=number_of_events["host_number_of_events"],
-        host_number_of_svs_t=kplus_to_three_tracks[
-            "host_number_of_three_body_svs"],
-        dev_particle_container_t=kplus_to_three_tracks["dev_three_body_svs"],
-        pre_scaler_hash_string=pre_scaler_hash_string or name + '_pre',
-        post_scaler_hash_string=post_scaler_hash_string or name + '_post',
-        pre_scaler=pre_scaler)
+        host_number_of_svs_t=kplus_to_three_tracks["host_number_of_svs"],
+        dev_particle_container_t=kplus_to_three_tracks["dev_multi_event_composites"],
+        pre_scaler_hash_string=pre_scaler_hash_string or name + "_pre",
+        post_scaler_hash_string=post_scaler_hash_string or name + "_post",
+        pre_scaler=pre_scaler,
+    )

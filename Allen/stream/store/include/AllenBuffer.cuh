@@ -165,7 +165,7 @@ namespace Allen {
       return get()[i];
     }
     constexpr __host__ operator std::span<T>() { return get(); }
-    constexpr __host__ auto operator-> () const { return data(); }
+    constexpr __host__ auto operator->() const { return data(); }
     constexpr __host__ operator T*() const { return data(); }
     constexpr __host__ auto empty() const { return m_span.empty(); }
     constexpr __host__ auto subspan(const std::size_t offset) const { return m_span.subspan(offset); }

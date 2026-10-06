@@ -68,17 +68,20 @@ namespace decode_retinaclusters {
       const Allen::Context& context) const;
 
   private:
-    Allen::Property<unsigned> m_block_dim_x_calculate_key {this,
-                                                           "block_dim_x_calculate_key",
-                                                           256,
-                                                           "block dim x of calculate_key"};
-    Allen::Property<dim3> m_block_dim_calculate_permutations {this,
-                                                              "block_dim_calculate_permutations",
-                                                              {128, 2, 1},
-                                                              "block dims of calculate permutations"};
-    Allen::Property<unsigned> m_block_dim_x_decode_retina {this,
-                                                           "block_dim_x_decode_retina",
-                                                           256,
-                                                           "block dim x of decode retina sorted"};
+    Allen::Property<unsigned> m_block_dim_x_calculate_key {
+      this,
+      "block_dim_x_calculate_key",
+      256,
+      "block dim x of calculate_key"};
+    Allen::Property<dim3> m_block_dim_calculate_permutations {
+      this,
+      "block_dim_calculate_permutations",
+      {128, 2, 1},
+      "block dims of calculate permutations"};
+    Allen::Property<unsigned> m_block_dim_x_decode_retina {
+      this,
+      "block_dim_x_decode_retina",
+      256,
+      "block dim x of decode retina sorted"};
   };
 } // namespace decode_retinaclusters

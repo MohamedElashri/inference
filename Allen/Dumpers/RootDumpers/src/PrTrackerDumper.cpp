@@ -137,8 +137,6 @@ namespace {
 
 } // namespace
 
-using Gaudi::Functional::Traits::useLegacyGaudiAlgorithm;
-
 /** @class PrTrackerDumper PrTrackerDumper.h
  *  TupleTool storing all VPClusters position on tracks (dummy track for noise ones)
  *
@@ -146,16 +144,15 @@ using Gaudi::Functional::Traits::useLegacyGaudiAlgorithm;
  *  @date   2017-11-06
  */
 
-class PrTrackerDumper : public Gaudi::Functional::MultiTransformer<
-                          std::tuple<LHCb::RawEvent, LHCb::RawBank::View>(
-                            const LHCb::MCParticles&,
-                            const LHCb::MCVertices&,
-                            const std::vector<LHCb::VPLightCluster>&,
-                            const LHCb::Pr::FT::Hits&,
-                            const UT::HitHandler&,
-                            const LHCb::ODIN&,
-                            const LHCb::LinksByKey&),
-                          useLegacyGaudiAlgorithm> {
+class PrTrackerDumper : public Gaudi::Functional::MultiTransformer<std::tuple<LHCb::RawEvent, LHCb::RawBank::View>(
+                          const LHCb::MCParticles&,
+                          const LHCb::MCVertices&,
+                          const std::vector<LHCb::VPLightCluster>&,
+                          const LHCb::Pr::FT::Hits&,
+                          const UT::HitHandler&,
+                          const LHCb::ODIN&,
+                          const LHCb::LinksByKey&,
+                          const LHCb::MCProperty&)> {
 public:
   /// Standard constructor
   PrTrackerDumper(const std::string& name, ISvcLocator* pSvcLocator);
@@ -198,13 +195,14 @@ public:
     DumpUtils::Writer& outfile) const;
 
   std::tuple<LHCb::RawEvent, LHCb::RawBank::View> operator()(
-    const LHCb::MCParticles& MCParticles,
-    const LHCb::MCVertices& mcVert,
-    const std::vector<LHCb::VPLightCluster>& VPClusters,
-    const LHCb::Pr::FT::Hits& ftHits,
-    const UT::HitHandler& utHits,
-    const LHCb::ODIN& odin,
-    const LHCb::LinksByKey& links) const override;
+    const LHCb::MCParticles&,
+    const LHCb::MCVertices&,
+    const std::vector<LHCb::VPLightCluster>&,
+    const LHCb::Pr::FT::Hits&,
+    const UT::HitHandler&,
+    const LHCb::ODIN&,
+    const LHCb::LinksByKey&,
+    const LHCb::MCProperty&) const override;
 
 private:
   int mcVertexType(const LHCb::MCParticle& particle) const;
@@ -233,7 +231,8 @@ PrTrackerDumper::PrTrackerDumper(const string& name, ISvcLocator* pSvcLocator) :
      KeyValue {"FTHitsLocation", PrFTInfo::SciFiHitsLocation},
      KeyValue {"UTHitsLocation", UTInfo::HitLocation},
      KeyValue {"ODINLocation", LHCb::ODINLocation::Default},
-     KeyValue {"LinkerLocation", Links::location("Pr/LHCbID")}},
+     KeyValue {"LinkerLocation", Links::location("Pr/LHCbID")},
+     KeyValue {"MCProperty", LHCb::MCPropertyLocation::TrackInfo}},
     {KeyValue {"OutputRawEventLocation", "Allen/MCRawEvent"}, KeyValue {"OutputRawBanksLocation", "Allen/MCRawBanks"}}}
 {}
 
@@ -341,7 +340,7 @@ double mcpTau(const LHCb::MCParticle* mcp)
     Gaudi::XYZVector dir = mcp_evtx - mcp_ovtx;
     double tau = mcp->momentum().M() * dir.Dot(mcp->momentum().Vect()) / mcp->momentum().Vect().mag2();
     tau /= Gaudi::Units::c_light;
-    tau /= Allen::Units::picosecond;
+    tau /= static_cast<double>(Allen::Units::picosecond);
     return tau;
   }
   return 0;
@@ -354,7 +353,8 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
   const LHCb::Pr::FT::Hits& ftHits,
   const UT::HitHandler& prUTHitHandler,
   const LHCb::ODIN& odin,
-  const LHCb::LinksByKey& links) const
+  const LHCb::LinksByKey& links,
+  const LHCb::MCProperty& mcProperty) const
 {
   LHCb::RawEvent rawEvent;
   // boost::interprocess::basic_vectorstream<std::vector<char>> rawBuffer;
@@ -446,7 +446,7 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
   }
 
   //---- We use trackInfo for a given MCParticle to know if the particle is reconstructible or not
-  const auto trackInfo = MCTrackInfo {*get<LHCb::MCProperty>(LHCb::MCPropertyLocation::TrackInfo)};
+  const auto trackInfo = MCTrackInfo {mcProperty};
 
   // Velo
   vector<float> Velo_x;
@@ -776,15 +776,16 @@ std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PrTrackerDumper::operator()(
       if (mother && mother->originVertex()) {
         double rOrigin = mother->originVertex()->position().rho();
         if (fabs(rOrigin) < 5.) { // radial origin position of the mother within 5 mm from beam pipe
-          constexpr auto strange_ids = std::array {LHCb::ParticleIDs::kaon_long,
-                                                   LHCb::ParticleIDs::kaon_short,
-                                                   LHCb::ParticleIDs::lambda,
-                                                   LHCb::ParticleIDs::sigma_plus,
-                                                   LHCb::ParticleIDs::sigma_zero,
-                                                   LHCb::ParticleIDs::sigma_minus,
-                                                   LHCb::ParticleIDs::xi_zero,
-                                                   LHCb::ParticleIDs::xi_minus,
-                                                   LHCb::ParticleIDs::omega_minus};
+          constexpr auto strange_ids = std::array {
+            LHCb::ParticleIDs::kaon_long,
+            LHCb::ParticleIDs::kaon_short,
+            LHCb::ParticleIDs::lambda,
+            LHCb::ParticleIDs::sigma_plus,
+            LHCb::ParticleIDs::sigma_zero,
+            LHCb::ParticleIDs::sigma_minus,
+            LHCb::ParticleIDs::xi_zero,
+            LHCb::ParticleIDs::xi_minus,
+            LHCb::ParticleIDs::omega_minus};
           if (std::ranges::any_of(strange_ids, [pid = std::abs(mother->particleID())](auto i) { return i == pid; })) {
             fromStrangeDecay = true;
           }

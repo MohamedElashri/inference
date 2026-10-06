@@ -160,4 +160,3 @@ for P>3GeV,Pt>0.5GeV                              :         0/        0   -nan% 
 36_long_nSciFiHits_gt_5000_AND_lt_7000            :      1764/    16105  10.95% ( 10.89%),        28 (  1.56%) clones, pur  97.75%, hit eff  94.78%
 37_long_nSciFiHits_gt_7000_AND_lt_10000           :      1053/     9149  11.51% ( 11.43%),        14 (  1.31%) clones, pur  97.41%, hit eff  93.94%
 38_long_nSciFiHits_gt_10000                       :        26/      449   5.79% (  5.80%),         0 (  0.00%) clones, pur  96.61%, hit eff  90.83%
-

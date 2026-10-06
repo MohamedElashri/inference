@@ -25,7 +25,7 @@ function help {
     echo "  -j, --cores [num]               Number of cores for the build (default: nproc)"
   echo "  --cudnn                         Enable cuDNN support (sets -DWITH_CUDNN=ON with local path)"
   echo "  --cublas                        Ignored (PVFinder no longer uses cuBLAS; kept for old command lines)"
-  echo "  --cuda-arch <arch>              Set CUDA_ARCH (e.g. 86 for SM 8.6, 75 for SM 7.5; default: COMPATIBILITY)"
+  echo "  --cuda-arch <arch>              Set CUDA_ARCH (default: 86 for the validated RTX 3090 build)"
   echo "  --unet-feat <n>                 PVFinder UNet feature maps N_FEAT (default: 16)"
   echo "  --unet-batch-channels <n>       PVFinder latent channels / latentChannels (default: 4)"
   echo "  --tests                         Build the Catch2 unit tests (sets -DBUILD_TESTING=ON; run with ctest)"
@@ -124,53 +124,18 @@ function check_allen_binary {
 }
 
 function build_gpu {
-    if [[ $FORCE -eq 1 ]]; then
-        echo "Force rebuilding GPU build..."
-        if [[ -d "$ALLEN_REPO/$BUILD_GPU" ]]; then
-            dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES" || return 1
-            return
-        else
-            echo "Build directory does not exist, doing full setup..."
-        fi
-    fi
-
-    if check_allen_binary "$BUILD_GPU"; then
-        echo "'Allen' binary exists in $BUILD_GPU, running make only..."
-        dryrun make -C "$ALLEN_REPO/$BUILD_GPU" -j"$CORES" || return 1
-    else
-        echo "'Allen' binary not found in $BUILD_GPU, doing full build..."
-        dryrun mkdir -p "$ALLEN_REPO/$BUILD_GPU"
-        if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_GPU" ]]; then cd "$ALLEN_REPO/$BUILD_GPU" || exit; fi
-        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake"
-        if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
-        CMAKE_ARGS="-DSTANDALONE=ON -DTARGET_DEVICE=CUDA -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE"
-        if [[ $USE_CUDNN -eq 1 ]]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DWITH_CUDNN=ON -DCUDNN_LIBRARY=$HOME/local/cuda/lib64/libcudnn.so -DCUDNN_INCLUDE_DIR=$HOME/local/cuda/include"
-        fi
-        if [[ -n "${UNET_N_FEAT:-}" ]]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_FEAT=${UNET_N_FEAT}"
-        fi
-        if [[ -n "${UNET_N_BATCH_CHANNELS:-}" ]]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DPVFINDER_UNET_N_BATCH_CHANNELS=${UNET_N_BATCH_CHANNELS}"
-        fi
-        if [[ -n "${CUDA_ARCH_OVERRIDE:-}" ]]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DCUDA_ARCH=${CUDA_ARCH_OVERRIDE}"
-        fi
-        if [[ ${BUILD_TESTS:-0} -eq 1 ]]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DBUILD_TESTING=ON"
-        fi
-        dryrun cmake $CMAKE_ARGS .. || return 1
-        echo "Bootstrapping parameter files and dependencies (single-threaded)..."
-        dryrun make checkout_param_files checkout_gaudi checkout_lhcb -j1 || return 1
-        echo "Starting full parallel build..."
-        # One retry: a fresh tree occasionally races on generated sources. If the
-        # retry fails too, report it -- never claim success on a failed build.
-        if ! dryrun make -j"$CORES"; then
-            echo "Initial make failed, retrying..."
-            dryrun make -j"$CORES" || { if [[ $DRYRUN -eq 0 ]]; then cd .. || exit; fi; return 1; }
-        fi
-        if [[ $DRYRUN -eq 0 ]]; then cd .. || exit; fi
-    fi
+    local repo_path script_path with_cudnn=OFF build_testing=OFF
+    repo_path=$(resolve_path "$ALLEN_REPO")
+    script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/benchmarks/build_v9r1.sh"
+    [[ ${USE_CUDNN:-0} -eq 1 ]] && with_cudnn=ON
+    [[ ${BUILD_TESTS:-0} -eq 1 ]] && build_testing=ON
+    SOURCE_DIR="$repo_path" BUILD_DIR="$repo_path/$BUILD_GPU" JOBS="$CORES" DRY_RUN="$DRYRUN" \
+        WITH_CUDNN="$with_cudnn" BUILD_TESTING="$build_testing" \
+        CUDA_ARCH="${CUDA_ARCH_OVERRIDE:-86}" \
+        PVFINDER_UNET_N_FEAT="${UNET_N_FEAT:-16}" \
+        PVFINDER_UNET_N_BATCH_CHANNELS="${UNET_N_BATCH_CHANNELS:-4}" \
+        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake" \
+        bash "$script_path"
 }
 
 function build_cpu {
@@ -191,7 +156,7 @@ function build_cpu {
         echo "'Allen' binary not found in $BUILD_CPU, doing full build..."
         dryrun mkdir -p "$ALLEN_REPO/$BUILD_CPU"
         if [[ $DRYRUN -eq 0 && -d "$ALLEN_REPO/$BUILD_CPU" ]]; then cd "$ALLEN_REPO/$BUILD_CPU" || exit; fi
-        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_106c/x86_64_v3-el9-gcc13-opt+g.cmake"
+        TOOLCHAIN_FILE="$LCG_TOOLCHAIN/LCG_108c/x86_64_v3-el9-gcc13-opt+g.cmake"
         if [[ ! -f "$TOOLCHAIN_FILE" ]]; then echo "Toolchain file not found: $TOOLCHAIN_FILE"; exit 1; fi
         dryrun cmake -DSTANDALONE=ON -DTARGET_DEVICE=CPU -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" .. || return 1
         echo "Bootstrapping parameter files and dependencies (single-threaded)..."

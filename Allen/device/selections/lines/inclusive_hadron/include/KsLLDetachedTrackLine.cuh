@@ -207,16 +207,18 @@ namespace ks_ll_detached_track_line {
     Allen::Property<float> m_SUMPT_min {
       this,
       "SUMPT_min",
-      2.5f * Allen::Units::GeV,
+      2500.f * Allen::Units::MeV,
       "sum of Ks and track pT"}; // modified wrt LambdaLLDetachedTrackLine(Allen/v7r6p2)
 
-    Allen::Monitoring::Histogram<> m_histogram_Ks_mass {this,
-                                                        "Ks_mass_KsLLDetachedTrack",
-                                                        "m(#pi^{+}#pi^{#minus}) [MeV]",
-                                                        {100u, 400.f * Allen::Units::MeV, 600.f * Allen::Units::MeV}};
-    Allen::Monitoring::Histogram<> m_histogram_KsPi_mass {this,
-                                                          "KsTrack_mass_KsLLDetachedTrack",
-                                                          "m(Ks#pi^{+}) [MeV]",
-                                                          {94u, 1.25f * Allen::Units::GeV, 2.6f * Allen::Units::GeV}};
+    Allen::Monitoring::Histogram<> m_histogram_Ks_mass {
+      this,
+      "Ks_mass_KsLLDetachedTrack",
+      "m(#pi^{+}#pi^{#minus}) [MeV]",
+      {100u, 400.f * Allen::Units::MeV, 600.f * Allen::Units::MeV}};
+    Allen::Monitoring::Histogram<> m_histogram_KsPi_mass {
+      this,
+      "KsTrack_mass_KsLLDetachedTrack",
+      "m(Ks#pi^{+}) [MeV]",
+      {94u, 1.25f * Allen::Units::GeV, 2.6f * Allen::Units::GeV}};
   };
 } // namespace ks_ll_detached_track_line

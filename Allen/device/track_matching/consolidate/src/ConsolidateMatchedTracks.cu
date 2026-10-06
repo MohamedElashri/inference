@@ -129,21 +129,21 @@ __global__ void matching_consolidate_tracks::matching_create_longtracks_views(
   if constexpr (has_ut) {
     // Create views
     if (threadIdx.x == 0) {
-      new (parameters.dev_matched_ut_track_hits_view + event_number)
-        Allen::Views::UT::Consolidated::Hits {parameters.dev_matched_ut_track_hits,
-                                              parameters.dev_offsets_matched_tracks,
-                                              parameters.dev_offsets_matched_ut_hit_number,
-                                              event_number,
-                                              number_of_events};
+      new (parameters.dev_matched_ut_track_hits_view + event_number) Allen::Views::UT::Consolidated::Hits {
+        parameters.dev_matched_ut_track_hits,
+        parameters.dev_offsets_matched_tracks,
+        parameters.dev_offsets_matched_ut_hit_number,
+        event_number,
+        number_of_events};
     }
 
     for (unsigned track_index = threadIdx.x; track_index < number_of_tracks; track_index += blockDim.x) {
-      new (parameters.dev_matched_ut_track_view + tracks_offset + track_index)
-        Allen::Views::UT::Consolidated::Track {parameters.dev_matched_ut_track_hits_view,
-                                               parameters.dev_offsets_matched_tracks,
-                                               parameters.dev_offsets_matched_ut_hit_number,
-                                               track_index,
-                                               event_number};
+      new (parameters.dev_matched_ut_track_view + tracks_offset + track_index) Allen::Views::UT::Consolidated::Track {
+        parameters.dev_matched_ut_track_hits_view,
+        parameters.dev_offsets_matched_tracks,
+        parameters.dev_offsets_matched_ut_hit_number,
+        track_index,
+        event_number};
     }
   }
 
@@ -162,22 +162,22 @@ __global__ void matching_consolidate_tracks::matching_create_longtracks_views(
       0;
 
     if constexpr (has_ut) {
-      new (parameters.dev_long_track_view + tracks_offset + track_index)
-        Allen::Views::Physics::LongTrack {velo_track,
-                                          parameters.dev_matched_ut_track_view + tracks_offset + track_index,
-                                          scifi_track,
-                                          nullptr,
-                                          parameters.dev_matched_qop + tracks_offset + track_index,
-                                          parameters.dev_matched_ghost_probability + tracks_offset + track_index};
+      new (parameters.dev_long_track_view + tracks_offset + track_index) Allen::Views::Physics::LongTrack {
+        velo_track,
+        parameters.dev_matched_ut_track_view + tracks_offset + track_index,
+        scifi_track,
+        nullptr,
+        parameters.dev_matched_qop + tracks_offset + track_index,
+        parameters.dev_matched_ghost_probability + tracks_offset + track_index};
     }
     else {
-      new (parameters.dev_long_track_view + tracks_offset + track_index)
-        Allen::Views::Physics::LongTrack {velo_track,
-                                          nullptr,
-                                          scifi_track,
-                                          nullptr,
-                                          parameters.dev_matched_qop + tracks_offset + track_index,
-                                          parameters.dev_matched_ghost_probability + tracks_offset + track_index};
+      new (parameters.dev_long_track_view + tracks_offset + track_index) Allen::Views::Physics::LongTrack {
+        velo_track,
+        nullptr,
+        scifi_track,
+        nullptr,
+        parameters.dev_matched_qop + tracks_offset + track_index,
+        parameters.dev_matched_ghost_probability + tracks_offset + track_index};
     }
   }
 

@@ -1,0 +1,2250 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "physics",
+  "id": "20261005_215006_v9r1-peak-scan",
+  "label": "v9r1_peak_scan",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-10-05T21:50:06-04:00",
+  "finished_at": "2026-10-05T21:50:06-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "b263a2f126f7c0ff763977d4b1d1fee7ffd8eec7",
+    "branch": "port/pvfinder-v9r1",
+    "subject": "Record working CUDA port and both precision validation results",
+    "dirty": true,
+    "dirty_files": [
+      "monitoring.root"
+    ],
+    "diff_sha256": null
+  },
+  "build": {
+    "name": "buildgpu12",
+    "dir": "Allen/buildgpu12",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_SHARED_LINKER_FLAGS": "",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-05T20:07:29-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+      }
+    },
+    "verified": false
+  },
+  "workload": {
+    "events": 10000,
+    "threads": 1,
+    "device": 2,
+    "sequence": "pvfinder_pv_validation"
+  },
+  "config": null,
+  "results": {
+    "points": [
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold0.7",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold0.7",
+            "integral_threshold": 0.7,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.07,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold0.7",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.911220461391659,
+              "found": 48702,
+              "mc": 53447,
+              "efficiency_isolated": 0.9043292750211498,
+              "efficiency_close": 0.9183549124143183,
+              "found_isolated": 24586,
+              "mc_isolated": 27187,
+              "found_close": 24116,
+              "mc_close": 26260,
+              "false_rate": 0.015703631843812526,
+              "fake": 777,
+              "reconstructed": 49480,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.7489450993076174,
+              "dz_rms_um": 122.19558277463406,
+              "dz_core_sigma_um": 61.335930337599606,
+              "dx_core_sigma_um": 10.968896614036565,
+              "dy_core_sigma_um": 10.79404848952531,
+              "sigma_z_median_um": 50.09404094045656
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9545597114404454,
+              "found": 48694,
+              "mc": 51012,
+              "efficiency_isolated": 0.9806351356735865,
+              "efficiency_close": 0.9293073509550454,
+              "found_isolated": 24611,
+              "mc_isolated": 25097,
+              "found_close": 24083,
+              "mc_close": 25915,
+              "false_rate": 0.015745962444161463,
+              "fake": 779,
+              "reconstructed": 49474,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.7478984479003818,
+              "dz_rms_um": 122.19886734055584,
+              "dz_core_sigma_um": 61.329108951472286,
+              "dx_core_sigma_um": 10.967647982692737,
+              "dy_core_sigma_um": 10.794150977849954,
+              "sigma_z_median_um": 50.090826832244225
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 8347,
+            "mc_found_by_both": 47459,
+            "mc_found_by_a_only": 217,
+            "mc_found_by_b_only": 1077,
+            "mc_found_by_neither": 2259,
+            "a_only_isolated": 102,
+            "b_only_isolated": 182,
+            "a_only_median_mc_tracks": 7.0,
+            "b_only_median_mc_tracks": 12.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 30.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 49.596271537451216,
+              "fraction_within_100um": 0.9892117406603594
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.07,
+            "integral_threshold": 0.7,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4836,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 4,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.0",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.0",
+            "integral_threshold": 1.0,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.07,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.0",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.8990588807603794,
+              "found": 48052,
+              "mc": 53447,
+              "efficiency_isolated": 0.8912715636149631,
+              "efficiency_close": 0.9071210967250571,
+              "found_isolated": 24231,
+              "mc_isolated": 27187,
+              "found_close": 23821,
+              "mc_close": 26260,
+              "false_rate": 0.006286706923649599,
+              "fake": 304,
+              "reconstructed": 48356,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.8100795890362023,
+              "dz_rms_um": 110.909006264125,
+              "dz_core_sigma_um": 60.39680881436882,
+              "dx_core_sigma_um": 10.84322466697696,
+              "dy_core_sigma_um": 10.673111787390711,
+              "sigma_z_median_um": 49.63186844817043
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9418372147729945,
+              "found": 48045,
+              "mc": 51012,
+              "efficiency_isolated": 0.9665298641271866,
+              "efficiency_close": 0.9179239822496623,
+              "found_isolated": 24257,
+              "mc_isolated": 25097,
+              "found_close": 23788,
+              "mc_close": 25915,
+              "false_rate": 0.006328721226034621,
+              "fake": 306,
+              "reconstructed": 48351,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.8056676201982099,
+              "dz_rms_um": 110.91197985551955,
+              "dz_core_sigma_um": 60.39569738471834,
+              "dx_core_sigma_um": 10.843230013313288,
+              "dy_core_sigma_um": 10.673374412727362,
+              "sigma_z_median_um": 49.631457970514816
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 8263,
+            "mc_found_by_both": 47108,
+            "mc_found_by_a_only": 568,
+            "mc_found_by_b_only": 856,
+            "mc_found_by_neither": 2480,
+            "a_only_isolated": 319,
+            "b_only_isolated": 90,
+            "a_only_median_mc_tracks": 6.0,
+            "b_only_median_mc_tracks": 14.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 30.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.00095367431640625,
+              "rms": 47.282639952220414,
+              "fraction_within_100um": 0.9894710028020718
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.07,
+            "integral_threshold": 1.0,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4720,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 4,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.5",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.5",
+            "integral_threshold": 1.5,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.07,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.5",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.7986229348700582,
+              "found": 42684,
+              "mc": 53447,
+              "efficiency_isolated": 0.7789384632361055,
+              "efficiency_close": 0.819002284843869,
+              "found_isolated": 21177,
+              "mc_isolated": 27187,
+              "found_close": 21507,
+              "mc_close": 26260,
+              "false_rate": 0.0017306702839234762,
+              "fake": 74,
+              "reconstructed": 42758,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.5738670931178993,
+              "dz_rms_um": 84.04095882088068,
+              "dz_core_sigma_um": 53.90411009451719,
+              "dx_core_sigma_um": 9.808435272083251,
+              "dy_core_sigma_um": 9.710853588333134,
+              "sigma_z_median_um": 45.67677918370579
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.8366658825374421,
+              "found": 42680,
+              "mc": 51012,
+              "efficiency_isolated": 0.8447623221899032,
+              "efficiency_close": 0.8288250048234613,
+              "found_isolated": 21201,
+              "mc_isolated": 25097,
+              "found_close": 21479,
+              "mc_close": 25915,
+              "false_rate": 0.001754180797567536,
+              "fake": 75,
+              "reconstructed": 42755,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.5740740388081843,
+              "dz_rms_um": 84.04372619655717,
+              "dz_core_sigma_um": 53.902646338223825,
+              "dx_core_sigma_um": 9.808557563133219,
+              "dy_core_sigma_um": 9.710962376003259,
+              "sigma_z_median_um": 45.67677918370579
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 5286,
+            "mc_found_by_both": 42165,
+            "mc_found_by_a_only": 5511,
+            "mc_found_by_b_only": 470,
+            "mc_found_by_neither": 2866,
+            "a_only_isolated": 3297,
+            "b_only_isolated": 23,
+            "a_only_median_mc_tracks": 10.0,
+            "b_only_median_mc_tracks": 18.5,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 34.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 35.26945497533397,
+              "fraction_within_100um": 0.991699276651251
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.07,
+            "integral_threshold": 1.5,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4140,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 4,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold2.0",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold2.0",
+            "integral_threshold": 2.0,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.07,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold2.0",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.6394371994686324,
+              "found": 34176,
+              "mc": 53447,
+              "efficiency_isolated": 0.6149630338029205,
+              "efficiency_close": 0.6647753236862147,
+              "found_isolated": 16719,
+              "mc_isolated": 27187,
+              "found_close": 17457,
+              "mc_close": 26260,
+              "false_rate": 0.0012274241627213747,
+              "fake": 42,
+              "reconstructed": 34218,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.3901974838002418,
+              "dz_rms_um": 63.33503388840343,
+              "dz_core_sigma_um": 46.241795431823455,
+              "dx_core_sigma_um": 8.538485660171444,
+              "dy_core_sigma_um": 8.512450705723762,
+              "sigma_z_median_um": 40.322664468612274
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.6698815964871011,
+              "found": 34172,
+              "mc": 51012,
+              "efficiency_isolated": 0.6667729210662628,
+              "efficiency_close": 0.6728921474049778,
+              "found_isolated": 16734,
+              "mc_isolated": 25097,
+              "found_close": 17438,
+              "mc_close": 25915,
+              "false_rate": 0.0012567587315504896,
+              "fake": 43,
+              "reconstructed": 34215,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.3904341595953831,
+              "dz_rms_um": 63.33679787471631,
+              "dz_core_sigma_um": 46.23834307586601,
+              "dx_core_sigma_um": 8.539440990161824,
+              "dy_core_sigma_um": 8.512537971448895,
+              "sigma_z_median_um": 40.322664468612274
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 2422,
+            "mc_found_by_both": 33894,
+            "mc_found_by_a_only": 13782,
+            "mc_found_by_b_only": 249,
+            "mc_found_by_neither": 3087,
+            "a_only_isolated": 7752,
+            "b_only_isolated": 11,
+            "a_only_median_mc_tracks": 13.0,
+            "b_only_median_mc_tracks": 25.0,
+            "neither_median_mc_tracks": 9.0,
+            "both_median_mc_tracks": 42.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 24.34061116885688,
+              "fraction_within_100um": 0.9946303180503924
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.07,
+            "integral_threshold": 2.0,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 3329,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 4,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold0.7",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold0.7",
+            "integral_threshold": 0.7,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.1,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold0.7",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.9056635545493666,
+              "found": 48405,
+              "mc": 53447,
+              "efficiency_isolated": 0.8978555927465333,
+              "efficiency_close": 0.9137471439451638,
+              "found_isolated": 24410,
+              "mc_isolated": 27187,
+              "found_close": 23995,
+              "mc_close": 26260,
+              "false_rate": 0.010992378889728868,
+              "fake": 538,
+              "reconstructed": 48944,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.637241532189112,
+              "dz_rms_um": 112.10491292755046,
+              "dz_core_sigma_um": 60.87097776489398,
+              "dx_core_sigma_um": 10.901339616146112,
+              "dy_core_sigma_um": 10.745456587982163,
+              "sigma_z_median_um": 49.88852625021652
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9487375519485611,
+              "found": 48397,
+              "mc": 51012,
+              "efficiency_isolated": 0.9736223453002351,
+              "efficiency_close": 0.9246382404013119,
+              "found_isolated": 24435,
+              "mc_isolated": 25097,
+              "found_close": 23962,
+              "mc_close": 25915,
+              "false_rate": 0.011034595500337169,
+              "fake": 540,
+              "reconstructed": 48938,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.6361707995467928,
+              "dz_rms_um": 112.10676386257576,
+              "dz_core_sigma_um": 60.865449749450406,
+              "dx_core_sigma_um": 10.90052008966443,
+              "dy_core_sigma_um": 10.74439459858418,
+              "sigma_z_median_um": 49.884622137004406
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 8356,
+            "mc_found_by_both": 47316,
+            "mc_found_by_a_only": 360,
+            "mc_found_by_b_only": 963,
+            "mc_found_by_neither": 2373,
+            "a_only_isolated": 192,
+            "b_only_isolated": 119,
+            "a_only_median_mc_tracks": 6.0,
+            "b_only_median_mc_tracks": 13.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 30.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.00095367431640625,
+              "rms": 45.84613703237502,
+              "fraction_within_100um": 0.9893693465212613
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.1,
+            "integral_threshold": 0.7,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4780,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.662109372726263e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.0",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.0",
+            "integral_threshold": 1.0,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.1,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.0",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.8863172862836081,
+              "found": 47371,
+              "mc": 53447,
+              "efficiency_isolated": 0.8769632544966344,
+              "efficiency_close": 0.896001523229246,
+              "found_isolated": 23842,
+              "mc_isolated": 27187,
+              "found_close": 23529,
+              "mc_close": 26260,
+              "false_rate": 0.004601807102332423,
+              "fake": 219,
+              "reconstructed": 47590,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.45091678928351253,
+              "dz_rms_um": 104.33815143594427,
+              "dz_core_sigma_um": 59.383352231366096,
+              "dx_core_sigma_um": 10.68822888269423,
+              "dy_core_sigma_um": 10.562643173401339,
+              "sigma_z_median_um": 49.16654017870444
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9284874147259469,
+              "found": 47364,
+              "mc": 51012,
+              "efficiency_isolated": 0.951030003586086,
+              "efficiency_close": 0.9066563766158595,
+              "found_isolated": 23868,
+              "mc_isolated": 25097,
+              "found_close": 23496,
+              "mc_close": 25915,
+              "false_rate": 0.0046443206892928445,
+              "fake": 221,
+              "reconstructed": 47585,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.4463898276348424,
+              "dz_rms_um": 104.34033809321393,
+              "dz_core_sigma_um": 59.384430694579514,
+              "dx_core_sigma_um": 10.686906929969727,
+              "dy_core_sigma_um": 10.562641927957525,
+              "sigma_z_median_um": 49.16516331183304
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 7884,
+            "mc_found_by_both": 46552,
+            "mc_found_by_a_only": 1124,
+            "mc_found_by_b_only": 749,
+            "mc_found_by_neither": 2587,
+            "a_only_isolated": 668,
+            "b_only_isolated": 58,
+            "a_only_median_mc_tracks": 7.0,
+            "b_only_median_mc_tracks": 15.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 31.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.00095367431640625,
+              "rms": 43.48144985860515,
+              "fraction_within_100um": 0.9898393194706995
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.1,
+            "integral_threshold": 1.0,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4634,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.662109372726263e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.5",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.5",
+            "integral_threshold": 1.5,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.1,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.5",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.7830374015379722,
+              "found": 41851,
+              "mc": 53447,
+              "efficiency_isolated": 0.7621289586934932,
+              "efficiency_close": 0.8046839299314547,
+              "found_isolated": 20720,
+              "mc_isolated": 27187,
+              "found_close": 21131,
+              "mc_close": 26260,
+              "false_rate": 0.0014316050678819404,
+              "fake": 60,
+              "reconstructed": 41911,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.6172323574020424,
+              "dz_rms_um": 80.29910588061979,
+              "dz_core_sigma_um": 52.98171836212298,
+              "dx_core_sigma_um": 9.7046126869965,
+              "dy_core_sigma_um": 9.584319869916413,
+              "sigma_z_median_um": 45.175046265544886
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.8203363914373089,
+              "found": 41847,
+              "mc": 51012,
+              "efficiency_isolated": 0.8265529744590987,
+              "efficiency_close": 0.8143160331854139,
+              "found_isolated": 20744,
+              "mc_isolated": 25097,
+              "found_close": 21103,
+              "mc_close": 25915,
+              "false_rate": 0.0014555693423689987,
+              "fake": 61,
+              "reconstructed": 41908,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.6174475559515915,
+              "dz_rms_um": 80.30169317591725,
+              "dz_core_sigma_um": 52.97922522125414,
+              "dx_core_sigma_um": 9.704957371282594,
+              "dy_core_sigma_um": 9.58458654818533,
+              "sigma_z_median_um": 45.175046265544886
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 4912,
+            "mc_found_by_both": 41378,
+            "mc_found_by_a_only": 6298,
+            "mc_found_by_b_only": 428,
+            "mc_found_by_neither": 2908,
+            "a_only_isolated": 3752,
+            "b_only_isolated": 21,
+            "a_only_median_mc_tracks": 10.0,
+            "b_only_median_mc_tracks": 20.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 35.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 32.58483284072948,
+              "fraction_within_100um": 0.992169752042148
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.1,
+            "integral_threshold": 1.5,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4058,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold2.0",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold2.0",
+            "integral_threshold": 2.0,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.1,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold2.0",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.6316912081127097,
+              "found": 33762,
+              "mc": 53447,
+              "efficiency_isolated": 0.6069444955309523,
+              "efficiency_close": 0.6573115003808073,
+              "found_isolated": 16501,
+              "mc_isolated": 27187,
+              "found_close": 17261,
+              "mc_close": 26260,
+              "false_rate": 0.0010651517841292384,
+              "fake": 36,
+              "reconstructed": 33798,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.5035115178414253,
+              "dz_rms_um": 61.64315532730506,
+              "dz_core_sigma_um": 45.82087158996293,
+              "dx_core_sigma_um": 8.486293232708052,
+              "dy_core_sigma_um": 8.455419399144654,
+              "sigma_z_median_um": 40.09413783751396
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.6617658590135654,
+              "found": 33758,
+              "mc": 51012,
+              "efficiency_isolated": 0.6580866238992709,
+              "efficiency_close": 0.6653289600617404,
+              "found_isolated": 16516,
+              "mc_isolated": 25097,
+              "found_close": 17242,
+              "mc_close": 25915,
+              "false_rate": 0.00109483651427726,
+              "fake": 37,
+              "reconstructed": 33795,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.5037645293388956,
+              "dz_rms_um": 61.644786080098946,
+              "dz_core_sigma_um": 45.81909507385089,
+              "dx_core_sigma_um": 8.486531618919425,
+              "dy_core_sigma_um": 8.455747001309406,
+              "sigma_z_median_um": 40.09413783751396
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 2329,
+            "mc_found_by_both": 33494,
+            "mc_found_by_a_only": 14182,
+            "mc_found_by_b_only": 236,
+            "mc_found_by_neither": 3100,
+            "a_only_isolated": 7968,
+            "b_only_isolated": 9,
+            "a_only_median_mc_tracks": 13.0,
+            "b_only_median_mc_tracks": 26.0,
+            "neither_median_mc_tracks": 9.0,
+            "both_median_mc_tracks": 43.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 20.80480067714056,
+              "fraction_within_100um": 0.9951036006448917
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.1,
+            "integral_threshold": 2.0,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 3288,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold0.7",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold0.7",
+            "integral_threshold": 0.7,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.15,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold0.7",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.8891425150148745,
+              "found": 47522,
+              "mc": 53447,
+              "efficiency_isolated": 0.8788023687791959,
+              "efficiency_close": 0.8998476770753998,
+              "found_isolated": 23892,
+              "mc_isolated": 27187,
+              "found_close": 23630,
+              "mc_close": 26260,
+              "false_rate": 0.0062109203454693744,
+              "fake": 297,
+              "reconstructed": 47820,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.4412017430080756,
+              "dz_rms_um": 101.5061843320773,
+              "dz_core_sigma_um": 59.49364556733613,
+              "dx_core_sigma_um": 10.709002932395933,
+              "dy_core_sigma_um": 10.588292149500859,
+              "sigma_z_median_um": 49.26650667112414
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.9314278993178076,
+              "found": 47514,
+              "mc": 51012,
+              "efficiency_isolated": 0.9529425827788182,
+              "efficiency_close": 0.9105923210495852,
+              "found_isolated": 23916,
+              "mc_isolated": 25097,
+              "found_close": 23598,
+              "mc_close": 25915,
+              "false_rate": 0.006253529374856211,
+              "fake": 299,
+              "reconstructed": 47814,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.44007918057942913,
+              "dz_rms_um": 101.50638191826214,
+              "dz_core_sigma_um": 59.48947795429451,
+              "dx_core_sigma_um": 10.708375969963063,
+              "dy_core_sigma_um": 10.588127448039051,
+              "sigma_z_median_um": 49.26607660854246
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 7995,
+            "mc_found_by_both": 46679,
+            "mc_found_by_a_only": 997,
+            "mc_found_by_b_only": 768,
+            "mc_found_by_neither": 2568,
+            "a_only_isolated": 614,
+            "b_only_isolated": 51,
+            "a_only_median_mc_tracks": 7.0,
+            "b_only_median_mc_tracks": 15.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 30.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.00095367431640625,
+              "rms": 41.80807763498796,
+              "fraction_within_100um": 0.9899312324599927
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.15,
+            "integral_threshold": 0.7,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4666,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.0",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.0",
+            "integral_threshold": 1.0,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.15,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.0",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.8584579115759537,
+              "found": 45882,
+              "mc": 53447,
+              "efficiency_isolated": 0.8434913745540148,
+              "efficiency_close": 0.8739527798933739,
+              "found_isolated": 22932,
+              "mc_isolated": 27187,
+              "found_close": 22950,
+              "mc_close": 26260,
+              "false_rate": 0.0031936387929348887,
+              "fake": 147,
+              "reconstructed": 46029,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.489851455076868,
+              "dz_rms_um": 91.52217753787572,
+              "dz_core_sigma_um": 57.35370847168387,
+              "dx_core_sigma_um": 10.372298401985168,
+              "dy_core_sigma_um": 10.263801233749383,
+              "sigma_z_median_um": 47.99810663725974
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.8992982043440759,
+              "found": 45875,
+              "mc": 51012,
+              "efficiency_isolated": 0.9146909989241742,
+              "efficiency_close": 0.8843912791819409,
+              "found_isolated": 22956,
+              "mc_isolated": 25097,
+              "found_close": 22919,
+              "mc_close": 25915,
+              "false_rate": 0.0032374413349556754,
+              "fake": 149,
+              "reconstructed": 46024,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.48518415771582496,
+              "dz_rms_um": 91.52265801058903,
+              "dz_core_sigma_um": 57.35328668510247,
+              "dx_core_sigma_um": 10.371954421234102,
+              "dy_core_sigma_um": 10.262151939241884,
+              "sigma_z_median_um": 47.996452474609804
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 7008,
+            "mc_found_by_both": 45197,
+            "mc_found_by_a_only": 2479,
+            "mc_found_by_b_only": 625,
+            "mc_found_by_neither": 2711,
+            "a_only_isolated": 1550,
+            "b_only_isolated": 30,
+            "a_only_median_mc_tracks": 8.0,
+            "b_only_median_mc_tracks": 16.0,
+            "neither_median_mc_tracks": 8.0,
+            "both_median_mc_tracks": 32.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.00095367431640625,
+              "rms": 37.61995345493411,
+              "fraction_within_100um": 0.9907073478328208
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.15,
+            "integral_threshold": 1.0,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 4471,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.5",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.5",
+            "integral_threshold": 1.5,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.15,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.5",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.7554399685669916,
+              "found": 40376,
+              "mc": 53447,
+              "efficiency_isolated": 0.7331077353146724,
+              "efficiency_close": 0.7785605483625285,
+              "found_isolated": 19931,
+              "mc_isolated": 27187,
+              "found_close": 20445,
+              "mc_close": 26260,
+              "false_rate": 0.0012862372613040467,
+              "fake": 52,
+              "reconstructed": 40428,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.702139257301378,
+              "dz_rms_um": 73.30652744838152,
+              "dz_core_sigma_um": 51.49089651546549,
+              "dx_core_sigma_um": 9.482183339452728,
+              "dy_core_sigma_um": 9.357066925191885,
+              "sigma_z_median_um": 44.14065245423557
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.7914216262840116,
+              "found": 40372,
+              "mc": 51012,
+              "efficiency_isolated": 0.795035263178866,
+              "efficiency_close": 0.7879220528651361,
+              "found_isolated": 19953,
+              "mc_isolated": 25097,
+              "found_close": 20419,
+              "mc_close": 25915,
+              "false_rate": 0.0013110698824984539,
+              "fake": 53,
+              "reconstructed": 40425,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.7023707414371023,
+              "dz_rms_um": 73.30873829076525,
+              "dz_core_sigma_um": 51.48869356304422,
+              "dx_core_sigma_um": 9.482380413818342,
+              "dy_core_sigma_um": 9.35706774923325,
+              "sigma_z_median_um": 44.14065245423557
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 4268,
+            "mc_found_by_both": 39967,
+            "mc_found_by_a_only": 7709,
+            "mc_found_by_b_only": 365,
+            "mc_found_by_neither": 2971,
+            "a_only_isolated": 4534,
+            "b_only_isolated": 12,
+            "a_only_median_mc_tracks": 11.0,
+            "b_only_median_mc_tracks": 22.0,
+            "neither_median_mc_tracks": 9.0,
+            "both_median_mc_tracks": 36.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 25.998242405029654,
+              "fraction_within_100um": 0.9929691995896615
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.15,
+            "integral_threshold": 1.5,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 3926,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      },
+      {
+        "run_dir": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold2.0",
+        "config": {
+          "pvfinder_fc_aggregation": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "",
+            "fused_grid_fraction": 0.125,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          },
+          "pvfinder_peak_pvfinder": {
+            "block_dim": [
+              512,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold2.0",
+            "integral_threshold": 2.0,
+            "min_width": 0,
+            "split_peaks": true,
+            "threshold": 0.15,
+            "verbosity": 3
+          },
+          "pvfinder_pv_validator": {
+            "pp_minNumTracksPerVertex": 4.0,
+            "root_output_filename": "PrCheckerPlots.root",
+            "verbosity": 3
+          },
+          "pvfinder_unet": {
+            "block_dim": [
+              256,
+              1,
+              1
+            ],
+            "dump_validation": "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold2.0",
+            "fused_grid_fraction": 0.25,
+            "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+            "precision": "bfloat16",
+            "unet_batch_events": 20,
+            "verbosity": 3
+          }
+        },
+        "compare": {
+          "events": 10000,
+          "all_z": {
+            "beamline": {
+              "efficiency": 0.9386682133702546,
+              "found": 50169,
+              "mc": 53447,
+              "efficiency_isolated": 0.9772317651818884,
+              "efficiency_close": 0.8987433358720488,
+              "found_isolated": 26568,
+              "mc_isolated": 27187,
+              "found_close": 23601,
+              "mc_close": 26260,
+              "false_rate": 0.013663888015099088,
+              "fake": 695,
+              "reconstructed": 50865,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.3050630545780282,
+              "dz_rms_um": 124.71358451946003,
+              "dz_core_sigma_um": 62.14969903739918,
+              "dx_core_sigma_um": 10.899026566209795,
+              "dy_core_sigma_um": 10.777035216312399,
+              "sigma_z_median_um": 50.98936071495031
+            },
+            "pvfinder": {
+              "efficiency": 0.6170973113551743,
+              "found": 32982,
+              "mc": 53447,
+              "efficiency_isolated": 0.5927465332695774,
+              "efficiency_close": 0.6423076923076924,
+              "found_isolated": 16115,
+              "mc_isolated": 27187,
+              "found_close": 16867,
+              "mc_close": 26260,
+              "false_rate": 0.0010298037315241094,
+              "fake": 34,
+              "reconstructed": 33016,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.41249435326523576,
+              "dz_rms_um": 60.188551219169156,
+              "dz_core_sigma_um": 45.18770241759788,
+              "dx_core_sigma_um": 8.386806400032025,
+              "dy_core_sigma_um": 8.364616460824037,
+              "sigma_z_median_um": 39.65403330593714
+            }
+          },
+          "z_range": [
+            -100.0,
+            300.0
+          ],
+          "in_range": {
+            "beamline": {
+              "efficiency": 0.9375637104994903,
+              "found": 47827,
+              "mc": 51012,
+              "efficiency_isolated": 0.9773279674861537,
+              "efficiency_close": 0.8990546015820953,
+              "found_isolated": 24528,
+              "mc_isolated": 25097,
+              "found_close": 23299,
+              "mc_close": 25915,
+              "false_rate": 0.01420150053590568,
+              "fake": 689,
+              "reconstructed": 48517,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -1.0929656573285689,
+              "dz_rms_um": 121.82814178215482,
+              "dz_core_sigma_um": 60.415307243346874,
+              "dx_core_sigma_um": 10.77419555044174,
+              "dy_core_sigma_um": 10.646792656898507,
+              "sigma_z_median_um": 49.591301546584695
+            },
+            "pvfinder": {
+              "efficiency": 0.6464753391358896,
+              "found": 32978,
+              "mc": 51012,
+              "efficiency_isolated": 0.6427062995577161,
+              "efficiency_close": 0.6501254099942119,
+              "found_isolated": 16130,
+              "mc_isolated": 25097,
+              "found_close": 16848,
+              "mc_close": 25915,
+              "false_rate": 0.001060188410626117,
+              "fake": 35,
+              "reconstructed": 33013,
+              "reconstructed_with_cov22_not_positive": 1,
+              "dz_mean_um": -0.4127420659221152,
+              "dz_rms_um": 60.19008229166295,
+              "dz_core_sigma_um": 45.18331713103764,
+              "dx_core_sigma_um": 8.386985544681536,
+              "dy_core_sigma_um": 8.364657530307802,
+              "sigma_z_median_um": 39.65403330593714
+            }
+          },
+          "event_by_event_in_range": {
+            "events": 10000,
+            "same_number_of_pvs": 2146,
+            "mc_found_by_both": 32731,
+            "mc_found_by_a_only": 14945,
+            "mc_found_by_b_only": 220,
+            "mc_found_by_neither": 3116,
+            "a_only_isolated": 8352,
+            "b_only_isolated": 7,
+            "a_only_median_mc_tracks": 14.0,
+            "b_only_median_mc_tracks": 27.0,
+            "neither_median_mc_tracks": 9.0,
+            "both_median_mc_tracks": 44.0,
+            "dz_a_minus_b_same_mc_pv_um": {
+              "median": -0.0019073486328125,
+              "rms": 19.894546506493853,
+              "fraction_within_100um": 0.9954782927499923
+            }
+          }
+        },
+        "peaks": {
+          "settings": {
+            "threshold": 0.15,
+            "integral_threshold": 2.0,
+            "min_width": 0,
+            "split_peaks": true
+          },
+          "events": 1000,
+          "seeds": 3198,
+          "events_with_different_number_of_seeds": 0,
+          "max_abs_dz_mm": 3.3569335926131316e-05,
+          "events_over_seed_cap": 0,
+          "events_with_first_bin_above_threshold": 2,
+          "status": "PASS"
+        }
+      }
+    ]
+  },
+  "profile": null,
+  "artifacts": {
+    "run_dirs": [
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold0.7",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.0",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold1.5",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.07_integral_threshold2.0",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold0.7",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.0",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold1.5",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.1_integral_threshold2.0",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold0.7",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.0",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold1.5",
+      "benchmark_results/20261005_214715_v9r1_peak_scan/threshold0.15_integral_threshold2.0"
+    ]
+  },
+  "duration_s": 0
+}

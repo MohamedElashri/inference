@@ -57,10 +57,7 @@ void downstream_v2_final_fits::downstream_v2_final_fits_t::operator()(
   Allen::memset_async<dev_final_downstream_compact_track_offsets_t>(arguments, 0, context);
 
   global_function(downstream_v2_final_fits)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
-    arguments,
-    constants.host_magnet_polarity[0],
-    m_downstream_ghost_killer.getDevicePointer(),
-    m_ghost_killing_threshold);
+    arguments, constants.magnet_polarity, m_downstream_ghost_killer.getDevicePointer(), m_ghost_killing_threshold);
 
   if (m_verbosity >= logger::debug) {
     print<dev_final_downstream_compact_track_offsets_t>(arguments);
@@ -176,19 +173,20 @@ __global__ void downstream_v2_final_fits::downstream_v2_final_fits(
       const auto phi = fabsf(fabsf(atan2f(ut_state.tx(), ut_state.ty())) - 3.14f / 2.f);
       const auto ft_eta = asinhf(1.f / hypotf(scifi_state.tx(), scifi_state.ty()));
 
-      float inputs[13] = {distX,
-                          distY,
-                          dSlopeX,
-                          dSlopeY,
-                          fabsf(ut_state.x()),
-                          fabsf(ut_state.y()),
-                          fabsf(ut_state.xAt(0)),
-                          fabsf(ut_state.yAt(0)),
-                          bias0,
-                          bias12,
-                          phi,
-                          eta,
-                          ft_eta};
+      float inputs[13] = {
+        distX,
+        distY,
+        dSlopeX,
+        dSlopeY,
+        fabsf(ut_state.x()),
+        fabsf(ut_state.y()),
+        fabsf(ut_state.xAt(0)),
+        fabsf(ut_state.yAt(0)),
+        bias0,
+        bias12,
+        phi,
+        eta,
+        ft_eta};
       score = ghost_killer->evaluate(inputs);
     }
 

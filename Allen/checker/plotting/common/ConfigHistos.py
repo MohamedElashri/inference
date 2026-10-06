@@ -19,7 +19,7 @@ def efficiencyHistoDict():
         "phi": {},
         "nPV": {},
         "nSciFiHits": {},
-        "docaz": {}
+        "docaz": {},
     }
 
     basedict["eta"]["xTitle"] = "#eta"
@@ -74,19 +74,27 @@ def getCuts():
         "Upstream": {},
         "long_validator": {},
         "seed_validator": {},
-        "seed_xz_validator": {}
+        "seed_xz_validator": {},
     }
 
     basedict["velo_validator"] = [
-        "VeloTracks", "VeloTracks_eta25", "LongFromB_eta25", "LongFromD_eta25",
-        "LongStrange_eta25"
+        "VeloTracks",
+        "VeloTracks_eta25",
+        "LongFromB_eta25",
+        "LongFromD_eta25",
+        "LongStrange_eta25",
     ]
     basedict["Upstream"] = [
-        "VeloUTTracks_eta25", "LongFromB_eta25", "LongFromD_eta25",
-        "LongStrange_eta25"
+        "VeloUTTracks_eta25",
+        "LongFromB_eta25",
+        "LongFromD_eta25",
+        "LongStrange_eta25",
     ]
     basedict["long_validator"] = [
-        "Long_eta25", "LongFromB_eta25", "LongFromD_eta25", "LongStrange_eta25"
+        "Long_eta25",
+        "LongFromB_eta25",
+        "LongFromD_eta25",
+        "LongStrange_eta25",
     ]
 
     basedict["seed_validator"] = ["Long_eta25"]
@@ -100,14 +108,12 @@ def categoriesDict():
     basedict = defaultdict(lambda: defaultdict(dict))
 
     basedict["velo_validator"]["VeloTracks"]["title"] = "Velo"
-    basedict["velo_validator"]["VeloTracks_eta25"][
-        "title"] = "Velo, 2 < eta < 5"
-    basedict["velo_validator"]["LongFromB_eta25"][
-        "title"] = "Long from B, 2 < eta < 5"
-    basedict["velo_validator"]["LongFromD_eta25"][
-        "title"] = "Long from D, 2 < eta < 5"
-    basedict["velo_validator"]["LongStrange_eta25"][
-        "title"] = "Long strange, 2 < eta < 5"
+    basedict["velo_validator"]["VeloTracks_eta25"]["title"] = "Velo, 2 < eta < 5"
+    basedict["velo_validator"]["LongFromB_eta25"]["title"] = "Long from B, 2 < eta < 5"
+    basedict["velo_validator"]["LongFromD_eta25"]["title"] = "Long from D, 2 < eta < 5"
+    basedict["velo_validator"]["LongStrange_eta25"]["title"] = (
+        "Long strange, 2 < eta < 5"
+    )
     basedict["velo_validator"]["VeloTracks"]["plotElectrons"] = True
     basedict["velo_validator"]["VeloTracks_eta25"]["plotElectrons"] = True
     basedict["velo_validator"]["LongFromB_eta25"]["plotElectrons"] = False
@@ -115,24 +121,20 @@ def categoriesDict():
     basedict["velo_validator"]["LongStrange_eta25"]["plotElectrons"] = True
 
     basedict["Upstream"]["VeloUTTracks_eta25"]["title"] = "veloUT, 2 < eta < 5"
-    basedict["Upstream"]["LongFromB_eta25"][
-        "title"] = "Long from B, 2 < eta < 5"
-    basedict["Upstream"]["LongFromD_eta25"][
-        "title"] = "Long from D, 2 < eta < 5"
-    basedict["Upstream"]["LongStrange_eta25"][
-        "title"] = "Long strange, 2 < eta < 5"
+    basedict["Upstream"]["LongFromB_eta25"]["title"] = "Long from B, 2 < eta < 5"
+    basedict["Upstream"]["LongFromD_eta25"]["title"] = "Long from D, 2 < eta < 5"
+    basedict["Upstream"]["LongStrange_eta25"]["title"] = "Long strange, 2 < eta < 5"
     basedict["Upstream"]["VeloUTTracks_eta25"]["plotElectrons"] = True
     basedict["Upstream"]["LongFromB_eta25"]["plotElectrons"] = False
     basedict["Upstream"]["LongFromD_eta25"]["plotElectrons"] = True
     basedict["Upstream"]["LongStrange_eta25"]["plotElectrons"] = True
 
     basedict["long_validator"]["Long_eta25"]["title"] = "Long, 2 < eta < 5"
-    basedict["long_validator"]["LongFromB_eta25"][
-        "title"] = "Long from B, 2 < eta < 5"
-    basedict["long_validator"]["LongFromD_eta25"][
-        "title"] = "Long from D, 2 < eta < 5"
-    basedict["long_validator"]["LongStrange_eta25"][
-        "title"] = "Long strange, 2 < eta < 5"
+    basedict["long_validator"]["LongFromB_eta25"]["title"] = "Long from B, 2 < eta < 5"
+    basedict["long_validator"]["LongFromD_eta25"]["title"] = "Long from D, 2 < eta < 5"
+    basedict["long_validator"]["LongStrange_eta25"]["title"] = (
+        "Long strange, 2 < eta < 5"
+    )
     basedict["long_validator"]["Long_eta25"]["plotElectrons"] = False
     basedict["long_validator"]["LongFromB_eta25"]["plotElectrons"] = False
     basedict["long_validator"]["LongFromD_eta25"]["plotElectrons"] = True

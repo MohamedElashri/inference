@@ -1,0 +1,7 @@
+{
+  "schema": "allen-config-delta/1",
+  "canonical": "../../configurations/baseline.json",
+  "original_sha256": "fd21f5d0b45a4f4b6a3425925f019293253e74bc7c7aa1dc1ae10fa4640dc608",
+  "overrides": {},
+  "removed_keys": []
+}

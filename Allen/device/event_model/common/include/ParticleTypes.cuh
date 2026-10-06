@@ -425,6 +425,8 @@ namespace Allen {
 
         __host__ __device__ bool has_pv() const { return m_pv != nullptr; }
 
+        __host__ __device__ bool has_states() const { return m_states != nullptr; }
+
         __host__ __device__ bool has_ownpv_ip() const { return m_ip != nullptr; }
 
         __host__ __device__ const Track& track() const { return *m_track; }
@@ -596,7 +598,7 @@ namespace Allen {
           const float z = Calo::Constants::z;
           const float tx = c.x / z;
           const float ty = c.y / z;
-          return tx == 0.f && ty == 0.f ? 0.f : atan2f(tx, ty);
+          return LHCb::essentiallyZero(tx) && LHCb::essentiallyZero(ty) ? 0.f : atan2f(tx, ty);
         }
 
         __host__ __device__ float eta() const
@@ -783,6 +785,39 @@ namespace Allen {
 
           const auto energy = sqrtf(get_p2(child(0)) + m1 * m1) + sqrtf(get_p2(child(1)) + m2 * m2);
           return sqrtf(energy * energy - vertex().p2());
+        }
+
+        __host__ __device__ float m_pair(const unsigned i, const unsigned j, const float m_i, const float m_j) const
+        {
+          assert(j != i);
+          auto get_p2 = [](auto particle) -> float {
+            auto basicp = dyn_cast<const BasicParticle*>(particle);
+            if (basicp) {
+              const auto mom = basicp->state().p();
+              return mom * mom;
+            }
+            else {
+              auto compp = static_cast<const CompositeParticle*>(particle);
+              return compp->vertex().p2();
+            }
+          };
+          auto get_sump2 =
+            [](auto particle1, auto particle2) -> float { // get the squared norm of the sum of two momentums
+            auto basicp1 = dyn_cast<const BasicParticle*>(particle1);
+            auto basicp2 = dyn_cast<const BasicParticle*>(particle2);
+            if (basicp1 && basicp2) {
+              const auto momx = basicp1->state().px() + basicp2->state().px();
+              const auto momy = basicp1->state().py() + basicp2->state().py();
+              const auto momz = basicp1->state().pz() + basicp2->state().pz();
+              return momx * momx + momy * momy + momz * momz;
+            }
+            else {
+              return 0.f;
+            }
+          };
+          const auto sumenergy = sqrtf(get_p2(child(i)) + m_i * m_i) + sqrtf(get_p2(child(j)) + m_j * m_j);
+          const auto sump2 = get_sump2(child(i), child(j));
+          return sqrtf(sumenergy * sumenergy - sump2);
         }
 
         __host__ __device__ float mdipi() const { return m12(Allen::mPi, Allen::mPi); }
@@ -991,6 +1026,26 @@ namespace Allen {
           const float dz = vrt.z() - primary.position.z;
           const float loc_fd = sqrtf(dx * dx + dy * dy + dz * dz);
           return (dx * vrt.px() + dy * vrt.py() + dz * vrt.pz()) / (vrt.p() * loc_fd);
+        }
+
+        /*
+        Function which computes the dira of the SV that would result when adding a track
+        */
+        __host__ __device__ float newdira(const KalmanState& state) const
+        {
+          if (!has_pv()) return 0.f;
+          const auto primary = pv();
+          const auto vrt = vertex();
+          const float dx = vrt.x() - primary.position.x;
+          const float dy = vrt.y() - primary.position.y;
+          const float dz = vrt.z() - primary.position.z;
+          const float loc_fd = sqrtf(dx * dx + dy * dy + dz * dz);
+          return (dx * (vrt.px() + state.px()) + dy * (vrt.py() + state.py()) + dz * (vrt.pz() + state.pz())) /
+                 (sqrtf(
+                    (vrt.px() + state.px()) * (vrt.px() + state.px()) +
+                    (vrt.py() + state.py()) * (vrt.py() + state.py()) +
+                    (vrt.pz() + state.pz()) * (vrt.pz() + state.pz())) *
+                  loc_fd);
         }
 
         __host__ __device__ float doca(const unsigned index1, const unsigned index2) const

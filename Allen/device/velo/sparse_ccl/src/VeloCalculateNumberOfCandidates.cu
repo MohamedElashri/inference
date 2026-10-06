@@ -23,11 +23,12 @@ __global__ void velo_count_sp_per_sensor(
   [[maybe_unused]] Allen::Monitoring::Counter<>::DeviceType n_unexpected_velo_rawbank)
 {
   const auto event_number = parameters.dev_event_list[blockIdx.x];
-  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_raw_input,
-                                                                            parameters.dev_velo_raw_input_offsets,
-                                                                            parameters.dev_velo_raw_input_sizes,
-                                                                            parameters.dev_velo_raw_input_types,
-                                                                            event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_raw_input,
+    parameters.dev_velo_raw_input_offsets,
+    parameters.dev_velo_raw_input_sizes,
+    parameters.dev_velo_raw_input_types,
+    event_number + event_start};
 
   for (unsigned raw_bank_number = threadIdx.y; raw_bank_number < velo_raw_event.number_of_raw_banks();
        raw_bank_number += blockDim.y) {
@@ -60,7 +61,7 @@ __global__ void velo_count_sp_per_sensor(
 
         if (sp == 0) continue;
 
-        unsigned count = VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
+        unsigned count = Allen::VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
         if (sensor_bit == 0) {
           sensor0_count += count;
         }
@@ -80,11 +81,12 @@ __global__ void velo_partition_superpixels(
   const unsigned event_start)
 {
   const auto event_number = parameters.dev_event_list[blockIdx.x];
-  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {parameters.dev_velo_raw_input,
-                                                                            parameters.dev_velo_raw_input_offsets,
-                                                                            parameters.dev_velo_raw_input_sizes,
-                                                                            parameters.dev_velo_raw_input_types,
-                                                                            event_number + event_start};
+  const auto velo_raw_event = Velo::RawEvent<decoding_version, mep_layout> {
+    parameters.dev_velo_raw_input,
+    parameters.dev_velo_raw_input_offsets,
+    parameters.dev_velo_raw_input_sizes,
+    parameters.dev_velo_raw_input_types,
+    event_number + event_start};
   __shared__ unsigned sensor_index[Velo::Constants::n_sensors];
   for (unsigned i = threadIdx.y * blockDim.x + threadIdx.x; i < Velo::Constants::n_sensors;
        i += blockDim.y * blockDim.x) {
@@ -126,7 +128,7 @@ __global__ void velo_partition_superpixels(
 
         sp_word |= (sensor_base + sensor_bit) << 24;
 
-        unsigned count = VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
+        unsigned count = Allen::VP::number_of_clusters_in_SP(sp); // One or 2 clusters ?
         unsigned out_index = atomicAdd(&sensor_index[sensor_base + sensor_bit], count);
         if (count == 1) {
           if (sensor_bit == 0)
@@ -186,23 +188,21 @@ void velo_calculate_number_of_candidates::velo_calculate_number_of_candidates_t:
 
   if (bank_version < 0) return; // no VP banks present in data
 
-  auto count_fn = (bank_version == 2) ?
-                    (runtime_options.mep_layout ? global_function(velo_count_sp_per_sensor<2, true>) :
-                                                  global_function(velo_count_sp_per_sensor<2, false>)) :
-                    (bank_version == 3) ?
-                    (runtime_options.mep_layout ? global_function(velo_count_sp_per_sensor<3, true>) :
-                                                  global_function(velo_count_sp_per_sensor<3, false>)) :
-                    (runtime_options.mep_layout ? global_function(velo_count_sp_per_sensor<4, true>) :
-                                                  global_function(velo_count_sp_per_sensor<4, false>));
+  auto count_fn =
+    (bank_version == 2) ? (runtime_options.mep_layout ? global_function(velo_count_sp_per_sensor<2, true>) :
+                                                        global_function(velo_count_sp_per_sensor<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ? global_function(velo_count_sp_per_sensor<3, true>) :
+                                                        global_function(velo_count_sp_per_sensor<3, false>)) :
+                          (runtime_options.mep_layout ? global_function(velo_count_sp_per_sensor<4, true>) :
+                                                        global_function(velo_count_sp_per_sensor<4, false>));
 
-  auto partition_fn = (bank_version == 2) ?
-                        (runtime_options.mep_layout ? global_function(velo_partition_superpixels<2, true>) :
-                                                      global_function(velo_partition_superpixels<2, false>)) :
-                        (bank_version == 3) ?
-                        (runtime_options.mep_layout ? global_function(velo_partition_superpixels<3, true>) :
-                                                      global_function(velo_partition_superpixels<3, false>)) :
-                        (runtime_options.mep_layout ? global_function(velo_partition_superpixels<4, true>) :
-                                                      global_function(velo_partition_superpixels<4, false>));
+  auto partition_fn =
+    (bank_version == 2) ? (runtime_options.mep_layout ? global_function(velo_partition_superpixels<2, true>) :
+                                                        global_function(velo_partition_superpixels<2, false>)) :
+    (bank_version == 3) ? (runtime_options.mep_layout ? global_function(velo_partition_superpixels<3, true>) :
+                                                        global_function(velo_partition_superpixels<3, false>)) :
+                          (runtime_options.mep_layout ? global_function(velo_partition_superpixels<4, true>) :
+                                                        global_function(velo_partition_superpixels<4, false>));
 
   count_fn(dim3(size<dev_event_list_t>(arguments)), dim3(16, 16), context)(
     arguments,

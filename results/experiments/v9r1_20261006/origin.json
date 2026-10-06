@@ -1,0 +1,9 @@
+{
+  "provenance": "Imported unchanged from isolated v9r1 experiments; original absolute artifact paths identify the runs as executed.",
+  "isolated_source_commit": "b427d449b0c393734e361279e3922aa8aebea57c",
+  "master_before_transfer": "71933b663ec48b2d9631c6261e7b74a2ba963f6d",
+  "allen_upstream_tag": "v9r1",
+  "allen_upstream_commit": "9352e3650eed34142288e3fbc6ef9154973135da",
+  "raw_artifacts": "local_scripts/rebase_v9r1/optimization",
+  "new_build": "Allen/buildv9r1gpu12"
+}

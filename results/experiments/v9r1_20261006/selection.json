@@ -1,0 +1,19 @@
+{
+  "screen_choice": "gpu_fc0.0625_unet0.125",
+  "screen_result": {
+    "mean_events_per_s": 82668.71184833333,
+    "loss_mean_pct": 4.796287266533235,
+    "loss_sd_pct": 0.17370640759524109,
+    "gain_vs_reference_mean_pct": 1.0147364903943783,
+    "gain_vs_reference_sd_pct": 0.8358953110943441,
+    "individual_gains_pct": [
+      1.768843193264269,
+      0.1159425121873392,
+      1.1594237657315265
+    ]
+  },
+  "fc_grid_fraction": 0.0625,
+  "unet_grid_fraction": 0.125,
+  "status": "accepted and preserved",
+  "accepted_commit": "b427d449b0c393734e361279e3922aa8aebea57c"
+}

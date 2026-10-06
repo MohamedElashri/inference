@@ -54,19 +54,32 @@ namespace {
   bool emplace_output_arg(const std::vector<std::string>& arguments, Allen::Store::UnorderedStore& store)
   {
     using t = std::tuple_element_t<I, T>;
-    if constexpr (Allen::is_template_base_of_v<Allen::Store::output_datatype, t>) {
+    if constexpr (Allen::Store::is_output<t>::value) {
       store.register_entry(
         arguments[I],
-        Allen::Store::AllenArgument {std::in_place_type<typename t::type>,
-                                     arguments[I],
-                                     std::is_base_of_v<Allen::Store::host_datatype, t> ? Allen::Store::Scope::Host :
-                                                                                         Allen::Store::Scope::Device});
+        Allen::Store::AllenArgument {
+          std::in_place_type<typename t::type>,
+          arguments[I],
+          std::is_base_of_v<Allen::Store::host_datatype, t> ? Allen::Store::Scope::Host : Allen::Store::Scope::Device});
     }
     else {
       _unused(arguments);
       _unused(store);
     }
     return true;
+  }
+
+  template<typename T>
+  std::string demangled_type()
+  {
+    int status;
+    std::string tname = typeid(T).name();
+    char* demangled_name = abi::__cxa_demangle(tname.c_str(), NULL, NULL, &status);
+    if (status == 0) {
+      tname = demangled_name;
+      std::free(demangled_name);
+    }
+    return tname;
   }
 
   template<typename T, std::size_t... Is>
@@ -76,6 +89,70 @@ namespace {
     std::index_sequence<Is...>)
   {
     (emplace_output_arg<T, Is>(arguments, store) && ...);
+  }
+
+  template<typename datatype>
+  std::map<std::string, nlohmann::json> argument_to_json()
+  {
+    std::map<std::string, nlohmann::json> arg;
+
+    // Basic type information
+    arg["typename"] = demangled_type<datatype>();
+    arg["type"] = demangled_type<typename datatype::type>();
+
+    // Determine scope (host or device)
+    if constexpr (std::is_base_of_v<Allen::Store::host_datatype, datatype>) {
+      arg["scope"] = "host";
+    }
+    else if constexpr (std::is_base_of_v<Allen::Store::device_datatype, datatype>) {
+      arg["scope"] = "device";
+    }
+    else {
+      arg["scope"] = "unknown";
+    }
+
+    // Determine kind (input or output)
+    if constexpr (Allen::Store::is_input<datatype>::value) {
+      arg["kind"] = "input";
+    }
+    else if constexpr (Allen::Store::is_output<datatype>::value) {
+      arg["kind"] = "output";
+    }
+    else {
+      arg["kind"] = "unknown";
+    }
+
+    // Is aggregate or optional ?
+    if constexpr (std::is_base_of_v<Allen::Store::aggregate_datatype, datatype>) {
+      arg["kind"] = "input";
+      arg["aggregate"] = true;
+      arg["type"] = "unknown_t"; // Pyconf typechecking doesn't know how to handle aggregates, so disable it
+    }
+
+    // Extract dependencies
+    if constexpr (requires { typename datatype::dependencies_type; }) {
+      // Get the dependency types
+      using deps_type = typename datatype::dependencies_type;
+
+      // Convert dependencies to JSON array
+      std::vector<std::string> deps;
+      [&]<typename... Deps>(Allen::Store::dependencies<Deps...>*) {
+        (deps.push_back(demangled_type<Deps>()), ...);
+      }(static_cast<deps_type*>(nullptr));
+
+      arg["dependencies"] = deps;
+    }
+    return arg;
+  }
+
+  template<typename... Types>
+  std::vector<nlohmann::json> arguments_json_infos(std::tuple<Types...>)
+  {
+    std::vector<nlohmann::json> out;
+    [&]<typename... Ts>(std::tuple<Ts...>*) {
+      (out.emplace_back(argument_to_json<Ts>()), ...);
+    }(static_cast<std::tuple<Types...>*>(nullptr));
+    return out;
   }
 } // namespace
 
@@ -129,6 +206,7 @@ namespace Allen {
       void (*set_properties)(void*, const std::map<std::string, nlohmann::json>&) = nullptr;
       std::map<std::string, nlohmann::json> (*get_properties)(void const*) = nullptr;
       std::map<std::string, nlohmann::json> (*get_properties_infos)(void const*) = nullptr;
+      std::map<std::string, nlohmann::json> (*get_algorithm_infos)(void const*) = nullptr;
       std::string (*scope)() = nullptr;
       void (*dtor)(void*) = nullptr;
       void (*run_preconditions)(
@@ -208,6 +286,18 @@ namespace Allen {
         },
         [](void const* p) { return static_cast<ALGORITHM const*>(p)->get_properties(); },
         [](void const* p) { return static_cast<ALGORITHM const*>(p)->get_properties_infos(); },
+        [](void const* p) { // get_algorithm_infos
+          std::map<std::string, nlohmann::json> algorithm;
+          algorithm["scope"] = ALGORITHM::algorithm_scope;
+          algorithm["type"] = demangled_type<ALGORITHM>();
+          using aggregates_tuple_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType::aggregates_tuple_t;
+          using parameters_tuple_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType::parameters_tuple_t;
+          using full_parameters_tuple_t =
+            decltype(std::tuple_cat(std::declval<aggregates_tuple_t>(), std::declval<parameters_tuple_t>()));
+          algorithm["parameters"] = arguments_json_infos(full_parameters_tuple_t {});
+          algorithm["properties"] = static_cast<ALGORITHM const*>(p)->get_properties_infos();
+          return algorithm;
+        },
         []() -> std::string { return ALGORITHM::algorithm_scope; },
         [](void* p) { delete static_cast<ALGORITHM*>(p); },
         [](
@@ -218,7 +308,7 @@ namespace Allen {
           const Allen::Context& context) {
           using store_ref_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType;
           using preconditions_t = typename AlgorithmContracts<typename ALGORITHM::contracts>::preconditions;
-          if constexpr (std::tuple_size_v<preconditions_t>> 0) {
+          if constexpr (std::tuple_size_v < preconditions_t >> 0) {
             auto preconditions = preconditions_t {};
             const auto location = static_cast<ALGORITHM const*>(p)->name();
             std::apply(
@@ -241,7 +331,7 @@ namespace Allen {
           const Allen::Context& context) {
           using store_ref_t = typename AlgorithmTraits<ALGORITHM>::StoreRefType;
           using postconditions_t = typename AlgorithmContracts<typename ALGORITHM::contracts>::postconditions;
-          if constexpr (std::tuple_size_v<postconditions_t>> 0) {
+          if constexpr (std::tuple_size_v < postconditions_t >> 0) {
             auto postconditions = postconditions_t {};
             const auto location = static_cast<ALGORITHM const*>(p)->name();
             std::apply(
@@ -303,6 +393,7 @@ namespace Allen {
     {
       return (table.get_properties_infos)(instance);
     }
+    std::map<std::string, nlohmann::json> get_algorithm_infos() const { return (table.get_algorithm_infos)(instance); }
     std::string scope() const { return (table.scope)(); }
     void run_preconditions(
       std::any& arg_ref_manager,
@@ -331,15 +422,37 @@ namespace Allen {
 #endif
 
   // Tool to instantiate algorithms
-  template<typename T>
-  TypeErasedAlgorithm instantiate_algorithm(const std::string& name);
+  struct AlgorithmDB {
+    static AlgorithmDB* get();
 
-#define INSTANTIATE_ALGORITHM(TYPE)                                                      \
-  template<>                                                                             \
-  Allen::TypeErasedAlgorithm Allen::instantiate_algorithm<TYPE>(const std::string& name) \
-  {                                                                                      \
-    return TypeErasedAlgorithm {std::in_place_type<TYPE>, name};                         \
-  }
+    using factory_t = TypeErasedAlgorithm (*)(const std::string& name);
+
+    TypeErasedAlgorithm instantiate_algorithm(const std::string& id, const std::string& name) const
+    {
+      if (m_factories.find(id) != std::end(m_factories)) {
+        return m_factories.at(id)(name);
+      }
+      throw std::runtime_error("Cannot instantiate algorithm " + id);
+    }
+
+    std::vector<std::pair<std::string, TypeErasedAlgorithm>> all_algorithms() const
+    {
+      std::vector<std::pair<std::string, TypeErasedAlgorithm>> algs;
+      for (const auto& [id, factory] : m_factories) {
+        algs.emplace_back(id, factory(""));
+      }
+      return algs;
+    }
+
+    template<typename F>
+    bool register_factory(const std::string& id, F&& factory)
+    {
+      m_factories[id] = factory;
+      return true;
+    }
+
+    std::map<std::string, factory_t> m_factories;
+  };
 
   // Forward declare to use in Algorithm
   template<typename V>
@@ -411,6 +524,15 @@ namespace Allen {
         properties.emplace(kv.first, kv.second->to_json());
       }
       return properties;
+    }
+
+    std::vector<BaseProperty*> properties() const override
+    {
+      std::vector<BaseProperty*> props;
+      for (const auto& kv : m_properties) {
+        props.push_back(kv.second);
+      }
+      return props;
     }
 
     std::map<std::string, nlohmann::json> get_properties_infos() const override

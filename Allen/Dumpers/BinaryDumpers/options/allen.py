@@ -9,36 +9,46 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import os
-import sys
-import zmq
-import re
 import json
+import os
+import re
+import sys
 from pathlib import Path
-from Configurables import ApplicationMgr
-from Configurables import Gaudi__RootCnvSvc as RootCnvSvc
-from Configurables import DDDBConf
 
 from AllenCore.configuration_options import is_allen_standalone
+from Configurables import ApplicationMgr
+from Configurables import Gaudi__RootCnvSvc as RootCnvSvc
+
+import zmq
+
 is_allen_standalone.global_bind(standalone=True)
 
-from Allen.config import (setup_allen_non_event_data_service, allen_odin,
-                          configured_bank_types)
-from PyConf.application import (configure, setup_component, ComponentConfig,
-                                ApplicationOptions, make_odin,
-                                default_raw_event)
-from PyConf.control_flow import CompositeNode, NodeLogic
-from GaudiKernel.Constants import ERROR
-from DDDB.CheckDD4Hep import UseDD4Hep
+import argparse
+import ctypes
+import textwrap
 from threading import Thread
 from time import sleep
-import ctypes
-import argparse, textwrap
+
+from Allen.config import (
+    allen_odin,
+    configured_bank_types,
+    setup_allen_non_event_data_service,
+)
+from DDDB.CheckDD4Hep import UseDD4Hep
+from GaudiKernel.Constants import ERROR
 from GaudiPython.Bindings import AppMgr, gbl
+from PyConf.application import (
+    ApplicationOptions,
+    ComponentConfig,
+    configure,
+    configure_geometry_and_conditions,
+    setup_component,
+)
 
 # Load Allen entry point and helpers
 gbl.gSystem.Load("libAllenLib")
 gbl.gSystem.Load("libBinaryDumpers")
+gbl.gSystem.Load("libAllenAlgorithms")
 interpreter = gbl.gInterpreter
 
 # FIXME: Once the headers are installed properly, this should not be
@@ -50,17 +60,17 @@ interpreter.Declare("#include <Allen/Provider.h>")
 interpreter.Declare("""
 #include <GaudiKernel/IService.h>
 #include <Allen/InputProvider.h>
-#include <zmq/zmq.hpp>
+#include <zmq.hpp>
 // Helper function to cast the LHCb-implementation of the Allen
 // non-event data manager to its shared interface
 template<typename TO>
 struct cast_service { TO* operator()(IService* svc) { return dynamic_cast<TO*>(svc); } };
-Allen::NonEventData::IUpdater* binary_updater(std::map<std::string, std::string> const& options);
 uintptr_t czmq_context(zmq::context_t& ctx) { return reinterpret_cast<uintptr_t>(ctx.operator void*()); }
 """)
 
-sequence_default = os.path.join(os.environ['ALLEN_INSTALL_DIR'], 'constants',
-                                'hlt1_pp_default.json')
+sequence_default = os.path.join(
+    os.environ["ALLEN_INSTALL_DIR"], "constants", "hlt1_pp_default.json"
+)
 
 
 def cast_service(return_type, svc):
@@ -73,7 +83,8 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument(
     "-g",
     dest="det_folder",
-    default=os.path.join(allen_dir, "input", "detector_configuration"))
+    default=os.path.join(allen_dir, "input", "detector_configuration"),
+)
 parser.add_argument("-n", dest="n_events", default=0)
 parser.add_argument("-t", dest="threads", default=1)
 parser.add_argument("--params", dest="params", default="")
@@ -90,10 +101,8 @@ input_group.add_argument("--mdf", dest="mdf", default="")
 input_group.add_argument("--mep", dest="mep", default="")
 input_group.add_argument("--test-file-db-key", dest="tdbk")
 parser.add_argument(
-    "--mep-mask-source-id-top-5",
-    action="store_true",
-    dest="mask_top5",
-    default=False)
+    "--mep-mask-source-id-top-5", action="store_true", dest="mask_top5", default=False
+)
 parser.add_argument(
     "--reuse-meps",
     action="store_true",
@@ -110,15 +119,11 @@ parser.add_argument(
     help="Add profiler start and stop calls",
 )
 parser.add_argument("--output-file", dest="output_file", default=None)
+parser.add_argument("--output-batch-size", dest="output_batch_size", default=10)
+parser.add_argument("--monitoring-save-period", dest="mon_save_period", default=0)
 parser.add_argument(
-    "--output-batch-size", dest="output_batch_size", default=10)
-parser.add_argument(
-    "--monitoring-save-period", dest="mon_save_period", default=0)
-parser.add_argument(
-    "--monitoring-filename",
-    dest="mon_filename",
-    default="",
-    help="Histogram filename")
+    "--monitoring-filename", dest="mon_filename", default="", help="Histogram filename"
+)
 parser.add_argument(
     "--enable-run-changes",
     dest="enable_run_changes",
@@ -149,9 +154,11 @@ parser.add_argument(
     format for detdesc - [detdesc:]dddb-tag,sim-tag
     format for dd4hep  - [dd4hep:]geom-tag,cond-tag
     format for both    - detdesc:dddb-tag,sim-tag|dd4hep:geom-tag,cond-tag
-    """))
+    """),
+)
 parser.add_argument(
-    "--real-data", dest="simulation", action="store_false", default=True)
+    "--real-data", dest="simulation", action="store_false", default=True
+)
 parser.add_argument(
     "--enable-monitoring-printing",
     dest="enable_monitoring_printing",
@@ -167,29 +174,23 @@ parser.add_argument(
     help="Enables printing counters information",
 )
 parser.add_argument(
-    "--binary-geometry",
-    dest="binary_geometry",
-    action="store_true",
-    default=False,
-    help="Use binary files as the geometry",
-)
-parser.add_argument(
     "--tck-no-bindings",
     help="Avoid using python bindings to TCK utils",
     dest="bindings",
     action="store_false",
-    default=True)
+    default=True,
+)
 parser.add_argument(
     "--tck-from-odin",
     help="Respect the TCK requested by ODIN",
     dest="tck_from_odin",
     action="store_true",
-    default=False)
+    default=False,
+)
 parser.add_argument(
     "--python-hlt1-node",
     type=str,
-    help=
-    "Name of the variable that stores the configuration in the python module or file",
+    help="Name of the variable that stores the configuration in the python module or file",
     default="hlt1_node",
     dest="hlt1_node",
 )
@@ -201,53 +202,54 @@ if args.profile == "CUDA":
     runtime_lib = ctypes.CDLL("libcudart.so")
 
 options = ApplicationOptions(_enabled=False)
-options.input_type = 'MDF'
+options.input_type = "MDF"
 
 if args.tdbk is not None:
     from PRConfig.TestFileDB import test_file_db
+
     # TestFileDB key supplied, use it for all the information it can supply
     options.set_conds_from_testfiledb(args.tdbk)
     args.simulation = options.simulation
 
     tdb_entry = test_file_db[args.tdbk]
-    format = tdb_entry.qualifiers['Format']
-    if format == 'MDF':
-        args.mdf = ','.join(tdb_entry.filenames)
-    elif format == 'MEP':
-        args.mep = ','.join(tdb_entry.filenames)
+    format = tdb_entry.qualifiers["Format"]
+    if format == "MDF":
+        args.mdf = ",".join(tdb_entry.filenames)
+    elif format == "MEP":
+        args.mep = ",".join(tdb_entry.filenames)
     else:
-        raise ValueError(
-            "Only files in MDF or MEP format are supported by allen.py")
+        raise ValueError("Only files in MDF or MEP format are supported by allen.py")
 else:
     options.simulation = True if not UseDD4Hep else args.simulation
-    options.data_type = 'Upgrade'
+    options.data_type = "Upgrade"
 
-    if args.tags.find('|') != -1:
+    if args.tags.find("|") != -1:
         # special case that allows giving tags for both DetDesc and DD4hep
         valid_patterns = [
             re.compile(
                 "^detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)|dd4hep:.+,.+"
-            ),  #detdesc pattern first
+            ),  # detdesc pattern first
             re.compile(
                 "^dd4hep:.+,.+|detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)"
-            )  #dd4hep pattern first
+            ),  # dd4hep pattern first
         ]
         if not any([pattern.match(args.tags) for pattern in valid_patterns]):
             raise argparse.ArgumentTypeError("Bad tags given!")
         tags = {}
-        for entry in args.tags.split('|'):
-            build, t = entry.split(':')
-            tags[build] = t.split(',')
+        for entry in args.tags.split("|"):
+            build, t = entry.split(":")
+            tags[build] = t.split(",")
         options.dddb_tag, options.conddb_tag = tags[
-            'dd4hep' if UseDD4Hep else 'detdesc']
+            "dd4hep" if UseDD4Hep else "detdesc"
+        ]
     elif args.tags.find(":") != -1:
         # special case, the tags have been defined only for a certain build
         #  - check that build matches what we're using and propagate accordingly
         valid_patterns = [
             re.compile(
                 "^detdesc:(?:dddb-[0-9]{8},sim-[0-9]{8}-..-m[ud].+|upgrade/.+,upgrade/.+)"
-            ),  #detdesc pattern
-            re.compile("^dd4hep:.+,.+")  #dd4hep pattern
+            ),  # detdesc pattern
+            re.compile("^dd4hep:.+,.+"),  # dd4hep pattern
         ]
         if not any([pattern.match(args.tags) for pattern in valid_patterns]):
             raise argparse.ArgumentTypeError("Bad tags given!")
@@ -255,35 +257,38 @@ else:
         if split_tag[0] == "detdesc":
             if UseDD4Hep:
                 raise argparse.ArgumentTypeError(
-                    "Tried to give detdesc tags for a dd4hep build")
+                    "Tried to give detdesc tags for a dd4hep build"
+                )
         elif split_tag[0] == "dd4hep":
             if not UseDD4Hep:
                 raise argparse.ArgumentTypeError(
-                    "Tried to give dd4hep tags for a detdesc build")
-        options.dddb_tag, options.conddb_tag = split_tag[1].split(',')
+                    "Tried to give dd4hep tags for a detdesc build"
+                )
+        options.dddb_tag, options.conddb_tag = split_tag[1].split(",")
     else:
-        options.dddb_tag, options.conddb_tag = args.tags.split(',')
+        options.dddb_tag, options.conddb_tag = args.tags.split(",")
 
 if args.register_monitoring_counters and args.mon_filename:
     fn, ext = os.path.splitext(args.mon_filename)
     options.histo_file = fn + "_gaudi" + ext
 
-online_cond_path = '/group/online/hlt/conditions.run3/lhcb-conditions-database'
+online_cond_path = "/group/online/hlt/conditions.run3/lhcb-conditions-database"
 if not args.simulation:
     if os.path.exists(online_cond_path):
         if UseDD4Hep:
-            from Configurables import LHCb__Det__LbDD4hep__DD4hepSvc as DD4hepSvc
-            dd4hepSvc = DD4hepSvc()
-            dd4hepSvc.ConditionsLocation = 'file://' + online_cond_path
+            options.conditions_location = "file://" + online_cond_path
         else:
             from Configurables import XmlCnvSvc
+
             XmlCnvSvc().OutputLevel = ERROR
             options.velo_motion_system_yaml = os.path.join(
-                online_cond_path + '/Conditions/VP/Motion.yml')
-    make_odin = allen_odin
-
+                online_cond_path + "/Conditions/VP/Motion.yml"
+            )
+make_odin = allen_odin
 options.finalize()
 config = ComponentConfig()
+
+configure_geometry_and_conditions(ApplicationMgr(), config, options)
 
 # Some extra stuff for timing table
 extSvc = ["ToolSvc", "AuditorSvc", "ZeroMQSvc"]
@@ -296,19 +301,17 @@ ApplicationMgr().ExtSvc += ["Gaudi::IODataManager/IODataManager", rootSvc]
 sequence = Path(os.path.expandvars(args.sequence))
 sequence_json, sequence_source = ("", "")
 tck_option = re.compile(r"([^:]+):(0x[a-fA-F0-9]{8})")
-if (m := tck_option.match(str(sequence))):
-    from Allen.tck import sequence_from_git, dependencies_from_build_manifest
+if m := tck_option.match(str(sequence)):
     import json
+
+    from Allen.tck import dependencies_from_build_manifest, sequence_from_git
 
     repo = m.group(1)
     tck = m.group(2)
-    sequence_json, tck_info = sequence_from_git(
-        repo, tck, use_bindings=args.bindings)
+    sequence_json, tck_info = sequence_from_git(repo, tck, use_bindings=args.bindings)
     tck_deps = tck_info["metadata"]["stack"]["projects"]
-    if not sequence_json or sequence_json == 'null':
-        print(
-            f"Failed to obtain configuration for TCK {tck} from repository {repo}"
-        )
+    if not sequence_json or sequence_json == "null":
+        print(f"Failed to obtain configuration for TCK {tck} from repository {repo}")
         sys.exit(1)
     elif (deps := dependencies_from_build_manifest()) != tck_deps:
         print(
@@ -323,12 +326,14 @@ if (m := tck_option.match(str(sequence))):
 elif sequence.suffix in (".py", ""):
     from Allen.tck import sequence_from_python
     from AllenCore.configuration_options import is_allen_standalone
+
     is_allen_standalone.global_bind(standalone=True)
     sequence_json = json.dumps(
         sequence_from_python(sequence, node_name=args.hlt1_node, verbose=True),
-        sort_keys=True)
+        sort_keys=True,
+    )
     sequence_source = str(sequence)
-elif sequence.suffix in (".json", ):
+elif sequence.suffix in (".json",):
     print(sequence.resolve())
     with sequence.open() as f:
         sequence_json = f.read()
@@ -338,35 +343,39 @@ else:
 
 if args.mep:
     extSvc += ["AllenConfiguration", "MEPProvider"]
-    from Configurables import MEPProvider, AllenConfiguration
+    from Configurables import AllenConfiguration, MEPProvider
 
     allen_conf = AllenConfiguration("AllenConfiguration")
     # Newlines in a string property cause issues
-    allen_conf.JSON = sequence_json.replace('\n', '')
+    allen_conf.JSON = sequence_json.replace("\n", "")
     allen_conf.OutputLevel = 3
 
     mep_provider = MEPProvider()
     mep_provider.NSlices = args.slices
     mep_provider.EventsPerSlice = args.events_per_slice
-    mep_provider.OutputLevel = (6 - int(args.verbosity))
+    mep_provider.OutputLevel = 6 - int(args.verbosity)
     # Number of MEP buffers and number of transpose/offset threads
     mep_provider.BufferConfig = (10, 8)
     mep_provider.TransposeMEPs = False
     mep_provider.Source = "Files"
     mep_provider.MaskSourceIDTop5 = args.mask_top5
     mep_dir = os.path.expandvars(args.mep)
-    meps = mep_dir.split(',')
+    meps = mep_dir.split(",")
     if os.path.isdir(mep_dir):
-        mep_provider.Connections = sorted([
-            os.path.join(mep_dir, mep_file) for mep_file in os.listdir(mep_dir)
-            if mep_file.endswith(".mep")
-        ])
+        mep_provider.Connections = sorted(
+            [
+                os.path.join(mep_dir, mep_file)
+                for mep_file in os.listdir(mep_dir)
+                if mep_file.endswith(".mep")
+            ]
+        )
     elif len(meps) == 1 and not meps[0].endswith(".mep"):
         with open(meps[0]) as list_file:
             mep_provider.Connections = [
                 m
-                for m in filter(lambda e: len(e) != 0, (mep.strip()
-                                                        for mep in list_file))
+                for m in filter(
+                    lambda e: len(e) != 0, (mep.strip() for mep in list_file)
+                )
             ]
     else:
         mep_provider.Connections = meps
@@ -382,32 +391,26 @@ if args.mep:
 ApplicationMgr().EvtSel = "NONE"
 ApplicationMgr().ExtSvc += extSvc
 
-# Copeid from PyConf.application.configure_input
-default_raw_event.global_bind(raw_event_format=options.input_raw_format)
-if not args.binary_geometry:
-    if UseDD4Hep:
-        config.add(
-            setup_component(
-                'DDDBConf',
-                Simulation=options.simulation,
-                DataType=options.data_type,
-                GeometryVersion=options.geometry_version,
-                ConditionsVersion=options.conditions_version))
-    else:
-        config.add(DDDBConf(Simulation=options.simulation, DataType="Upgrade"))
-        config.add(
-            setup_component(
-                'CondDB',
-                Upgrade=True,
-                Tags={
-                    'DDDB': options.dddb_tag,
-                    'SIMCOND': options.conddb_tag,
-                }))
+if not UseDD4Hep:
+    from Configurables import DDDBConf
 
-    bank_types = configured_bank_types(sequence_json)
-    cf_node = setup_allen_non_event_data_service(
-        allen_event_loop=True, bank_types=bank_types)
-    config.update(configure(options, cf_node, make_odin=make_odin))
+    config.add(DDDBConf(Simulation=options.simulation, DataType="Upgrade"))
+    config.add(
+        setup_component(
+            "CondDB",
+            Upgrade=True,
+            Tags={
+                "DDDB": options.dddb_tag,
+                "SIMCOND": options.conddb_tag,
+            },
+        )
+    )
+
+bank_types = configured_bank_types(sequence_json)
+cf_node = setup_allen_non_event_data_service(
+    allen_event_loop=True, bank_types=bank_types
+)
+config.update(configure(options, cf_node, make_odin=make_odin))
 
 # Start Gaudi and get the AllenUpdater service
 gaudi = AppMgr()
@@ -421,31 +424,35 @@ zmqSvc = gaudi.service("ZeroMQSvc", interface=gbl.IZeroMQSvc)
 options = gbl.std.map("std::string", "std::string")()
 params = args.params if args.params != "" else os.getenv("PARAMFILESROOT")
 
-for flag, value in [("g", args.det_folder), ("params", params),
-                    ("n", args.n_events), ("t", args.threads),
-                    ("r", args.repetitions), ("output-file", args.output_file),
-                    ("output-batch-size", args.output_batch_size),
-                    ("m", args.reserve), ("v", args.verbosity),
-                    ("p", args.print_memory), ("sequence", sequence),
-                    ("s", args.slices), ("mdf", os.path.expandvars(args.mdf)),
-                    ("disable-run-changes", int(not args.enable_run_changes)),
-                    ("monitoring-save-period", args.mon_save_period),
-                    ("monitoring-filename", args.mon_filename),
-                    ("events-per-slice", args.events_per_slice),
-                    ("device", args.device), ("host-memory", args.host_memory),
-                    ("tck-from-odin", int(args.tck_from_odin)),
-                    ("enable-monitoring-printing",
-                     int(args.enable_monitoring_printing)),
-                    ("register-monitoring-counters",
-                     int(args.register_monitoring_counters))]:
+for flag, value in [
+    ("g", args.det_folder),
+    ("params", params),
+    ("n", args.n_events),
+    ("t", args.threads),
+    ("r", args.repetitions),
+    ("output-file", args.output_file),
+    ("output-batch-size", args.output_batch_size),
+    ("m", args.reserve),
+    ("v", args.verbosity),
+    ("p", args.print_memory),
+    ("sequence", sequence),
+    ("s", args.slices),
+    ("mdf", os.path.expandvars(args.mdf)),
+    ("disable-run-changes", int(not args.enable_run_changes)),
+    ("monitoring-save-period", args.mon_save_period),
+    ("monitoring-filename", args.mon_filename),
+    ("events-per-slice", args.events_per_slice),
+    ("device", args.device),
+    ("host-memory", args.host_memory),
+    ("tck-from-odin", int(args.tck_from_odin)),
+    ("enable-monitoring-printing", int(args.enable_monitoring_printing)),
+    ("register-monitoring-counters", int(args.register_monitoring_counters)),
+]:
     if value is not None:
         options[flag] = str(value)
 
-if args.binary_geometry:
-    updater = gbl.binary_updater(options)
-else:
-    svc = gaudi.service("AllenUpdater", interface=gbl.IService)
-    updater = cast_service(gbl.Allen.NonEventData.IUpdater, svc)
+svc = gaudi.service("AllenUpdater", interface=gbl.IService)
+updater = cast_service(gbl.Allen.NonEventData.IUpdater, svc)
 
 con = gbl.std.string("")
 
@@ -484,8 +491,16 @@ def allen_thread():
     if args.profile == "CUDA":
         runtime_lib.cudaProfilerStart()
 
-    gbl.allen(options, sequence_json, sequence_source, updater, provider,
-              output_handler, zmqSvc, con.c_str())
+    gbl.allen(
+        options,
+        sequence_json,
+        sequence_source,
+        updater,
+        provider,
+        output_handler,
+        zmqSvc,
+        con.c_str(),
+    )
 
     if args.profile == "CUDA":
         runtime_lib.cudaProfilerStop()
@@ -501,7 +516,7 @@ if args.reuse_meps:
 else:
     # READY
     msg = control.recv()
-    assert (msg.decode() == "READY")
+    assert msg.decode() == "READY"
 
     # Start the fake event loop that takes care of the geometry and
     # conditions data.
@@ -510,7 +525,7 @@ else:
     # Start the Allen event loop
     control.send(b"START")
     msg = control.recv()
-    assert (msg.decode() == "RUNNING")
+    assert msg.decode() == "RUNNING"
     sleep(5)
     r = control.poll(0)
     if r == zmq.POLLIN:
@@ -522,13 +537,13 @@ else:
 
     control.send(b"STOP")
     msg = control.recv()
-    assert (msg.decode() == "READY")
+    assert msg.decode() == "READY"
     if args.profile == "CUDA":
         runtime_lib.cudaProfilerStop()
     gaudi.stop()
     gaudi.finalize()
     control.send(b"RESET")
     msg = control.recv()
-    assert (msg.decode() == "NOT_READY")
+    assert msg.decode() == "NOT_READY"
 
 allen_thread.join()

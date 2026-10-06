@@ -8,19 +8,30 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import os
 import argparse
 import json
-import sys
-import subprocess
 import logging
-from PyConf.filecontent_metadata import flush_key_registry, retrieve_encoding_dictionary, metainfo_repos, ConfigurationError, FILE_CONTENT_METADATA
-from Allen.tck import sequence_to_git, sequence_from_python
+import os
+import sys
 from pathlib import Path
+
+from Allen.tck import (
+    clone_metainfo_repository,
+    sequence_from_python,
+    sequence_to_git,
+)
+from PyConf.filecontent_metadata import (
+    FILE_CONTENT_METADATA,
+    ConfigurationError,
+    flush_key_registry,
+    metainfo_repos,
+    retrieve_encoding_dictionary,
+)
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-parser = argparse.ArgumentParser(description="""
+parser = argparse.ArgumentParser(
+    description="""
 Persist an Allen configuration in a git repository identified by a TCK
 
 The configuration can be obtained from:
@@ -29,7 +40,8 @@ The configuration can be obtained from:
 - a python file that generatea a configuration
 
 Some metadata is also persisted.
-""")
+"""
+)
 parser.add_argument("stack")
 parser.add_argument("sequence")
 parser.add_argument("repository")
@@ -38,15 +50,14 @@ parser.add_argument(
     "-t",
     "--hlt1-type",
     type=str,
-    help=
-    "Sequence type to use; also used as branch name in the Git repository.",
-    default='',
-    dest='sequence_type')
+    help="Sequence type to use; also used as branch name in the Git repository.",
+    default="",
+    dest="sequence_type",
+)
 parser.add_argument(
     "--python-hlt1-node",
     type=str,
-    help=
-    "Name of the variable that stores the configuration in the python module or file",
+    help="Name of the variable that stores the configuration in the python module or file",
     default="hlt1_node",
     dest="hlt1_node",
 )
@@ -62,34 +73,32 @@ args = parser.parse_args()
 sequence_arg = Path(args.sequence)
 repository = Path(args.repository)
 tck = int(args.tck, 16)
-type_arg = args.sequence_type if args.sequence_type != '' else sequence_arg.stem
+type_arg = args.sequence_type if args.sequence_type != "" else sequence_arg.stem
 
 local_metainfo_repo = Path("./lhcb-metainfo/.git")
-tck_metainfo_repos = [(str(local_metainfo_repo.resolve()), "master"),
-                      (FILE_CONTENT_METADATA, "master")]
+tck_metainfo_repos = [
+    (str(local_metainfo_repo.resolve()), "master"),
+    (FILE_CONTENT_METADATA, "master"),
+]
 
 # Unset this environment variable to force generation of new encoding
 # keys in a local repo if they are not in the cvmfs one
-build_metainfo_repo = os.environ.pop('LHCbFileContentMetaDataRepo', None)
+build_metainfo_repo = os.environ.pop("LHCbFileContentMetaDataRepo", None)
 if build_metainfo_repo is not None and not local_metainfo_repo.exists():
-    result = subprocess.run([
-        'git', 'clone', '-q', build_metainfo_repo,
-        str(local_metainfo_repo.resolve()).removesuffix('/.git')
-    ],
-                            capture_output=True,
-                            text=True,
-                            check=False)
-    if result.returncode != 0:
-        print(
-            f"Failed to clone build metainfo repo {build_metainfo_repo} to local repo"
+    try:
+        clone_metainfo_repository(
+            build_metainfo_repo,
+            str(local_metainfo_repo.resolve()).removesuffix("/.git"),
+            branch="master",
         )
+    except RuntimeError as error:
+        print(error)
         sys.exit(1)
 
 
 def output_algorithm_name(conf, algo_type):
     return next(
-        (n for t, n, _ in conf["sequence"]["configured_algorithms"]
-         if t == algo_type),
+        (n for t, n, _ in conf["sequence"]["configured_algorithms"] if t == algo_type),
         None,
     )
 
@@ -97,10 +106,12 @@ def output_algorithm_name(conf, algo_type):
 def check_output_algorithms(conf):
     names = {
         t.split("::")[1]: output_algorithm_name(conf, t)
-        for t in ("gather_selections::gather_selections_t",
-                  "dec_reporter::dec_reporter_t",
-                  "host_routingbits_writer::host_routingbits_writer_t",
-                  "make_selrep::make_selrep_t")
+        for t in (
+            "gather_selections::gather_selections_t",
+            "dec_reporter::dec_reporter_t",
+            "host_routingbits_writer::host_routingbits_writer_t",
+            "make_selrep::make_selrep_t",
+        )
     }
     missing = [e[0] for e in names.items() if e[1] is None]
     if missing:
@@ -123,7 +134,7 @@ if sequence_arg.suffix in (".py", ""):
     sequence, dn = {}, None
     # Load the python module to get the sequence configuration; set
     # the TCK to the right value and flush encoding keys
-    with (make_dec_reporter.bind(TCK=tck), flush_key_registry()):
+    with make_dec_reporter.bind(TCK=tck), flush_key_registry():
         sequence = sequence_from_python(sequence_arg, node_name=args.hlt1_node)
         sequence = json.loads(json.dumps(sequence, sort_keys=True))
 
@@ -143,8 +154,16 @@ elif sequence_arg.suffix == ".json":
 
 # Store the configuration in the Git repository and tag it with the TCK
 try:
-    sequence_to_git(repository, sequence, type_arg, args.label, tck,
-                    args.stack, {"settings": sequence_arg.stem}, True)
+    sequence_to_git(
+        repository,
+        sequence,
+        type_arg,
+        args.label,
+        tck,
+        args.stack,
+        {"settings": sequence_arg.stem},
+        True,
+    )
     print(f"Created TCK {hex(tck)} for sequence {type_arg}")
 except RuntimeError as e:
     print(e)
@@ -154,8 +173,7 @@ except RuntimeError as e:
 def get_encoding_key(repo):
     try:
         with metainfo_repos.bind(repos=[(repo, "master")]):
-            return retrieve_encoding_dictionary(
-                reports_key, require_key_present=True)
+            return retrieve_encoding_dictionary(reports_key, require_key_present=True)
     except ConfigurationError:
         return None
 

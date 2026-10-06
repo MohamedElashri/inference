@@ -46,8 +46,8 @@ __device__ bool heavy_ion_event_line::heavy_ion_event_line_t::select(
   // Count PVs
   int n_pvs_PbPb = 0;
   int n_pvs_SMOG = 0;
-  Allen::device::span<PV::Vertex const> pvs {parameters.dev_pvs + event_number * PV::max_number_vertices,
-                                             parameters.dev_number_of_pvs[event_number]};
+  Allen::device::span<PV::Vertex const> pvs {
+    parameters.dev_pvs + event_number * PV::max_number_vertices, parameters.dev_number_of_pvs[event_number]};
   for (unsigned i_vrt = 0; i_vrt < pvs.size(); i_vrt++) {
     const auto pv = pvs[i_vrt];
     if (pv.position.z < properties.PbPb_SMOG_z_separation)

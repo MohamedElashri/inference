@@ -53,8 +53,9 @@ void downstream_validator::downstream_validator_t::operator()(
     const auto evnum = event_list[i];
     const auto event_offset = event_tracks_offsets[evnum];
     const auto n_tracks = event_tracks_offsets[evnum + 1] - event_offset;
-    std::vector<Checker::Track> event_trakcs = {downstream_tracks_for_checker.begin() + event_offset,
-                                                downstream_tracks_for_checker.begin() + event_offset + n_tracks};
+    std::vector<Checker::Track> event_trakcs = {
+      downstream_tracks_for_checker.begin() + event_offset,
+      downstream_tracks_for_checker.begin() + event_offset + n_tracks};
     tracks[i] = event_trakcs;
   }
 

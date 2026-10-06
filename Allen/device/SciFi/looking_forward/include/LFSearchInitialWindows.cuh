@@ -28,7 +28,6 @@ namespace lf_search_initial_windows {
     DEVICE_INPUT(dev_scifi_hits_t, char) dev_scifi_hits;
     DEVICE_INPUT(dev_scifi_hit_offsets_t, unsigned) dev_scifi_hit_offsets;
     DEVICE_INPUT(dev_tracks_view_t, Allen::IMultiEventContainer*) dev_tracks_view;
-    HOST_INPUT(host_track_type_id_t, Allen::TypeIDs) host_track_type_id;
     DEVICE_INPUT(dev_velo_states_view_t, Allen::Views::Physics::KalmanStates) dev_velo_states_view;
     DEVICE_INPUT(dev_ut_selected_velo_tracks_offsets_t, unsigned) dev_ut_selected_velo_tracks_offsets;
     DEVICE_INPUT(dev_ut_selected_velo_tracks_t, unsigned) dev_ut_selected_velo_tracks;
@@ -41,7 +40,7 @@ namespace lf_search_initial_windows {
   __global__ void lf_search_initial_windows(
     Parameters,
     const LookingForward::Constants* dev_looking_forward_constants,
-    const float* dev_magnet_polarity,
+    const float magnet_polarity,
     const float input_pt,
     const float input_momentum,
     const int hit_window_size,
@@ -66,10 +65,12 @@ namespace lf_search_initial_windows {
     Allen::Property<float> m_input_momentum {this, "input_momentum", 5000., "momentum assumption to open SW"};
     Allen::Property<float> m_input_pt {this, "input_pt", 1000., "pt assumption to open SW"};
     Allen::Property<float> m_overlap_in_mm {this, "overlap_in_mm", 50., "overlap between SWs left-right"};
-    Allen::Property<float> m_initial_windows_max_offset_uv_window {this,
-                                                                   "initial_windows_max_offset_uv_window",
-                                                                   800.,
-                                                                   "initial_windows_max_offset_uv_window"};
+    Allen::Property<float> m_initial_windows_max_offset_uv_window {
+      this,
+      "initial_windows_max_offset_uv_window",
+      800.,
+      "initial_windows_max_offset_uv_window"};
     Allen::Property<float> m_x_windows_factor {this, "x_windows_factor", 1., "x_windows_factor"};
+    Allen::Property<bool> m_with_ut {this, "with_ut", true, "UT or Velo tracks as input"};
   };
 } // namespace lf_search_initial_windows

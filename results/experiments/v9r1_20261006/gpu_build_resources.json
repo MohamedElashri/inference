@@ -1,0 +1,13 @@
+{
+  "reference": {
+    "fc_registers": 128,
+    "fc_stack_bytes": 24,
+    "unet_registers": 141
+  },
+  "gpu_work_list": {
+    "fc_registers": 128,
+    "fc_stack_bytes": 32,
+    "unet_registers": 142
+  },
+  "note": "cuobjdump --dump-resource-usage on immutable executables; register allocation remains in the same residency brackets."
+}

@@ -21,22 +21,22 @@ __global__ void create_scifi_views(seed_confirmTracks_consolidate::Parameters pa
   const auto event_tracks_offset = parameters.dev_atomics_scifi[event_number];
   const auto event_number_of_tracks = parameters.dev_atomics_scifi[event_number + 1] - event_tracks_offset;
   for (unsigned track_index = threadIdx.x; track_index < event_number_of_tracks; track_index += blockDim.x) {
-    new (parameters.dev_scifi_track_view + event_tracks_offset + track_index)
-      Allen::Views::SciFi::Consolidated::Track {parameters.dev_scifi_hits_view,
-                                                parameters.dev_seeding_qop,
-                                                parameters.dev_atomics_scifi,
-                                                parameters.dev_seeding_hit_number,
-                                                track_index,
-                                                event_number};
+    new (parameters.dev_scifi_track_view + event_tracks_offset + track_index) Allen::Views::SciFi::Consolidated::Track {
+      parameters.dev_scifi_hits_view,
+      parameters.dev_seeding_qop,
+      parameters.dev_atomics_scifi,
+      parameters.dev_seeding_hit_number,
+      track_index,
+      event_number};
   }
 
   if (threadIdx.x == 0) {
-    new (parameters.dev_scifi_hits_view + event_number)
-      Allen::Views::SciFi::Consolidated::Hits {parameters.dev_seeding_track_hits,
-                                               parameters.dev_atomics_scifi,
-                                               parameters.dev_seeding_hit_number,
-                                               event_number,
-                                               number_of_events};
+    new (parameters.dev_scifi_hits_view + event_number) Allen::Views::SciFi::Consolidated::Hits {
+      parameters.dev_seeding_track_hits,
+      parameters.dev_atomics_scifi,
+      parameters.dev_seeding_hit_number,
+      event_number,
+      number_of_events};
 
     new (parameters.dev_scifi_tracks_view + event_number) Allen::Views::SciFi::Consolidated::Tracks {
       parameters.dev_scifi_track_view, parameters.dev_atomics_scifi, event_number};
@@ -110,7 +110,7 @@ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate_t::operator(
 
   global_function(seed_confirmTracks_consolidate)(dim3(size<dev_event_list_t>(arguments)), m_block_dim, context)(
     arguments,
-    constants.dev_magnet_polarity.data(),
+    constants.magnet_polarity,
     m_histogram_scifi_track_eta.data(context),
     m_histogram_scifi_track_phi.data(context),
     m_histogram_scifi_track_nhits.data(context),
@@ -132,7 +132,7 @@ __device__ void populate(const SciFi::Seeding::Track& track, const F& assign)
 
 __global__ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate(
   seed_confirmTracks_consolidate::Parameters parameters,
-  const float* dev_magnet_polarity,
+  const float magnet_polarity,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_scifi_track_eta,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_scifi_track_phi,
   Allen::Monitoring::Histogram<>::DeviceType dev_histogram_scifi_track_nhits,
@@ -153,11 +153,12 @@ __global__ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate(
   SciFi::ConstHitCount scifi_hit_count {parameters.dev_scifi_hit_count, event_number};
 
   // Create consolidated SoAs.
-  SciFi::Consolidated::Seeds scifi_seeds {parameters.dev_atomics_scifi,
-                                          parameters.dev_seeding_hit_number,
-                                          parameters.dev_seeding_states,
-                                          event_number,
-                                          number_of_events};
+  SciFi::Consolidated::Seeds scifi_seeds {
+    parameters.dev_atomics_scifi,
+    parameters.dev_seeding_hit_number,
+    parameters.dev_seeding_states,
+    event_number,
+    number_of_events};
   const unsigned number_of_tracks_event = scifi_seeds.number_of_tracks(event_number);
   float* tracks_qop = parameters.dev_seeding_qop + parameters.dev_atomics_scifi[event_number];
   // float* tracks_chi2X = parameters.dev_seeding_chi2X + parameters.dev_atomics_scifi[event_number];
@@ -177,15 +178,16 @@ __global__ void seed_confirmTracks_consolidate::seed_confirmTracks_consolidate(
 
     const auto dz = SciFi::Constants::ZEndT - hybrid_seeding::z_ref;
 
-    const MiniState seeding_state {scifiseed.xFromDz(dz),
-                                   scifiseed.yFromDz(dz),
-                                   SciFi::Constants::ZEndT,
-                                   scifiseed.xSlopeFromDz(dz),
-                                   scifiseed.ySlope()};
+    const MiniState seeding_state {
+      scifiseed.xFromDz(dz),
+      scifiseed.yFromDz(dz),
+      SciFi::Constants::ZEndT,
+      scifiseed.xSlopeFromDz(dz),
+      scifiseed.ySlope()};
 
     scifi_seeds.states(i) = seeding_state;
 
-    const auto magSign = dev_magnet_polarity[0];
+    const auto magSign = magnet_polarity;
     tracks_qop[i] = qop_seeding_calculation(magSign, seeding_state, true);
     // tracks_chi2X[i] = scifiseed.chi2X;
     tracks_chi2Y[i] = scifiseed.chi2Y;

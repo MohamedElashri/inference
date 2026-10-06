@@ -1,0 +1,536 @@
+========= COMPUTE-SANITIZER
+Opened /tmp/pvfinder-v9r1-port/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf
+Requested options:
+ folder containing detector configuration (-g): /tmp/pvfinder-v9r1-port/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry
+ folder containing parameters that do not change with the geometry (--params): 
+ comma-separated list of MDF files to use as input OR single text file containing one MDF file per line (--mdf): /tmp/pvfinder-v9r1-port/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf
+ show status of buffer and socket (--print-status): 0
+ show current algorithm configuration (--print-config): 0
+ write current algorithm configuration to file (--write-configuration): 0
+ number of events to process (-n, --number-of-events): 500
+ number of input slices to allocate (-s, --number-of-slices): 0
+ number of events per slice (--events-per-slice): 1000
+ number of threads / streams (-t, --threads): 2
+ number of repetitions per thread / stream (-r, --repetitions): 2
+ memory to reserve on the device per thread / stream (megabytes) (-m, --memory): 500
+ memory to reserve on the host for persistent storage (megabytes) (--host-memory): 200
+ verbosity [0-5] (-v, --verbosity): 3
+ print memory usage (-p, --print-memory): 0
+ sequence to run (--sequence): /data/home/melashri/iris/inference/local_scripts/rebase_v9r1/optimization/configs/gpu_work_list.json
+ Write selected event to output file (--output-file): 
+ Write output in batches of N events (--output-batch-size): 10
+ select device to use (--device): 2, NVIDIA GeForce RTX 3090
+ Whether to insert random memory failures (0: off 1-15: rate of 1 in 2^N) (--inject-mem-fail): 0
+ ROOT file to write monitoring histograms to (--monitoring-filename): monitoring.root
+ Ignore signals to update non-event data with each run change (--disable-run-changes): 1
+ Enables printing monitoring information (--enable-monitoring-printing): 0
+ Registers monitoring counters (--register-monitoring-counters): 1
+ Configure the device to use more shared than L1 (0: false) (--prefer-shared): 0
+ Respect the TCK requested by ODIN (--tck-from-odin): 0
+
+Local copy of param files is used: /data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/ParamFiles
+Loading magfield grid, nbins x,y,z : (81, 81, 146)
+dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
+dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
+dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
+
+Sequence:
+  initialize_event_lists
+  mep_layout
+  initialize_number_of_events
+  error_bank_filter
+  Hlt1ErrorBank
+  populate_odin_banks
+  odin_error_filter
+  Hlt1ODINCalib
+  Hlt1Passthrough
+  ODIN_EvenType_VeloOpen
+  tae_filter
+  odin_error_filter_AND_tae_filter
+  Hlt1TAEPassthrough
+  ODIN_EvenType_Lumi
+  odin_error_filter_AND_ODIN_EvenType_Lumi
+  Hlt1ODINLumi
+  ODIN_Orbit_30_1
+  odin_error_filter_AND_ODIN_EvenType_Lumi_AND_ODIN_Orbit_30_1
+  Hlt1ODIN1kHzLumi
+  ODIN_EvenType_VeloClosed
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed
+  Plume_banks
+  plume_decode
+  muon_banks_c9e8f4e2
+  scifi_banks_91425afb
+  scifi_calculate_cluster_count_76d5da42
+  scifi_pre_decode_82b20f42
+  muon_calculate_srq_size_71e29759
+  muon_populate_tile_and_tdc_64c6fb57
+  ecal_banks_4921aee8
+  calo_count_digits_79037dba
+  calo_decode_f5324dd3
+  muon_add_coords_crossing_maps_99ada8d3
+  muon_populate_hits_349d8852
+  find_muon_hits_61575409
+  ODIN_EvenType_ee_far_from_activity
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_ODIN_EvenType_ee_far_from_activity
+  Hlt1ODINeeFarFromActivity
+  scifi_raw_bank_decoder_aef54905
+  calo_seed_clusters_daa16c7f
+  ODIN_NonZSFilter
+  odin_error_filter_AND_ODIN_NonZSFilter
+  Hlt1NonZeroSuppress
+  BX_BeamEmpty
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_BX_BeamEmpty
+  Hlt1SMOG2BENoBias
+  BX_BeamBeam
+  host_scifi_banks
+  scifi_gec
+  velo_banks
+  calculate_number_of_retinaclusters_each_sensor_pair
+  decode_retinaclusters
+  odin_error_filter_AND_scifi_gec
+  velo_gec
+  odin_error_filter_AND_scifi_gec_AND_velo_gec
+  Hlt1GECPassthrough
+  odin_error_filter_AND_BX_BeamBeam
+  odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed
+  odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec
+  odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec
+  calo_overlap_clusters_b9e1f7dd
+  quirks_tools
+  Hlt1Quirks
+  consolidate_muon_t_f476a17c
+  Hlt1OneMuonTrackLine
+  prescaler_Hlt1MaterialVertexSeedsDownstreamz
+  prescaler_Hlt1MaterialVertexSeeds_DWFS
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec
+  BX_NoBeamBeam
+  velo_search_by_triplet
+  velo_three_hit_tracks_filter
+  velo_copy_track_hit_number
+  odin_error_filter_AND_ODIN_EvenType_VeloOpen
+  Hlt1VeloMicroBiasVeloClosing
+  Hlt1VeloMicroBias
+  LowMultElectrons
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_BX_BeamEmpty_AND_LowMultElectrons
+  Hlt1SMOG2BELowMultElectrons
+  LowMult_5
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_LowMult_5
+  Hlt1SMOG2PassThroughLowMult5
+  velo_consolidate_tracks
+  velo_kalman_filter
+  Hlt1VeloLargeClusters
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_BX_BeamEmpty
+  Hlt1BeamGas
+  Hlt1SMOG2MinimumBias
+  brem_recovery_20cee3dd
+  pvfinder_fc_aggregation
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_BX_NoBeamBeam
+  BGIPseudoPVsAll
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_BX_NoBeamBeam_AND_BGIPseudoPVsAll
+  Hlt1BGIPseudoPVsBeamOne
+  Hlt1BGIPseudoPVsNoBeam
+  Hlt1BGIPseudoPVsBeamTwo
+  pvfinder_unet
+  pvfinder_peak_pvfinder
+  BGIPseudoPVsDown
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_BGIPseudoPVsDown
+  Hlt1BGIPseudoPVsDownBeamBeam
+  BGIPseudoPVsIR
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_BGIPseudoPVsIR
+  Hlt1BGIPseudoPVsIRBeamBeam
+  BGIPseudoPVsUp
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_BGIPseudoPVsUp
+  Hlt1BGIPseudoPVsUpBeamBeam
+  odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_prescaler_Hlt1MaterialVertexSeeds_DWFS
+  odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_prescaler_Hlt1MaterialVertexSeedsDownstreamz
+  odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_prescaler_Hlt1MaterialVertexSeeds_DWFS_OR_odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_prescaler_Hlt1MaterialVertexSeedsDownstreamz
+  count_materialinteraction_candidates_c5bbfdb3
+  count_materialinteraction_vertices_d0427e3f
+  Hlt1MaterialVertexSeedsDownstreamz
+  Hlt1MaterialVertexSeeds_DWFS
+  pv_beamline_extrapolate
+  pv_beamline_histo
+  pv_beamline_calculate_denom_pvfinder
+  pv_beamline_multi_fitter_pvfinder
+  pv_beamline_cleanup_pvfinder
+  pv_beamline_peak
+  pv_beamline_calculate_denom
+  pv_beamline_multi_fitter
+  pv_beamline_cleanup
+  check_SMOG2_PV
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_check_SMOG2_PV
+  Hlt1PassthroughPVinSMOG2
+  odin_error_filter_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec_AND_check_SMOG2_PV_OR_odin_error_filter_AND_BX_BeamBeam_AND_ODIN_EvenType_VeloClosed_AND_scifi_gec_AND_velo_gec
+  ut_select_velo_tracks_6e5d326c
+  ut_banks
+  ut_decoding_get_bank_offsets_3c19a3da
+  ut_decoding_get_hit_offsets_61342443
+  ut_decoding_predecode_hits_ff7b73be
+  ut_decoding_hit_clustering_250f9631
+  ut_decoding_decode_clusters_d9d13380
+  compass_ut_define_candidates_a2760853
+  compass_ut_find_tracks_d8349d95
+  compass_ut_select_tracks_3002dd82
+  compass_ut_fit_tracks_bc76edc4
+  ut_copy_track_hit_number_c8572ddf
+  ut_consolidate_tracks_b0df9924
+  lf_search_initial_windows_76096acf
+  lf_triplet_seeding_1e97ed59
+  lf_create_tracks_3c592f97
+  lf_quality_filter_length_6c51b422
+  lf_quality_filter_29c998b3
+  scifi_copy_track_hit_number_7d9324a4
+  scifi_consolidate_tracks
+  create_reduced_scifi_hit_container
+  create_reduced_ut_hit_container_c71ad1d2
+  ut_select_velo_tracks_4a37ac52
+  seed_xz_d325b708
+  seed_confirmTracks_b0ab7b5f
+  seeding_copy_track_hit_number_ec69cd8d
+  scifi_consolidate_seeds
+  track_matching_veloSciFi_21c94fd4
+  matching_copy_track_ut_hit_number_7c2269fd
+  matching_consolidate_tracks
+  create_reduced_ut_hit_container_1950368b
+  downstream_v2_define_scifi_candidates_24d6f596
+  downstream_v2_find_tracks_18ddab1e
+  downstream_v2_fit_tracks_b8360801
+  downstream_v2_select_tracks_a07bc1a5
+  downstream_v2_final_fits_54e2f2a8
+  downstream_v2_compute_offsets_77fc5922
+  downstream_v2_consolidate
+  is_muon_fce338fa
+  track_digit_selective_matching_b2a0d550
+  make_lepton_id_3eaa68a3
+  downstream_make_particles
+  downstream_leptonic_vertexing
+  downstream_make_leptonic_secondary_vertices
+  Hlt1DownstreamGammaToEE
+  downstream_vertexing_e3a71bd3
+  downstream_vertexing_6b682f28
+  downstream_vertexing_8e2df75d
+  downstream_make_secondary_vertices_bd674c7a
+  Hlt1DownstreamTwoTrackKs
+  downstream_composite_selector_5617d240
+  Hlt1DownstreamPromptLambdaToPPi
+  Hlt1DownstreamKsToPiPi
+  Hlt1DownstreamLambdaToPPi
+  Hlt1DownstreamPromptKsToPiPi
+  downstream_make_secondary_vertices_a784c5dc
+  downstream_make_secondary_vertices_a048c1ed
+  downstream_busca_combined_selector_180be481
+  Hlt1DownstreamBuScaElElLine
+  Hlt1DownstreamBuScaMuMuLine
+  Hlt1DownstreamBuScaMonitoringCleanRegion
+  Hlt1DownstreamBuScaKKlLine
+  Hlt1DownstreamBuScaHighMassLine
+  Hlt1DownstreamBuScaMuMuHighMassLine
+  Hlt1DownstreamBuScaPostScaled
+  Hlt1DownstreamBuScaMonitoring
+  downstream_busca_combined_selector_983a4ee9
+  Hlt1DownstreamBuScaMuMuLineSameSign
+  Hlt1DownstreamBuScaHighMassLineSameSign
+  Hlt1DownstreamBuScaElElLineSameSign
+  Hlt1DownstreamBuScaMonitoringCleanRegionSameSign
+  Hlt1DownstreamBuScaMonitoringSameSign
+  Hlt1DownstreamBuScaMuMuHighMassLineSameSign
+  Hlt1DownstreamBuScaPostScaledSameSign
+  calc_max_combos_two_svs_3d5ca1d4
+  filter_two_svs_cd672559
+  generic_svs_pair_candidate_268fb4d7
+  Hlt1D02KsKsDDDD
+  combine_long_track_containers
+  is_muon
+  consolidate_is_muon_ac4a812d
+  kalman_long_103ba4c5
+  chi2_muon_a4b4aafe
+  muonid_nn_df476cc6
+  track_digit_selective_matching_a963a312
+  calo_find_clusters
+  make_neutral_particles_5547a2fc
+  calo_prefilter_clusters_3bcead24
+  calo_filter_clusters_b3e43409
+  calo_find_twoclusters_81fb8460
+  Hlt1Pi02GammaGammaMiddleOuterMixed
+  Hlt1DiPhotonHighMass
+  Hlt1Pi02GammaGammaInner
+  Hlt1Pi02GammaGamma
+  Hlt1Pi02GammaGammaMiddle
+  Hlt1Pi02GammaGammaOuter
+  Hlt1Pi02GammaGammaMiddleInnerMixed
+  momentum_brem_correction_620a3504
+  electronid_nn_186bd667
+  make_lepton_id_34ed99e6
+  make_long_track_particles
+  Hlt1SMOG2SingleTrackHighPt
+  Hlt1TrackMVA
+  Hlt1SMOG2SingleTrackVeryHighPt
+  Hlt1SMOG2SingleMuon
+  Hlt1SingleHighPtElectron
+  Hlt1SingleHighPtMuonNoMuID
+  Hlt1SingleHighPtMuon
+  Hlt1TrackElectronMVA
+  Hlt1RICH2Alignment
+  Hlt1RICH1Alignment
+  Hlt1TrackMuonMVA
+  build_cone_jets_5b43bfdc
+  filter_tracks_bf13e1c7
+  filter_tracks_c4aaf473
+  fit_dilepton_secondary_vertices_nopt
+  Hlt1DiMuonSoft
+  Hlt1DiElectronSoft
+  make_neutral_particles_37de4a9f
+  Hlt1ConeJet100GeV
+  Hlt1ConeJet30GeV
+  Hlt1ConeJet15GeV
+  Hlt1ConeJet50GeV
+  fit_dihadrons_noipcut_secondary_vertices
+  filter_sv_track_9b23a99d
+  combine_sv_track_9768b4a4
+  Hlt1TauToPhiMu
+  filter_tracks_ba1a2346
+  fit_dihadron_secondary_vertices
+  Hlt1SMOG22BodyGeneric
+  Hlt1D2PiPi
+  Hlt1SMOG2KsTopipi
+  Hlt1DetJpsiToMuMuNegTagLine
+  Hlt1D2KPi
+  Hlt1D2KK
+  Hlt1DetJpsiToMuMuPosTagLine
+  Hlt1SMOG2D2Kpi
+  Hlt1D2KPiAlignment
+  two_track_mva_evaluator_eae5c723
+  Hlt1TwoTrackMVA
+  filter_sv_track_1548cf0b
+  combine_sv_track_6dc955ee
+  Hlt1Dst2D0PiAlignment
+  Hlt1Dst2D0Pi
+  filter_sv_track_1a1a2e6f
+  combine_sv_track_e9a754dd
+  flatten_svs_b3113040
+  Hlt1Kplus2PiEE
+  Hlt1Kplus2PiPiPi
+  Hlt1Kplus2PiMuMu
+  calc_max_combos_two_svs_9bd24fb7
+  filter_two_svs_3cd1b9b7
+  generic_svs_pair_candidate_99983556
+  Hlt1DownstreamD2Kshh
+  filter_tracks_db165106
+  filter_tracks_a9824b37
+  filter_tracks_673a8ceb
+  fit_prompt_dihadron_secondary_vertices
+  Hlt1SMOG2etacTopp
+  Hlt1DiProtonHighMass
+  Hlt1SMOG2JPsiToMuMuTaP_NegTag
+  Hlt1SMOG22BodyGenericPrompt
+  Hlt1SMOG2JPsiToMuMuTaP_PosTag
+  fit_dilepton_secondary_vertices
+  Hlt1DiMuonDisplacedSoftPT_SS
+  Hlt1DiMuonDisplaced
+  Hlt1DiElectronDisplaced
+  Hlt1DiMuonDrellYan_SS
+  Hlt1DiMuonNoIP_SS
+  Hlt1DiElectronLowMass_SS_Displaced
+  Hlt1SMOG2DisplacedDiMuon
+  Hlt1DiElectronLowMass_SS_NoIP
+  Hlt1DiElectronHighMass_SS
+  Hlt1DiMuonDisplacedSoftPT
+  Hlt1UpsilonAlignment
+  Hlt1DiMuonJpsiMassAlignment
+  Hlt1DiMuonNoIPNorm
+  Hlt1DiElectronLowMass_Displaced
+  Hlt1DiMuonHighMass
+  Hlt1DiElectronLowMass_NoIPNorm
+  Hlt1DiMuonNoIP
+  Hlt1DiMuonDrellYan
+  Hlt1DiElectronLowMass_SS_NoIPNorm
+  Hlt1DiMuonNoIPNorm_SS
+  Hlt1DiElectronLowMass_NoIP
+  Hlt1DiMuonDrellYan_VLowMass
+  Hlt1DiMuonDrellYan_VLowMass_SS
+  Hlt1SMOG2DiMuonHighMass
+  Hlt1DiElectronHighMass
+  fit_v0_secondary_vertices
+  Hlt1SMOG2L0Toppi
+  Hlt1KsToPiPi
+  Hlt1KsToPiPiDoubleMuonMisID
+  Hlt1TwoTrackKs
+  filter_sv_track_6fb6608d
+  combine_sv_track_b0f667af
+  Hlt1LambdaLLDetachedTrack
+  filter_sv_track_3b711922
+  combine_sv_track_6f7a5d4d
+  Hlt1KsLLDetachedTrack
+  filter_sv_track_c7d1de96
+  combine_sv_track_2c7d140f
+  filter_sv_track_946cfd22
+  combine_sv_track_5d546555
+  Hlt1XiOmegaLLL
+  calc_max_combos_ebb621f8
+  filter_svs_67ab825b
+  svs_pair_candidate_4785cca1
+  Hlt1TwoKs
+  calc_max_combos_two_svs_7babcc04
+  filter_two_svs_65ffcb2c
+  generic_svs_pair_candidate_f29b73dc
+  Hlt1D2Kshh
+  gather_selections
+  dec_reporter
+  calc_lumi_sum_size
+  muon_lumi_counters
+  plume_lumi_counters
+  scifi_lumi_counters
+  pv_lumi_counters
+  calo_lumi_counters
+  velo_total_tracks
+  make_lumi_summary
+  rate_validator
+  global_decision
+  make_selected_object_lists
+  make_subbanks
+  make_selreps
+  host_routingbits_writer
+
+Starting timer for throughput measurement
+Processing complete
+
+rate_validator validation:
+Hlt1BGIPseudoPVsBeamOne:                               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1BGIPseudoPVsBeamTwo:                               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1BGIPseudoPVsDownBeamBeam:                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1BGIPseudoPVsIRBeamBeam:                            4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1BGIPseudoPVsNoBeam:                                0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1BGIPseudoPVsUpBeamBeam:                            0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1BeamGas:                                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ConeJet100GeV:                                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ConeJet15GeV:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ConeJet30GeV:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ConeJet50GeV:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1D02KsKsDDDD:                                       0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1D2KK:                                              0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1D2KPi:                                             0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1D2KPiAlignment:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1D2Kshh:                                            4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1D2PiPi:                                            0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DetJpsiToMuMuNegTagLine:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DetJpsiToMuMuPosTagLine:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronDisplaced:                               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronHighMass:                                4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1DiElectronHighMass_SS:                             0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronLowMass_Displaced:                       4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1DiElectronLowMass_NoIP:                            4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1DiElectronLowMass_NoIPNorm:                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronLowMass_SS_Displaced:                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronLowMass_SS_NoIP:                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronLowMass_SS_NoIPNorm:                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiElectronSoft:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonDisplaced:                                   4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1DiMuonDisplacedSoftPT:                             4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1DiMuonDisplacedSoftPT_SS:                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonDrellYan:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonDrellYan_SS:                                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonDrellYan_VLowMass:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonDrellYan_VLowMass_SS:                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonHighMass:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonJpsiMassAlignment:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonNoIP:                                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonNoIPNorm:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonNoIPNorm_SS:                                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonNoIP_SS:                                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiMuonSoft:                                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DiPhotonHighMass:                                  8/  2000, (  120.00 +/-    42.34) kHz
+Hlt1DiProtonHighMass:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaElElLine:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaElElLineSameSign:                   0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaHighMassLine:                       0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaHighMassLineSameSign:               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaKKlLine:                            0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMonitoring:                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMonitoringCleanRegion:              0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMonitoringCleanRegionSameSign:      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMonitoringSameSign:                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMuMuHighMassLine:                   0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMuMuHighMassLineSameSign:           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMuMuLine:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaMuMuLineSameSign:                   0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaPostScaled:                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamBuScaPostScaledSameSign:                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamD2Kshh:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamGammaToEE:                               4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1DownstreamKsToPiPi:                                0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamLambdaToPPi:                             0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamPromptKsToPiPi:                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamPromptLambdaToPPi:                       0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1DownstreamTwoTrackKs:                             12/  2000, (  180.00 +/-    51.81) kHz
+Hlt1Dst2D0Pi:                                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Dst2D0PiAlignment:                                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ErrorBank:                                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1GECPassthrough:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Kplus2PiEE:                                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Kplus2PiMuMu:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Kplus2PiPiPi:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1KsLLDetachedTrack:                                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1KsToPiPi:                                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1KsToPiPiDoubleMuonMisID:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1LambdaLLDetachedTrack:                             0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1MaterialVertexSeedsDownstreamz:                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1MaterialVertexSeeds_DWFS:                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1NonZeroSuppress:                                   0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ODIN1kHzLumi:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ODINCalib:                                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ODINLumi:                                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1ODINeeFarFromActivity:                             0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1OneMuonTrackLine:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Passthrough:                                       0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1PassthroughPVinSMOG2:                              0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGamma:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaInner:                               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddle:                              0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddleInnerMixed:                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaMiddleOuterMixed:                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Pi02GammaGammaOuter:                               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1Quirks:                                            0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1RICH1Alignment:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1RICH2Alignment:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG22BodyGeneric:                                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG22BodyGenericPrompt:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2BELowMultElectrons:                           0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2BENoBias:                                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2D2Kpi:                                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2DiMuonHighMass:                               0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2DisplacedDiMuon:                              0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2JPsiToMuMuTaP_NegTag:                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2JPsiToMuMuTaP_PosTag:                         0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2KsTopipi:                                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2L0Toppi:                                      0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2MinimumBias:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2PassThroughLowMult5:                          4/  2000, (   60.00 +/-    29.97) kHz
+Hlt1SMOG2SingleMuon:                                   0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2SingleTrackHighPt:                            0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2SingleTrackVeryHighPt:                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SMOG2etacTopp:                                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SingleHighPtElectron:                              0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SingleHighPtMuon:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1SingleHighPtMuonNoMuID:                            0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1TAEPassthrough:                                    0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1TauToPhiMu:                                        0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1TrackElectronMVA:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1TrackMVA:                                         20/  2000, (  300.00 +/-    66.75) kHz
+Hlt1TrackMuonMVA:                                      8/  2000, (  120.00 +/-    42.34) kHz
+Hlt1TwoKs:                                             0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1TwoTrackKs:                                        8/  2000, (  120.00 +/-    42.34) kHz
+Hlt1TwoTrackMVA:                                      40/  2000, (  600.00 +/-    93.91) kHz
+Hlt1UpsilonAlignment:                                  0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1VeloLargeClusters:                                 0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1VeloMicroBias:                                     0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1VeloMicroBiasVeloClosing:                          0/  2000, (    0.00 +/-     0.00) kHz
+Hlt1XiOmegaLLL:                                        0/  2000, (    0.00 +/-     0.00) kHz
+Physics:                                             108/  2000, ( 1620.00 +/-   151.62) kHz
+SMOG2:                                                 4/  2000, (   60.00 +/-    29.97) kHz
+Technical:                                             4/  2000, (   60.00 +/-    29.97) kHz
+Inclusive:                                           116/  2000, ( 1740.00 +/-   156.80) kHz
+
+188.532400 events/s
+Ran test for 10.608256 seconds
+========= ERROR SUMMARY: 0 errors

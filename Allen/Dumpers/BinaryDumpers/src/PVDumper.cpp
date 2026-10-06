@@ -29,7 +29,7 @@ namespace {
   {
     for (const auto& idau : mcvtx.products()) {
       double dv2 = (mcpv.position() - idau->originVertex()->position()).Mag2();
-      if (dv2 > (100. * Allen::Units::mm) * (100. * Allen::Units::mm)) continue;
+      if (dv2 > static_cast<double>((100.f * Allen::Units::mm) * (100.f * Allen::Units::mm))) continue;
       allprods.emplace_back(idau);
       for (const auto& ivtx : idau->endVertices()) {
         collectProductss(mcpv, *ivtx, allprods);
@@ -81,12 +81,13 @@ DECLARE_COMPONENT(PVDumper)
 //=============================================================================
 
 PVDumper::PVDumper(const std::string& name, ISvcLocator* pSvcLocator) :
-  MultiTransformer {name,
-                    pSvcLocator,
-                    {KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
-                     KeyValue {"MCPropertyLocation", LHCb::MCPropertyLocation::TrackInfo}},
-                    {KeyValue {"OutputRawEventLocation", "Allen/MCPVRawEvent"},
-                     KeyValue {"OutputRawBankLocation", "Allen/MCPVRawBank"}}}
+  MultiTransformer {
+    name,
+    pSvcLocator,
+    {KeyValue {"MCVerticesLocation", LHCb::MCVertexLocation::Default},
+     KeyValue {"MCPropertyLocation", LHCb::MCPropertyLocation::TrackInfo}},
+    {KeyValue {"OutputRawEventLocation", "Allen/MCPVRawEvent"},
+     KeyValue {"OutputRawBankLocation", "Allen/MCPVRawBank"}}}
 {}
 
 std::tuple<LHCb::RawEvent, LHCb::RawBank::View> PVDumper::operator()(

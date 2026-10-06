@@ -13,16 +13,26 @@ add_library(Gear INTERFACE)
 target_include_directories(Gear INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/gear/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/store/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sequence/include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sequence/include>
+  $<INSTALL_INTERFACE:include/Gear/gear>
+  $<INSTALL_INTERFACE:include/Gear/store>
+  $<INSTALL_INTERFACE:include/Gear/sequence>)
 target_link_libraries(Gear INTERFACE Boost::boost)
+if(NOT STANDALONE)
+  target_link_libraries(Gear INTERFACE LHCb::DetDescLib)
+endif()
 install(TARGETS Gear EXPORT Allen)
+
+install(DIRECTORY gear/include/ DESTINATION include/Gear/gear)
+install(DIRECTORY store/include/ DESTINATION include/Gear/store)
+install(DIRECTORY sequence/include/ DESTINATION include/Gear/sequence)
 
 include(GenerateConfiguration)
 
 file(GLOB stream_src "sequence/src/*cpp")
 file(GLOB gear_src "gear/src/*cpp")
 
-allen_add_host_library(Stream STATIC ${stream_src} ${gear_src})
+allen_add_host_library(Stream OBJECT ${stream_src} ${gear_src})
 
 target_link_libraries(Stream
   PRIVATE
@@ -45,7 +55,6 @@ target_link_libraries(Stream
     Validators
     Velo
     VertexFitter
-    algorithm_db
     AllenCommon
     Gear
     track_matching

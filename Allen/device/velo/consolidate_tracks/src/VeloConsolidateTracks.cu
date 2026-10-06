@@ -24,21 +24,21 @@ __global__ void create_velo_views(velo_consolidate_tracks::Parameters parameters
   const auto event_number_of_tracks = parameters.dev_offsets_all_velo_tracks[event_number + 1] - event_tracks_offset;
 
   for (unsigned track_index = threadIdx.x; track_index < event_number_of_tracks; track_index += blockDim.x) {
-    new (parameters.dev_velo_track_view + event_tracks_offset + track_index)
-      Allen::Views::Velo::Consolidated::Track {parameters.dev_velo_hits_view,
-                                               parameters.dev_offsets_all_velo_tracks,
-                                               parameters.dev_offsets_velo_track_hit_number,
-                                               track_index,
-                                               event_number};
+    new (parameters.dev_velo_track_view + event_tracks_offset + track_index) Allen::Views::Velo::Consolidated::Track {
+      parameters.dev_velo_hits_view,
+      parameters.dev_offsets_all_velo_tracks,
+      parameters.dev_offsets_velo_track_hit_number,
+      track_index,
+      event_number};
   }
 
   if (threadIdx.x == 0) {
-    new (parameters.dev_velo_hits_view + event_number)
-      Allen::Views::Velo::Consolidated::Hits {parameters.dev_velo_track_hits,
-                                              parameters.dev_offsets_all_velo_tracks,
-                                              parameters.dev_offsets_velo_track_hit_number,
-                                              event_number,
-                                              number_of_events};
+    new (parameters.dev_velo_hits_view + event_number) Allen::Views::Velo::Consolidated::Hits {
+      parameters.dev_velo_track_hits,
+      parameters.dev_offsets_all_velo_tracks,
+      parameters.dev_offsets_velo_track_hit_number,
+      event_number,
+      number_of_events};
 
     new (parameters.dev_velo_tracks_view + event_number) Allen::Views::Velo::Consolidated::Tracks {
       parameters.dev_velo_track_view, parameters.dev_offsets_all_velo_tracks, event_number};
@@ -111,10 +111,11 @@ __global__ void velo_consolidate_tracks::velo_consolidate_tracks(
   const Velo::TrackHits* event_tracks = parameters.dev_tracks + tracks_offset;
   const Velo::TrackletHits* three_hit_tracks = parameters.dev_three_hit_tracks_output + tracks_offset;
 
-  Velo::Consolidated::Tracks velo_tracks {parameters.dev_offsets_all_velo_tracks,
-                                          parameters.dev_offsets_velo_track_hit_number,
-                                          event_number,
-                                          number_of_events};
+  Velo::Consolidated::Tracks velo_tracks {
+    parameters.dev_offsets_all_velo_tracks,
+    parameters.dev_offsets_velo_track_hit_number,
+    event_number,
+    number_of_events};
   const unsigned event_total_number_of_tracks = velo_tracks.number_of_tracks(event_number);
   const auto event_number_of_three_hit_tracks_filtered =
     parameters.dev_offsets_number_of_three_hit_tracks_filtered[event_number + 1] -
@@ -163,6 +164,7 @@ __global__ void velo_consolidate_tracks::velo_consolidate_tracks(
         consolidated_hits.set_x(i, velo_cluster_container.x(hit_index));
         consolidated_hits.set_y(i, velo_cluster_container.y(hit_index));
         consolidated_hits.set_z(i, velo_cluster_container.z(hit_index));
+        consolidated_hits.set_cluster_size(i, velo_cluster_container.cluster_size(hit_index));
       });
 
     populate(
@@ -188,11 +190,12 @@ void velo_consolidate_tracks::lhcb_id_container_checks::operator()(
     make_host_buffer<Parameters::dev_offsets_velo_track_hit_number_t>(arguments, context);
   std::vector<Allen::Views::Velo::Consolidated::Hits> velo_hits_view;
   for (unsigned event_number = 0; event_number < number_of_events; ++event_number) {
-    velo_hits_view.emplace_back(Allen::Views::Velo::Consolidated::Hits {dev_velo_track_hits.data(),
-                                                                        dev_offsets_all_velo_tracks.data(),
-                                                                        dev_offsets_velo_track_hit_number.data(),
-                                                                        event_number,
-                                                                        number_of_events});
+    velo_hits_view.emplace_back(Allen::Views::Velo::Consolidated::Hits {
+      dev_velo_track_hits.data(),
+      dev_offsets_all_velo_tracks.data(),
+      dev_offsets_velo_track_hit_number.data(),
+      event_number,
+      number_of_events});
   }
 
   // Create velo track views
@@ -202,11 +205,12 @@ void velo_consolidate_tracks::lhcb_id_container_checks::operator()(
     const auto event_number_of_tracks = dev_offsets_all_velo_tracks[event_number + 1] - event_tracks_offset;
 
     for (unsigned track_index = 0; track_index < event_number_of_tracks; ++track_index) {
-      velo_track_view.emplace_back(Allen::Views::Velo::Consolidated::Track {velo_hits_view.data(),
-                                                                            dev_offsets_all_velo_tracks.data(),
-                                                                            dev_offsets_velo_track_hit_number.data(),
-                                                                            track_index,
-                                                                            event_number});
+      velo_track_view.emplace_back(Allen::Views::Velo::Consolidated::Track {
+        velo_hits_view.data(),
+        dev_offsets_all_velo_tracks.data(),
+        dev_offsets_velo_track_hit_number.data(),
+        track_index,
+        event_number});
     }
   }
 

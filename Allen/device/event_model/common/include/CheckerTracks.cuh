@@ -25,6 +25,9 @@
 
 #include "LHCbID.cuh"
 #include "ParticleTypes.cuh"
+#include "VertexDefinitions.cuh"
+#include "RichDefinitions.cuh"
+#include "RichPhoton.cuh"
 
 namespace Checker {
   struct Track {
@@ -47,6 +50,9 @@ namespace Checker {
     float p = 0.f, pt = 0.f, eta = 0.f, rho = 0.f, phi = 0.f;
     float muon_catboost_output = 0.f;
     bool is_muon = false;
+    // Rich:
+    Allen::Rich::ParticleIDType pid = Allen::Rich::ParticleIDType::Unknown;
+    Allen::Rich::RealParticleArray<float> ckThetaExp {};
 
     __device__ __host__ void addId(LHCbID id)
     { // 0-26 VELO , 26-30 UT, 30 - 42 SciFi, 42-46 Muon
@@ -66,8 +72,9 @@ namespace Checker {
   using Tracks = std::vector<Track>;
 
   struct Composite {
-    Track TrackA, TrackB;
+    std::array<Track, VertexFit::max_tracks_per_sv> Tracks;
     unsigned idx = 0;
+    unsigned nChildren = 0;
   };
   using Composites = std::vector<Composite>;
 

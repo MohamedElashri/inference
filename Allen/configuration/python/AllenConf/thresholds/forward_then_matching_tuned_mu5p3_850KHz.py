@@ -9,6 +9,7 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 from AllenConf.thresholds.thresholds import Thresholds
+
 threshold_settings = Thresholds(
     D2HH_ctIPScale=1,
     D2HH_track_ip=0.075,
@@ -37,4 +38,5 @@ threshold_settings = Thresholds(
     TwoTrackKs_min_combip=0.72,
     TwoTrackMVA_maxGhostProb=0.8,
     TwoTrackMVA_minMVA=0.982,
-    XiOmegaLLL_track_ipchi2=0)
+    XiOmegaLLL_track_ipchi2=0,
+)

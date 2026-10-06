@@ -143,30 +143,36 @@ namespace lambda2ppi_line {
     Allen::Property<float> m_L_PT_min {this, "L_PT_min", 500.f * Allen::Units::MeV, "min pT of Lambda LL"};
     Allen::Property<float> m_L_M_max {this, "L_M_max", 1140.f * Allen::Units::MeV, "max mass for Lambda LL"};
     Allen::Property<float> m_L_VCHI2_max {this, "L_VCHI2_max", 16.f, "max p pi vertex chi2"};
-    Allen::Property<float> m_L_VZ_min {this,
-                                       "L_VZ_min",
-                                       -80.f * Allen::Units::mm,
-                                       "min vertex z position of Lambda candidate"};
-    Allen::Property<float> m_L_VZ_max {this,
-                                       "L_VZ_max",
-                                       650.f * Allen::Units::mm,
-                                       "max vertex z position of Lambda candidate"};
-    Allen::Property<float> m_L_BPVVDCHI2_min {this,
-                                              "L_BPVVDCHI2_min",
-                                              180.f,
-                                              "min flight distance chi2 between p pi vertex and its best PV"};
-    Allen::Property<float> m_L_BPVVDZ_min {this,
-                                           "L_BPVVDZ_min",
-                                           12.f * Allen::Units::mm,
-                                           "min distance (in z) between Lambda vertex and best PV"};
-    Allen::Property<float> m_L_BPVVDRHO_min {this,
-                                             "L_BPVVDRHO_min",
-                                             2.f * Allen::Units::mm,
-                                             "min squared radial vertex distance of Lambda w.r.t. its best PV"};
-    Allen::Property<float> m_L_BPVDIRA_min {this,
-                                            "L_BPVDIRA_min",
-                                            0.9997,
-                                            "min cosine of direction angle of Lambda w.r.t. its best PV"};
+    Allen::Property<float> m_L_VZ_min {
+      this,
+      "L_VZ_min",
+      -80.f * Allen::Units::mm,
+      "min vertex z position of Lambda candidate"};
+    Allen::Property<float> m_L_VZ_max {
+      this,
+      "L_VZ_max",
+      650.f * Allen::Units::mm,
+      "max vertex z position of Lambda candidate"};
+    Allen::Property<float> m_L_BPVVDCHI2_min {
+      this,
+      "L_BPVVDCHI2_min",
+      180.f,
+      "min flight distance chi2 between p pi vertex and its best PV"};
+    Allen::Property<float> m_L_BPVVDZ_min {
+      this,
+      "L_BPVVDZ_min",
+      12.f * Allen::Units::mm,
+      "min distance (in z) between Lambda vertex and best PV"};
+    Allen::Property<float> m_L_BPVVDRHO_min {
+      this,
+      "L_BPVVDRHO_min",
+      2.f * Allen::Units::mm,
+      "min squared radial vertex distance of Lambda w.r.t. its best PV"};
+    Allen::Property<float> m_L_BPVDIRA_min {
+      this,
+      "L_BPVDIRA_min",
+      0.9997,
+      "min cosine of direction angle of Lambda w.r.t. its best PV"};
     Allen::Property<float> m_minPVZ {this, "minPVZ", -200.f * Allen::Units::mm, "minimum PV z coordinate"};
     Allen::Property<float> m_maxPVZ {this, "maxPVZ", 200.f * Allen::Units::mm, "maximum PV z coordinate"};
 

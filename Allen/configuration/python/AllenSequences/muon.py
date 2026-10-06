@@ -10,11 +10,13 @@
 ###############################################################################
 from AllenConf.muon_reconstruction import muon_id
 from AllenCore.generator import generate
-from PyConf.control_flow import NodeLogic, CompositeNode
+from PyConf.control_flow import CompositeNode, NodeLogic
 
 muon_id_sequence = CompositeNode(
-    "MuonID", [muon_id(algorithm_name='muon_id_sequence')],
+    "MuonID",
+    [muon_id(algorithm_name="muon_id_sequence")],
     NodeLogic.LAZY_AND,
-    force_order=True)
+    force_order=True,
+)
 
 generate(muon_id_sequence)

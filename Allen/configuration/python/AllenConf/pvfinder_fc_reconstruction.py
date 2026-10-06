@@ -13,8 +13,6 @@ from AllenCore.generator import make_algorithm
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
-from AllenConf.filters import make_gec
-from AllenConf.odin import make_bxtype, make_event_type, odin_error_filter
 from AllenConf.utils import initialize_number_of_events
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 
@@ -28,19 +26,9 @@ def pvfinder_node(producer):
     VELO tracks HLT1 reconstructs for its lines, and the shared VELO chain keeps
     the event lists it has in hlt1_pp_default.
     """
-    prefilters = [
-        odin_error_filter("odin_error_filter"),
-        make_bxtype(bx_type=3),
-        make_event_type(
-            name="ODIN_EvenType_VeloClosed", event_type="VeloOpen", invert=True
-        ),
-        make_gec(
-            count_ut=False,
-            count_velo=True,
-            max_scifi_clusters=20000,
-            max_velo_clusters=35000,
-        ),
-    ]
+    from AllenConf.HLT1 import create_filter_manager
+
+    prefilters = create_filter_manager({}).get_prefilter_set("default")
     return CompositeNode(
         "PVFinderWithPrefilter",
         prefilters + [producer],

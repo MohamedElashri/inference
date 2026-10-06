@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "allen_source_files_compared": 1805,
+  "model_files_compared": 4,
+  "config_relocation": "PASS",
+  "build_in_restored_directory": "not performed; source/content restore check only"
+}

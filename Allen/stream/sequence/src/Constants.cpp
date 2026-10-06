@@ -8,6 +8,8 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+
+#include "BackendCommon.h"
 #include "Constants.cuh"
 #include "UTDefinitions.cuh"
 #include "VeloDefinitions.cuh"
@@ -36,7 +38,8 @@ void Constants::initialize_constants(
   const std::string& param_file_location)
 {
   // SciFi constants
-  host_inv_clus_res = {1 / 0.05, 1 / 0.08, 1 / 0.11, 1 / 0.14, 1 / 0.17, 1 / 0.20, 1 / 0.23, 1 / 0.26, 1 / 0.29};
+  host_inv_clus_res = {
+    1 / 0.05f, 1 / 0.08f, 1 / 0.11f, 1 / 0.14f, 1 / 0.17f, 1 / 0.20f, 1 / 0.23f, 1 / 0.26f, 1 / 0.29f};
   Allen::memcpy(
     dev_inv_clus_res, &host_inv_clus_res, host_inv_clus_res.size() * sizeof(float), Allen::memcpyHostToDevice);
 

@@ -91,19 +91,20 @@ __global__ void muon_lumi_counters::muon_lumi_counters(
 
     unsigned info_offset = Lumi::Constants::n_muon_counters * lumi_evt_index;
 
-    std::array<unsigned, Lumi::Constants::n_muon_station_regions + 1> muon_offsets = {Lumi::Constants::M2R1,
-                                                                                      Lumi::Constants::M2R2,
-                                                                                      Lumi::Constants::M2R3,
-                                                                                      Lumi::Constants::M2R4,
-                                                                                      Lumi::Constants::M3R1,
-                                                                                      Lumi::Constants::M3R2,
-                                                                                      Lumi::Constants::M3R3,
-                                                                                      Lumi::Constants::M3R4,
-                                                                                      Lumi::Constants::M4R1,
-                                                                                      Lumi::Constants::M4R2,
-                                                                                      Lumi::Constants::M4R3,
-                                                                                      Lumi::Constants::M4R4,
-                                                                                      Lumi::Constants::M5R1};
+    std::array<unsigned, Lumi::Constants::n_muon_station_regions + 1> muon_offsets = {
+      Lumi::Constants::M2R1,
+      Lumi::Constants::M2R2,
+      Lumi::Constants::M2R3,
+      Lumi::Constants::M2R4,
+      Lumi::Constants::M3R1,
+      Lumi::Constants::M3R2,
+      Lumi::Constants::M3R3,
+      Lumi::Constants::M3R4,
+      Lumi::Constants::M4R1,
+      Lumi::Constants::M4R2,
+      Lumi::Constants::M4R3,
+      Lumi::Constants::M4R4,
+      Lumi::Constants::M5R1};
 
     for (unsigned i = 0; i < Lumi::Constants::n_muon_station_regions; ++i) {
       fillLumiInfo(

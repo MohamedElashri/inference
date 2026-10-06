@@ -8,17 +8,22 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1 import setup_hlt1_node, default_bgi_activity_lines
-from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
-from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1 import setup_hlt1_node
+from AllenConf.hlt1_presets import MONITORING_CONFIG_PRESETS
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
-from AllenConf.velo_reconstruction import make_pr_velo_tracks, decode_velo
+from AllenConf.velo_reconstruction import decode_velo
+from AllenCore.generator import generate
 
-with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),\
-      make_pr_velo_tracks.bind(missing_modules=[21]),\
-      decode_velo.bind(retina_decoding=False),\
-      default_bgi_activity_lines.bind(enableBGI_full=True)): # Fully enable BGI lines
+
+def modify_presets():
+    MONITORING_CONFIG_PRESETS["pp"]["enable_bgi_full"] = True
+
+
+with (
+    make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),
+    decode_velo.bind(retina_decoding=False),
+):
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         with_ut=True,
@@ -26,6 +31,8 @@ with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),\
         enableAlignment=False,  # Disable alignment during magnet off
         enableDownstream=False,  # Downstream not used in technical lines
         enablePhysics=False,  # Only enable technical lines
-        withSMOG2=False)  # Only enable technical lines
+        withSMOG2=False,
+        preset_modifiers=[modify_presets],
+    )  # Only enable technical lines
 
 generate(hlt1_node)

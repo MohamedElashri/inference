@@ -47,10 +47,10 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    #"sphinx.ext.graphviz",
+    # "sphinx.ext.graphviz",
     "sphinx.ext.todo",
-    #"graphviz_linked",
-    "sphinxcontrib.mermaid"
+    # "graphviz_linked",
+    "sphinxcontrib.mermaid",
 ]
 
 # Assume unmarked references (in backticks) refer to Python objects
@@ -106,6 +106,8 @@ linkcheck_ignore = [
     r"https://docutils.sourceforge.io/rst.html",
     # really broken, see gaudi/Gaudi#156
     r"http://gaudi\.web\.cern\.ch/gaudi/doxygen/master/index\.html",
+    # Timeout when cds is slow to respond:
+    r"https?://cds.cern.ch/record/.*",
 ]
 
 # Disable checks of anchors

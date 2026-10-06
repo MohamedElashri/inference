@@ -109,7 +109,7 @@ __global__ void calo_find_clusters::calo_find_clusters(
   unsigned const ecal_clusters_offset = parameters.dev_ecal_cluster_offsets[event_number];
   unsigned const ecal_num_clusters = parameters.dev_ecal_cluster_offsets[event_number + 1] - ecal_clusters_offset;
 
-  histo_n_clusters.increment(ecal_num_clusters);
+  if (threadIdx.x == 0) histo_n_clusters.increment(ecal_num_clusters);
 
   simple_clusters(
     parameters.dev_ecal_digits + ecal_digits_offset,

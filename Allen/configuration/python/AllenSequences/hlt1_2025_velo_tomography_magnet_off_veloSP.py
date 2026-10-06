@@ -8,25 +8,31 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1 import setup_hlt1_node, velo_tomography_lines
-from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
-from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1 import setup_hlt1_node
+from AllenConf.hlt1_presets import VELO_TOMOGRAPHY_CONFIG_PRESETS
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
-from AllenConf.velo_reconstruction import make_pr_velo_tracks, decode_velo
+from AllenConf.velo_reconstruction import decode_velo
+from AllenCore.generator import generate
 
-with (make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),\
-      make_pr_velo_tracks.bind(missing_modules=[21]),\
-      decode_velo.bind(retina_decoding=False),\
-      velo_tomography_lines.bind(full_velo_tomography=True)): # Special configuration for VELO tomography
+
+def modify_presets():
+    VELO_TOMOGRAPHY_CONFIG_PRESETS["pp"]["full_velo_tomography"] = True
+
+
+with (
+    make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),
+    decode_velo.bind(retina_decoding=False),
+):  # Special configuration for VELO tomography
     hlt1_node = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         with_ut=True,
         with_fullKF=True,
-        enableAlignment=
-        False,  # Disable alignment lines since this is used during magnet off
+        enableAlignment=False,  # Disable alignment lines since this is used during magnet off
         enableDownstream=False,  # Downstream not used in technical lines
         enablePhysics=False,  # Only enable technical lines
-        withSMOG2=False)  # Only enable technical lines
+        withSMOG2=False,
+        preset_modifiers=[modify_presets],
+    )  # Only enable technical lines
 
 generate(hlt1_node)

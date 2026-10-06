@@ -41,13 +41,14 @@ __global__ void muon_catboost_features_extraction::muon_catboost_features_extrac
   // Long tracks.
   const auto event_long_tracks = parameters.dev_long_tracks_view->container(event_id);
 
-  SciFi::Consolidated::ConstTracks scifi_tracks {parameters.dev_atomics_scifi,
-                                                 parameters.dev_scifi_track_hit_number,
-                                                 parameters.dev_scifi_qop,
-                                                 parameters.dev_scifi_states,
-                                                 parameters.dev_scifi_track_ut_indices,
-                                                 event_id,
-                                                 number_of_events};
+  SciFi::Consolidated::ConstTracks scifi_tracks {
+    parameters.dev_atomics_scifi,
+    parameters.dev_scifi_track_hit_number,
+    parameters.dev_scifi_qop,
+    parameters.dev_scifi_states,
+    parameters.dev_scifi_track_ut_indices,
+    event_id,
+    number_of_events};
 
   const auto muon_total_number_of_hits =
     parameters.dev_station_ocurrences_offset[number_of_events * Muon::Constants::n_stations];

@@ -28,15 +28,18 @@ if (NOT STANDALONE)
   install(TARGETS AllenZMQ EXPORT Allen)
   target_link_libraries(AllenZMQ INTERFACE ZMQSvc LHCb::ZMQLib)
 else()
-  allen_add_host_library(AllenZMQ SHARED src/functions.cpp src/svc.cpp)
+  allen_add_host_library(AllenZMQ SHARED src/svc.cpp)
   target_include_directories(AllenZMQ PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/serialize>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/compat>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/svc>
     ${PROJECT_SOURCE_DIR}/main/include)
-  target_compile_definitions(AllenZMQ PUBLIC STANDALONE)
-  target_link_libraries(AllenZMQ PUBLIC AllenCommon PkgConfig::zmq PkgConfig::sodium Boost::headers LHCbEvent)
+  target_compile_definitions(AllenZMQ PUBLIC STANDALONE ZMQ_BUILD_DRAFT_API)
+  if (CMAKE_CXX_STANDARD GREATER_EQUAL 23)
+    target_compile_options(AllenZMQ PUBLIC -Wno-deprecated-literal-operator)
+  endif()
+  target_link_libraries(AllenZMQ PUBLIC AllenCommon cppzmq PkgConfig::sodium Boost::headers LHCbEvent)
 endif()
 
 function(zmq_program)

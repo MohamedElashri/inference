@@ -8,33 +8,34 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-import clang.cindex
-from subprocess import Popen, PIPE
-import os
 import argparse
-import sys
+import os
 import pprint
+import sys
+from subprocess import PIPE, Popen
+
+import clang.cindex
 
 arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument('header')
+arg_parser.add_argument("header")
 arg_parser.add_argument(
-    '-o', '--output-opts', dest='opts', type=str, default='allen_opts.py')
+    "-o", "--output-opts", dest="opts", type=str, default="allen_opts.py"
+)
 args = arg_parser.parse_args()
 
 
 def compiler_preprocessor_verbose(compiler, extraflags):
-    """Capture the compiler preprocessor stage in verbose mode
-    """
+    """Capture the compiler preprocessor stage in verbose mode"""
     lines = []
-    with open(os.devnull, 'r') as devnull:
-        cmd = [compiler, '-E']
+    with open(os.devnull, "r") as devnull:
+        cmd = [compiler, "-E"]
         cmd += extraflags
-        cmd += ['-', '-v']
+        cmd += ["-", "-v"]
         p = Popen(cmd, stdin=devnull, stdout=PIPE, stderr=PIPE)
         p.wait()
         p.stdout.close()
         lines = p.stderr.read()
-        lines = lines.decode('utf-8')
+        lines = lines.decode("utf-8")
         lines = lines.splitlines()
     return lines
 
@@ -42,17 +43,17 @@ def compiler_preprocessor_verbose(compiler, extraflags):
 def system_include_paths(compiler, cpp=True):
     extraflags = []
     if cpp:
-        extraflags = '-x c++'.split()
+        extraflags = "-x c++".split()
     lines = compiler_preprocessor_verbose(compiler, extraflags)
     lines = [line.strip() for line in lines]
 
-    start = lines.index('#include <...> search starts here:')
-    end = lines.index('End of search list.')
+    start = lines.index("#include <...> search starts here:")
+    end = lines.index("End of search list.")
 
-    lines = lines[start + 1:end]
+    lines = lines[start + 1 : end]
     paths = []
     for line in lines:
-        line = line.replace('(framework directory)', '')
+        line = line.replace("(framework directory)", "")
         line = line.strip()
         paths.append(line)
     return paths
@@ -60,12 +61,13 @@ def system_include_paths(compiler, cpp=True):
 
 clang_args = ["-x", "cuda", "-std=c++14"]
 include_paths = system_include_paths("clang++")
-clang_args += [(b'-I' + inc).decode("utf-8") for inc in include_paths]
+clang_args += [(b"-I" + inc).decode("utf-8") for inc in include_paths]
 
 
 def get_annotations(node):
     return [
-        c.displayname for c in node.get_children()
+        c.displayname
+        for c in node.get_children()
         if c.kind == clang.cindex.CursorKind.ANNOTATE_ATTR
     ]
 
@@ -74,7 +76,8 @@ class Enum(object):
     def __init__(self, cursor):
         self.name = cursor.spelling
         self.constants = [
-            c.spelling for c in cursor.get_children()
+            c.spelling
+            for c in cursor.get_children()
             if c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
         ]
         self.documentation = cursor.raw_comment
@@ -91,7 +94,10 @@ def traverse(c, path, objects, namespace):
     if c.location.file and not c.location.file.name.endswith(path):
         return
 
-    if c.kind == clang.cindex.CursorKind.TRANSLATION_UNIT or c.kind == clang.cindex.CursorKind.UNEXPOSED_DECL:
+    if (
+        c.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
+        or c.kind == clang.cindex.CursorKind.UNEXPOSED_DECL
+    ):
         # Ignore  other cursor kinds
         pass
 
@@ -104,16 +110,15 @@ def traverse(c, path, objects, namespace):
             objects[namespace] = []
         pass
 
+    #     elif c.kind == clang.cindex.CursorKind.FUNCTION_TEMPLATE:
+    # #        print("Function Template", c.spelling, c.raw_comment)
+    #         objects["functions"].append(Function(c))
+    #         return
 
-#     elif c.kind == clang.cindex.CursorKind.FUNCTION_TEMPLATE:
-# #        print("Function Template", c.spelling, c.raw_comment)
-#         objects["functions"].append(Function(c))
-#         return
-
-#     elif c.kind == clang.cindex.CursorKind.FUNCTION_DECL:
-#         # print("FUNCTION_DECL", c.spelling, c.raw_comment)
-#         objects["functions"].append(Function(c))
-#         return
+    #     elif c.kind == clang.cindex.CursorKind.FUNCTION_DECL:
+    #         # print("FUNCTION_DECL", c.spelling, c.raw_comment)
+    #         objects["functions"].append(Function(c))
+    #         return
 
     elif c.kind == clang.cindex.CursorKind.ENUM_DECL:
         # print("ENUM_DECL", c.spelling, c.raw_comment)
@@ -138,14 +143,8 @@ def traverse(c, path, objects, namespace):
     for child_node in c.get_children():
         traverse(child_node, path, objects, namespace)
 
-opts = {
-    'HltANNSvc': {
-        'Hlt1SelectionID': {}
-    },
-    'ExecutionReportsWriter': {
-        'Persist': []
-    }
-}
+
+opts = {"HltANNSvc": {"Hlt1SelectionID": {}}, "ExecutionReportsWriter": {"Persist": []}}
 
 index = clang.cindex.Index.create()
 error = None
@@ -153,17 +152,17 @@ try:
     tu = index.parse(args.header, args=clang_args)
     objects = {}
     traverse(tu.cursor, args.header, objects, ())
-    if ('Hlt1', ) in objects:
-        enums = {o.name: o for o in objects[('Hlt1', )] if type(o) is Enum}
-        lines_enum = enums.get('Hlt1Lines', None)
+    if ("Hlt1",) in objects:
+        enums = {o.name: o for o in objects[("Hlt1",)] if type(o) is Enum}
+        lines_enum = enums.get("Hlt1Lines", None)
         if lines_enum is not None:
             for i, c in enumerate(lines_enum.constants):
-                if c == 'End':
+                if c == "End":
                     continue
-                line = 'Hlt1%sLine' % c
-                opts['HltANNSvc']['Hlt1SelectionID'][line] = i
-                opts['ExecutionReportsWriter']['Persist'].append(line)
-            with open(args.opts, 'w') as output:
+                line = "Hlt1%sLine" % c
+                opts["HltANNSvc"]["Hlt1SelectionID"][line] = i
+                opts["ExecutionReportsWriter"]["Persist"].append(line)
+            with open(args.opts, "w") as output:
                 pprint.pprint(opts, output)
 except clang.cindex.TranslationUnitLoadError as e:
     print(e)

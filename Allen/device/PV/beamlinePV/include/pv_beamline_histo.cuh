@@ -19,7 +19,6 @@
 #include "VeloEventModel.cuh"
 #include "patPV_Definitions.cuh"
 #include "AlgorithmTypes.cuh"
-#include "FloatOperations.cuh"
 
 namespace pv_beamline_histo {
   struct Parameters {
@@ -28,6 +27,10 @@ namespace pv_beamline_histo {
     DEVICE_INPUT(dev_velo_tracks_view_t, Allen::Views::Velo::Consolidated::Tracks) dev_velo_tracks_view;
     DEVICE_INPUT(dev_pvtracks_t, PVTrack) dev_pvtracks;
     DEVICE_OUTPUT(dev_zhisto_t, float) dev_zhisto;
+    // Fixed-point scratch accumulator backing dev_zhisto: integer atomicAdd is
+    // associative, unlike the float atomicAdd previously used to fill dev_zhisto
+    // directly, so the histogram no longer depends on GPU thread scheduling order.
+    DEVICE_OUTPUT(dev_zhisto_fixed_t, unsigned long long) dev_zhisto_fixed;
   };
 
   __global__ void pv_beamline_histo(
@@ -57,29 +60,35 @@ namespace pv_beamline_histo {
     Allen::Property<float> m_zmin {this, "zmin", BeamlinePVConstants::Common::zmin, "Minimum histogram z"};
     Allen::Property<float> m_zmax {this, "zmax", BeamlinePVConstants::Common::zmax, "Maximum histogram z"};
     Allen::Property<float> m_dz {this, "dz", BeamlinePVConstants::Common::dz, "Histogram bin width"};
-    Allen::Property<int> m_Nbins {this,
-                                  "Nbins",
-                                  BeamlinePVConstants::Common::Nbins,
-                                  "Number of histogram bins (zmax - zmin)/dz"};
-    Allen::Property<int> m_order_polynomial {this,
-                                             "order_polynomial",
-                                             BeamlinePVConstants::Histo::order_polynomial,
-                                             "order of the polynomial in the PV fit"};
-    Allen::Property<float> m_maxTrackBlChi2 {this,
-                                             "maxTrackBlChi2",
-                                             BeamlinePVConstants::Histo::maxTrackBLChi2,
-                                             "Maximum chi2 for track beamline extrapolation"};
-    Allen::Property<float> m_SMOG2_pp_separation {this,
-                                                  "SMOG2_pp_separation",
-                                                  BeamlinePVConstants::Common::SMOG2_pp_separation,
-                                                  "z separation between the pp and SMOG2 luminous region"};
-    Allen::Property<float> m_SMOG2_maxTrackZ0Err {this,
-                                                  "SMOG2_maxTrackZ0Err",
-                                                  BeamlinePVConstants::Common::SMOG2_maxTrackZ0Err,
-                                                  "Maximum error for z0 extrapolation"};
-    Allen::Property<float> m_pp_maxTrackZ0Err {this,
-                                               "pp_maxTrackZ0Err",
-                                               BeamlinePVConstants::Common::pp_maxTrackZ0Err,
-                                               "Maximum error for z0 extrapolation"};
+    Allen::Property<int> m_Nbins {
+      this,
+      "Nbins",
+      BeamlinePVConstants::Common::Nbins,
+      "Number of histogram bins (zmax - zmin)/dz"};
+    Allen::Property<int> m_order_polynomial {
+      this,
+      "order_polynomial",
+      BeamlinePVConstants::Histo::order_polynomial,
+      "order of the polynomial in the PV fit"};
+    Allen::Property<float> m_maxTrackBlChi2 {
+      this,
+      "maxTrackBlChi2",
+      BeamlinePVConstants::Histo::maxTrackBLChi2,
+      "Maximum chi2 for track beamline extrapolation"};
+    Allen::Property<float> m_SMOG2_pp_separation {
+      this,
+      "SMOG2_pp_separation",
+      BeamlinePVConstants::Common::SMOG2_pp_separation,
+      "z separation between the pp and SMOG2 luminous region"};
+    Allen::Property<float> m_SMOG2_maxTrackZ0Err {
+      this,
+      "SMOG2_maxTrackZ0Err",
+      BeamlinePVConstants::Common::SMOG2_maxTrackZ0Err,
+      "Maximum error for z0 extrapolation"};
+    Allen::Property<float> m_pp_maxTrackZ0Err {
+      this,
+      "pp_maxTrackZ0Err",
+      BeamlinePVConstants::Common::pp_maxTrackZ0Err,
+      "Maximum error for z0 extrapolation"};
   };
 } // namespace pv_beamline_histo

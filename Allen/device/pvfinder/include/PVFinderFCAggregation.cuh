@@ -95,11 +95,12 @@ namespace pvfinder_fc_aggregation {
     // writes its response to an all-zero input there.
     DEVICE_OUTPUT(dev_pvfinder_interval_features_t, float) dev_pvfinder_interval_features;
     // Row layout for the UNet:
-    //   host_pvfinder_unet_rows[0]: 1 (rows are compact)
-    //   host_pvfinder_unet_rows[1]: number of rows in use
+    //   host_pvfinder_unet_rows[0]: 1 (host-built) or 2 (GPU-built compact rows)
+    //   host_pvfinder_unet_rows[1]: rows in use, or capacity for GPU-built rows
     //   host_pvfinder_unet_rows[2]: 1 when the features are bfloat16
     //   host_pvfinder_unet_rows[3]: 1 when rows are channels last ([bin][channel])
     //   dev_pvfinder_slot_row[event * 40 + interval]: the interval's row, -1 if none
+    //   GPU-built rows append three words: actual rows, work items and partial rows
     //   dev_pvfinder_row_slot[row]: its inverse, event * 40 + interval
     HOST_OUTPUT(host_pvfinder_unet_rows_t, unsigned) host_pvfinder_unet_rows;
     DEVICE_OUTPUT(dev_pvfinder_slot_row_t, int) dev_pvfinder_slot_row;
@@ -183,6 +184,9 @@ namespace pvfinder_fc_aggregation {
       "fused_grid_fraction",
       0.125f,
       "fraction of the full-occupancy grid for the BF16 FC kernel"};
+
+    Allen::Property<bool> m_gpu_work_list {
+      this, "gpu_work_list", false, "bfloat16: build compact rows and the chunked FC work list on the GPU"};
 
     // Validation dump: when non-empty, the first operator() call writes the
     // FC's inputs and outputs (CSR, per-event track offsets, track features,

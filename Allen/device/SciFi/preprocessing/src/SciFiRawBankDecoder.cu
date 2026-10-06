@@ -68,8 +68,8 @@ __global__ void scifi_raw_bank_decoder_kernel(
 
   const SciFi::SciFiGeometry geom {scifi_geometry};
 
-  SciFi::Hits hits {parameters.dev_scifi_hits,
-                    parameters.dev_scifi_hit_offsets[number_of_events * SciFi::Constants::n_zones]};
+  SciFi::Hits hits {
+    parameters.dev_scifi_hits, parameters.dev_scifi_hit_offsets[number_of_events * SciFi::Constants::n_zones]};
   SciFi::ConstHitCount hit_count {parameters.dev_scifi_hit_offsets, event_number};
   const unsigned number_of_hits_in_event = hit_count.event_number_of_hits();
   for (unsigned i = threadIdx.x; i < number_of_hits_in_event; i += blockDim.x) {
@@ -96,8 +96,8 @@ __global__ void scifi_verify_decoding_kernel(scifi_raw_bank_decoder::Parameters 
 
   const SciFi::SciFiGeometry geom {scifi_geometry};
 
-  SciFi::Hits hits {parameters.dev_scifi_hits,
-                    parameters.dev_scifi_hit_offsets[number_of_events * SciFi::Constants::n_zones]};
+  SciFi::Hits hits {
+    parameters.dev_scifi_hits, parameters.dev_scifi_hit_offsets[number_of_events * SciFi::Constants::n_zones]};
   SciFi::ConstHitCount hit_count {parameters.dev_scifi_hit_offsets, event_number};
 
   for (unsigned layer = 0; layer < SciFi::Constants::n_zones; layer++) {

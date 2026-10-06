@@ -83,12 +83,13 @@ std::vector<Checker::Tracks> prepareUTTracks(
       velo_track_atomics.data(), velo_track_hit_number.data(), event_number, number_of_events};
     Velo::Consolidated::ConstStates velo_states {kalman_velo_states.data(), velo_tracks.total_number_of_tracks()};
     const unsigned velo_event_tracks_offset = velo_tracks.tracks_offset(event_number);
-    UT::Consolidated::ConstExtendedTracks ut_tracks {ut_track_atomics.data(),
-                                                     ut_track_hit_number.data(),
-                                                     ut_qop.data(),
-                                                     ut_track_velo_indices.data(),
-                                                     event_number,
-                                                     number_of_events};
+    UT::Consolidated::ConstExtendedTracks ut_tracks {
+      ut_track_atomics.data(),
+      ut_track_hit_number.data(),
+      ut_qop.data(),
+      ut_track_velo_indices.data(),
+      event_number,
+      number_of_events};
     const unsigned number_of_tracks_event = ut_tracks.number_of_tracks(event_number);
     tracks.resize(number_of_tracks_event);
 

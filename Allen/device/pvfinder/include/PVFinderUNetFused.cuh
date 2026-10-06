@@ -407,6 +407,8 @@ namespace pvfinder_unet {
       const float* __restrict__ empty,
       int n_slots)
     {
+      // GPU-built layouts keep their exact row count after the slot map.
+      if (rows < 0) rows = slot_row[n_slots];
       extern __shared__ __align__(16) unsigned char smem[];
       {
         const uint4* src = reinterpret_cast<const uint4*>(blob);

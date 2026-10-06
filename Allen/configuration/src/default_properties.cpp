@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2023 CERN for the benefit of the LHCb Collaboration           *
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "COPYING".              *
@@ -10,33 +10,23 @@
 \*****************************************************************************/
 #include <iostream>
 #include <iomanip>
-#include <iterator>
 #include <string>
 #include <algorithm>
-#include <boost/algorithm/string.hpp>
 #include <nlohmann/json.hpp>
-#include <AlgorithmDB.h>
+#include <Algorithm.cuh>
 
 int main()
 {
-  // Read the semicolon-separated list of algorithms from stdin
-  std::istreambuf_iterator<char> begin(std::cin), end;
-  std::string input(begin, end);
-  if (!input.empty() && input[input.size() - 1] == '\n') {
-    input.erase(input.size() - 1);
-  }
-
-  // Split the list into algorithm namespace::type
-  std::vector<std::string> algorithms;
-  boost::split(algorithms, input, boost::is_any_of(";"));
-
   nlohmann::json default_properties;
 
   // Loop over the algorithms, instantiate each algorithm and get its
   // (default valued) properties.
-  for (auto alg : algorithms) {
-    auto allen_alg = instantiate_allen_algorithm({alg, "algorithm", ""});
-    default_properties[alg] = allen_alg.get_properties_infos();
+  for (const auto& [id, alg] : Allen::AlgorithmDB::get()->all_algorithms()) {
+    // std::cerr << " Generating: " << id << std::endl;
+    auto infos = alg.get_algorithm_infos();
+    infos["name"] = id;
+    default_properties[id] = infos;
   }
+  // std::cerr << std::setw(4) << default_properties;
   std::cout << std::setw(4) << default_properties;
 }

@@ -9,29 +9,35 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 import re
+
 from LHCbTesting import LHCbExeTest
 
 
 class Test(LHCbExeTest):
     command = [
-        'python', '../../options/allen.py', '--test-file-db-key',
-        'upgrade_Sept2022_minbias_0fb_md_mdf', '--sequence',
-        '$ALLEN_INSTALL_DIR/constants/hlt1_pp_default.json',
-        '--monitoring-filename', 'allen_event_loop.root', '-n', '10000'
+        "python",
+        "../../options/allen.py",
+        "--test-file-db-key",
+        "upgrade_Sept2022_minbias_0fb_md_mdf",
+        "--sequence",
+        "$ALLEN_INSTALL_DIR/constants/hlt1_pp_default.json",
+        "--monitoring-filename",
+        "allen_event_loop.root",
+        "-n",
+        "10000",
     ]
     timeout = 600
 
     reference = {"messages_count": {"FATAL": 0, "ERROR": 0, "WARNING": 0}}
 
     def test_throughput_output(self, stdout: bytes):
-
-        throughput_pattern = re.compile(r'\s*(\d+\.\d+)\s+events/s')
-        time_pattern = re.compile(r'Ran test for (\d+\.\d+)\s+seconds')
+        throughput_pattern = re.compile(r"\s*(\d+\.\d+)\s+events/s")
+        time_pattern = re.compile(r"Ran test for (\d+\.\d+)\s+seconds")
 
         throughput = None
         runtime = None
 
-        for line in stdout.decode().split('\n'):
+        for line in stdout.decode().split("\n"):
             m = throughput_pattern.match(line)
             if m:
                 throughput = float(m.group(1))
@@ -39,5 +45,5 @@ class Test(LHCbExeTest):
             if n:
                 runtime = float(n.group(1))
 
-        assert throughput is not None, 'could not parse throughput from stdout'
-        assert runtime is not None, 'could not parse runtime from stdout'
+        assert throughput is not None, "could not parse throughput from stdout"
+        assert runtime is not None, "could not parse runtime from stdout"

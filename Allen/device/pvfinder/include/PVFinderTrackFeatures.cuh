@@ -100,7 +100,7 @@ namespace pvfinder_track_features {
     // Unit axes: e1 = beam x track, e2 = track x e1 (in the beam-track plane), e3 = track.
     const float3 e1 =
       sin_t > 0.0f ? make_float3(-track_dir.y / sin_t, track_dir.x / sin_t, 0.0f) : make_float3(1.0f, 0.0f, 0.0f);
-    const float3 e2 = cross(track_dir, e1);
+    const float3 e2 = pvfinder_track_features::cross(track_dir, e1);
     const float3 e3 = track_dir;
 
     // A non-positive x variance (about 0.03% of the VELO Kalman states in 2024

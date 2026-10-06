@@ -24,33 +24,35 @@
 constexpr auto NBankTypes = 12;
 enum class BankTypes { VP, UT, FT, MUON, ODIN, MCTracks, MCVertices, Rich1, Rich2, ECal, Plume, HCal, Gen, Unknown };
 
-const std::unordered_set<BankTypes> DataBankTypes = {BankTypes::VP,
-                                                     BankTypes::UT,
-                                                     BankTypes::FT,
-                                                     BankTypes::MUON,
-                                                     BankTypes::ODIN,
-                                                     BankTypes::Rich1,
-                                                     BankTypes::Rich2,
-                                                     BankTypes::ECal,
-                                                     BankTypes::Plume,
-                                                     BankTypes::HCal};
+const std::unordered_set<BankTypes> DataBankTypes = {
+  BankTypes::VP,
+  BankTypes::UT,
+  BankTypes::FT,
+  BankTypes::MUON,
+  BankTypes::ODIN,
+  BankTypes::Rich1,
+  BankTypes::Rich2,
+  BankTypes::ECal,
+  BankTypes::Plume,
+  BankTypes::HCal};
 
 // Average size of all raw banks of a given type per
 // subdetector, in kB, measured in simulated minbias events.
 // FIXME: make this configurable
-const std::unordered_map<BankTypes, float> BankSizes = {{BankTypes::VP, 40.f},
-                                                        {BankTypes::UT, 12.f},
-                                                        {BankTypes::FT, 15.f},
-                                                        {BankTypes::MUON, 4.f},
-                                                        {BankTypes::Rich1, 35.f},
-                                                        {BankTypes::Rich2, 35.f},
-                                                        {BankTypes::HCal, 5.1f},
-                                                        {BankTypes::ECal, 15.f},
-                                                        {BankTypes::Plume, 15.f},
-                                                        {BankTypes::ODIN, 1.f},
-                                                        {BankTypes::MCTracks, 110.f},
-                                                        {BankTypes::MCVertices, 0.3f},
-                                                        {BankTypes::Gen, 0.3f}};
+const std::unordered_map<BankTypes, float> BankSizes = {
+  {BankTypes::VP, 40.f},
+  {BankTypes::UT, 12.f},
+  {BankTypes::FT, 15.f},
+  {BankTypes::MUON, 4.f},
+  {BankTypes::Rich1, 35.f},
+  {BankTypes::Rich2, 35.f},
+  {BankTypes::HCal, 5.1f},
+  {BankTypes::ECal, 15.f},
+  {BankTypes::Plume, 15.f},
+  {BankTypes::ODIN, 1.f},
+  {BankTypes::MCTracks, 110.f},
+  {BankTypes::MCVertices, 0.3f},
+  {BankTypes::Gen, 0.3f}};
 
 // Average measured event size, measured
 // FIXME: make this configurable
@@ -84,8 +86,9 @@ struct BanksAndOffsets {
 
 struct TransposedBanks {
   std::vector<char> data;
-  std::vector<uint16_t> sizes;
-  std::vector<uint8_t> types;
+  std::vector<unsigned> offsets;
+  std::vector<unsigned> sizes;
+  std::vector<unsigned> types;
   int version = -1;
 };
 

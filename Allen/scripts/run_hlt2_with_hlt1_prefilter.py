@@ -8,17 +8,18 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from Moore import options
-from RecoConf.global_tools import stateProvider_with_simplified_geom
-from Hlt2Conf.lines import all_lines
-from RecoConf.reconstruction_objects import reconstruction
+import itertools
+
 from AllenConf.HLT1 import setup_hlt1_node
-from PyConf.components import Algorithm
-from PyConf.control_flow import CompositeNode
-from Moore.config import moore_control_flow
 from AllenConf.velo_reconstruction import decode_velo
 from AllenCore.generator import make_transposed_raw_banks
-import itertools
+from Hlt2Conf.lines import all_lines
+from Moore import options
+from Moore.config import moore_control_flow
+from PyConf.components import Algorithm
+from PyConf.control_flow import CompositeNode
+from RecoConf.global_tools import stateProvider_with_simplified_geom
+from RecoConf.reconstruction_objects import reconstruction
 
 # Following 2 lines needed to create cache for streaming HDRFilters
 options.output_file = "hlt2_pp_default.dst"
@@ -26,12 +27,12 @@ options.output_type = "ROOT"
 options.evt_max = 10
 
 # set input / tags
-options.set_input_from_testfiledb('upgrade_DC19_01_MinBiasMD')
-options.set_conds_from_testfiledb('upgrade_DC19_01_MinBiasMD')
+options.set_input_from_testfiledb("upgrade_DC19_01_MinBiasMD")
+options.set_conds_from_testfiledb("upgrade_DC19_01_MinBiasMD")
 # set param dir in provideconstants to match conditions
 
 from Allen.config import setup_allen_non_event_data_service
-from PyConf.application import configure_input, configure
+from PyConf.application import configure, configure_input
 
 
 def make_lines():
@@ -50,15 +51,25 @@ if not isinstance(streams, dict):
     streams = dict(default=streams)
 lines = list(itertools.chain(*streams.values()))
 # Combine all lines and output in a global control flow.
-top_cf_node = moore_control_flow(options, streams, 'hlt2', False)
+top_cf_node = moore_control_flow(options, streams, "hlt2", False)
 
-#allen stuff -------------------------
+# allen stuff -------------------------
 setup_allen_non_event_data_service()
 
-with decode_velo.bind(retina_decoding=False), make_transposed_raw_banks.bind(
+with (
+    decode_velo.bind(retina_decoding=False),
+    make_transposed_raw_banks.bind(
         rawbank_list=[
-            "ODIN", "Muon", "FTCluster", "UT", "VP", "EcalPacked", "HcalPacked"
-        ]):
+            "ODIN",
+            "Muon",
+            "FTCluster",
+            "UT",
+            "VP",
+            "EcalPacked",
+            "HcalPacked",
+        ]
+    ),
+):
     hlt1_node = setup_hlt1_node()
 
 
@@ -78,14 +89,14 @@ def gather_leafs(node):
 
 
 def gather_algs(node):
-    return frozenset([
-        alg for leaf in gather_leafs(node) for alg in leaf.all_producers(False)
-    ])
+    return frozenset(
+        [alg for leaf in gather_leafs(node) for alg in leaf.all_producers(False)]
+    )
 
 
 # add allen to processing, before everything else
 # this means that all the other stuff (hlt2) will only run if the hlt1 node passes
-top_cf_node.children = (hlt1_node, ) + top_cf_node.children
+top_cf_node.children = (hlt1_node,) + top_cf_node.children
 # end of allen stuff ---------------------------------
 
 config.update(configure(options, top_cf_node, public_tools=public_tools))

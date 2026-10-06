@@ -93,44 +93,51 @@ namespace SMOG2jpsitomumu_tap_line {
     using monitoring_types = std::tuple<mass_t, svz_t, pvz_t, pt_t, maxchi2corr_t, min_muon_nn_t, evtNo_t, runNo_t>;
 
   private:
-    Allen::Property<float> m_JpsiMinMass {this,
-                                          "JpsiMinMass",
-                                          2850.f * Allen::Units::MeV,
-                                          "Min invariant mass for JPsi candidate"};
-    Allen::Property<float> m_JpsiMaxMass {this,
-                                          "JpsiMaxMass",
-                                          3350.f * Allen::Units::MeV,
-                                          "Min invariant mass for JPsi candidate"};
-    Allen::Property<float> m_JpsiMinZ {this,
-                                       "JpsiMinZ",
-                                       -537.5f * Allen::Units::mm,
-                                       "minimum vertex z dimuon coordinate"};
-    Allen::Property<float> m_JpsiMaxZ {this,
-                                       "JpsiMaxZ",
-                                       -337.5f * Allen::Units::mm,
-                                       "maximum vertex z dimuon coordinate"};
+    Allen::Property<float> m_JpsiMinMass {
+      this,
+      "JpsiMinMass",
+      2850.f * Allen::Units::MeV,
+      "Min invariant mass for JPsi candidate"};
+    Allen::Property<float> m_JpsiMaxMass {
+      this,
+      "JpsiMaxMass",
+      3350.f * Allen::Units::MeV,
+      "Min invariant mass for JPsi candidate"};
+    Allen::Property<float> m_JpsiMinZ {
+      this,
+      "JpsiMinZ",
+      -537.5f * Allen::Units::mm,
+      "minimum vertex z dimuon coordinate"};
+    Allen::Property<float> m_JpsiMaxZ {
+      this,
+      "JpsiMaxZ",
+      -337.5f * Allen::Units::mm,
+      "maximum vertex z dimuon coordinate"};
     Allen::Property<float> m_mutagMinP {this, "mutagMinP", 3000.f * Allen::Units::MeV, "Min momentum for tag muon"};
     Allen::Property<float> m_mutagMinPt {this, "mutagMinPt", 600.f * Allen::Units::MeV, "Min Pt for tag muon"};
     Allen::Property<float> m_mutagMaxChi2Corr {this, "mutagMaxChi2Corr", 1.8, "maximum muon tag correlated chi2"};
-    Allen::Property<float> m_muprobeMinP {this,
-                                          "muprobeMinP",
-                                          3000.f * Allen::Units::MeV,
-                                          "Min momentum for probe muon"};
+    Allen::Property<float> m_muprobeMinP {
+      this,
+      "muprobeMinP",
+      3000.f * Allen::Units::MeV,
+      "Min momentum for probe muon"};
     Allen::Property<float> m_muprobeMinPt {this, "muprobeMinPt", 150.f * Allen::Units::MeV, "Min Pt for probe muon"};
     Allen::Property<float> m_JpsiMinPt {this, "JpsiMinPt", 0.f * Allen::Units::MeV, "Min Pt for the Jpsi candidate"};
     Allen::Property<bool> m_posTag {this, "posTag", true, "Tags positive charged tracks with isMuon"};
     Allen::Property<float> m_JpsiMaxVChi2 {this, "JpsiMaxVChi2", 16.f, "Max chi2 for the J/psi candidate vertex"};
-    Allen::Property<float> m_JpsiMaxDoca {this,
-                                          "JpsiMaxDoca",
-                                          0.5f * Allen::Units::mm,
-                                          "Max DOCA for the J/psi candidate combination"};
+    Allen::Property<float> m_JpsiMaxDoca {
+      this,
+      "JpsiMaxDoca",
+      0.5f * Allen::Units::mm,
+      "Max DOCA for the J/psi candidate combination"};
     Allen::Property<float> m_maxTrackChi2Ndf {this, "maxTrackChi2Ndf", 5.f, "max track fit Chi2ndf"};
     Allen::Property<float> m_minMuonNN {this, "minMuonNN", 0.1, "min NN evaluation"};
-    Allen::Property<float> m_useNN {this, "useNN", true, "useNN"};
+    Allen::Property<bool> m_useNN {this, "useNN", true, "useNN"};
 
-    Allen::Monitoring::Histogram<> m_histogram_SMOG2jpsitomumu_tap_mass {this,
-                                                                         "histogram_SMOG2jpsitomumu_tap_mass",
-                                                                         "m(jpsi)",
-                                                                         {60u, 2950.f, 3250.f}};
+    Allen::Monitoring::Histogram<> m_histogram_SMOG2jpsitomumu_tap_mass {
+      this,
+      "histogram_SMOG2jpsitomumu_tap_mass",
+      "m(jpsi)",
+      {60u, 2950.f, 3250.f}};
   };
 } // namespace SMOG2jpsitomumu_tap_line

@@ -95,18 +95,18 @@ void for_each(Tuple&& tup, F&& f)
 }
 
 // Detection idiom
-namespace detail {
-  template<template<class...> class Trait, class Enabler, class... Args>
-  struct is_detected : std::false_type {
-  };
+namespace Allen {
+  namespace detail {
+    template<template<class...> class Trait, class Enabler, class... Args>
+    struct is_detected : std::false_type {};
 
-  template<template<class...> class Trait, class... Args>
-  struct is_detected<Trait, std::void_t<Trait<Args...>>, Args...> : std::true_type {
-  };
-} // namespace detail
+    template<template<class...> class Trait, class... Args>
+    struct is_detected<Trait, std::void_t<Trait<Args...>>, Args...> : std::true_type {};
+  } // namespace detail
+} // namespace Allen
 
 template<template<class...> class Trait, class... Args>
-using is_detected = typename detail::is_detected<Trait, void, Args...>::type;
+using is_detected = typename Allen::detail::is_detected<Trait, void, Args...>::type;
 
 template<typename ENUM>
 constexpr auto to_integral(ENUM e) -> typename std::underlying_type<ENUM>::type

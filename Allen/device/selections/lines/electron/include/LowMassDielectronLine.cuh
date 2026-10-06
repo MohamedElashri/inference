@@ -103,10 +103,11 @@ namespace lowmass_dielectron_line {
       bool);
 
   private:
-    Allen::Property<bool> m_selectPrompt {this,
-                                          "selectPrompt",
-                                          true,
-                                          "Use ipchi2 threshold as upper (prompt) or lower (displaced) bound"};
+    Allen::Property<bool> m_selectPrompt {
+      this,
+      "selectPrompt",
+      true,
+      "Use ipchi2 threshold as upper (prompt) or lower (displaced) bound"};
     Allen::Property<float> m_minMass {this, "MinMass", 5.f, "Min vertex mass"};
     Allen::Property<float> m_maxMass {this, "MaxMass", 300.f, "Max vertex mass"};
     Allen::Property<bool> m_ss_on {this, "ss_on", false, "Flag when same-sign candidates should be selected"};

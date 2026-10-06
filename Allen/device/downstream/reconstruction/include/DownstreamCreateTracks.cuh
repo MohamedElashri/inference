@@ -63,7 +63,7 @@ namespace downstream_create_tracks {
 
   __global__ void downstream_create_tracks(
     Parameters,
-    const float*,
+    const float magnet_polarity,
     const float,
     const DownstreamGhostKiller::DeviceType*,
     [[maybe_unused]] Allen::Monitoring::Counter<>::DeviceType);
@@ -83,13 +83,15 @@ namespace downstream_create_tracks {
   private:
     Allen::Monitoring::Counter<> m_n_overflow_downstream_create_tracks {this, "n_overflow_downstream_create_tracks"};
     Allen::Property<dim3> m_block_dim {this, "block_dim", {32, 1, 1}, "block dimensions"};
-    Allen::Property<float> m_ghost_killer_threshold {this,
-                                                     "ghost_killer_threshold",
-                                                     0.5,
-                                                     "the threshold of the ghost killer"};
+    Allen::Property<float> m_ghost_killer_threshold {
+      this,
+      "ghost_killer_threshold",
+      0.5,
+      "the threshold of the ghost killer"};
 
-    DownstreamGhostKiller dev_downstream_ghostkiller {"dev_downstream_ghostkiller",
-                                                      "/GhostProbability/Hlt1_DownstreamGhostKiller.json"};
+    DownstreamGhostKiller dev_downstream_ghostkiller {
+      "dev_downstream_ghostkiller",
+      "/GhostProbability/Hlt1_DownstreamGhostKiller.json"};
   };
 
 } // namespace downstream_create_tracks

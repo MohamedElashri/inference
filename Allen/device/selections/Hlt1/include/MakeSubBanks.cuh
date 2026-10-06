@@ -56,57 +56,6 @@ namespace make_subbanks {
     DEVICE_OUTPUT(dev_rb_stdinfo_t, unsigned) dev_rb_stdinfo;
   };
 
-  __host__ __device__ void make_rb_substr_bank(
-    unsigned* event_rb_substr,
-    const unsigned event_rb_substr_size,
-    const unsigned n_children,
-    const unsigned n_sels,
-    const unsigned n_tracks,
-    const unsigned n_calos,
-    const unsigned n_svs,
-    const unsigned substr_sel_size,
-    const unsigned substr_sv_size,
-    const unsigned substr_track_size,
-    Allen::IMultiEventContainer* const* mecs,
-    Allen::Views::Physics::BasicParticle* const* const event_track_ptrs,
-    Allen::Views::Physics::NeutralBasicParticle* const* const event_calo_ptrs,
-    Allen::Views::Physics::CompositeParticle* const* const event_sv_ptrs,
-    const unsigned* line_object_offsets,
-    const unsigned* event_unique_track_list,
-    const unsigned* event_unique_calo_list,
-    const unsigned* event_unique_sv_list,
-    const unsigned* event_candidate_offsets,
-    const unsigned* event_sel_list,
-    const unsigned* sel_track_indices,
-    const unsigned* sel_calo_indices,
-    const unsigned* sel_sv_indices,
-    const int* track_duplicate_map,
-    const int* calo_duplicate_map,
-    const int* sv_duplicate_map);
-
-  __host__ __device__ void make_rb_objtyp_bank(
-    unsigned* event_rb_objtyp,
-    const unsigned n_objtyps,
-    const unsigned n_sels,
-    const unsigned n_tracks,
-    const unsigned n_calos,
-    const unsigned n_svs);
-
-  __host__ __device__ void make_rb_stdinfo_bank(
-    unsigned* event_rb_stdinfo,
-    const unsigned stdinfo_size,
-    const unsigned n_sels,
-    const unsigned n_tracks,
-    const unsigned n_calos,
-    const unsigned n_svs,
-    const unsigned* event_sel_list,
-    const unsigned* event_unique_track_list,
-    const unsigned* event_unique_calo_list,
-    const unsigned* event_unique_sv_list,
-    Allen::Views::Physics::BasicParticle* const* const event_track_ptrs,
-    Allen::Views::Physics::NeutralBasicParticle* const* const event_calo_ptrs,
-    Allen::Views::Physics::CompositeParticle* const* const event_sv_ptrs);
-
   __global__ void make_rb_substr(Parameters, const unsigned, const unsigned);
 
   __global__ void make_rb_hits(Parameters, const unsigned);
@@ -127,9 +76,10 @@ namespace make_subbanks {
     Allen::Property<dim3> m_block_dim {this, "block_dim", {64, 1, 1}, "block dimensions"};
     // TODO: This needs to be the same as the properties in
     // MakeSelectedObjectLists. These should be saved as constants somewhere.
-    Allen::Property<unsigned> m_max_children_per_object {this,
-                                                         "max_children_per_object",
-                                                         4,
-                                                         "Maximum number of children per selected object"};
+    Allen::Property<unsigned> m_max_children_per_object {
+      this,
+      "max_children_per_object",
+      4,
+      "Maximum number of children per selected object"};
   };
 } // namespace make_subbanks

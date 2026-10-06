@@ -23,8 +23,8 @@ struct PVTrack {
   PVTrack& operator=(const PVTrack&) = default;
 
   __host__ __device__ PVTrack(const KalmanVeloState& state) :
-    z {state.z()}, x {state.x(), state.y()}, tx {state.tx(), state.ty()}, W_00 {1.f / state.c00()}, W_11 {1.f /
-                                                                                                          state.c11()}
+    z {state.z()}, x {state.x(), state.y()}, tx {state.tx(), state.ty()}, W_00 {1.f / state.c00()},
+    W_11 {1.f / state.c11()}
   {}
 
   float z {0};
@@ -38,8 +38,7 @@ struct PVTrack {
 // UGLY HACK to support trivially copyable check on HIP for float2, float3 and float4
 // See https://github.com/ROCm-Developer-Tools/HIP/issues/2610
 template<>
-struct Allen::is_trivially_copyable<PVTrack> : std::true_type {
-};
+struct Allen::is_trivially_copyable<PVTrack> : std::true_type {};
 #endif
 
 struct Extremum {

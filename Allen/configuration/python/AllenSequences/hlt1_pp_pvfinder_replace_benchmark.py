@@ -25,7 +25,6 @@ from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc
 from AllenConf.pvfinder_pv_reconstruction import make_pvfinder_pvs
 from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet
-from AllenConf.velo_reconstruction import make_pr_velo_tracks
 from AllenCore.generator import generate
 
 
@@ -40,10 +39,7 @@ def make_pvs_from_pvfinder(velo_tracks, velo_open=False, **kwargs):
 for module in (hlt1_reconstruction, lumi_reconstruction, downstream_reconstruction):
     module.make_pvs = make_pvs_from_pvfinder
 
-with (
-    make_velo_scifi_matches.bind(ghost_killer_threshold=0.8),
-    make_pr_velo_tracks.bind(missing_modules=[21]),
-):
+with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
     hlt1_node_dict = setup_hlt1_node(
         tracking_type=TrackingType.FORWARD_THEN_MATCHING,
         threshold_settings=get_thresholds(
@@ -54,4 +50,4 @@ with (
         with_fullKF=True,
     )
 
-generate(hlt1_node_dict["control_flow_node"])
+generate(hlt1_node_dict)

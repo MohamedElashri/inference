@@ -89,8 +89,8 @@ __global__ void ut_decode_in_order::ut_decode_in_order(
   UT::ConstPreDecodedHits ut_pre_decoded_hits {
     parameters.dev_ut_pre_decoded_hits, parameters.dev_ut_cluster_offsets[number_of_events * UT::Constants::n_groups]};
 
-  UT::Hits ut_hits {parameters.dev_ut_hits,
-                    parameters.dev_ut_cluster_offsets[number_of_events * UT::Constants::n_groups]};
+  UT::Hits ut_hits {
+    parameters.dev_ut_hits, parameters.dev_ut_cluster_offsets[number_of_events * UT::Constants::n_groups]};
 
   const UTGeometry geometry(ut_geometry);
 

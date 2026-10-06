@@ -108,7 +108,7 @@ void CompareRecAllenPlume::compare(
       bool ovt = ((allenDigits[0].ovr_th[feb] & (1 << (n_ovt))) >> (n_ovt));
 
       if (feb == 1) idx_int -= n_channels_per_FEB - n_lumi_PMTs_per_FEB;
-      auto allen_adc = std::round(allenDigits[0].ADC_counts[idx_int]) - m_pedestalOffset;
+      auto allen_adc = static_cast<int>(std::round(allenDigits[0].ADC_counts[idx_int])) - m_pedestalOffset;
 
       if (lhcb_digit->adc() == allen_adc)
         ++m_matched;
@@ -136,7 +136,7 @@ void CompareRecAllenPlume::compare(
 
       if (m_map_reversed_time.find(query) != m_map_reversed_time.end()) {
         auto idx_int = m_map_reversed_time.at(query) + shift_ch + shift_all_lumi_PMTs;
-        auto allen_adc = std::round(allenDigits[0].ADC_counts[idx_int]) - m_pedestalOffset;
+        auto allen_adc = static_cast<int>(std::round(allenDigits[0].ADC_counts[idx_int])) - m_pedestalOffset;
         if (lhcb_digit->adc() == allen_adc) {
           ++m_matched_time;
         }

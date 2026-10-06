@@ -8,13 +8,21 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-from AllenConf.HLT1_pp_ref import setup_hlt1_node
-from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
+from AllenConf.HLT1_pp_ref import setup_hlt1_node
+from AllenConf.hlt1_presets import VELO_LARGE_CLUSTERS_CONFIG_PRESETS
+from AllenCore.generator import generate
+
+
+def modify_presets():
+    VELO_LARGE_CLUSTERS_CONFIG_PRESETS["pp"]["enable"] = False
+
 
 hlt1_node = setup_hlt1_node(
     withMCChecking=True,
     tracking_type=TrackingType.FORWARD_THEN_MATCHING,
-    threshold_settings=get_thresholds("pp_reference_run_2024"))
+    threshold_settings=get_thresholds("pp_reference_run_2024"),
+    preset_modifiers=[modify_presets],
+)
 generate(hlt1_node)

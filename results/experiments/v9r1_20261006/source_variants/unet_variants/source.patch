@@ -1,0 +1,144 @@
+diff --git a/Allen/device/pvfinder/include/PVFinderUNet.cuh b/Allen/device/pvfinder/include/PVFinderUNet.cuh
+index 5cba6d5..a7b7c2c 100644
+--- a/Allen/device/pvfinder/include/PVFinderUNet.cuh
++++ b/Allen/device/pvfinder/include/PVFinderUNet.cuh
+@@ -138,6 +138,11 @@ namespace pvfinder_unet {
+       0.25f,
+       "bfloat16: fraction of the full-occupancy grid for the fused UNet kernel"};
+ 
++    Allen::Property<unsigned> m_fused_block_warps {
++      this, "fused_block_warps", 4u, "bfloat16: warps per fused block (2, 3 or 4)"};
++    Allen::Property<int> m_shared_memory_carveout {
++      this, "shared_memory_carveout", -1, "bfloat16: preferred shared-memory percentage (-1 for CUDA default)"};
++
+     Allen::Property<dim3> m_block_dim {
+       this,
+       "block_dim",
+diff --git a/Allen/device/pvfinder/include/PVFinderUNetFused.cuh b/Allen/device/pvfinder/include/PVFinderUNetFused.cuh
+index fa2abcd..f6985f1 100644
+--- a/Allen/device/pvfinder/include/PVFinderUNetFused.cuh
++++ b/Allen/device/pvfinder/include/PVFinderUNetFused.cuh
+@@ -396,7 +396,8 @@ namespace pvfinder_unet {
+     // with row_slot: [slots][W1], row r going to slot row_slot[r], and every slot
+     // with slot_row[s] < 0 (n_slots of them in all) getting empty[W1] (the
+     // response to an empty interval): the whole KDE in one launch.
+-    __global__ void __launch_bounds__(THREADS) fused_unet_bf16_kernel(
++    template<int BLOCK_WARPS>
++    __global__ void __launch_bounds__(BLOCK_WARPS * 32) fused_unet_bf16_kernel(
+       const __nv_bfloat16* __restrict__ in,
+       const unsigned char* __restrict__ blob,
+       float* __restrict__ kde,
+@@ -407,6 +408,8 @@ namespace pvfinder_unet {
+       const float* __restrict__ empty,
+       int n_slots)
+     {
++      constexpr int WARPS = BLOCK_WARPS;
++      constexpr int THREADS = WARPS * 32;
+       extern __shared__ __align__(16) unsigned char smem[];
+       {
+         const uint4* src = reinterpret_cast<const uint4*>(blob);
+diff --git a/Allen/device/pvfinder/src/PVFinderUNet.cu b/Allen/device/pvfinder/src/PVFinderUNet.cu
+index 74501ce..0166df1 100644
+--- a/Allen/device/pvfinder/src/PVFinderUNet.cu
++++ b/Allen/device/pvfinder/src/PVFinderUNet.cu
+@@ -110,6 +110,15 @@ namespace pvfinder_unet {
+   };
+ 
+   namespace {
++    template<typename Launch> void with_fused_warps(unsigned warps, Launch&& launch)
++    {
++      switch (warps) {
++      case 2: launch.template operator()<2>(); break;
++      case 3: launch.template operator()<3>(); break;
++      case 4: launch.template operator()<4>(); break;
++      default: throw StrException("pvfinder_unet: fused_block_warps must be 2, 3 or 4");
++      }
++    }
+     // CBR layers: input channels, kernel size, padding, width.
+     struct CBRShape {
+       int c_in, r, pad, w;
+@@ -264,10 +273,19 @@ namespace pvfinder_unet {
+       const std::vector<unsigned char> blob = fused::make_fused_unet_blob(conv_w, conv_b, ct_w, ct_b, out_params);
+       Allen::malloc((void**) &state->fused_blob, blob.size());
+       Allen::memcpy(state->fused_blob, blob.data(), blob.size(), Allen::memcpyHostToDevice);
+-      cudaCheck(cudaFuncSetAttribute(
+-        fused::fused_unet_bf16_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, fused::SMEM_BYTES));
+-      cudaCheck(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+-        &per_sm, fused::fused_unet_bf16_kernel, fused::THREADS, fused::SMEM_BYTES));
++      if (m_shared_memory_carveout < -1 || m_shared_memory_carveout > 100) {
++        throw StrException("pvfinder_unet: shared_memory_carveout must be -1 or in [0,100]");
++      }
++      with_fused_warps(m_fused_block_warps, [&]<int WARPS>() {
++        constexpr int shared = fused::BLOB_BYTES + WARPS * fused::WARP_BYTES;
++        cudaCheck(cudaFuncSetAttribute(
++          fused::fused_unet_bf16_kernel<WARPS>, cudaFuncAttributeMaxDynamicSharedMemorySize, shared));
++        cudaCheck(cudaFuncSetAttribute(
++          fused::fused_unet_bf16_kernel<WARPS>, cudaFuncAttributePreferredSharedMemoryCarveout,
++          m_shared_memory_carveout.value()));
++        cudaCheck(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
++          &per_sm, fused::fused_unet_bf16_kernel<WARPS>, WARPS * 32, shared));
++      });
+       state->fused_grid = sm_count * std::max(per_sm, 1);
+     }
+     else {
+@@ -422,20 +440,15 @@ namespace pvfinder_unet {
+     std::vector<float*> buffers;
+     if (m_bf16) {
+       // All-zero bits are BF16 zeros too.
+-      global_function(fused::fused_unet_bf16_kernel)(
+-        dim3(std::min(state.fused_grid, (N + fused::WARPS - 1) / fused::WARPS)),
+-        dim3(fused::THREADS),
+-        setup,
+-        fused::SMEM_BYTES)(
+-        reinterpret_cast<const __nv_bfloat16*>(zeros),
+-        state.fused_blob,
+-        out,
+-        KDE_SCALE,
+-        N,
+-        nullptr,
+-        nullptr,
+-        nullptr,
+-        0);
++      with_fused_warps(m_fused_block_warps, [&]<int WARPS>() {
++        global_function(fused::fused_unet_bf16_kernel<WARPS>)(
++          dim3(std::min(state.fused_grid, (N + WARPS - 1) / WARPS)),
++          dim3(WARPS * 32),
++          setup,
++          fused::BLOB_BYTES + WARPS * fused::WARP_BYTES)(
++          reinterpret_cast<const __nv_bfloat16*>(zeros), state.fused_blob, out, KDE_SCALE, N,
++          nullptr, nullptr, nullptr, 0);
++      });
+     }
+     else {
+       // Scratch as in operator(): x1, x2, x3, up1, up2, workspace.
+@@ -501,21 +514,15 @@ namespace pvfinder_unet {
+       if (n_slots > 0) {
+         // See m_fused_grid_fraction: leave room for other streams' kernels.
+         const int grid = std::max(1, (int) (state.fused_grid * m_fused_grid_fraction.value()));
+-        const int blocks = std::max(1, std::min(grid, (int) (n_rows + fused::WARPS - 1) / fused::WARPS));
+-        global_function(fused::fused_unet_bf16_kernel)(
+-          dim3(std::max(blocks, std::min(grid, n_slots / fused::THREADS + 1))),
+-          dim3(fused::THREADS),
+-          context,
+-          fused::SMEM_BYTES)(
+-          reinterpret_cast<const __nv_bfloat16*>(rows),
+-          state.fused_blob,
+-          kde,
+-          KDE_SCALE,
+-          (int) n_rows,
+-          data<dev_pvfinder_row_slot_t>(arguments),
+-          data<dev_pvfinder_slot_row_t>(arguments),
+-          state.empty_response,
+-          n_slots);
++        with_fused_warps(m_fused_block_warps, [&]<int WARPS>() {
++          const int blocks = std::max(1, std::min(grid, (int) (n_rows + WARPS - 1) / WARPS));
++          global_function(fused::fused_unet_bf16_kernel<WARPS>)(
++            dim3(std::max(blocks, std::min(grid, n_slots / (WARPS * 32) + 1))),
++            dim3(WARPS * 32), context, fused::BLOB_BYTES + WARPS * fused::WARP_BYTES)(
++            reinterpret_cast<const __nv_bfloat16*>(rows), state.fused_blob, kde, KDE_SCALE, (int) n_rows,
++            data<dev_pvfinder_row_slot_t>(arguments), data<dev_pvfinder_slot_row_t>(arguments),
++            state.empty_response, n_slots);
++        });
+       }
+     }
+     else {

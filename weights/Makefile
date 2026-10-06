@@ -22,6 +22,7 @@
 #   DUMP_SET="ALG.PROP=VALUE ..."  any other Allen property overrides
 #   DUMP_TAG=<tag>       keep the dump in out/<name>/dump_<tag>/
 # LABEL names the run record.
+# ALLEN_BUILD_DIR overrides the full build path (default: Allen/<catalog build>gpu).
 
 SHELL         := /bin/bash
 .SHELLFLAGS   := -eu -o pipefail -c
@@ -52,6 +53,7 @@ SOURCE     := $(call field,$(MODEL),2)
 UNET_FEAT  := $(call field,$(MODEL),3)
 LATENT     := $(call field,$(MODEL),4)
 BUILD      := $(call field,$(MODEL),5)
+ALLEN_BUILD_DIR ?= $(REPO)/Allen/$(BUILD)gpu
 
 CKPT := $(WEIGHTS)/checkpoints/$(MODEL).pyt
 OUT  := $(WEIGHTS)/out/$(MODEL)
@@ -94,14 +96,15 @@ $(OUT)/verify.txt: $(OUT)/.converted $(SCRIPTS)/verify.py
 
 # ---- Allen build, dump, validate ---------------------------------------------
 build: check-model
-> cd $(REPO) && ./ballen -a gpu --cudnn --unet-feat $(UNET_FEAT) --unet-batch-channels $(LATENT) -b $(BUILD) -j $(JOBS)
+> BUILD_DIR="$(ALLEN_BUILD_DIR)" JOBS="$(JOBS)" PVFINDER_UNET_N_FEAT="$(UNET_FEAT)" \
+>     PVFINDER_UNET_N_BATCH_CHANNELS="$(LATENT)" bash $(REPO)/benchmarks/build_v9r1.sh
 
 dump: verify build
-> $(SCRIPTS)/allen_dump.sh --build $(REPO)/Allen/$(BUILD)gpu --model-file $(OUT)/pvfinder_model.json \
+> $(SCRIPTS)/allen_dump.sh --build $(ALLEN_BUILD_DIR) --model-file $(OUT)/pvfinder_model.json \
 >     --sequence $(SEQUENCE) --dump-dir $(DUMP) --events $(EVENTS) --device $(DEVICE) \
 >     $(foreach s,$(DUMP_SET),--set $(s)) \
 >     $(if $(PRECISION),--set pvfinder_fc_aggregation.precision=$(PRECISION) --set pvfinder_unet.precision=$(PRECISION))
-> $(PY) $(RUNS) snapshot $(DUMP) --device $(DEVICE) --build-dir $(REPO)/Allen/$(BUILD)gpu --model $(MODEL)
+> $(PY) $(RUNS) snapshot $(DUMP) --device $(DEVICE) --build-dir $(ALLEN_BUILD_DIR) --model $(MODEL)
 
 # Every validator runs and the run record is always written; the target fails
 # afterwards if any validator did.
@@ -118,7 +121,7 @@ validate: check-model
 >     --report $(DUMP)/validate_features.json | tee $(DUMP)/validate_features.txt || rc=1; \
 > $(PY) $(SCRIPTS)/validate_peaks.py --dump-dir $(DUMP) \
 >     --report $(DUMP)/validate_peaks.json | tee $(DUMP)/validate_peaks.txt || rc=1; \
-> $(PY) $(RUNS) validation --model $(MODEL) --build-dir $(REPO)/Allen/$(BUILD)gpu --dump-dir $(DUMP) \
+> $(PY) $(RUNS) validation --model $(MODEL) --build-dir $(ALLEN_BUILD_DIR) --dump-dir $(DUMP) \
 >     --device $(DEVICE) --events $(EVENTS) --sequence $(SEQUENCE) --label $(LABEL) \
 >     --fc-report $(DUMP)/validate_fc.json --unet-report $(DUMP)/validate_unet.json \
 >     --model-report $(DUMP)/validate_model.json --features-report $(DUMP)/validate_features.json \

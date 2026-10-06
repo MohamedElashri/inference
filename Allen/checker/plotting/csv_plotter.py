@@ -10,13 +10,14 @@
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
 
-import os
 import csv
-from optparse import OptionParser
-from termgraph import TermGraph
+import os
 from io import StringIO
-import requests
+from optparse import OptionParser
+
 import gitlab
+import requests
+from termgraph import TermGraph
 
 
 def parse_throughput(content, scale=1.0):
@@ -30,11 +31,9 @@ def parse_throughput(content, scale=1.0):
     return throughput
 
 
-def get_master_throughput(job_name,
-                          csvfile,
-                          ref="master",
-                          instance="https://gitlab.cern.ch",
-                          scale=1.0):
+def get_master_throughput(
+    job_name, csvfile, ref="master", instance="https://gitlab.cern.ch", scale=1.0
+):
     """
     Use GitLab API to retrieve throughput reference from a successful or failed pipeline.
     """
@@ -43,28 +42,26 @@ def get_master_throughput(job_name,
             "Environment variable ALLENCI_PAT is not set - cannot access the GitLab API."
         )
 
-    gl = gitlab.Gitlab(instance, private_token=os.environ[f"ALLENCI_PAT"])
+    gl = gitlab.Gitlab(instance, private_token=os.environ["ALLENCI_PAT"])
 
     gl.auth()
 
     proj_id = int(os.environ["CI_PROJECT_ID"])
     project = gl.projects.get(proj_id)
 
-    target_branch = os.environ.get('CI_MERGE_REQUEST_TARGET_BRANCH_NAME')
+    target_branch = os.environ.get("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
     if target_branch is not None:
-        if (target_branch == "2024-patches"):
+        if target_branch == "2024-patches":
             ref = "2024-patches"
         else:
             ref = "master"
-        print(
-            f"target branch is {target_branch}, will use the corresponding reference"
-        )
+        print(f"target branch is {target_branch}, will use the corresponding reference")
     else:
         ref = os.environ["CI_COMMIT_REF_NAME"]
 
     # select last successful or failed pipeline
     for pipeline in project.pipelines.list(ref=ref, as_list=False):
-        if pipeline.status in ['success', 'failed']:
+        if pipeline.status in ["success", "failed"]:
             break
 
     print(f"Selected pipeline {pipeline.id} to extract throughput reference:")
@@ -79,7 +76,7 @@ def get_master_throughput(job_name,
     pipeline_job = [j for j in pipeline_all_jobs if j.name == job_name]
     if not pipeline_job:
         all_pipeline_job_names = [j.name for j in pipeline_all_jobs]
-        print('\n'.join(all_pipeline_job_names))
+        print("\n".join(all_pipeline_job_names))
 
         raise RuntimeError(f"job_name {job_name} not found.")
     pipeline_job = pipeline_job[0]
@@ -93,7 +90,7 @@ def get_master_throughput(job_name,
         print(artifact)
         print("--\n")
 
-        content = StringIO(artifact.decode('utf-8'))
+        content = StringIO(artifact.decode("utf-8"))
         master_throughput = parse_throughput(content, scale=scale)
     except Exception as e:
         print("get_master_throughput exception:", e)
@@ -107,8 +104,7 @@ def format_text(title, plot_data, unit, x_max, master_throughput={}):
     final_vals = []
     final_tags = []
 
-    keylist = sorted(
-        plot_data.keys(), key=lambda x: plot_data[x], reverse=True)
+    keylist = sorted(plot_data.keys(), key=lambda x: plot_data[x], reverse=True)
     for k in keylist:
         val = plot_data[k]
         final_tags.append(k)
@@ -123,8 +119,7 @@ def format_text(title, plot_data, unit, x_max, master_throughput={}):
     # Add relative throughputs if requested
     if master_throughput:
         speedup_wrt_master = {
-            a: plot_data.get(a, b) / b
-            for a, b in master_throughput.items()
+            a: plot_data.get(a, b) / b for a, b in master_throughput.items()
         }
         annotated_output = ""
         for line in output.splitlines():
@@ -143,23 +138,22 @@ def format_text(title, plot_data, unit, x_max, master_throughput={}):
 def send_to_mattermost(text, mattermost_url):
     request_json = {"text": text}
     response = requests.post(
-        mattermost_url,
-        json=request_json,
-        headers={"Content-Type": "application/json"})
+        mattermost_url, json=request_json, headers={"Content-Type": "application/json"}
+    )
 
     assert response.ok, "send_to_mattermost request failed."
 
 
 def produce_plot(
-        plot_data,
-        unit="",
-        title="",
-        x_max=10,
-        mattermost_url=None,
-        scale=1.0,
-        normalize=False,
-        print_text=True,
-        master_throughput={},
+    plot_data,
+    unit="",
+    title="",
+    x_max=10,
+    mattermost_url=None,
+    scale=1.0,
+    normalize=False,
+    print_text=True,
+    master_throughput={},
 ):
     # Convert throughputs to speedups
     if normalize:
@@ -168,7 +162,8 @@ def produce_plot(
             plot_data[k] /= norm
 
     text, raw_output = format_text(
-        title, plot_data, unit, x_max, master_throughput=master_throughput)
+        title, plot_data, unit, x_max, master_throughput=master_throughput
+    )
     if print_text:
         print(text)
 
@@ -183,8 +178,8 @@ def main():
     Produces a plot of the performance breakdown of the sequence under execution
     """
     usage = (
-        "%prog [options] <data_file>\n" +
-        'Example: %prog data.csv -m "http://{your-mattermost-site}/hooks/xxx-generatedkey-xxx"'
+        "%prog [options] <data_file>\n"
+        + 'Example: %prog data.csv -m "http://{your-mattermost-site}/hooks/xxx-generatedkey-xxx"'
     )
     parser = OptionParser(usage=usage)
     parser.add_option(
@@ -198,8 +193,7 @@ def main():
         "--unit",
         dest="unit",
         default="",
-        help=
-        "A unit suffix to append to evey value. Default is an empty string",
+        help="A unit suffix to append to evey value. Default is an empty string",
     )
     parser.add_option(
         "-x",

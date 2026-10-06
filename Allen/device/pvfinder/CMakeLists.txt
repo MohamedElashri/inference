@@ -15,7 +15,7 @@ target_include_directories(PVFinderHeaders INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-allen_add_device_library(PVFinder
+allen_add_device_library(PVFinder OBJECT
     src/PVFinderFCAggregation.cu
     src/PVFinderUNet.cu
     src/PVFinderPeak.cu

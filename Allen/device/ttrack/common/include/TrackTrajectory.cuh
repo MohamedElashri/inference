@@ -18,7 +18,6 @@
 #include "BinarySearch.cuh"
 
 #include "TTrackDefinitions.cuh"
-#include "FloatOperations.cuh"
 
 namespace Trajectories {
 
@@ -65,7 +64,8 @@ namespace Trajectories {
     {}
 
     template<StateVar var>
-    __device__ inline void set(unsigned track_idx, unsigned state_idx, float value) const requires(MutableView<T>)
+    __device__ inline void set(unsigned track_idx, unsigned state_idx, float value) const
+      requires(MutableView<T>)
     {
       base_pointer[index<var>(track_idx, state_idx)] = value;
     }
@@ -77,7 +77,8 @@ namespace Trajectories {
     }
 
     template<typename State>
-    __device__ inline void set_state(unsigned track_idx, unsigned state_idx, State value) const requires(MutableView<T>)
+    __device__ inline void set_state(unsigned track_idx, unsigned state_idx, State value) const
+      requires(MutableView<T>)
     {
       set<StateVar::x>(track_idx, state_idx, value.x);
       set<StateVar::y>(track_idx, state_idx, value.y);
@@ -151,21 +152,23 @@ namespace Trajectories {
         const auto p = m_proxy.get_p(edge_state);
         const auto dpdmu = m_proxy.get_dpdmu(edge_state);
         const auto dz = (z - Constants::z_reference_states[edge_state]);
-        return TrajectoryExpansion {.p = p + dpdmu * dz,
-                                    .dpdmu = dpdmu,
-                                    .d2pdmu2 = make_float3(0.0f, 0.0f, 0.0f),
-                                    .distTo1stError = maxDistToErrors,
-                                    .distTo2ndError = maxDistToErrors};
+        return TrajectoryExpansion {
+          .p = p + dpdmu * dz,
+          .dpdmu = dpdmu,
+          .d2pdmu2 = make_float3(0.0f, 0.0f, 0.0f),
+          .distTo1stError = maxDistToErrors,
+          .distTo2ndError = maxDistToErrors};
       }
 
       update_cache(z);
       const auto tolerance_pair = distanceToErrors(z, tolerance);
 
-      return TrajectoryExpansion {.p = make_float3(get_x(z), get_y(z), z),
-                                  .dpdmu = make_float3(get_tx(z), get_ty(z), 1.f),
-                                  .d2pdmu2 = make_float3(get_omegax(z), get_omegay(z), 0.f),
-                                  .distTo1stError = tolerance_pair[0],
-                                  .distTo2ndError = tolerance_pair[1]};
+      return TrajectoryExpansion {
+        .p = make_float3(get_x(z), get_y(z), z),
+        .dpdmu = make_float3(get_tx(z), get_ty(z), 1.f),
+        .d2pdmu2 = make_float3(get_omegax(z), get_omegay(z), 0.f),
+        .distTo1stError = tolerance_pair[0],
+        .distTo2ndError = tolerance_pair[1]};
     }
 
   private:
@@ -226,9 +229,10 @@ namespace Trajectories {
       const float d = Constants::z_reference_states[m_stateL + 1] - Constants::z_reference_states[m_stateL];
       const auto deriv = get_omegax(target_z);
       const auto c3 = (-2.f * m_x[1] + d * (m_x[2] + m_x[3])) / (d * d * d);
-      const auto error2 = c3 != 0 ? cbrtf(fabsf(tolerance / c3)) : 10 * Allen::Units::km;
+      const auto error2 = !LHCb::essentiallyZero(c3) ? cbrtf(fabsf(tolerance / c3)) : 10 * Allen::Units::km;
       return std::array<float, 2> {
-        min(deriv != 0 ? sqrtf(fabsf(2 * tolerance / deriv)) : 10 * Allen::Units::km, error2), error2};
+        min(!LHCb::essentiallyZero(deriv) ? sqrtf(fabsf(2 * tolerance / deriv)) : 10 * Allen::Units::km, error2),
+        error2};
     }
 
     __device__ inline float polyeval(const float* pars, float target_z)

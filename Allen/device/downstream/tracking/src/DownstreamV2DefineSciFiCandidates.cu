@@ -138,16 +138,17 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_find_hit_ra
     const MiniState scifi_state = seeding_states[seed_idx];
     if (seed_max_ghost_prob < 1.f) {
       const auto scifi_chi2 = seeding_chi2s[seed_idx];
-      float inputs[10] = {fabsf(scifi_chi2),
-                          fabsf(scifi_state.xAt(0)),
-                          fabsf(scifi_state.yAt(0)),
-                          fabsf(scifi_state.x()),
-                          fabsf(scifi_state.y()),
-                          fabsf(scifi_state.tx()),
-                          fabsf(scifi_state.ty()),
-                          hypotf(scifi_state.x(), scifi_state.y()),
-                          fabsf(fabsf(atan2f(scifi_state.tx(), scifi_state.ty())) - 1.57f),
-                          asinhf(1.f / hypotf(scifi_state.tx(), scifi_state.ty()))};
+      float inputs[10] = {
+        fabsf(scifi_chi2),
+        fabsf(scifi_state.xAt(0)),
+        fabsf(scifi_state.yAt(0)),
+        fabsf(scifi_state.x()),
+        fabsf(scifi_state.y()),
+        fabsf(scifi_state.tx()),
+        fabsf(scifi_state.ty()),
+        hypotf(scifi_state.x(), scifi_state.y()),
+        fabsf(fabsf(atan2f(scifi_state.tx(), scifi_state.ty())) - 1.57f),
+        asinhf(1.f / hypotf(scifi_state.tx(), scifi_state.ty()))};
       const auto ghost_prob = ghost_killer->evaluate(inputs);
       if (!(ghost_prob < seed_max_ghost_prob)) continue;
     }
@@ -170,16 +171,19 @@ __global__ void downstream_v2_define_scifi_candidates::downstream_v2_find_hit_ra
     // Get fired sectors
     const auto fired_sectors = dev_ut_layer_geometry->find_sectors(layer, layer_y - yTolLayer, layer_y + yTolLayer);
     unsigned num_ranges = 0;
-    Downstream::Structs::LayerHitRanges out_ranges = {ushort2 {invalid_hit, invalid_hit},
-                                                      ushort2 {invalid_hit, invalid_hit},
-                                                      ushort2 {invalid_hit, invalid_hit},
-                                                      ushort2 {invalid_hit, invalid_hit}};
+    Downstream::Structs::LayerHitRanges out_ranges = {
+      ushort2 {invalid_hit, invalid_hit},
+      ushort2 {invalid_hit, invalid_hit},
+      ushort2 {invalid_hit, invalid_hit},
+      ushort2 {invalid_hit, invalid_hit}};
     for (unsigned sector_idx = 0; sector_idx < 4; sector_idx++) {
       const auto sector = fired_sectors[sector_idx];
       if (sector == -1) break;
 
       const int sector_start = ut_offsets.sector_group_offset(layer, sector) - ut_offsets.event_offset();
       const int sector_end = ut_offsets.sector_group_offset(layer, sector + 1) - ut_offsets.event_offset();
+
+      if (sector_end == sector_start) continue;
 
       // Find hit start
       int hit_start =
