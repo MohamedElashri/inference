@@ -24,6 +24,9 @@ remove_throughput = LineSkipper(
         # Throughput messages
         r"\s*(\d+\.\d+)\s+events/s",
         r"Ran test for (\d+\.\d+)\s+seconds",
+        # MultiEventScheduler throughput measurement: the number of measured
+        # events depends on how the slices are filled and fluctuates run by run
+        r"MultiEventScheduler\s+INFO Measured \d+ events over .*",
         r"Providing banks for",
         r"Providing events in.*",
         r"Opened\s.*",
