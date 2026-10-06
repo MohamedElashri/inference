@@ -17,13 +17,14 @@
 #   allen_dump.sh --model-file FILE --sequence NAME --dump-dir DIR
 #                 [--build ALLEN_BUILD_DIR] (default: Allen/build)
 #                 [--events N] [--memory MB] [--device N] [--set ALG.PROP=VALUE]...
+# Set MDF_FILE and GEOMETRY_DIR together to select an input and matching geometry.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$REPO/benchmarks/defaults.sh"
 PY="${PY:-${REPO}/.venv/bin/python3}"
-MDF="${REPO}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
-GEO="${REPO}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
+MDF="$PVF_MDF"
+GEO="$PVF_GEOMETRY"
 
 BUILD="$PVF_BUILD_DIR" MODEL_FILE="" SEQ="" DUMP="" EVENTS=$PVF_EVENTS MEMORY=1000 DEVICE=$PVF_DEVICE
 SETS=()

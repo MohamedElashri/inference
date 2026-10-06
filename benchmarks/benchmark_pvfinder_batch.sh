@@ -47,6 +47,7 @@ Options:
 
 Default sequences: plain HLT1 and HLT1 with the full PVFinder shadow chain.
 Set PVF_SEQUENCES="sequence_a sequence_b ..." to compare other stages.
+Set MDF_FILE and GEOMETRY_DIR together to select an input and matching geometry.
 
 Example:
   bash benchmarks/benchmark_pvfinder_batch.sh --label production --repeats 1
@@ -137,8 +138,8 @@ else
 fi
 ALLEN_WRAPPER="${BUILD_DIR}/toolchain/wrapper"
 ALLEN_BIN="${BUILD_DIR}/Allen"
-MDF="${REPO_ROOT}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
-GEO="${REPO_ROOT}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
+MDF="$PVF_MDF"
+GEO="$PVF_GEOMETRY"
 
 if [[ ! -x "${ALLEN_WRAPPER}" || ! -x "${ALLEN_BIN}" ]]; then
     echo "ERROR: build does not look runnable: ${BUILD_DIR}" >&2

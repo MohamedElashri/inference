@@ -1,0 +1,9 @@
+input_files:
+  - /cvmfs/lhcbdev.cern.ch/testfiledb-mirror/lhcb/swtest/2026-hlt1-mdf/data-0000.mdf
+input_type: RAW
+simulation: false
+geometry_version: run3/2026-v00.00
+conditions_version: master
+evt_max: 1
+n_threads: 1
+print_freq: 1

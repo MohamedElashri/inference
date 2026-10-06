@@ -1,0 +1,76 @@
+{
+  "file": "/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/lhcb/swtest/2026-hlt1-mdf/data-0000.mdf",
+  "mdf_records": 500,
+  "compression": 0,
+  "run_counts": {
+    "341725": 500
+  },
+  "odin_agrees_with_mdf_header": true,
+  "bank_versions": [
+    {
+      "type": 9,
+      "version": 10,
+      "count": 71500
+    },
+    {
+      "type": 13,
+      "version": 3,
+      "count": 22000
+    },
+    {
+      "type": 16,
+      "version": 7,
+      "count": 500
+    },
+    {
+      "type": 17,
+      "version": 3,
+      "count": 500
+    },
+    {
+      "type": 53,
+      "version": 0,
+      "count": 500
+    },
+    {
+      "type": 54,
+      "version": 12,
+      "count": 500
+    },
+    {
+      "type": 56,
+      "version": 2,
+      "count": 8
+    },
+    {
+      "type": 64,
+      "version": 8,
+      "count": 120000
+    },
+    {
+      "type": 66,
+      "version": 4,
+      "count": 107889
+    },
+    {
+      "type": 68,
+      "version": 4,
+      "count": 111
+    },
+    {
+      "type": 73,
+      "version": 4,
+      "count": 52000
+    },
+    {
+      "type": 77,
+      "version": 5,
+      "count": 44500
+    },
+    {
+      "type": 84,
+      "version": 4,
+      "count": 2000
+    }
+  ]
+}

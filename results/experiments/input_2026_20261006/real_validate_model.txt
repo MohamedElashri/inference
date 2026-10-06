@@ -1,0 +1,28 @@
+/data/home/melashri/.config/matplotlib is not a writable directory
+Matplotlib created a temporary cache directory at /tmp/matplotlib-zxn21g0a because there was an issue with the default path (/data/home/melashri/.config/matplotlib); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+DEBUG utils.py [Event 0, Track 0] Track Input Layer = tensor([  -4357.9663,  -19204.5117,  508048.2812,  -35195.8984, 2084338.6250,
+         -20126.4805])
+DEBUG utils.py [Event 0, Track 0 shape] f2 = torch.Size([4000, 250, 1, 100])
+DEBUG utils.py [Event 0] Interval 20 output accumulation (first 5 bins) = tensor([0., 0., 0., 0., 0.])
+DEBUG utils.py [Event 0, Track 0] Track Input Layer = tensor([  -4357.9663,  -19204.5117,  508048.2812,  -35195.8984, 2084338.6250,
+         -20126.4805])
+DEBUG utils.py [Event 0, Track 0 shape] f2 = torch.Size([4000, 250, 1, 100])
+DEBUG utils.py [Event 0] Interval 20 output accumulation (first 5 bins) = tensor([0., 0., 0., 0., 0.])
+DEBUG utils.py [Event 0, Track 0] Track Input Layer = tensor([-227.1578,  -34.6013, -388.9029,  -79.1781, -143.2126, -322.6357])
+DEBUG utils.py [Event 0, Track 0 shape] f2 = torch.Size([4000, 250, 1, 100])
+DEBUG utils.py [Event 0] Interval 20 output accumulation (first 5 bins) = tensor([-227.1578,  -34.6013, -388.9029,  -79.1781, -143.2126])
+DEBUG utils.py [Event 0, Track 0] Track Input Layer = tensor([  -4357.9663,  -19204.5117,  508048.2812,  -35195.8984, 2084338.6250,
+         -20126.4805])
+DEBUG utils.py [Event 0, Track 0 shape] f2 = torch.Size([4000, 250, 1, 100])
+DEBUG utils.py [Event 0] Interval 20 output accumulation (first 5 bins) = tensor([0., 0., 0., 0., 0.])
+DEBUG utils.py [Event 0, Track 0] Track Input Layer = tensor([  -4357.9663,  -19204.5117,  508048.2812,  -35195.8984, 2084338.6250,
+         -20126.4805])
+DEBUG utils.py [Event 0, Track 0 shape] f2 = torch.Size([4000, 250, 1, 100])
+DEBUG utils.py [Event 0] Interval 20 output accumulation (first 5 bins) = tensor([0., 0., 0., 0., 0.])
+events 500, empty intervals 0.713, intervals over 250 tracks 7
+Allen vs PyTorch (full model from Allen's track features): max |diff| 1.174e+00, mean 1.148e-04
+intervals with a KDE peak > 1e-3: Allen 0.1369, PyTorch 0.1369 (training validation sample: ~0.13)
+KDE bins > 1e-3 per event: Allen 46.4, PyTorch 46.4
+bins with |Allen - PyTorch| > 0.01: 0.27%; peaks > 0.07: 2997, height change median 0.59%, max 37.3%; highest bin moved in 67 of 2628 intervals with a peak (1 by more than one bin)
+criterion (BF16 path: bins off by > 0.01 < 1%, median peak height change < 2%, highest bin moved > 1 bin < 1% of intervals with a peak): PASS
+PASS

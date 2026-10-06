@@ -59,6 +59,19 @@ criteria. `make -C weights list` lists available checkpoints.
 
 ## Throughput
 
+Select a new input and its matching standalone geometry together:
+
+```bash
+MDF_FILE=/path/to/sample.mdf GEOMETRY_DIR=/path/to/matching_geometry \
+    bash benchmarks/benchmark_pvfinder_batch.sh --label new_sample
+```
+
+The same environment variables apply to physics comparisons and the weights
+validation pipeline. The default input still reproduces the historical 2024
+MC results; selecting a representative 2026 replacement is pending. The
+[2026 availability checks](results/experiments/input_2026_20261006/README.md)
+record available data, matching geometry and compatibility tests.
+
 ```bash
 bash benchmarks/benchmark_pvfinder_batch.sh --label production
 ```
@@ -101,8 +114,11 @@ for PVFinder and Allen's beamline PV finder, both over all z and within the
 network's z range. It uses the same build, model and BF16 settings. `--fp32`
 selects float32 arithmetic; also select the FP32 checkpoint with `--model`.
 `--set ALG.PROPERTY=VALUE` changes a property; repeated `--scan` arguments
-produce their Cartesian product. The local MC sample is 2024 minimum bias,
-MagDown, nu 7.6, at 6.8 TeV; the scripts name the MDF and matching geometry.
+produce their Cartesian product. The historical default MC sample is 2024
+minimum bias, MagDown, nu 7.6, at 6.8 TeV beam energy. Input paths are selected
+in [the shared defaults](benchmarks/defaults.sh). Real collision data supports
+compatibility and throughput studies but has no MC truth for these efficiency
+and false-positive measurements.
 
 ## Inspect results
 
@@ -143,5 +159,7 @@ git commit -m "Update Allen and preserve PVFinder integration"
 Import stages the validated source and tracking metadata, preserves upstream
 ancestry as a merge parent and leaves local input data untouched. The update
 validator checks GPU unit tests, numerical agreement and the two MC working
-points; throughput must be measured separately. See the
+points against the fixed 2024 MC reference counts. Its reference must be updated
+before using a different sample for upstream verification. Throughput must be
+measured separately. See the
 [recorded integration checks](results/experiments/allen_master_20261006/README.md).

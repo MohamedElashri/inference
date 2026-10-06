@@ -1,0 +1,90 @@
+{
+  "started_at": "2026-10-06T09:48:05-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2
+  },
+  "git": {
+    "head": "64073c7aa67c61a8365bdfa2d7e86880018c6b8d",
+    "branch": "master",
+    "subject": "Remove stale build guidance and update auxiliary sequence generation",
+    "dirty": true,
+    "dirty_files": [
+      "README.md",
+      "benchmarks/benchmark_pvfinder_batch.sh",
+      "benchmarks/defaults.sh",
+      "benchmarks/pv_comparison.sh",
+      "weights/scripts/allen_dump.sh"
+    ],
+    "diff_sha256": "f5e837c0daa97944ed4d9cf9f0690743dbfbb6c71ce244f894e01d3840a249eb"
+  },
+  "build": {
+    "name": "build",
+    "dir": "Allen/build",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_HOME_DIRECTORY": "/data/home/melashri/iris/inference/Allen",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-06T07:56:09-04:00",
+    "source_dir": "Allen",
+    "source_git": {
+      "head": "64073c7aa67c61a8365bdfa2d7e86880018c6b8d",
+      "branch": "master",
+      "subject": "Remove stale build guidance and update auxiliary sequence generation",
+      "dirty": true,
+      "dirty_files": [
+        "README.md",
+        "benchmarks/benchmark_pvfinder_batch.sh",
+        "benchmarks/defaults.sh",
+        "benchmarks/pv_comparison.sh",
+        "weights/scripts/allen_dump.sh"
+      ],
+      "diff_sha256": null
+    },
+    "sources_newer_than_build": [
+      "device/pvfinder/CMakeLists.txt",
+      "device/pvfinder/include/PVFinderModel.h"
+    ]
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "notes": "default model; BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+      }
+    },
+    "verified": true
+  }
+}

@@ -16,6 +16,7 @@
 #   benchmarks/pv_comparison.sh --label LABEL [--model NAME] [--fp32]
 #       [--set ALG.PROP=VALUE]... [--scan ALG.PROP=V1,V2,...]...
 #       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--sequence SEQ] [--no-record]
+# Set MDF_FILE and GEOMETRY_DIR together to select MC and its matching geometry.
 #
 #   Defaults: Allen/build, BF16 best model and the accepted GPU work-list/grids.
 #   --fp32          use float32 in both stages and disable the GPU work list.
@@ -35,8 +36,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$REPO/benchmarks/defaults.sh"
 PY="${PY:-${REPO}/.venv/bin/python3}"
-MDF="${REPO}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
-GEO="${REPO}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
+MDF="$PVF_MDF"
+GEO="$PVF_GEOMETRY"
 SEQ=pvfinder_pv_validation
 
 LABEL="" MODEL=$PVF_MODEL BUILD=$PVF_BUILD_DIR DEVICE=$PVF_DEVICE EVENTS=0 RECORD=1

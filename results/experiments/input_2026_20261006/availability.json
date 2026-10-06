@@ -1,0 +1,222 @@
+{
+  "checked_at_utc": "2026-10-06T13:51:10.394818+00:00",
+  "source_base": "64073c7aa67c61a8365bdfa2d7e86880018c6b8d",
+  "allen_upstream": {
+    "schema": "allen-upstream-tracking/1",
+    "upstream_url": "https://gitlab.cern.ch/lhcb/Allen.git",
+    "upstream_branch": "master",
+    "upstream_commit": "b567e104f23ebfd0670d6272e47d9b1ce37d905c",
+    "fork_branch": "allen/pvfinder",
+    "fork_commit": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+    "vendor_tree": "c006ff2aad391d7f4427a758fb03a203ca55ca01",
+    "excluded_from_vendor": [
+      "input/"
+    ],
+    "validation": "results/experiments/allen_master_20261006/preview_verification.json"
+  },
+  "catalog_commit": "59e4a28c074f03398f138bdfc1b39c616d73cf6a",
+  "lowenergy_mc": {
+    "testfiledb_key": "expected_2026_pp1200GeV_NOSMOG_mdf_10kevents",
+    "mdf": "/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/lhcb/swtest/2026-converted_MC-pp1200GeV-NOSMOG/Converted_MC_pp1200GeV_NOSMOG_10kevents_00372315_00000001_1.mdf",
+    "bytes": 591200748,
+    "beam_energy_GeV": 1200,
+    "selection": "none",
+    "geometry": {
+      "path": "/cvmfs/lhcb.cern.ch/lib/lhcb/ALLEN/ALLEN_v9r2/input/allen_geometries/geometry_2026-v00.00_sim10-2026.W17-v00.00-md100",
+      "files": [
+        {
+          "name": "beamline.bin",
+          "bytes": 48,
+          "sha256": "555156ff09d80ca84c246b900c1cdebc84a18578f2e8a69ac9cfb7935017b965"
+        },
+        {
+          "name": "ecal_geometry.bin",
+          "bytes": 227104,
+          "sha256": "a5897af56cd99b461c5db088d8da9dac89c6f9397dd469613a40beeb89e2ba2a"
+        },
+        {
+          "name": "magfield.bin",
+          "bytes": 15326544,
+          "sha256": "bc0184eb5c95c1a7df48a10fb7c14217c74e6f213d1f73c2425871d82062cd94"
+        },
+        {
+          "name": "muon_geometry.bin",
+          "bytes": 211468,
+          "sha256": "8d76326283d7b71faf7fa5ded75c3c1e3fcb6c831393718664b91ee7e86547b4"
+        },
+        {
+          "name": "muon_tables.bin",
+          "bytes": 1052980,
+          "sha256": "a5f9c0a1ea83ca09fcc5f26caebaa7adb4b90105a2dfccd08e8d102b9508e399"
+        },
+        {
+          "name": "polarity.bin",
+          "bytes": 4,
+          "sha256": "c68830a25204a09f8e77aada6bc5807f607cccaaa0ebb2a7122d317584478a8b"
+        },
+        {
+          "name": "rich_1_geometry.bin",
+          "bytes": 306312,
+          "sha256": "4c8496159c47c2680632fd3ffff876c95611c8294eb25b2cbd2caa31df368fba"
+        },
+        {
+          "name": "rich_2_geometry.bin",
+          "bytes": 306312,
+          "sha256": "381c5655dec99885fe21d158bb6418358bae11aab2d55a8280f77d4bf735837e"
+        },
+        {
+          "name": "rich_pdmdbmaps.bin",
+          "bytes": 9692,
+          "sha256": "1bfe5738402715cf935800bce81b69310d5fcb2ad42aa480ff95af5064fc807d"
+        },
+        {
+          "name": "rich_tel40maps.bin",
+          "bytes": 462600,
+          "sha256": "1d48bdff4c7a0415f68edeb0a448129fec11cda9b51ddd794ab419dfb5e71a91"
+        },
+        {
+          "name": "scifi_geometry.bin",
+          "bytes": 3249928,
+          "sha256": "b2e0f59adcab8df33229018b9e7f01858e12f784682c28badf586338c7fc88f8"
+        },
+        {
+          "name": "ut_boards.bin",
+          "bytes": 42344,
+          "sha256": "4b85c464ef4cccbbdbb69557d477b7f8355d3454f7bc0f011a50d24cb32d51fa"
+        },
+        {
+          "name": "ut_geometry.bin",
+          "bytes": 46116,
+          "sha256": "7c4f72e349f52fbcc3e14a1800a3bdb7047b5b2a85b413ae66442ef69c1d861a"
+        },
+        {
+          "name": "ut_tables.bin",
+          "bytes": 15544,
+          "sha256": "10cc3a9bc42d0f15b268ae028cceb700744c3aeaf8468bfcfa4456945646fb0f"
+        },
+        {
+          "name": "velo_geometry.bin",
+          "bytes": 16380,
+          "sha256": "e5f5ca50ab307057c1626f76cff64d1f4ed4206cc946dfb5d9c063bb5fe65038"
+        }
+      ]
+    },
+    "smoke": {
+      "status": "PASS",
+      "sequence": "pvfinder_pv_validation",
+      "events": 500,
+      "tracks": 22357,
+      "truth": {
+        "dump_records": 1000,
+        "repetitions": 2,
+        "distinct_events": 500,
+        "repeated_mc_truth_identical": true,
+        "reconstructible_mc_pvs_distinct_events": 807
+      },
+      "raw_artifacts": "benchmark_results/input_2026_20261006/lowenergy_smoke"
+    }
+  },
+  "real_data": {
+    "testfiledb_key": "2026-hlt1-mdf",
+    "mdf": "/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/lhcb/swtest/2026-hlt1-mdf/data-0000.mdf",
+    "bytes": 2097126328,
+    "selection": "HLT1-selected",
+    "simulation": false,
+    "geometry_version": "run3/2026-v00.00",
+    "conditions_branch": "master",
+    "conditions_commit": "9061d9b61aaea629e818d439b96a0ff20039c1c4",
+    "geometry_dump_release": "Allen/v9r2",
+    "geometry_dump_platform": "x86_64_v3-el9-gcc15-opt+g",
+    "detector_release": "DETECTOR_v3r18",
+    "geometry": {
+      "path": "/data/home/melashri/iris/inference/Allen/input/allen_geometries/geometry_2026-v00.00_run341725_master20261006",
+      "files": [
+        {
+          "name": "beamline.bin",
+          "bytes": 48,
+          "sha256": "7843b429755aecdb2cf2a91c792098ec52da346d7dae16607c84c18b388d5c21"
+        },
+        {
+          "name": "ecal_geometry.bin",
+          "bytes": 227104,
+          "sha256": "6a56165c3fb31bc77357da3598c4c9b2abecf4831c2f6075b0e2e09932855417"
+        },
+        {
+          "name": "magfield.bin",
+          "bytes": 15326544,
+          "sha256": "bc0184eb5c95c1a7df48a10fb7c14217c74e6f213d1f73c2425871d82062cd94"
+        },
+        {
+          "name": "muon_geometry.bin",
+          "bytes": 211468,
+          "sha256": "c1e2f4e63df90ba0c50766560ed291306f2b10885954ebfcc76627b8ae63884d"
+        },
+        {
+          "name": "muon_tables.bin",
+          "bytes": 1052980,
+          "sha256": "99ce538787e4f0682b69f3c0572bf681960bd23534a4d1c468e070b196f3b2fc"
+        },
+        {
+          "name": "polarity.bin",
+          "bytes": 4,
+          "sha256": "c68830a25204a09f8e77aada6bc5807f607cccaaa0ebb2a7122d317584478a8b"
+        },
+        {
+          "name": "rich_1_geometry.bin",
+          "bytes": 260504,
+          "sha256": "57c0d56bead78bd79f93721e2a037136883fdcf76313b1218b814c8ed9bf92ed"
+        },
+        {
+          "name": "rich_2_geometry.bin",
+          "bytes": 882344,
+          "sha256": "78d34c2cd8360d82c1a981ac82c7073d55c75c22ee90510fdbba909a3a06da41"
+        },
+        {
+          "name": "rich_pdmdbmaps.bin",
+          "bytes": 9692,
+          "sha256": "33cfb545126f2d01d18406f730bf6571a0e7fbc373af57883c2c1dc407ba996f"
+        },
+        {
+          "name": "rich_tel40maps.bin",
+          "bytes": 469512,
+          "sha256": "e1cfe917582a3afb9c7e6a8cec484ae8686904104670dea816e10b5ff55022d5"
+        },
+        {
+          "name": "scifi_geometry.bin",
+          "bytes": 3249928,
+          "sha256": "47fc8ff21911a5d9013c18a38bab6b61bd35248458edb297900d80323bedd84d"
+        },
+        {
+          "name": "ut_boards.bin",
+          "bytes": 42344,
+          "sha256": "4b85c464ef4cccbbdbb69557d477b7f8355d3454f7bc0f011a50d24cb32d51fa"
+        },
+        {
+          "name": "ut_geometry.bin",
+          "bytes": 46116,
+          "sha256": "253eaee1ff7913c21dfcea78bd9a535d02125812fdfac286ae089e3bb573288b"
+        },
+        {
+          "name": "ut_tables.bin",
+          "bytes": 15544,
+          "sha256": "d75d5584421e007ab0577c84f22903de3bcec2b6056c72733cf981e76342680e"
+        },
+        {
+          "name": "velo_geometry.bin",
+          "bytes": 16384,
+          "sha256": "0902d809e2f1b5dc6341d64bedf979a0c847404f5eb96415f340f7ec5c01e37f"
+        }
+      ]
+    },
+    "smoke": {
+      "status": "PASS",
+      "sequence": "pvfinder_unet",
+      "events": 500,
+      "tracks": 180247,
+      "run": 341725,
+      "raw_artifacts": "benchmark_results/input_2026_20261006/real_smoke"
+    }
+  },
+  "representative_2026_replacement_selected": false,
+  "default_input_changed": false
+}
