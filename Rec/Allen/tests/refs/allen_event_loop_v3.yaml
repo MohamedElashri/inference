@@ -275,7 +275,6 @@ stdout: |-
   dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
   dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
   dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
-  MultiEventScheduler                    INFO Measured 1000 events over n s (skipped 2 warm-up and 2 cool-down iterations out of 2)
   Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_v3_hist_counts.json
   calo_find_clusters                     INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
   error_bank_filter                      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
