@@ -1,0 +1,16 @@
+[
+  {
+    "source": "/data/home/melashri/iris/inference/benchmark_results/20261006_105549_variance_unbound/telemetry.jsonl",
+    "archive": "telemetry_unbound.jsonl.gz",
+    "raw_bytes": 1708299,
+    "raw_sha256": "c71b565d683a65ef5d65e50a4bed6a0222efa592a60afb935dc829d78b510a46",
+    "samples": 497
+  },
+  {
+    "source": "/data/home/melashri/iris/inference/benchmark_results/20261006_111411_variance_unbound_completion/telemetry.jsonl",
+    "archive": "telemetry_unbound_completion.jsonl.gz",
+    "raw_bytes": 469946,
+    "raw_sha256": "e86984146bb722b5245bf7538f511671e01910cfa4749a98627548c46862ff0b",
+    "samples": 135
+  }
+]

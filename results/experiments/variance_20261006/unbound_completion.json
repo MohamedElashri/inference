@@ -1,0 +1,160 @@
+{
+  "batch_dir": "/data/home/melashri/iris/inference/benchmark_results/20261006_111411_variance_unbound_completion",
+  "runs": [
+    {
+      "repeat": 1,
+      "sequence_order": [
+        "hlt1_pp_pvs_pvfinder_unet_benchmark",
+        "hlt1_pp_default"
+      ],
+      "events_per_s": {
+        "pvs": 74477.8,
+        "baseline": 77939.4
+      },
+      "telemetry": {
+        "pvs": {
+          "timer_samples": 52,
+          "sm_clock_MHz": {
+            "mean": 1768.2692307692307,
+            "min": 1710.0,
+            "max": 1935.0
+          },
+          "memory_clock_MHz": {
+            "mean": 9751.0,
+            "min": 9751.0,
+            "max": 9751.0
+          },
+          "temperature_C": {
+            "mean": 74.51923076923077,
+            "min": 57.0,
+            "max": 78.0
+          },
+          "power_W": {
+            "mean": 343.6680769230769,
+            "min": 130.12,
+            "max": 348.95
+          },
+          "gpu_utilization_pct": {
+            "mean": 99.92307692307692,
+            "min": 96.0,
+            "max": 100.0
+          },
+          "memory_utilization_pct": {
+            "mean": 50.75,
+            "min": 29.0,
+            "max": 53.0
+          },
+          "flag_active_fraction": {
+            "sw_power_cap": 0.9807692307692307,
+            "hw_thermal_slowdown": 0,
+            "hw_power_brake_slowdown": 0
+          },
+          "max_gpu_compute_processes": 1,
+          "loadavg_1min": {
+            "mean": 67.73057692307692,
+            "min": 60.77,
+            "max": 74.65
+          },
+          "host_busy_pct_by_node": {
+            "0": {
+              "mean": 74.62671903389506,
+              "min": 0.0,
+              "max": 100.0
+            },
+            "1": {
+              "mean": 85.11632598148617,
+              "min": 26.34146341463415,
+              "max": 100.0
+            }
+          },
+          "allen_thread_cpu_fraction_by_node": {
+            "0": 0.9896449704142012,
+            "1": 0.010355029585798817
+          },
+          "allen_memory_page_fraction_by_node": {
+            "0": 0.9792131374763872,
+            "1": 0.02078686252361288
+          },
+          "observed_aggregate_thread_runtime_s": 1754.560083596,
+          "observed_aggregate_thread_runqueue_wait_s": 2.795670223,
+          "runqueue_wait_over_runtime": 0.0015933738884964417,
+          "allen_timer_s": 107.415
+        },
+        "baseline": {
+          "timer_samples": 49,
+          "sm_clock_MHz": {
+            "mean": 1775.5102040816328,
+            "min": 1725.0,
+            "max": 1815.0
+          },
+          "memory_clock_MHz": {
+            "mean": 9751.0,
+            "min": 9751.0,
+            "max": 9751.0
+          },
+          "temperature_C": {
+            "mean": 75.89795918367346,
+            "min": 67.0,
+            "max": 78.0
+          },
+          "power_W": {
+            "mean": 345.7075510204082,
+            "min": 265.77,
+            "max": 349.3
+          },
+          "gpu_utilization_pct": {
+            "mean": 100.0,
+            "min": 100.0,
+            "max": 100.0
+          },
+          "memory_utilization_pct": {
+            "mean": 51.93877551020408,
+            "min": 48.0,
+            "max": 54.0
+          },
+          "flag_active_fraction": {
+            "sw_power_cap": 1,
+            "hw_thermal_slowdown": 0,
+            "hw_power_brake_slowdown": 0
+          },
+          "max_gpu_compute_processes": 1,
+          "loadavg_1min": {
+            "mean": 74.31040816326531,
+            "min": 70.0,
+            "max": 77.7
+          },
+          "host_busy_pct_by_node": {
+            "0": {
+              "mean": 72.27375310235747,
+              "min": 0.0,
+              "max": 100.0
+            },
+            "1": {
+              "mean": 86.0313974491112,
+              "min": 24.378109452736318,
+              "max": 100.0
+            }
+          },
+          "allen_thread_cpu_fraction_by_node": {
+            "0": 0.957613814756672,
+            "1": 0.0423861852433281
+          },
+          "allen_memory_page_fraction_by_node": {
+            "0": 0.9473980148942167,
+            "1": 0.0526019851057833
+          },
+          "observed_aggregate_thread_runtime_s": 1658.611703903,
+          "observed_aggregate_thread_runqueue_wait_s": 0.188250151,
+          "runqueue_wait_over_runtime": 0.00011349862692818027,
+          "allen_timer_s": 102.644
+        }
+      },
+      "loss_pct": 4.441399343592578
+    }
+  ],
+  "notes": [
+    "Only samples inside Allen throughput timer are included.",
+    "NUMA page fractions include all resident process mappings.",
+    "Aggregated scheduling deltas are approximate when threads exit."
+  ]
+}
