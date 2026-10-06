@@ -26,6 +26,9 @@ Options:
   -m, --memory MB            Device memory per thread / stream (default: 500)
   -r, --repetitions N        Repetitions per thread / stream (default: 1000)
   --repeats N                Number of repeated benchmark runs (default: 5)
+  --alternate-order          Reverse sequence order on even repeats
+  --telemetry                Log GPU clocks/power/throttling and host scheduling
+  --cpu-affinity LIST        Run Allen with taskset CPU affinity (default: unbound)
   --model NAME               Weights from the weights/ pipeline:
                              weights/out/NAME/pvfinder_model.json
                              (default: unet16_lc4_scnone_asym5_best_bf16; see make -C weights list)
@@ -79,6 +82,9 @@ UNET_GRID_FRACTION=$PVF_UNET_GRID_FRACTION
 PROFILE=0
 RESULT_ROOT="${REPO_ROOT}/benchmark_results"
 RECORD=1
+ALTERNATE_ORDER=0
+TELEMETRY=0
+CPU_AFFINITY=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -90,6 +96,9 @@ while [[ $# -gt 0 ]]; do
         --memory|-m) MEMORY="$2"; shift 2 ;;
         --repetitions|-r) REPS="$2"; shift 2 ;;
         --repeats) REPEATS="$2"; shift 2 ;;
+        --alternate-order) ALTERNATE_ORDER=1; shift ;;
+        --telemetry) TELEMETRY=1; shift ;;
+        --cpu-affinity) CPU_AFFINITY="$2"; shift 2 ;;
         --model) MODEL="$2"; shift 2 ;;
         --model-file) MODEL_FILE_OVERRIDE="$2"; shift 2 ;;
         --use-bf16) USE_BF16="$2"; shift 2 ;;
@@ -138,6 +147,12 @@ else
 fi
 ALLEN_WRAPPER="${BUILD_DIR}/toolchain/wrapper"
 ALLEN_BIN="${BUILD_DIR}/Allen"
+RUN_PREFIX=()
+if [[ -n $CPU_AFFINITY ]]; then
+    taskset -c "$CPU_AFFINITY" true
+    RUN_PREFIX+=(taskset -c "$CPU_AFFINITY")
+fi
+[[ $TELEMETRY == 0 ]] || RUN_PREFIX+=(stdbuf -oL -eL)
 MDF="$PVF_MDF"
 GEO="$PVF_GEOMETRY"
 
@@ -306,16 +321,19 @@ run_sequence() {
     local cmd_file="${run_dir}/bench_${short}.cmd"
 
     generate_config "${seq}" "${config}" "${gen_log}"
+    if [[ $TELEMETRY == 1 ]]; then
+        "$RECORD_PY" "$SCRIPT_DIR/benchmark_telemetry.py" mark "$BATCH_DIR" start "$run_idx" "$short" "$log"
+    fi
 
     if [[ "${PROFILE}" -eq 1 ]]; then
         local profile_out="${run_dir}/pvfinder_profile_${short}"
         write_command "${cmd_file}" nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
-            "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+            "${RUN_PREFIX[@]}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
             "${COMMON_ARGS[@]}" --device "${DEVICE}"
         (
             cd "${run_dir}"
             nsys profile -f true --stats=true -o "${profile_out}" -t cuda \
-                "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+                "${RUN_PREFIX[@]}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
                 "${COMMON_ARGS[@]}" --device "${DEVICE}"
         ) > "${log}" 2>&1
         # Kernel summary as CSV for the run record.
@@ -324,13 +342,16 @@ run_sequence() {
             > "${run_dir}/${short}_nsys_stats.log" 2>&1 || \
             echo "WARNING: nsys stats failed for ${seq}; see ${run_dir}/${short}_nsys_stats.log" >&2
     else
-        write_command "${cmd_file}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+        write_command "${cmd_file}" "${RUN_PREFIX[@]}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
             "${COMMON_ARGS[@]}" --device "${DEVICE}"
         (
             cd "${run_dir}"
-            "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
+            "${RUN_PREFIX[@]}" "${ALLEN_WRAPPER}" "${ALLEN_BIN}" --sequence "${config}" \
                 "${COMMON_ARGS[@]}" --device "${DEVICE}"
         ) > "${log}" 2>&1
+    fi
+    if [[ $TELEMETRY == 1 ]]; then
+        "$RECORD_PY" "$SCRIPT_DIR/benchmark_telemetry.py" mark "$BATCH_DIR" end "$run_idx" "$short" "$log"
     fi
 
     local rate
@@ -362,6 +383,9 @@ run_sequence() {
     echo "memory=${MEMORY}"
     echo "repetitions=${REPS}"
     echo "repeats=${REPEATS}"
+    echo "alternate_order=${ALTERNATE_ORDER}"
+    echo "telemetry=${TELEMETRY}"
+    echo "cpu_affinity=${CPU_AFFINITY}"
     echo "profile=${PROFILE}"
     echo "model=${MODEL}"
     echo "model_file=${MODEL_FILE}"
@@ -392,23 +416,33 @@ write_command "${BATCH_DIR}/batch_command.cmd" "$0" "${ORIGINAL_ARGS[@]}"
 # Environment at the start of the batch (GPU and its other processes, git
 # state, build flags, model and weight hashes) for the run record.
 RECORDED=0
+TELEMETRY_PID=""
 if [[ "${RECORD}" -eq 1 ]]; then
     "${RECORD_PY}" "${RUNS_PY}" snapshot "${BATCH_DIR}" --device "${DEVICE}" \
         --build-dir "${BUILD_DIR}" --model "${MODEL}" \
         --model-file "${MODEL_FILE}"
-    # A batch that stops early still gets a record, with whatever repeats finished.
-    on_exit() {
-        local rc=$?
-        if [[ "${RECORDED}" -eq 0 ]]; then
-            local status=failed
-            [[ ${rc} -eq 130 || ${rc} -eq 143 ]] && status=interrupted
-            "${RECORD_PY}" "${RUNS_PY}" record "${BATCH_DIR}" --status "${status}" || true
-        fi
-    }
-    trap on_exit EXIT
-    trap 'exit 130' INT
-    trap 'exit 143' TERM
 fi
+if [[ $TELEMETRY == 1 ]]; then
+    "$RECORD_PY" "$SCRIPT_DIR/benchmark_telemetry.py" monitor "$BATCH_DIR" --device "$DEVICE" --parent "$$" &
+    TELEMETRY_PID=$!
+fi
+# Stop the collector and preserve failed/interrupted batches too.
+on_exit() {
+    local rc=$?
+    if [[ -n $TELEMETRY_PID ]]; then
+        kill "$TELEMETRY_PID" 2>/dev/null || true
+        wait "$TELEMETRY_PID" || true
+    fi
+    if [[ $RECORD == 1 && "${RECORDED}" -eq 0 ]]; then
+        local status=failed
+        [[ ${rc} -eq 130 || ${rc} -eq 143 ]] && status=interrupted
+        "${RECORD_PY}" "${RUNS_PY}" record "${BATCH_DIR}" --status "${status}" || true
+    fi
+    return "$rc"
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 for run_idx in $(seq 1 "${REPEATS}"); do
     run_dir="${BATCH_DIR}/run_$(printf '%02d' "${run_idx}")"
@@ -417,7 +451,13 @@ for run_idx in $(seq 1 "${REPEATS}"); do
 
     rates_file="${run_dir}/rates.tsv"
     : > "${rates_file}"
-    for seq in "${SEQUENCES[@]}"; do
+    ORDER=("${SEQUENCES[@]}")
+    if [[ $ALTERNATE_ORDER == 1 && $((run_idx % 2)) == 0 ]]; then
+        ORDER=()
+        for ((i=${#SEQUENCES[@]}-1; i>=0; i--)); do ORDER+=("${SEQUENCES[i]}"); done
+    fi
+    printf '%s\n' "${ORDER[@]}" > "$run_dir/sequence_order.txt"
+    for seq in "${ORDER[@]}"; do
         run_sequence "${seq}" "${run_dir}" | tee -a "${rates_file}"
     done
 

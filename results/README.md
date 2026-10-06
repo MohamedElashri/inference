@@ -69,6 +69,11 @@ tree means the binary was built from the recorded commit.
 
 ## Conventions
 
+Diagnostic batches can record `sequence_order` per repeat and telemetry/event
+artifact paths. GPU and host samples remain in the raw batch directory; compact
+analyses belong in `results/experiments/`. Timing analysis should use samples
+inside Allen's throughput timer, excluding startup and finalization.
+
 - Commit records together with the change they measure, or on their own right after the run. Do not edit a record by hand; rerun instead.
 - Numbers quoted in notes, slides or reviews should cite the record `id`.
 - The production operating point is `-n 500 -m 500 -r 1000 -t 16`, on GPU 2 (RTX 3090) of this host.

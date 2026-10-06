@@ -102,6 +102,12 @@ Use `--help` for overrides and `--profile` for nsys. Throughput loss is
 `100 × (1 − HLT1_with_PVFinder / HLT1_baseline)`, measured from paired runs.
 Repeat measurements before claiming a margin below a target.
 
+For timing diagnostics, `--alternate-order` reverses sequence order on even
+repeats, and `--telemetry` records GPU clocks, power, throttling, competing
+processes, host CPU load and Allen's scheduling/NUMA placement. Telemetry uses
+line-buffered output to identify Allen's timed window. `--cpu-affinity LIST`
+applies `taskset` to Allen for an explicit CPU-placement comparison.
+
 ## Physics validation
 
 ```bash

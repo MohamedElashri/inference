@@ -430,6 +430,9 @@ def results_block(batch_dir):
         if not rates:
             continue
         entry = {"run": int(os.path.basename(rd).split("_")[1]), "events_per_s": rates}
+        order = read_text(os.path.join(rd, "sequence_order.txt"))
+        if order:
+            entry["sequence_order"] = order.splitlines()
         entry.update(derived(rates))
         splits = read_splits(rd)
         if splits:
@@ -573,6 +576,10 @@ def build_batch_record(batch_dir, status, kind=None, imported=False):
         "profile": profile,
         "artifacts": {"batch_dir": rel(batch_dir)},
     }
+    for name in ("telemetry.jsonl", "telemetry_events.jsonl"):
+        path = os.path.join(batch_dir, name)
+        if os.path.isfile(path):
+            record["artifacts"][name.removesuffix(".jsonl")] = rel(path)
     if record["started_at"] and record["finished_at"]:
         t0 = dt.datetime.fromisoformat(record["started_at"])
         t1 = dt.datetime.fromisoformat(record["finished_at"])
