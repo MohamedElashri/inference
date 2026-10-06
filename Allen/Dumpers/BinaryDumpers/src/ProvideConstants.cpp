@@ -34,6 +34,9 @@ public:
   }
 
   void operator()(Constants const&) const override {}
+
+private:
+  Gaudi::Property<bool> m_isMultiEvent {this, "IsMultiEvent", true, ""};
 };
 
 DECLARE_COMPONENT(ProvideConstants)

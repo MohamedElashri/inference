@@ -1,0 +1,8 @@
+testfiledb_key: "hlt1_input_data_2025_run_321834_mdf"
+evt_max: 500
+
+n_threads: 16
+events_per_slice: 500
+device_memory_pool: 500
+repetitions: 100 # less repetitions for profile
+profile: true

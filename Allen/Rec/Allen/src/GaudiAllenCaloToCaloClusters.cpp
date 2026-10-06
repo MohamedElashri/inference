@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2008-2022 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2008-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -10,104 +10,77 @@
 \*****************************************************************************/
 #include <vector>
 
-// Gaudi
 #include "GaudiAlg/Transformer.h"
 
-// LHCb
 #include "Event/Track.h"
-#include <Kernel/EventLocalAllocator.h>
 
-// Allen
-#include "Logger.h"
 #include "VeloConsolidated.cuh"
 #include "CaloCluster.cuh"
 #include "Event/CaloClusters_v2.h"
 #include "Detector/Calo/CaloCellID.h"
 #include "GaudiKernel/Point3DTypes.h"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
 /**
- * Convert AllenCalo to CaloCluster v2
- *
- * author Dorothea vom Bruch
- *
+ * Convert Allen CaloClusters (raw device buffers) into
+ * LHCb::Event::Calo::Clusters, scattering per-event containers
+ * to individual event stores.
  */
 
-class GaudiAllenCaloToCaloClusters final
-  : public Gaudi::Functional::Transformer<LHCb::Event::Calo::Clusters(
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-      const std::vector<CaloCluster, LHCb::Allocators::EventLocal<CaloCluster>>&)> {
+class ConvertAllenCaloToCaloClusters final
+  : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<LHCb::Event::Calo::Clusters>(
+      const Allen::device_buffer<unsigned>&,       // cluster offsets (N+1)
+      const Allen::device_buffer<CaloCluster>&)> { // all clusters (concatenated)
+
 public:
-  /// Standard constructor
-  GaudiAllenCaloToCaloClusters(const std::string& name, ISvcLocator* pSvcLocator);
+  ConvertAllenCaloToCaloClusters(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"allen_ecal_cluster_offsets", ""}, KeyValue {"allen_ecal_clusters", ""}},
+      {KeyValue {"AllenEcalClusters", "Allen/Calo/EcalCluster"}})
+  {}
 
-  /// Algorithm execution
-  LHCb::Event::Calo::Clusters operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_ecal_cluster_offsets,
-    const std::vector<CaloCluster, LHCb::Allocators::EventLocal<CaloCluster>>& allen_ecal_clusters) const override;
+  std::tuple<std::vector<LHCb::Event::Calo::Clusters>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<unsigned>& dev_offsets,
+    const Allen::device_buffer<CaloCluster>& dev_clusters) const override
+  {
+    auto h_offsets = dev_offsets.to_host();
+    auto h_clusters = dev_clusters.to_host();
 
-private:
-  Gaudi::Property<float> m_EtCalo {this, "EtCalo", 400 * Allen::Units::MeV, "Default ET for Calo Clusters"};
-};
+    const unsigned n_events = h_offsets.size() - 1;
 
-DECLARE_COMPONENT(GaudiAllenCaloToCaloClusters)
+    std::vector<LHCb::Event::Calo::Clusters> all_clusters;
+    all_clusters.reserve(n_events);
 
-GaudiAllenCaloToCaloClusters::GaudiAllenCaloToCaloClusters(const std::string& name, ISvcLocator* pSvcLocator) :
-  Transformer(
-    name,
-    pSvcLocator,
-    // Inputs
-    {KeyValue {"allen_ecal_cluster_offsets", ""}, KeyValue {"allen_ecal_clusters", ""}},
-    // Outputs
-    {KeyValue {"AllenEcalClusters", "Allen/Calo/EcalCluster"}})
-{}
+    for (unsigned evt = 0; evt < n_events; ++evt) {
+      const unsigned begin = h_offsets[evt];
+      const unsigned end = h_offsets[evt + 1];
+      const unsigned n_clu = end - begin;
 
-LHCb::Event::Calo::Clusters GaudiAllenCaloToCaloClusters::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& host_ecal_cluster_offsets,
-  const std::vector<CaloCluster, LHCb::Allocators::EventLocal<CaloCluster>>& host_ecal_clusters) const
-{
-  LHCb::Event::Calo::Clusters EcalClusters;
-  // Make the clusters
-  const unsigned i_event = 0;
-  const unsigned number_of_events = 1;
+      LHCb::Event::Calo::Clusters out;
+      out.reserve(n_clu);
 
-  unsigned number_of_ecal_clusters = host_ecal_cluster_offsets[number_of_events] - host_ecal_cluster_offsets[i_event];
+      for (unsigned i = begin; i < end; ++i) {
+        const auto& cluster = h_clusters[i];
 
-  if (msgLevel(MSG::DEBUG)) {
-    debug() << "Number of Ecal clusters to convert = " << number_of_ecal_clusters << endmsg;
-  }
+        auto seedCellID = LHCb::Detector::Calo::DenseIndex::details::toCellID(cluster.center_id);
+        if (!LHCb::Detector::Calo::isValid(seedCellID)) continue;
 
-  EcalClusters.reserve(number_of_ecal_clusters);
+        auto clusterOut = out.emplace_back<SIMDWrapper::InstructionSet::Scalar>();
 
-  // Loop over Allen Ecal clusters and convert them
-  // Don't need to access them with offset since one event is processed at a time
-  for (unsigned i = 0; i < number_of_ecal_clusters; i++) {
-    const auto& cluster = host_ecal_clusters[i];
+        auto entry = clusterOut.entries().emplace_back();
+        entry.setCellID(seedCellID);
+        entry.setEnergy(cluster.e);
+        entry.setFraction(1.f);
+        entry.setStatus(LHCb::CaloDigitStatus::Mask::UseForEnergy | LHCb::CaloDigitStatus::Mask::SeedCell);
 
-    auto seedCellID = LHCb::Detector::Calo::DenseIndex::details::toCellID(cluster.center_id);
-
-    if (msgLevel(MSG::DEBUG)) {
-      for (unsigned j = 0; j < Calo::Constants::max_neighbours; ++j) {
-        debug() << " " << cluster.digits[j];
-        debug() << endmsg;
-      }
-    }
-
-    // Add the all digits, marking the seed ones
-
-    if (LHCb::Detector::Calo::isValid(seedCellID)) {
-
-      auto clusterOut = EcalClusters.emplace_back<SIMDWrapper::InstructionSet::Scalar>();
-
-      auto entry = clusterOut.entries().emplace_back();
-      entry.setCellID(seedCellID);
-      entry.setEnergy(cluster.e);
-      entry.setFraction(1.f);
-      entry.setStatus(LHCb::CaloDigitStatus::Mask::UseForEnergy | LHCb::CaloDigitStatus::Mask::SeedCell);
-
-      for (unsigned j = 0; j < Calo::Constants::max_neighbours; ++j) {
-        if (cluster.digits[j] == USHRT_MAX) continue;
-        auto cellID = LHCb::Detector::Calo::DenseIndex::details::toCellID(cluster.digits[j]);
-        if (LHCb::Detector::Calo::isValid(cellID)) {
+        for (unsigned j = 0; j < Calo::Constants::max_neighbours; ++j) {
+          if (cluster.digits[j] == USHRT_MAX) continue;
+          auto cellID = LHCb::Detector::Calo::DenseIndex::details::toCellID(cluster.digits[j]);
+          if (!LHCb::Detector::Calo::isValid(cellID)) continue;
 
           auto entry = clusterOut.entries().emplace_back();
           entry.setCellID(cellID);
@@ -115,43 +88,21 @@ LHCb::Event::Calo::Clusters GaudiAllenCaloToCaloClusters::operator()(
           entry.setFraction(1.f);
           entry.setStatus(LHCb::CaloDigitStatus::Mask::UseForEnergy | LHCb::CaloDigitStatus::Mask::OwnedCell);
         }
+
+        clusterOut.setCellID(seedCellID);
+        clusterOut.setType(LHCb::Event::Calo::Clusters::Type::Area3x3);
+        clusterOut.setEnergy(cluster.e);
+        clusterOut.setPosition({cluster.x, cluster.y, Calo::Constants::z});
       }
 
-      clusterOut.setCellID(seedCellID);
-      clusterOut.setType(LHCb::Event::Calo::Clusters::Type::Area3x3);
-      clusterOut.setEnergy(cluster.e);
-      clusterOut.setPosition({cluster.x, cluster.y, Calo::Constants::z});
+      all_clusters.emplace_back(std::move(out));
     }
-    else if (msgLevel(MSG::DEBUG)) {
-      debug() << "ECAL CellID " << seedCellID << " corresponding to dense ID " << cluster.center_id << " is invalid!"
-              << endmsg;
-      debug() << " \t ECAL center_id = " << cluster.center_id << " cellID: " << seedCellID << ", e = " << cluster.e
-              << ", x = " << cluster.x << ", y = " << cluster.y;
-    }
+
+    return std::make_tuple(std::move(all_clusters));
   }
 
-  if (msgLevel(MSG::DEBUG)) {
-    debug() << "Number of ecal seed clusters: " << EcalClusters.size() << endmsg;
-    uint i = 0;
-    for (const auto& Cluster : EcalClusters.scalar()) {
-      auto cellID = Cluster.cellID();
-      const double e = static_cast<double>(Cluster.energy());
-      const double x = static_cast<double>(Cluster.position().x());
-      const double y = static_cast<double>(Cluster.position().y());
-      const double z = static_cast<double>(Cluster.position().z());
+private:
+  Gaudi::Property<float> m_EtCalo {this, "EtCalo", 400 * Allen::Units::MeV, "Default ET for Calo Clusters"};
+};
 
-      if (i % 5 == 0) {
-        debug() << "Ecal cellID: " << cellID << " energy = " << e << ", x = " << x << ", y = " << y << ", z = " << z
-                << endmsg;
-        auto digits = Cluster.entries();
-        for (const auto& digit : digits)
-          debug() << "     cellID: " << digit.cellID() << " energy: " << digit.energy()
-                  << " fraction: " << digit.fraction() << " Status: " << digit.status() << endmsg;
-      }
-      if (i > 50) break;
-      ++i;
-    }
-  }
-
-  return EcalClusters;
-}
+DECLARE_COMPONENT(ConvertAllenCaloToCaloClusters)

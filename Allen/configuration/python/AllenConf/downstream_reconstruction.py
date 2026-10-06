@@ -444,6 +444,8 @@ def make_downstream(
     with_calo=True,
     with_muon=True,
     with_downstream_KF=False,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
     dev_used_ut_hits_offsets=None,
     version=2,
 ):
@@ -458,6 +460,8 @@ def make_downstream(
     with_calo: Whether to include calorimeter information in the reconstruction.
     with_muon: Whether to include muon information in the reconstruction.
     with_downstream_KF: Whether to apply parameterised Kalman filter to downstream tracks (default: False).
+    outlier_chi2_threshold: Chi2 threshold for Kalman outlier removal; negative disables the refit (default: 9.0).
+    max_outlier_iterations: Maximum number of outlier removal passes (default: 2).
     dev_used_ut_hits_offsets: Device memory offsets for UT hit usage (optional).
     version: Algorithm version.
       - 1 = Legacy downstream tracking, assuming the track should come from (x=0,z=0).
@@ -536,6 +540,9 @@ def make_downstream(
             dev_downstream_track_offsets_t=downstream_tracks[
                 "dev_downstream_track_offsets"
             ],
+            # Outlier removal
+            outlier_chi2_threshold=outlier_chi2_threshold,
+            max_outlier_iterations=max_outlier_iterations,
         )
         # KF outputs
         views_for_particles = (

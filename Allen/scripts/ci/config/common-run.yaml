@@ -37,15 +37,8 @@
     when: always
     paths:
       - AllenCI_full.log
-      - output_*
       - run_*_output_*
-      - validation_output*/*
       - run_profiler_*/
-      - ./*-unit-tests.xml
-    reports:
-      junit:
-        - ./*-unit-tests.xml
-      metrics: ./**/metrics.txt
 
 .run_jobs_minimal:
   extends:

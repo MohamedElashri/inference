@@ -1,0 +1,629 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "validation",
+  "id": "20261006_074412_allen-master-preview-fp32-validation",
+  "label": "allen-master-preview-fp32-validation",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-10-06T07:43:25-04:00",
+  "finished_at": "2026-10-06T07:44:12-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "2e5ee93e065203293bee8b47fb9089ac35afa98c",
+    "branch": "master",
+    "subject": "Preserve untracked upstream source files during initial Allen import",
+    "dirty": true,
+    "dirty_files": [
+      "Allen/.gitignore",
+      "Allen/.gitlab-ci.yml",
+      "Allen/.pre-commit-config.yaml",
+      "Allen/CMakeLists.txt",
+      "Allen/Dumpers/BinaryDumpers/CMakeLists.txt",
+      "Allen/Dumpers/BinaryDumpers/options/allen.py",
+      "Allen/Dumpers/BinaryDumpers/src/PVDumper.cpp",
+      "Allen/Dumpers/BinaryDumpers/src/ProvideConstants.cpp",
+      "Allen/Dumpers/BinaryDumpers/src/TransposeRawBanks.cpp",
+      "Allen/Dumpers/BinaryDumpers/tests/options/lhcb_geometry_allen_event_loop.yaml",
+      "Allen/Dumpers/BinaryDumpers/tests/options/profile_data_2025.yaml",
+      "Allen/Rec/Allen/tests/pytest/test_create_tcks.py -> Allen/Dumpers/BinaryDumpers/tests/options/run_hlt1_pp_default.py",
+      "Allen/Rec/Allen/tests/pytest/test_compare_tcks.py -> Allen/Dumpers/BinaryDumpers/tests/options/run_hlt1_pp_odqv.py",
+      "Allen/Dumpers/BinaryDumpers/tests/options/throughput_data_2025.yaml",
+      "Allen/Dumpers/BinaryDumpers/tests/pytest/test_lhcb_ODQV.py",
+      "Allen/Dumpers/BinaryDumpers/tests/pytest/test_lhcb_ODQV_plot.py",
+      "Allen/Dumpers/BinaryDumpers/tests/pytest/test_lhcb_geometry_allen_event_loop.py",
+      "Allen/Dumpers/BinaryDumpers/tests/scripts/Allen_hlt1_pp_default_data.sh",
+      "Allen/Rec/Allen/CMakeLists.txt",
+      "Allen/Rec/Allen/python/Allen/__init__.py",
+      "Allen/Rec/Allen/python/Allen/config.py",
+      "Allen/Rec/Allen/python/Allen/qmtest/exclusions.py",
+      "Allen/Rec/Allen/python/AllenAlgorithms/__init__.py",
+      "Allen/Rec/Allen/python/AllenTesting/preprocessors.py",
+      "Allen/Rec/Allen/src/CompareRecAllenCaloDigits.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenFTClusters.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenMuonHits.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenPlume.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenRichPhotons.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenRichPixels.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenUTHits.cpp",
+      "Allen/Rec/Allen/src/CompareRecAllenVPHits.cpp",
+      "Allen/Rec/Allen/src/ConvertAllenLongToV3Tracks.cu",
+      "Allen/Rec/Allen/src/ConvertAllenUTToV3Tracks.cpp",
+      "Allen/Rec/Allen/src/ConvertAllenVPClustersToVPLightCluster.cpp",
+      "Allen/Rec/Allen/src/ConvertAllenVeloToPrTracks.cpp",
+      "Allen/Rec/Allen/src/ConvertAllenVeloToV3Tracks.cpp",
+      "Allen/Rec/Allen/src/DataQualityValidators.cu",
+      "Allen/Rec/Allen/src/EventTransformer.h",
+      "Allen/Rec/Allen/src/GaudiAllenCaloToCaloClusters.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenCompositesToRecParticle.cu",
+      "Allen/Rec/Allen/src/GaudiAllenCountAndDumpLineDecisions.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenFilterEventsLineDecisions.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenLumiSummaryToRawEvent.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenPVsToPrimaryVertexContainer.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenReportsToRawEvent.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenRichPidToRec.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenSVsToRecVertexV2.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenTrackViewsToV3Tracks.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenTransformAllenRecUTHits.cpp",
+      "Allen/Rec/Allen/src/GaudiAllenV3TracksToTrackViews.cpp",
+      "Allen/Rec/Allen/src/KalmanVeloStateWithQoP.h",
+      "Allen/Rec/Allen/src/MCCheckRecAllenUTHits.cpp",
+      "Allen/Rec/Allen/src/MDFProvider.cpp",
+      "Allen/Rec/Allen/src/MultiEventScheduler.cpp",
+      "Allen/Rec/Allen/src/OutputWriter.cpp",
+      "Allen/Rec/Allen/src/ProvideEventBranches.cpp",
+      "Allen/Rec/Allen/src/ProvideODIN.cpp",
+      "Allen/Rec/Allen/src/ProvideRawEvent.cpp",
+      "Allen/Rec/Allen/src/ProvideRuntimeOptions.cpp",
+      "Allen/Rec/Allen/src/RateValidator.cpp",
+      "Allen/Rec/Allen/src/Scheduler.h",
+      "Allen/Rec/Allen/src/SliceThreadPool.h",
+      "Allen/Rec/Allen/src/TestAllenRetinaClusterSize.cpp",
+      "Allen/Rec/Allen/src/TestVeloClusters.cpp",
+      "Allen/Rec/Allen/tests/options/compare_hlt1_tcks.py",
+      "Allen/Rec/Allen/tests/options/create_hlt1_tcks.py",
+      "Allen/Rec/Allen/tests/options/large_event_passthrough.yaml",
+      "Allen/Rec/Allen/tests/options/mdf_input.yaml",
+      "Allen/Rec/Allen/tests/options/mdf_input_2025_data.yaml",
+      "Allen/Rec/Allen/tests/options/mdf_input_2026_data_tae.yaml",
+      "Allen/Rec/Allen/tests/options/mdf_input_v3.yaml",
+      "Allen/Rec/Allen/tests/options/mdf_input_v4.yaml",
+      "Allen/Rec/Allen/tests/pytest/test_compare_tck_allen_config.py -> Allen/Rec/Allen/tests/options/run_hlt1_pp_forward_then_matching_no_ut.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_only_forward_validation.py -> Allen/Rec/Allen/tests/options/run_hlt1_pp_matching.py",
+      "Allen/Rec/Allen/tests/options/test_tck_allen_write_config.py",
+      "Allen/Rec/Allen/tests/pytest/test_input_file_manifest.py",
+      "Allen/Rec/Allen/tests/pytest/test_large_event_passthrough.py",
+      "Allen/Rec/Allen/tests/pytest/test_mdf_input.py",
+      "Allen/Rec/Allen/tests/pytest/test_mdf_input_2025_data.py",
+      "Allen/Rec/Allen/tests/pytest/test_mdf_input_2026_data_tae.py",
+      "Allen/Rec/Allen/tests/pytest/test_mdf_input_v3.py",
+      "Allen/Rec/Allen/tests/pytest/test_mdf_input_v4.py",
+      "Allen/Rec/Allen/tests/pytest/test_root_stream_output.py",
+      "Allen/Rec/Allen/tests/pytest/test_tck.py",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.armv8.1_a-dbg.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.clang19-dbg.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.clang19.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.cuda13_3.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.dbg.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.detdesc-dbg.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.detdesc.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop_v3.detdesc.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop_v3.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop_v4.detdesc.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_event_loop_v4.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_large_event_passthrough.detdesc.yaml",
+      "Allen/Rec/Allen/tests/refs/allen_large_event_passthrough.yaml",
+      "Allen/Rec/Allen/tests/src/test_input_file_manifest.cpp",
+      "Allen/ReleaseNotes/v9r2.md",
+      "Allen/backend/include/BackendCommon.h",
+      "Allen/backend/include/BackendCommonInterface.h",
+      "Allen/backend/include/CPUBackend.h",
+      "Allen/backend/include/CUDABackend.h",
+      "Allen/backend/include/HIPBackend.h",
+      "Allen/backend/src/CPUBackend.cpp",
+      "Allen/checker/CMakeLists.txt",
+      "Allen/checker/perfscans/makePlots.py",
+      "Allen/checker/plotting/check_throughput.py",
+      "Allen/checker/pv/include/PVCheckerHistos.h",
+      "Allen/checker/pv/include/PrimaryVertexChecker.h",
+      "Allen/checker/pv/src/PVCheckerHistos.cpp",
+      "Allen/checker/pv/src/PrimaryVertexChecker.cpp",
+      "Allen/checker/selections/CMakeLists.txt",
+      "Allen/checker/selections/get_eff.py",
+      "Allen/checker/selections/include/RateChecker.h",
+      "Allen/checker/selections/include/RoutingBitsChecker.h",
+      "Allen/checker/selections/include/SelReportChecker.h",
+      "Allen/checker/selections/include/SelReportCheckerTypes.h",
+      "Allen/checker/selections/src/RateChecker.cpp",
+      "Allen/checker/selections/src/RoutingBitsChecker.cpp",
+      "Allen/checker/selections/src/SelReportChecker.cpp",
+      "Allen/checker/tracking/CMakeLists.txt",
+      "Allen/checker/tracking/include/AverageChecker.h",
+      "Allen/checker/tracking/include/CompositeDumper.h",
+      "Allen/checker/tracking/include/KalmanChecker.h",
+      "Allen/checker/tracking/include/PrepareTracks.h",
+      "Allen/checker/tracking/include/TrackChecker.h",
+      "Allen/checker/tracking/include/TrackCheckerCategories.h",
+      "Allen/checker/tracking/include/TrackCheckerHistos.h",
+      "Allen/checker/tracking/src/AverageChecker.cpp",
+      "Allen/checker/tracking/src/CompositeDumper.cpp",
+      "Allen/checker/tracking/src/KalmanChecker.cpp",
+      "Allen/checker/tracking/src/PrepareTracks.cpp",
+      "Allen/checker/tracking/src/TrackCheckerHistos.cpp",
+      "Allen/checker/tracking/src/TrackEffReport.cpp",
+      "Allen/cmake/AllenDependencies.cmake",
+      "Allen/cmake/GenerateConfiguration.cmake",
+      "Allen/configuration/CMakeLists.txt",
+      "Allen/configuration/python/AllenConf/HLT1.py",
+      "Allen/configuration/python/AllenConf/HLT1_LightIon.py",
+      "Allen/configuration/python/AllenConf/HLT1_PbPb.py",
+      "Allen/configuration/python/AllenConf/HLT1_common.py",
+      "Allen/configuration/python/AllenConf/HLT1_cosmics.py",
+      "Allen/configuration/python/AllenConf/HLT1_lowenergy.py",
+      "Allen/configuration/python/AllenConf/HLT1_pp_ref.py",
+      "Allen/configuration/python/AllenConf/downstream_reconstruction.py",
+      "Allen/configuration/python/AllenConf/enum_types.py",
+      "Allen/configuration/python/AllenConf/filters.py",
+      "Allen/configuration/python/AllenConf/hlt1_reconstruction.py",
+      "Allen/configuration/python/AllenConf/hlt1_smog2_lines.py",
+      "Allen/configuration/python/AllenConf/hlt1_ttrack_lines.py",
+      "Allen/configuration/python/AllenConf/odin.py",
+      "Allen/configuration/python/AllenConf/persistency.py",
+      "Allen/configuration/python/AllenConf/secondary_vertex_reconstruction.py",
+      "Allen/configuration/python/AllenConf/ut_reconstruction.py",
+      "Allen/configuration/python/AllenConf/utils.py",
+      "Allen/configuration/python/AllenConf/validators.py",
+      "Allen/configuration/python/AllenCore/gaudi_allen_generator.py",
+      "Allen/configuration/python/AllenSequences/activity.py",
+      "Allen/configuration/python/AllenSequences/calo.py",
+      "Allen/configuration/python/AllenSequences/calo_clustering.py",
+      "Allen/configuration/python/AllenSequences/calo_prescaled_plus_lumi.py",
+      "Allen/configuration/python/AllenSequences/calo_prescaled_plus_lumi_1_10.py",
+      "Allen/configuration/python/AllenSequences/downstream_validation.py",
+      "Allen/configuration/python/AllenSequences/electron_lines.py",
+      "Allen/configuration/python/AllenSequences/hlt1_PbPb_VdM_veloSP.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_forward_then_matching_and_downstream_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_forward_then_matching_no_ut_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_forward_then_matching_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_forward_then_matching_with_parkf.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_forward_then_matching_with_parkf_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_matching_then_forward_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_matching_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_only_matching_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_ref_forward_then_matching_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_ref_forward_then_matching_validation_with_parkf.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_rich_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_rich_validation_from_cones.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_validation.py",
+      "Allen/configuration/python/AllenSequences/hlt1_pp_veloSP_validation.py",
+      "Allen/configuration/python/AllenSequences/multibodySV_validator.py",
+      "Allen/configuration/python/AllenSequences/nzs_passthrough.py",
+      "Allen/configuration/python/AllenSequences/odin_lumi.py",
+      "Allen/configuration/python/AllenSequences/odin_lumi_LightIon.py",
+      "Allen/configuration/python/AllenSequences/odin_lumi_no_bgi.py",
+      "Allen/configuration/python/AllenSequences/passthrough.py",
+      "Allen/configuration/python/AllenSequences/pvfinder_pv_validation.py",
+      "Allen/configuration/python/AllenSequences/pvfinder_pv_validation_hybrid.py",
+      "Allen/configuration/python/AllenSequences/seeding_validation.py",
+      "Allen/configuration/python/AllenSequences/seeding_xz_validation.py",
+      "Allen/configuration/python/AllenSequences/standalone_muon.py",
+      "Allen/configuration/python/AllenSequences/tae_activity.py",
+      "Allen/configuration/python/AllenSequences/tae_full.py",
+      "Allen/configuration/python/AllenSequences/tae_plus_passthrough_prescaled_1_25.py",
+      "Allen/configuration/python/AllenSequences/tae_plus_passthrough_prescaled_1_25_sub_events.py",
+      "Allen/configuration/python/AllenSequences/trackmatching_validation.py",
+      "Allen/configuration/python/AllenSequences/trackmatching_veloscifi_validation.py",
+      "Allen/configuration/python/AllenSequences/veloUT_validation.py"
+    ],
+    "diff_sha256": "069aa487bda1929de5df5cc52e1cbea3cd7723e43dbe00aa5b1dbcb0053e6c48"
+  },
+  "build": {
+    "name": "buildgpu12",
+    "dir": "/tmp/pvfinder-current-master20261006/buildgpu12",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_HOME_DIRECTORY": "/tmp/pvfinder-current-master20261006",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-06T07:33:50-04:00",
+    "source_dir": "/tmp/pvfinder-current-master20261006",
+    "source_git": {
+      "head": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+      "branch": "allen/pvfinder-current",
+      "subject": "Read MC PV banks directly after upstream standalone checker removal",
+      "dirty": false,
+      "dirty_files": [],
+      "diff_sha256": null
+    },
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_best.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "asym 5, best val loss (epoch 5 of 70)",
+      "precision": "fp32"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+      "sha256": "480f7a2bd6f7637b1f4e245be478803eccc99f7f003333824b1ec0ed0678bcbc"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+        "sha256": "a2540cf30a082caf0acaab785d026834c67a9cf557cb221b4c3fd16cfc66ec76"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "events": 500,
+    "threads": 1,
+    "device": 2,
+    "sequence": "pvfinder_pv_validation"
+  },
+  "config": {
+    "dump": {
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "benchmark_results/allen_master_rebase20261006/validation_fp32",
+          "fused_grid_fraction": 0.0625,
+          "gpu_work_list": false,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_peak_pvfinder": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "benchmark_results/allen_master_rebase20261006/validation_fp32",
+          "integral_threshold": 0.699999988079071,
+          "min_width": 0,
+          "split_peaks": true,
+          "threshold": 0.07000000029802322,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "benchmark_results/allen_master_rebase20261006/validation_fp32",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best/pvfinder_model.json",
+          "precision": "float32",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "fc": {
+      "dump_dir": "/data/home/melashri/iris/inference/benchmark_results/allen_master_rebase20261006/validation_fp32",
+      "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+      "max_f32_ulps": 1.0,
+      "csr": {
+        "intervals_differing": 0,
+        "status": "OK"
+      },
+      "features_dtype": "float32",
+      "histogram_dtype": "float32",
+      "interval_features": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 4.62646920979023,
+        "max_rel_diff": 0.055955661169264204,
+        "max_f32_ulps": 0.00018359464654925769,
+        "largest_term": 8778362506844.533,
+        "status": "PASS"
+      },
+      "histogram": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 0.8015741705748951,
+        "max_rel_diff": 0.06054895417167864,
+        "max_f32_ulps": 6.010475961692105e-05,
+        "largest_term": 501302323803.7367,
+        "status": "PASS"
+      },
+      "n_events": 500,
+      "n_tracks": 122077,
+      "latent_channels": 4,
+      "status": "PASS"
+    },
+    "unet": {
+      "dump_dir": "/data/home/melashri/iris/inference/benchmark_results/allen_master_rebase20261006/validation_fp32",
+      "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+      "n_events": 500,
+      "n_intervals": 20000,
+      "non_finite_input_intervals": 0,
+      "max_abs_diff": 7.867813110351562e-06,
+      "abs_percentiles": {
+        "P50": 1.3723546284493e-15,
+        "P90": 3.066399911766382e-11,
+        "P95": 8.374586857318169e-11,
+        "P99": 6.984919309616089e-10,
+        "P99.9": 5.364418029785156e-07,
+        "Pmax": 7.867813110351562e-06
+      },
+      "rel_percentiles": {
+        "P50": 1.3723527450946585e-06,
+        "P90": 0.002219434119343812,
+        "P95": 0.02048766884649329,
+        "P99": 0.06784280766261724,
+        "P99.9": 0.1136144686604762,
+        "Pmax": 0.1264703040607652
+      },
+      "pearson_r": 0.9999999999997821,
+      "r_squared": 0.9999999999996049,
+      "signal_region": {
+        "n_bins": 20117,
+        "max_abs_diff": 7.867813110351562e-06
+      },
+      "background_region": {
+        "n_bins": 1977684,
+        "max_abs_diff": 6.046320777386427e-09
+      },
+      "worst_event": {
+        "event": 97,
+        "interval": 13
+      },
+      "layer_stats": {
+        "x1_rcbn1": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.7424341440200806,
+          "std": 1.6356370449066162,
+          "min": 0.0,
+          "max": 203.32449340820312
+        },
+        "x2_rcbn2_mp": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.5450242757797241,
+          "std": 1.3474271297454834,
+          "min": 0.0,
+          "max": 107.39462280273438
+        },
+        "x3_rcbn3_mp": {
+          "shape": [
+            20000,
+            16,
+            25
+          ],
+          "non_finite": 0,
+          "mean": 1.0762734413146973,
+          "std": 1.922549843788147,
+          "min": 0.0,
+          "max": 114.61959838867188
+        },
+        "xu1_up1": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.6389308571815491,
+          "std": 1.308712124824524,
+          "min": 0.0,
+          "max": 59.49745178222656
+        },
+        "xu2_up2": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.06269124150276184,
+          "std": 0.15320399403572083,
+          "min": 0.0,
+          "max": 12.825848579406738
+        },
+        "x_oint": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -0.31622788310050964,
+          "std": 2.9741926193237305,
+          "min": -102.80982208251953,
+          "max": 728.7757568359375
+        },
+        "logits": {
+          "shape": [
+            20000,
+            1,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -28.483213424682617,
+          "std": 77.85752868652344,
+          "min": -237.3083953857422,
+          "max": 5532.060546875
+        },
+        "pt_kde": {
+          "shape": [
+            20000,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.004004969727247953,
+          "std": 0.07448717206716537,
+          "min": 0.0,
+          "max": 5.532060623168945
+        }
+      },
+      "tiers": {
+        "fp32_noise": true,
+        "tight": true,
+        "acceptable": true,
+        "loose": true
+      },
+      "best_tier": "fp32_noise",
+      "signal_region_under_1e-4": true,
+      "threshold": 0.001,
+      "bf16_path": false,
+      "peaks": {
+        "bins_off_by_more_than_0.01": 0.0,
+        "n_peaks": 2534,
+        "median_rel_peak_height_change": 2.631304636088603e-07,
+        "max_rel_peak_height_change": 4.250828114452046e-06,
+        "intervals_with_peak": 2343,
+        "highest_bin_moved": 0,
+        "highest_bin_moved_more_than_one_bin": 0
+      },
+      "criterion": "FP32 path: max |Allen - PyTorch| < 0.001",
+      "status": "PASS"
+    },
+    "model": {
+      "n_events": 500,
+      "empty_interval_fraction": 0.7275,
+      "intervals_capped_at_max_tracks": 0,
+      "max_abs_diff": 2.288818359375e-05,
+      "mean_abs_diff": 4.751926016602235e-09,
+      "intervals_with_peak_above_1e-3": {
+        "allen": 0.1229,
+        "pytorch": 0.1229
+      },
+      "bins_above_1e-3_per_event": {
+        "allen": 40.234,
+        "pytorch": 40.234
+      },
+      "threshold": 0.001,
+      "bf16_path": false,
+      "peaks": {
+        "bins_off_by_more_than_0.01": 0.0,
+        "n_peaks": 2534,
+        "median_rel_peak_height_change": 3.982648406464749e-07,
+        "max_rel_peak_height_change": 1.2489624642932926e-05,
+        "intervals_with_peak": 2343,
+        "highest_bin_moved": 0,
+        "highest_bin_moved_more_than_one_bin": 0
+      },
+      "criterion": "FP32 path: max |Allen - PyTorch| < 0.001",
+      "status": "PASS"
+    },
+    "features": {
+      "allen_vs_rules": {
+        "tracks": 122077,
+        "ellipsoid_source": "pv-finder_v2 tools/ellipsoid.py",
+        "poca_max_abs_diff_mm": 0.0007589991255372297,
+        "ellipsoid_max_rel_matrix_diff": 6.437877385221288e-07,
+        "tracks_without_ellipsoid": 36,
+        "status": "PASS"
+      },
+      "rules_vs_training": {
+        "tracks": 459132,
+        "events": 2000,
+        "checks": {
+          "poca_within_1um": 0.9999738637254646,
+          "major_axis_within_0.01deg_of_track": 1.0,
+          "major_minor_ratio_within_0.1pct": 0.9987345687079097,
+          "ellipsoid_matrix_within_1pct": 0.9938732216443201
+        },
+        "status": "PASS"
+      },
+      "minor_axis_quantiles": {
+        "q": [
+          0.05,
+          0.25,
+          0.5,
+          0.75,
+          0.95
+        ],
+        "training": [
+          0.030375059661439722,
+          0.037732711258438786,
+          0.04618483408333554,
+          0.06566650669740733,
+          0.15945860428939695
+        ],
+        "allen_sqrt_c00": [
+          0.027288269911143394,
+          0.03467730275613048,
+          0.042794644311218315,
+          0.060971325876127865,
+          0.13693256008338608
+        ]
+      },
+      "status": "PASS"
+    },
+    "peaks": {
+      "settings": {
+        "threshold": 0.07000000029802322,
+        "integral_threshold": 0.699999988079071,
+        "min_width": 0,
+        "split_peaks": true
+      },
+      "events": 500,
+      "seeds": 2458,
+      "events_with_different_number_of_seeds": 0,
+      "max_abs_dz_mm": 3.0517578125e-05,
+      "events_over_seed_cap": 0,
+      "events_with_first_bin_above_threshold": 5,
+      "status": "PASS"
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "dump_dir": "benchmark_results/allen_master_rebase20261006/validation_fp32"
+  },
+  "duration_s": 47
+}

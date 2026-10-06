@@ -5,14 +5,17 @@ Allen reads, and to show that Allen reproduces that checkpoint, lives here and
 is driven by `make`:
 
 ```bash
-make -C weights list                                             # models in the catalog
-make -C weights all MODEL=unet16_lc4_scnone_asym5_final          # fetch -> convert -> verify -> build -> dump -> validate
-make -C weights verify-all                                       # fetch + convert + verify every model
-make -s -C weights model-path MODEL=unet16_lc4_scnone_asym5_final  # the file to give Allen's "model" property
+make -C weights list          # available models
+make -C weights all           # fetch, convert, verify, build, dump, validate
+make -C weights verify-all    # fetch, convert and verify every model
+make -s -C weights model-path # file for Allen's "model" property
 ```
 
 `make help` lists every target and variable (`MODEL`, `DEVICE`, `EVENTS`,
-`JOBS`, `PY`, `PRECISION`, `DUMP_SET`, `DUMP_TAG`, `LABEL`).
+`JOBS`, `PY`, `PRECISION`, `DUMP_SET`, `DUMP_TAG`, `LABEL`, `ALLEN_BUILD_DIR`).
+The default is `unet16_lc4_scnone_asym5_best_bf16`, with BF16 arithmetic and the
+accepted GPU work list and grid fractions. All models use `Allen/build/`;
+architecture changes reconfigure that build through the shared script.
 
 ## Stages
 
@@ -21,7 +24,7 @@ make -s -C weights model-path MODEL=unet16_lc4_scnone_asym5_final  # the file to
 | `fetch` | Copies the checkpoint named in `models.tsv` | `checkpoints/<MODEL>.pyt` |
 | `convert` | `scripts/convert.py`: checkpoint to Allen's model file | `pvfinder_model.json` |
 | `verify` | `scripts/verify.py`: re-reads the file independently of `convert.py` and compares every tensor bit for bit with the checkpoint, plus the metadata | `verify.txt` |
-| `build` | `../ballen` with the model's `--unet-feat` / `--unet-batch-channels` into `Allen/<build>gpu` | Allen build |
+| `build` | `benchmarks/build_allen.sh` with the model architecture into `Allen/build` | Allen build |
 | `dump` | `scripts/allen_dump.sh`: one 500-event slice of `hlt1_pp_pvs_pvfinder_unet_benchmark` (FC, UNet, peak finding, PV fit) with `dump_validation` on for the FC, the UNet and `pvfinder_peak`, plus a `snapshot.json` of the environment | `dump/` (`dump_<DUMP_TAG>/`) |
 | `validate` | The five validators below on the dump; writes a run record to `results/runs/` | `dump*/validate_*.{txt,json}` |
 
@@ -92,8 +95,8 @@ are in the ParamFiles package. Until then, pass an absolute path:
 Allen reads the file once, before the algorithms' `init()`, and each
 algorithm checks every tensor's shape against its build there. The Allen build
 must match the model: `N_FEAT` (`--unet-feat`) and latentChannels
-(`--unet-batch-channels`) are compile-time constants. The catalog's `build`
-column names the `ballen -b` base; `make build` passes the right flags.
+(`--unet-batch-channels`) are compile-time constants. `make build` passes the catalog architecture to the shared build script.
+`ALLEN_BUILD_DIR` overrides the build location for isolated work.
 
 ## Model architecture
 
@@ -106,13 +109,13 @@ checkpoint trained with skip connections (`2*N_FEAT` inputs at those layers).
 
 ## Catalog (`models.tsv`)
 
-Tab-separated: `name`, `source` checkpoint, `unet_feat`, `latent`, `build`,
+Tab-separated: `name`, `source` checkpoint, `unet_feat`, `latent`,
 `notes`, `precision` (the dtype of the checkpoint's conv and linear weights:
 `fp32`, or `bf16` for the training team's reduced-precision exports; this is
 not Allen's `precision` property). Add a model by adding a row. Every run
 record carries the model's full row. All current models are `N_FEAT=16`,
 latentChannels 4, with five 20-wide FC hidden layers and 100 bins per
-interval, and build into `buildgpu16chL4gpu`. Sources are the training team's
+interval, and use the shared build directory. Sources are the training team's
 outputs under `/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/`,
 which also holds asym 7-15 sweeps and older `iter*` runs not catalogued here.
 
@@ -121,30 +124,10 @@ Training-side metrics recorded with the checkpoints (from the training team's
 
 | Model | efficiency | fp/event | Notes |
 |---|---:|---:|---|
-| `unet16_lc4_scnone_asym5_final` | 0.9654 | 0.0214 | **default**; epoch 69, the last epoch |
+| `unet16_lc4_scnone_asym5_final` | 0.9654 | 0.0214 | epoch 69, the last epoch |
 | `unet16_lc4_scnone_asym5_best` | 0.9671 | 0.0241 | epoch 5 of 70, the lowest validation loss of that run |
-| `unet16_lc4_scnone_asym5_best_bf16` | | | the training team's BF16 export of `asym5_best` (conv and linear weights rounded to bfloat16, BatchNorm float32) |
+| `unet16_lc4_scnone_asym5_best_bf16` | | | **default**; BF16 export of `asym5_best` (conv and linear weights rounded to bfloat16, BatchNorm float32) |
 | `unet16_lc4_scnone_asym1_best` / `_final` | 0.9383 / 0.9378 | 0.0042 / 0.0042 | epochs 82 / 86 |
 | `unet16_lc4_scnone_asym2.5_best` | 0.9566 | 0.0130 | from the last `stats.csv` row, approximate |
 | `unet16_lc4_scnone_asym17_final` | 0.9766 | 0.0842 | epoch 131 |
 | `unet16_lc4_scnone_asym19_best` | 0.9767 | 0.0807 | upstream stats have a single epoch; likely incomplete |
-
-## History
-
-- **2026-09-27: one model file.** Allen used to load two raw binaries
-  (`fc_weights.bin`, `cnn_weights.bin`) found through `PVFINDER_WEIGHTS_DIR`.
-  They are replaced by `pvfinder_model.json`, read through Allen's model
-  mechanism, and the environment variable is gone.
-- **2026-09-15: skip connections removed.** Earlier the catalog defaulted to
-  `unet16_lc8_iter9` and held latentChannels-4 models with concatenated or
-  added skip connections. Those models and all skip-connection code paths are
-  gone.
-- **2026-09-14: layer 6A layout bug fixed.** Allen's FC loader transposed
-  layer 6A for every build, although only the plain kernel needed that; the
-  cuBLAS path (since removed) read the checkpoint's own layout. The converter
-  also wrote layer 6A transposed. FC results from cuBLAS builds between
-  2026-03-09 and 2026-09-14 did not reproduce the trained model.
-  `validate_fc.py` catches both forms.
-- **`legacy/`** (ignored) keeps files whose source checkpoint no longer
-  exists: `unet16_lc4_scnone_asym17_best` (the upstream `weights_best.pyt` was
-  overwritten on 2026-08-28 after conversion) and the 64-channel model's files.

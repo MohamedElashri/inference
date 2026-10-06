@@ -168,7 +168,11 @@ int main(int argc, char* argv[])
           }
 
           if (b->type() == LHCb::RawBank::BankType::HltRoutingBits && (!dump.empty() || quiet)) {
-            std::bitset<64> routing_bits {*(b->begin<unsigned long>())};
+            // Bank bodies are only guaranteed 4-byte aligned, so copy the 8-byte word out instead of
+            // dereferencing a (possibly misaligned) unsigned long*
+            unsigned long routing_word = 0;
+            std::memcpy(&routing_word, b->begin<unsigned char>(), sizeof(routing_word));
+            std::bitset<64> routing_bits {routing_word};
             rb_stream << "RBs: [";
             bool first = true;
             for (size_t i = 0; i < routing_bits.size(); ++i) {

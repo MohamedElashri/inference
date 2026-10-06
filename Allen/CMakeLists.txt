@@ -17,19 +17,36 @@ if(STANDALONE AND NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{CMAKE_TOOLCHA
   set(CMAKE_TOOLCHAIN_FILE $ENV{CMAKE_TOOLCHAIN_FILE})
 endif()
 
-project(Allen VERSION 9.1
+project(Allen VERSION 9.2
         LANGUAGES C CXX)
+
+# Platform tag used to select platform-specific defaults.  The build
+# environment exports BINARY_TAG, but CMake does not automatically promote
+# environment variables to CMake variables, and this project does not go
+# through Gaudi's binary-tag parsing, so read it explicitly.
+set(ALLEN_PLATFORM "$ENV{BINARY_TAG}")
+if(NOT ALLEN_PLATFORM AND DEFINED LHCB_PLATFORM)
+  set(ALLEN_PLATFORM "${LHCB_PLATFORM}")
+endif()
+if(ALLEN_PLATFORM MATCHES "cudasan")
+  set(ALLEN_CUDASAN_DEFAULT ON)
+else()
+  set(ALLEN_CUDASAN_DEFAULT OFF)
+endif()
 
 # ---------------
 # Boolean options
 # ---------------
-
-option(BUILD_TESTING "Build test programs" OFF)
+if(STANDALONE)
+  set(BUILD_TESTING_INIT OFF)
+else()
+  set(BUILD_TESTING_INIT ON)
+endif()
+option(BUILD_TESTING "Build test programs" ${BUILD_TESTING_INIT})
 option(USE_KALMAN_DOUBLE_PRECISION "Use double precision Kalman filter" OFF)
 option(CPU_USE_REAL_HALF "Use half_t with uint16_t backend" OFF)
 option(STANDALONE "Build Allen standalone" OFF)
 option(USE_DD4HEP "Use DD4HEP" ON)
-option(TREAT_WARNINGS_AS_ERRORS "Treat all warnings as errors" OFF)
 option(ALWAYS_DISPATCH_TO_DEFAULT "Dispatch architecture-specific functions always to default target" OFF)
 option(USE_BOOST_FILESYSTEM "Use Boost filesystem library instead of std::filesystem" OFF)
 option(INSTALL_GEOMETRY "Install LHCb geometry in the build dir (recommended for container builds)" OFF)
@@ -102,13 +119,6 @@ endif()
 # Unrestricted options
 # --------------------
 
-# Sequences to build, SEQUENCE argument overrides SEQUENCES for now
-if (STANDALONE)
-  set(SEQUENCES "" CACHE STRING "Sequences to build as a regex for exact matching; \"all\" builds all sequences")
-else()
-  set(SEQUENCES "all" CACHE STRING "Sequences to build as a regex for exact matching; \"all\" builds all sequences")
-endif()
-
 # Configured CPU architecture
 set(CPU_ARCH native CACHE STRING "Target CPU architecture")
 message(STATUS "CPU_ARCH: " ${CPU_ARCH})
@@ -133,20 +143,10 @@ if(ALWAYS_DISPATCH_TO_DEFAULT)
   add_compile_definitions(ALWAYS_DISPATCH_TO_DEFAULT)
 endif()
 
-
-# General CMAKE CXX FLAGS option
-if(TREAT_WARNINGS_AS_ERRORS)
-  message(STATUS "Treating compiler warnings as errors")
-  if (TARGET_DEVICE STREQUAL "CUDA")
-    string(APPEND CMAKE_CUDA_FLAGS " -Xcompiler=-Werror")
-  endif()
-  string(APPEND CMAKE_CXX_FLAGS " -Werror")
-endif()
-
 # Choice of malloc engine
 
 set(_default_malloc_engine SINGLE_ALLOC)
-if(CMAKE_BUILD_TYPE MATCHES ".*San$")
+if(CMAKE_BUILD_TYPE MATCHES ".*San$" OR ALLEN_PLATFORM MATCHES "cudasan")
   # In sanitizer builds we do individual allocs to spot illegal accesses
   set(_default_malloc_engine MULTI_ALLOC)
 endif()
@@ -163,7 +163,7 @@ if(SYNCHRONOUS_DEVICE_EXECUTION)
 endif()
 
 # Choice of enabling contracts
-option(ENABLE_CONTRACTS "Enable contracts in sequence execution" OFF)
+option(ENABLE_CONTRACTS "Enable contracts in sequence execution" ${ALLEN_CUDASAN_DEFAULT})
 message(STATUS "Contracts: " ${ENABLE_CONTRACTS})
 if(ENABLE_CONTRACTS)
   add_compile_definitions(ENABLE_CONTRACTS)
@@ -216,7 +216,6 @@ set(ALLEN_ALGORITHM_LIB
   Associate
   Calo
   Combiners
-  DeviceValidators
   Downstream
   Examples
   HostCombiners
@@ -226,23 +225,20 @@ set(ALLEN_ALGORITHM_LIB
   HostGEC
   HostInitEventList
   HostRoutingBits
+  HostOutputHandler
   HostTAEFilter
   Kalman
   Lumi
   Muon
-  PVChecking
   PV_beamline
   PVFinder
   Plume
   Rich
   SciFi
-  SelChecking
   Selections
-  TrackChecking
   TTrack
   UT
   Utils
-  Validators
   Velo
   VertexFitter
   track_matching
@@ -658,21 +654,8 @@ if (NOT STANDALONE)
     Dumpers/BinaryDumpers
     Dumpers/RootDumpers)
 
-  lhcb_env(
-    SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
-    SET ALLEN_PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+  lhcb_env(SET ALLEN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
 endif()
-
-# Determine which sequences to generate or copy configurations for
-file(GLOB available_sequences CONFIGURE_DEPENDS "configuration/python/AllenSequences/*.py")
-set(BUILD_SEQUENCES "")
-foreach(sequence_filename ${available_sequences})
-  get_filename_component(sequence ${sequence_filename} NAME_WE)
-  string(REGEX MATCH "^${SEQUENCES}\$" sequence_matches ${sequence})
-  if (sequence_matches OR "${SEQUENCES}" STREQUAL "all")
-    list(APPEND BUILD_SEQUENCES ${sequence})
-  endif()
-endforeach()
 
 if(BUILD_TESTING)
   add_subdirectory(test/unit_tests)
@@ -716,8 +699,11 @@ foreach(header
     MEPTools.h
     InputProvider.h
     OutputHandler.h
+    OutputManager.h
+    IOutputWriter.h
     SliceUtils.h
     FileSystem.h
+    SPSCRingBuffer.h
     TransposeTypes.h
     InputReader.h
     Configuration.h)
@@ -768,12 +754,15 @@ target_link_libraries(AllenCommon INTERFACE
 target_link_libraries(HostCommon PRIVATE
   mdf EventModel Gear Backend mdf AllenCommon LHCbEvent Boost::iostreams Rangev3::rangev3)
 
+if (NOT STANDALONE)
+  target_link_libraries(HostCommon PUBLIC LHCb::IOAlgorithmsLib)
+endif()
+
 allen_add_host_library(AllenLib SHARED
   main/src/Allen.cpp
   main/src/AllenMonitoring.cpp
   main/src/MVAModelsManager.cpp
   main/src/AllenThreads.cpp
-  main/src/OutputHandler.cpp
   main/src/Provider.cpp
   main/src/ZMQOutputSender.cpp)
 

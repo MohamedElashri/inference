@@ -1,0 +1,70 @@
+{
+  "schema": "allen-upstream-validation/1",
+  "status": "PASS",
+  "fork_commit": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+  "upstream_commit": "b567e104f23ebfd0670d6272e47d9b1ce37d905c",
+  "build": "/tmp/pvfinder-current-master20261006/buildgpu12",
+  "unit_tests": {
+    "cases": 14,
+    "assertions": 314,
+    "status": "PASS"
+  },
+  "numerical_validation": {
+    "events": 500,
+    "tracks": 122077,
+    "validators": {
+      "validate_peaks": "PASS",
+      "validate_unet": "PASS",
+      "validate_fc": "PASS",
+      "validate_features": "PASS",
+      "validate_model": "PASS"
+    }
+  },
+  "physics": {
+    "events": 10000,
+    "working_points": {
+      "0.07": {
+        "physics_counts_identical_to_v9r1": true,
+        "floating_summary_differences": {},
+        "pv_mc_event_payloads_identical": {
+          "pvs_beamline.bin": true,
+          "pvs_pvfinder.bin": true
+        },
+        "report": "preview_physics/threshold0.07/compare.json"
+      },
+      "0.1": {
+        "physics_counts_identical_to_v9r1": true,
+        "floating_summary_differences": {
+          ".all_z.pvfinder.dz_mean_um": {
+            "v9r1": -0.637241532189112,
+            "current_master": -0.6372415321891121,
+            "absolute_difference": 1.1102230246251565e-16
+          }
+        },
+        "pv_mc_event_payloads_identical": {
+          "pvs_beamline.bin": true,
+          "pvs_pvfinder.bin": true
+        },
+        "report": "preview_physics/threshold0.1/compare.json"
+      }
+    }
+  },
+  "notes": [
+    "Standalone CUDA build only; Gaudi stack build untested.",
+    "MC dump reads the existing MDF MC-PV payload directly, following upstream checker removal.",
+    "Counts and per-event vertex/MC payloads reproduce v9r1; one summary mean differs by 1.11e-16 um due to floating-point summation order.",
+    "No claim about current-master throughput yet."
+  ],
+  "fp32_numerical_validation": {
+    "events": 500,
+    "tracks": 122077,
+    "validators": {
+      "fc": "PASS",
+      "unet": "PASS",
+      "model": "PASS",
+      "features": "PASS",
+      "peaks": "PASS"
+    },
+    "reports": "preview_fp32_validation/"
+  }
+}

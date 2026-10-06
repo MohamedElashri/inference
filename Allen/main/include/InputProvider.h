@@ -20,17 +20,50 @@
 #include <span>
 
 #include <Event/ODIN.h>
+#include <Event/RawBankType.h>
 
 #include "Logger.h"
 #include "BankTypes.h"
 #include "Common.h"
 #include "AllenUnits.h"
 
+/**
+ * @brief      Configuration parameters for the InputProvider
+ *
+ */
+struct InputProviderConfig {
+  // check the MDF checksum if it is available
+  bool check_checksum = false;
+
+  size_t n_slices = 1;
+
+  std::optional<size_t> n_events = std::nullopt;
+
+  size_t events_per_slice = 1000;
+
+  // number of transpose threads
+  size_t n_transpose_threads = 5;
+
+  // default of events per prefetch buffer
+  size_t events_per_buffer = 1200;
+
+  // number of loops over input data
+  size_t n_loops = 0;
+
+  bool split_by_run = false;
+
+  std::unordered_set<LHCb::Event::Enum::RawBank::BankType> skip_banks {};
+
+  bool use_ROOT_prefetcher = false;
+
+  bool use_retina = true;
+};
+
 class IInputProvider {
 public:
   enum class Layout { Allen, MEP };
 
-  struct BufferStatus {
+  struct BufferStatus { // Used by MEPProvider, but really should be implementation details..
     bool writable = true;
     int work_counter = 0;
     std::vector<std::tuple<size_t, size_t>> intervals;
@@ -53,6 +86,13 @@ public:
    * @return     number of events per slice
    */
   virtual size_t events_per_slice() const = 0;
+
+  /**
+   * @brief      Get the number of slices
+   *
+   * @return     number of slices
+   */
+  virtual size_t n_slices() const = 0;
 
   /**
    * @brief      Get event ids in a given slice
@@ -104,11 +144,13 @@ public:
   virtual void event_sizes(
     size_t const slice_index,
     std::span<unsigned int const> const selected_events,
-    std::vector<size_t>& sizes) const = 0;
+    std::span<size_t> sizes) const = 0;
 
   virtual void copy_banks(size_t const slice_index, unsigned int const event, std::span<char> buffer) const = 0;
 
-  virtual bool release_buffers() = 0;
+  virtual void startPrefetcher() const {}
+
+  virtual bool release_buffers() { return true; }
 };
 
 class InputProvider : public IInputProvider {
@@ -147,7 +189,7 @@ public:
    *
    * @return     number of slices
    */
-  size_t n_slices() const { return m_nslices; }
+  size_t n_slices() const override { return m_nslices; }
 
   /**
    * @brief      Get the maximum number of events per slice
@@ -182,7 +224,7 @@ protected:
     }
   }
 
-private:
+protected:
   // MEP layout
   Layout m_layout = Layout::Allen;
 
@@ -201,3 +243,32 @@ private:
   // Mutex for ordered debug output
   mutable std::mutex m_output_mut;
 };
+
+#ifndef ALLEN_STANDALONE
+#include "GaudiKernel/IInterface.h"
+#include "Event/RawEvent.h"
+namespace LHCb::IO {
+  struct InputFileManifest;
+}
+class GAUDI_API IInputProviderSvc : public extend_interfaces<IInterface>, public InputProvider {
+public:
+  // Return the interface ID
+  DeclareInterfaceID(IInputProviderSvc, 0, 1);
+  virtual ~IInputProviderSvc() = default;
+
+  virtual std::vector<DataObject*> getEventBranches(size_t const, unsigned const) const { return {}; }
+
+  /**
+   * @brief Single event interface to inputs
+   */
+  virtual LHCb::RawEvent getRawEvent(size_t const slice_index, unsigned int const event) const = 0;
+
+  virtual LHCb::ODIN getODIN(size_t const slice_index) const = 0;
+
+  /// Manifest of the file backing this event; valid until the slice is released.
+  /// Providers without ROOT input reject this request.
+  virtual LHCb::IO::InputFileManifest getInputFileManifest(size_t const, unsigned const) const;
+};
+#else
+using IInputProviderSvc = InputProvider;
+#endif

@@ -12,7 +12,6 @@ import itertools
 
 from AllenConf.HLT1 import setup_hlt1_node
 from AllenConf.velo_reconstruction import decode_velo
-from AllenCore.generator import make_transposed_raw_banks
 from Hlt2Conf.lines import all_lines
 from Moore import options
 from Moore.config import moore_control_flow
@@ -56,20 +55,7 @@ top_cf_node = moore_control_flow(options, streams, "hlt2", False)
 # allen stuff -------------------------
 setup_allen_non_event_data_service()
 
-with (
-    decode_velo.bind(retina_decoding=False),
-    make_transposed_raw_banks.bind(
-        rawbank_list=[
-            "ODIN",
-            "Muon",
-            "FTCluster",
-            "UT",
-            "VP",
-            "EcalPacked",
-            "HcalPacked",
-        ]
-    ),
-):
+with decode_velo.bind(retina_decoding=False):
     hlt1_node = setup_hlt1_node()
 
 

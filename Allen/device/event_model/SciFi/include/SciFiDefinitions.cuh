@@ -44,7 +44,6 @@ namespace SciFi {
     static constexpr unsigned n_sipms = n_mats * n_sipms_per_mat;
     static constexpr unsigned n_parts = 2;
     static constexpr unsigned INVALID_IDX = (unsigned) -1; // FIXME
-    static constexpr unsigned INVALID_ID = 0;              // FIXME
 
     // FIXME_GEOMETRY_HARDCODING
     // todo: use dzdy defined in geometry, read by mat

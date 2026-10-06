@@ -18,9 +18,6 @@
 #include "ODINBank.cuh"
 
 #include "AllenMonitoring.h"
-#ifndef ALLEN_STANDALONE
-#include "SelectionsEventModel.cuh"
-#endif
 
 namespace gather_selections {
   struct Parameters {

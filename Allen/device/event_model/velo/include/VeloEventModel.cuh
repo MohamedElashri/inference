@@ -94,7 +94,7 @@ namespace Velo {
   /**
    * @brief Structure to access VELO clusters.
    */
-  template<typename T>
+  template<typename T, bool WithPhi = true>
   struct Clusters_t {
   protected:
     typename ForwardType<T, half_t>::t* m_base_pointer;
@@ -102,11 +102,12 @@ namespace Velo {
     unsigned m_offset;
 
   public:
-    constexpr static unsigned element_size = sizeof(unsigned) + sizeof(int16_t) + 3 * sizeof(half_t) + sizeof(int16_t);
+    constexpr static unsigned element_size =
+      sizeof(unsigned) + 3 * sizeof(half_t) + sizeof(int16_t) + (WithPhi ? sizeof(int16_t) : 0);
     constexpr static unsigned offset_coordinates = sizeof(unsigned) / sizeof(half_t);
     constexpr static unsigned offset_phi = (sizeof(unsigned) + 3 * sizeof(half_t)) / sizeof(int16_t);
     constexpr static unsigned offset_cluster_size =
-      (sizeof(unsigned) + 3 * sizeof(half_t) + sizeof(int16_t)) / sizeof(int16_t);
+      (sizeof(unsigned) + 3 * sizeof(half_t) + (WithPhi ? sizeof(int16_t) : 0)) / sizeof(int16_t);
 
     Clusters_t() = default;
     Clusters_t(const Clusters_t&) = default;
@@ -171,6 +172,7 @@ namespace Velo {
 
     __host__ __device__ int16_t phi(const unsigned index) const
     {
+      static_assert(WithPhi, "phi() is not available on hit containers without a phi field");
       assert(m_offset + index < m_total_number_of_hits);
       return reinterpret_cast<typename ForwardType<T, int16_t>::t*>(
         m_base_pointer)[m_total_number_of_hits * offset_phi + m_offset + index];
@@ -178,6 +180,7 @@ namespace Velo {
 
     __host__ __device__ void set_phi(const unsigned index, const int16_t value)
     {
+      static_assert(WithPhi, "set_phi() is not available on hit containers without a phi field");
       assert(m_offset + index < m_total_number_of_hits);
       reinterpret_cast<typename ForwardType<T, int16_t>::t*>(
         m_base_pointer)[m_total_number_of_hits * offset_phi + m_offset + index] = value;
@@ -186,6 +189,7 @@ namespace Velo {
     // Pointer accessor for binary search
     __host__ __device__ typename ForwardType<T, int16_t>::t* phi_begin() const
     {
+      static_assert(WithPhi, "phi_begin() is not available on hit containers without a phi field");
       return reinterpret_cast<typename ForwardType<T, int16_t>::t*>(m_base_pointer) +
              m_total_number_of_hits * offset_phi + m_offset;
     }

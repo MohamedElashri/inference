@@ -20,7 +20,6 @@
 #include "SciFiConsolidated.cuh"
 #include "TrackMatchingConstants.cuh"
 #include "AlgorithmTypes.cuh"
-#include "CopyTrackParameters.cuh"
 
 #include "AllenMonitoring.h"
 

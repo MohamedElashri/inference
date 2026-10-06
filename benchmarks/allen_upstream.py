@@ -72,14 +72,22 @@ def import_tree(args):
     clean(ROOT)
     manifest = json.loads(args.manifest.read_text())
     proof = json.loads(args.validation.read_text())
-    if proof.get("status") != "PASS" or proof.get("fork_commit") != manifest["fork_commit"]:
-        raise SystemExit("Validation must PASS and identify this exact fork commit.")
-    if revision(ROOT) != manifest["inference_before"]:
-        raise SystemExit("Inference HEAD changed since preparation; prepare the update again.")
     workdir = Path(manifest["workdir"])
     clean(workdir)
-    if revision(workdir) != manifest["fork_commit"]:
-        raise SystemExit("Prepared source changed since validation.")
+    current = revision(workdir)
+    if proof.get("status") != "PASS" or proof.get("fork_commit") != current:
+        raise SystemExit("Validation must PASS and identify the exact current fork commit.")
+    gitdir = Path(git(workdir, "rev-parse", "--absolute-git-dir").decode().strip())
+    if any((gitdir / name).exists() for name in ("rebase-merge", "rebase-apply")):
+        raise SystemExit("Finish the rebase before importing.")
+    git(workdir, "merge-base", "--is-ancestor", manifest["upstream_commit"], current)
+    if manifest.get("fork_commit") and manifest["fork_commit"] != current:
+        git(workdir, "merge-base", "--is-ancestor", manifest["fork_commit"], current)
+    # Accept committed compatibility fixes after preparation, or a completed
+    # manual conflict resolution, only when this exact resulting commit passed.
+    manifest.update(status="prepared", fork_commit=current)
+    if revision(ROOT) != manifest["inference_before"]:
+        raise SystemExit("Inference HEAD changed since preparation; prepare the update again.")
     # A temporary index excludes detector/input data from the vendored tree.
     # It never changes either checkout's actual index or local input files.
     with tempfile.TemporaryDirectory(prefix="allen-export-index-") as temp:
@@ -130,6 +138,7 @@ def import_tree(args):
         fetch_options.append("--unshallow")
     git(ROOT, "fetch", *fetch_options, str(workdir), "HEAD")
     git(ROOT, "branch", "-f", "allen/pvfinder", manifest["fork_commit"])
+    git(ROOT, "update-ref", "refs/remotes/allen-upstream/master", manifest["upstream_commit"])
     git(ROOT, "merge", "--no-commit", "--no-ff", "--allow-unrelated-histories", "-s", "ours", "allen/pvfinder")
     if patch:
         git(ROOT, "apply", "--index", "--directory=Allen", "-", data=patch)

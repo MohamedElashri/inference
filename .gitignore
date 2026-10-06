@@ -26,6 +26,9 @@ docs/
 /rta_roofline_study/
 /model_comparison/
 
+# Shared dependency source cache
+/.cache/
+
 # Editor-local configuration
 /.vscode/
 

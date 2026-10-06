@@ -674,56 +674,56 @@ namespace Allen {
       template<typename state_type>
       __host__ __device__ void _doca_calc(state_type sA, state_type sB, float& det, float& muA, float& muB)
       {
-
-        float secondAA = sA.tx() * sA.tx() + sA.ty() * sA.ty() + 1.f;
-        float secondBB = sB.tx() * sB.tx() + sB.ty() * sB.ty() + 1.f;
-        float secondAB = -sA.tx() * sB.tx() - sA.ty() * sB.ty() - 1.f;
-        det = secondAA * secondBB - secondAB * secondAB;
+        // Explicit FMAs pin the contraction pattern, so that the two symmetric
+        // expressions below are bit-for-bit independent of the state order.
+        const float secondAA = fma_rn(sA.tx(), sA.tx(), fma_rn(sA.ty(), sA.ty(), 1.f));
+        const float secondBB = fma_rn(sB.tx(), sB.tx(), fma_rn(sB.ty(), sB.ty(), 1.f));
+        const float secondAB = fma_rn(sA.tx(), sB.tx(), fma_rn(sA.ty(), sB.ty(), 1.f));
+        det = fma_rn(secondAA, secondBB, -(secondAB * secondAB));
 
         if (fabsf(det) > 0.f) {
-          float secondinvAA = secondBB / det;
-          float secondinvBB = secondAA / det;
-          float secondinvAB = -secondAB / det;
-          float firstA = sA.tx() * (sA.x() - sB.x()) + sA.ty() * (sA.y() - sB.y()) + (sA.z() - sB.z());
-          float firstB = -sB.tx() * (sA.x() - sB.x()) - sB.ty() * (sA.y() - sB.y()) - (sA.z() - sB.z());
-          muA = -(secondinvAA * firstA + secondinvAB * firstB);
-          muB = -(secondinvBB * firstB + secondinvAB * firstA);
+          const float secondinvAA = secondBB / det;
+          const float secondinvBB = secondAA / det;
+          const float secondinvAB = secondAB / det;
+          const float dx = sA.x() - sB.x();
+          const float dy = sA.y() - sB.y();
+          const float dz = sA.z() - sB.z();
+          const float firstA = fma_rn(sA.tx(), dx, fma_rn(sA.ty(), dy, dz));
+          const float firstB = fma_rn(-sB.tx(), dx, fma_rn(-sB.ty(), dy, -dz));
+          // Contract the secondinvAB product in both symmetric expressions.
+          muA = -fma_rn(secondinvAB, firstB, secondinvAA * firstA);
+          muB = -fma_rn(secondinvAB, firstA, secondinvBB * firstB);
         }
-        return;
       }
 
       template<typename state_type>
       __host__ __device__ float state_doca(state_type sA, state_type sB)
       {
-
-        float ret = -1;
+        float ret = -1.f;
         float det = 0.f;
         float muA = 0.f;
         float muB = 0.f;
         _doca_calc(sA, sB, det, muA, muB);
 
-        if (fabsf(det) > 0) {
-          float dx = (sA.x() + muA * sA.tx()) - (sB.x() + muB * sB.tx());
-          float dy = (sA.y() + muA * sA.ty()) - (sB.y() + muB * sB.ty());
-          float dz = (sA.z() + muA) - (sB.z() + muB);
-          ret = sqrtf(dx * dx + dy * dy + dz * dz);
+        if (fabsf(det) > 0.f) {
+          const float dx = fma_rn(muA, sA.tx(), sA.x()) - fma_rn(muB, sB.tx(), sB.x());
+          const float dy = fma_rn(muA, sA.ty(), sA.y()) - fma_rn(muB, sB.ty(), sB.y());
+          const float dz = (sA.z() + muA) - (sB.z() + muB);
+          ret = sqrtf(fma_rn(dx, dx, fma_rn(dy, dy, dz * dz)));
         }
         return ret;
       }
 
       template<typename state_type>
-      __host__ __device__ float state_poca(state_type sA, state_type sB, float& poca_x, float& poca_y, float& poca_z)
+      __host__ __device__ bool state_poca(state_type sA, state_type sB, float& poca_x, float& poca_y, float& poca_z)
       {
         float det = 0.f;
         float muA = 0.f;
         float muB = 0.f;
         _doca_calc(sA, sB, det, muA, muB);
-        if (fabsf(det) > 0) {
-          poca_x = 0.5f * (sA.x() + muA * sA.tx() + sB.x() + muB * sB.tx());
-          poca_y = 0.5f * (sA.y() + muA * sA.ty() + sB.y() + muB * sB.ty());
-          // Because floating point addition is non-associative, the parentheses
-          // below are needed to ensure that z does not depend on the order in which
-          // tracks are passed to the function.
+        if (fabsf(det) > 0.f) {
+          poca_x = 0.5f * (fma_rn(muA, sA.tx(), sA.x()) + fma_rn(muB, sB.tx(), sB.x()));
+          poca_y = 0.5f * (fma_rn(muA, sA.ty(), sA.y()) + fma_rn(muB, sB.ty(), sB.y()));
           poca_z = 0.5f * ((sA.z() + muA) + (sB.z() + muB));
           return true;
         }

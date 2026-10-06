@@ -36,5 +36,7 @@ configuration/python/AllenConf/algorithms.py
 cache_preload.cmake
 .cache/
 *.swp
+doc/_build/
+doc/_env.*/
 *.mdf
 nocudnn*

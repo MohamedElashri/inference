@@ -27,7 +27,7 @@ class Test(LHCbExeTest):
         "-q",
         "../../../../scripts/DataQualityPlot_Overlay.cc",
     ]
-    timeout = 120
+    timeout = 600
     environment = [f"PYTEST_NAME={__name__}"]
 
     # Mitigation to issue discussed in LHCb#193

@@ -12,6 +12,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <iostream>
 #include <Algorithm.cuh>
 
@@ -21,6 +22,15 @@
 
 namespace Allen::Monitoring {
   struct AccumulatorBase;
+
+  /// Guards the host-side accumulator values (bins, entries, sums). They are written by the
+  /// aggregation thread in AccumulatorManager::mergeAndReset() and read (to_json) or reset
+  /// (reset) by the Gaudi monitoring hub's sinks and users on other threads.
+  inline std::mutex& hostDataMutex()
+  {
+    static std::mutex s_mutex;
+    return s_mutex;
+  }
 
   template<typename T>
   struct Counter;
@@ -41,12 +51,14 @@ namespace Allen::Monitoring {
 
     friend void reset(CountersHistogram& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       std::fill(c.m_bins.begin(), c.m_bins.end(), 0.0f);
       c.m_totNEntries = 0.0;
     }
 
     friend void to_json(nlohmann::json& j, CountersHistogram const& h)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {
         {"type", "histogram:WeightedHistogram:d"},
         {"title", h.m_title},
@@ -122,7 +134,7 @@ namespace Allen::Monitoring {
     void registerCounter(Counter<unsigned>* c) { m_counters.push_back(c); }
     void registerAveragingCounter(AveragingCounter<unsigned>* c) { m_av_counters.push_back(c); }
     void initAccumulators(unsigned number_of_streams);
-    void mergeAndReset(bool singlethreaded = false);
+    void mergeAndReset();
     char* bufferForStream(unsigned stream_id) const
     {
       return m_dev_buffer_ptr[m_stream_current_buffer[stream_id].load(std::memory_order_acquire)];
@@ -238,9 +250,14 @@ namespace Allen::Monitoring {
     std::size_t elementSize() const override { return sizeof(T); }
     DeviceType data(const Allen::Context& ctx) const { return reinterpret_cast<T*>(currentDevicePtr(ctx.stream_id)); }
 
-    friend void reset(Counter& c) { c.m_entries = 0.0; }
+    friend void reset(Counter& c)
+    {
+      std::lock_guard lock {hostDataMutex()};
+      c.m_entries = 0.0;
+    }
     friend void to_json(nlohmann::json& j, Counter const& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(c.m_entries)}, {"nEntries", c.m_entries}};
     }
     void registerAccumulator() override
@@ -307,11 +324,13 @@ namespace Allen::Monitoring {
 
     friend void reset(AveragingCounter& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       c.m_sum = 0.0;
       c.m_entries = 0.0;
     }
     friend void to_json(nlohmann::json& j, AveragingCounter const& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {
         {"type", "counter:AveragingCounter:d"},
         {"empty", LHCb::essentiallyZero(c.m_entries)},
@@ -342,14 +361,25 @@ namespace Allen::Monitoring {
     using InputType = T;
     DeviceAxis() = default;
     DeviceAxis(unsigned nBins, InputType minValue, InputType maxValue) :
-      minValue(minValue), maxValue(maxValue), ratio(static_cast<float>(nBins) / (maxValue - minValue))
+      nBins(nBins), minValue(minValue), ratio(static_cast<float>(nBins) / (maxValue - minValue))
     {}
-    __device__ unsigned index(InputType value) const { return static_cast<unsigned>((value - minValue) * ratio); }
-    __device__ bool inAcceptance(InputType value) const { return value >= minValue && value < maxValue; }
+    // Returns the Gaudi/ROOT bin index: 0 is the underflow bin, nBins + 1 is the
+    // overflow bin and the inner bins are shifted by one. The bin position is
+    // clamped to [-1, nBins] before the integer conversion, so out-of-range values
+    // fall in the flow bins and NaN (which fminf/fmaxf resolve to the overflow bin)
+    // never reaches the undefined float-to-integer conversion.
+    __host__ __device__ unsigned index(InputType value) const
+    {
+      const float position = (static_cast<float>(value) - static_cast<float>(minValue)) * ratio;
+      const float clamped = fmaxf(fminf(position, static_cast<float>(nBins)), -1.f);
+      return static_cast<unsigned>(static_cast<int>(clamped + 1.f));
+    }
+
+    unsigned nBins {0};
 
   private:
-    T minValue, maxValue;
-    float ratio;
+    T minValue;
+    float ratio {0.f};
   };
 
   template<typename T>
@@ -385,26 +415,27 @@ namespace Allen::Monitoring {
   struct DeviceLogAxis {
     using InputType = float;
     DeviceLogAxis() = default;
-    DeviceLogAxis(unsigned nBins, float _minValue, float _maxValue, float a, float b, float c) : a(a), b(b), c(c)
+    DeviceLogAxis(unsigned nBins, float _minValue, float _maxValue, float a, float b, float c) :
+      nBins(nBins), a(a), b(b), c(c)
     {
       minValue = logscale(_minValue, a, b, c);
-      maxValue = logscale(_maxValue, a, b, c);
-      ratio = static_cast<float>(nBins) / (maxValue - minValue);
+      ratio = static_cast<float>(nBins) / (logscale(_maxValue, a, b, c) - minValue);
     }
-    __device__ unsigned index(InputType value) const
+    // Returns the Gaudi/ROOT bin index: 0 is the underflow bin, nBins + 1 is the
+    // overflow bin and the inner bins are shifted by one. The transform is applied
+    // first, so the flow bins are defined on the transformed axis.
+    __host__ __device__ unsigned index(InputType value) const
     {
-      value = logscale(value, a, b, c);
-      return static_cast<unsigned>((value - minValue) * ratio);
-    }
-    __device__ bool inAcceptance(InputType value) const
-    {
-      value = logscale(value, a, b, c);
-      return value >= minValue && value < maxValue;
+      const float position = (logscale(value, a, b, c) - minValue) * ratio;
+      const float clamped = fmaxf(fminf(position, static_cast<float>(nBins)), -1.f);
+      return static_cast<unsigned>(static_cast<int>(clamped + 1.f));
     }
 
+    unsigned nBins {0};
+
   private:
-    float minValue, maxValue;
-    float ratio, a, b, c;
+    float minValue {0.f};
+    float ratio {0.f}, a {0.f}, b {0.f}, c {0.f};
   };
 
   // An axis with a transform of the form y = log2(a * x + c) * b
@@ -478,7 +509,7 @@ namespace Allen::Monitoring {
       std::apply(
         [&](auto... axis) {
           unsigned i = 0;
-          ((stride[i] = axis.nBins, i++), ...);
+          ((stride[i] = axis.nBins + 2, i++), ...);
           for (unsigned i = 0; (i + 2u) < sizeof...(Types); i++) {
             stride[i + 1] *= stride[i];
           }
@@ -489,7 +520,7 @@ namespace Allen::Monitoring {
     }
 
     template<typename First, typename... InputTypes>
-    __device__ unsigned index(First& first, InputTypes&... values) const
+    __host__ __device__ unsigned index(First& first, InputTypes&... values) const
     {
       unsigned sum = std::get<0>(m_axis).index(first);
       std::apply(
@@ -501,12 +532,6 @@ namespace Allen::Monitoring {
       return sum;
     }
 
-    template<typename... InputTypes>
-    __device__ bool inAcceptance(InputTypes&... values) const
-    {
-      return std::apply([&](auto... axis) { return (axis.inAcceptance(values) && ...); }, m_axis);
-    }
-
     __device__ T* data() const { return m_data; }
 
 #if defined(TARGET_DEVICE_CUDA) && defined(DEVICE_COMPILER)
@@ -514,23 +539,21 @@ namespace Allen::Monitoring {
     __device__ void increment(InputTypes... values) const
     {
       // Based on https://hal.science/hal-03330414/document
-      if (inAcceptance(values...)) {
-        unsigned index_ = index(values...);
-        unsigned active = __activemask();
-        unsigned peers = conflict_mask(active, index_);
-        unsigned count = __popc(peers);
-        unsigned rank = __popc(peers & __lanemask_lt());
-        if (rank == 0) atomicAdd(&m_data[index_], count);
-      }
+      // Out-of-range values are not dropped but counted in the underflow/overflow
+      // bins, as Gaudi/ROOT histograms do.
+      unsigned index_ = index(values...);
+      unsigned active = __activemask();
+      unsigned peers = conflict_mask(active, index_);
+      unsigned count = __popc(peers);
+      unsigned rank = __popc(peers & __lanemask_lt());
+      if (rank == 0) atomicAdd(&m_data[index_], count);
     }
 #else
     template<typename... InputTypes>
     void increment(InputTypes... values) const
     {
-      if (inAcceptance(values...)) {
-        unsigned index_ = index(values...);
-        __atomic_add_fetch(&m_data[index_], 1, __ATOMIC_RELAXED);
-      }
+      unsigned index_ = index(values...);
+      __atomic_add_fetch(&m_data[index_], 1, __ATOMIC_RELAXED);
     }
 #endif
 
@@ -551,7 +574,9 @@ namespace Allen::Monitoring {
 
     std::size_t size() const override
     {
-      return std::apply([&](auto... axis) { return (1 * ... * axis.nBins); }, m_axis);
+      // The device buffer mirrors the Gaudi/ROOT layout, i.e. each axis has two
+      // extra bins (underflow and overflow).
+      return std::apply([&](auto... axis) { return (std::size_t {1} * ... * (axis.nBins + 2)); }, m_axis);
     }
 
     std::size_t elementSize() const override { return sizeof(T); }
@@ -570,16 +595,18 @@ namespace Allen::Monitoring {
 
     friend void reset(HistogramND& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       std::fill(c.m_bins.begin(), c.m_bins.end(), 0.0);
       c.m_totNEntries = 0.0;
     }
 
     friend void to_json(nlohmann::json& j, HistogramND const& h)
     {
+      std::lock_guard lock {hostDataMutex()};
       j = {
         {"type", "histogram:Histogram:d"},
         {"title", h.m_title},
-        {"dimension", h.m_allen_stride.size()},
+        {"dimension", sizeof...(Types)},
         {"empty", LHCb::essentiallyZero(h.m_totNEntries)},
         {"nEntries", h.m_totNEntries},
         {"axis", h.axisArray()},
@@ -588,27 +615,7 @@ namespace Allen::Monitoring {
 
     void registerAccumulator() override
     {
-      std::apply(
-        [&](auto... axis) {
-          unsigned i = 0;
-          ((m_allen_stride[i] = axis.nBins, i++), ...);
-        },
-        m_axis);
-      for (unsigned i = 1; i < sizeof...(Types); i++) {
-        m_allen_stride[i] *= m_allen_stride[i - 1];
-      }
-
-      std::apply(
-        [&](auto... axis) {
-          unsigned i = 0;
-          ((m_gaudi_stride[i] = (axis.nBins + 2), i++), ...);
-        },
-        m_axis);
-      for (unsigned i = 1; i < sizeof...(Types); i++) {
-        m_gaudi_stride[i] *= m_gaudi_stride[i - 1];
-      }
-
-      m_bins.resize(m_gaudi_stride[sizeof...(Types) - 1]);
+      m_bins.assign(size(), 0.0);
       m_totNEntries = 0.0;
 #ifndef ALLEN_STANDALONE
       Gaudi::svcLocator()->monitoringHub().registerEntity(component(), name(), "histogram:Histogram:d", *this);
@@ -618,10 +625,11 @@ namespace Allen::Monitoring {
 
     void fillAccumulator(void* ptr) override
     {
-      for (unsigned bin = 0; bin < m_allen_stride[sizeof...(Types) - 1]; bin++) {
+      // Device and host buffers now share the same Gaudi/ROOT layout, so all
+      // counts -- including the underflow/overflow bins -- can be copied directly.
+      for (std::size_t bin = 0; bin < m_bins.size(); bin++) {
         auto count = reinterpret_cast<T*>(ptr)[bin];
-        unsigned global_bin = convert_allen_bin_to_gaudi_bin(bin);
-        m_bins[global_bin] += count;
+        m_bins[bin] += count;
         m_totNEntries += count;
       }
     }
@@ -630,33 +638,8 @@ namespace Allen::Monitoring {
     double m_totNEntries = 0.0;
     std::vector<double> m_bins;
     std::tuple<Types...> m_axis;
-    std::array<std::size_t, sizeof...(Types)> m_allen_stride;
-    std::array<std::size_t, sizeof...(Types)> m_gaudi_stride;
 
   private:
-    unsigned convert_allen_bin_to_gaudi_bin(unsigned allen_bin) const
-    {
-      std::array<unsigned, sizeof...(Types)> bins;
-      calc_dim_bin(sizeof...(Types) - 1, allen_bin, bins);
-      unsigned bin_index = bins[0] + 1;
-      for (unsigned i = 1; i < bins.size(); i++) {
-        bin_index += (bins[i] + 1) * m_gaudi_stride[i - 1];
-      }
-      return bin_index;
-    }
-
-    void calc_dim_bin(unsigned dim, unsigned allen_bin, std::array<unsigned, sizeof...(Types)>& bins) const
-    {
-      if (dim != 0) {
-        unsigned highest_bin = allen_bin / m_allen_stride[dim - 1];
-        calc_dim_bin(dim - 1, allen_bin % m_allen_stride[dim - 1], bins);
-        bins[dim] = highest_bin;
-      }
-      else {
-        bins[dim] = allen_bin;
-      }
-    }
-
     constexpr auto axisArray() const
     {
       auto axis_arrays = (std::apply([&](auto... axis) { return std::array {axis...}; }, m_axis));
@@ -701,6 +684,7 @@ namespace Allen::Monitoring {
     }
     friend void to_json(nlohmann::json& j, HistogramBinAsCounter const& c)
     {
+      std::lock_guard lock {hostDataMutex()};
       const auto entries =
         (c.m_histo != nullptr && c.m_bin + 1 < c.m_histo->m_bins.size()) ? c.m_histo->m_bins[c.m_bin + 1] : 0.0;
       j = {{"type", "counter:Counter:d"}, {"empty", LHCb::essentiallyZero(entries)}, {"nEntries", entries}};

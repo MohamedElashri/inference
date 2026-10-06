@@ -1,0 +1,33 @@
+{
+  "dump_dir": "/data/home/melashri/iris/inference/benchmark_results/allen-upstream-validation-W3sd1j/numerical",
+  "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+  "max_f32_ulps": 1.0,
+  "csr": {
+    "intervals_differing": 0,
+    "status": "OK"
+  },
+  "features_dtype": "bfloat16",
+  "histogram_dtype": "bfloat16",
+  "interval_features": {
+    "slots_compared": 20000,
+    "non_finite_slots": 0,
+    "max_abs_diff": 34826.4136445527,
+    "max_rel_diff": 6304.0760529157415,
+    "max_f32_ulps": 5.022089610549722e-05,
+    "largest_term": 8779422771643.462,
+    "status": "PASS"
+  },
+  "histogram": {
+    "slots_compared": 20000,
+    "non_finite_slots": 0,
+    "max_abs_diff": 33017.840370167556,
+    "max_rel_diff": 5408.515625,
+    "max_f32_ulps": 1.7810155952721657e-05,
+    "largest_term": 501447157931.54407,
+    "status": "PASS"
+  },
+  "n_events": 500,
+  "n_tracks": 122077,
+  "latent_channels": 4,
+  "status": "PASS"
+}

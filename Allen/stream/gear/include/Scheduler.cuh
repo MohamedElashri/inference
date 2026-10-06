@@ -199,6 +199,7 @@ public:
     const Allen::ScheduledSequence& sched_seq,
     const bool param_do_print,
     const size_t device_requested_mb,
+    const size_t host_requested_mb,
     const unsigned required_memory_alignment)
   {
     auto& [configured_algorithms, configured_arguments, sequence_arguments, arg_deps] = configuration;
@@ -228,7 +229,7 @@ public:
     do_print = param_do_print;
 
     // Reserve memory
-    m_store.reserve_memory_device(device_requested_mb, required_memory_alignment);
+    m_store.reserve_memory(device_requested_mb, host_requested_mb, required_memory_alignment);
   }
 
   Scheduler(const Scheduler&) = delete;
@@ -310,26 +311,19 @@ public:
   }
 
   //  Runs a sequence of algorithms.
-  void run(
-    const RuntimeOptions& runtime_options,
-    const Constants& constants,
-    Allen::Store::PersistentStore* persistent_store,
-    const Allen::Context& context)
+  void run(const RuntimeOptions& runtime_options, const Constants& constants, const Allen::Context& context)
   {
-    m_store.set_persistent_store(persistent_store);
     for (unsigned i = 0; i < m_sched_seq->sequence.size(); ++i) {
       run(
         m_sched_seq->sequence[i],
         m_sequence_ref_stores[i],
         m_in_dependencies[i],
         m_out_dependencies[i],
-        m_store,
         runtime_options,
         constants,
         context,
         do_print);
     }
-    m_store.set_persistent_store_map();
   }
 
 private:
@@ -340,11 +334,10 @@ private:
     config.emplace(algorithm.name(), algorithm.get_properties());
   }
 
-  static void setup(
+  void setup(
     const Allen::TypeErasedAlgorithm& algorithm,
     const LifetimeDependencies& in_dependencies,
     const LifetimeDependencies& out_dependencies,
-    Allen::Store::UnorderedStore& store,
     bool do_print)
   {
     /**
@@ -363,26 +356,25 @@ private:
 
     // Free arguments in OutDependencies
     for (const auto& arg : out_dependencies.arguments) {
-      store.free(arg);
+      m_store.free(arg);
     }
 
     // Reserve all arguments in InDependencies
     for (const auto& arg : in_dependencies.arguments) {
-      store.put(arg);
+      m_store.put(arg);
     }
 
     // Print memory manager state
     if (do_print) {
-      store.print_memory_manager_states();
+      m_store.print_memory_manager_states();
     }
   }
 
-  static void run(
+  void run(
     const Allen::TypeErasedAlgorithm& algorithm,
     std::any& argument_ref_manager,
     const LifetimeDependencies& in_dependencies,
     const LifetimeDependencies& out_dependencies,
-    Allen::Store::UnorderedStore& store,
     const RuntimeOptions& runtime_options,
     const Constants& constants,
     const Allen::Context& context,
@@ -392,7 +384,7 @@ private:
     algorithm.set_arguments_size(argument_ref_manager, runtime_options, constants);
 
     // Setup algorithm, reserving / freeing memory buffers
-    setup(algorithm, in_dependencies, out_dependencies, store, do_print);
+    setup(algorithm, in_dependencies, out_dependencies, do_print);
 
     // Run preconditions
     if constexpr (contracts_enabled) {

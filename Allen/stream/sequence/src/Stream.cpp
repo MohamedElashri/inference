@@ -13,7 +13,6 @@
 #include "Stream.h"
 #include "AlgorithmTypes.cuh"
 #include "Scheduler.cuh"
-#include "HostBuffersManager.cuh"
 #include "AllenMonitoring.h"
 
 #ifdef CALLGRIND_PROFILE
@@ -28,27 +27,25 @@ Stream::Stream(
   const ConfiguredSequence& configuration,
   const Allen::ScheduledSequence& sched_seq,
   const bool param_do_print_memory_manager,
-  const size_t reserve_mb,
+  const size_t reserve_mb_device,
+  const size_t reserve_mb_host,
   const unsigned required_memory_alignment,
-  const Constants& param_constants,
-  HostBuffersManager* buffers_manager) :
+  const Constants& param_constants) :
   stream_id {stream_id},
-  do_print_memory_manager {param_do_print_memory_manager}, host_buffers_manager {buffers_manager},
-  constants {param_constants}
+  do_print_memory_manager {param_do_print_memory_manager}, constants {param_constants}
 {
-  scheduler = new Scheduler {configuration, sched_seq, do_print_memory_manager, reserve_mb, required_memory_alignment};
+  scheduler = new Scheduler {
+    configuration, sched_seq, do_print_memory_manager, reserve_mb_device, reserve_mb_host, required_memory_alignment};
 
   // Initialize context
   m_context.initialize(stream_id);
 }
 
-Allen::error Stream::run(const unsigned buf_idx, const RuntimeOptions& runtime_options)
+Allen::error Stream::run(const RuntimeOptions& runtime_options)
 {
 #ifdef CALLGRIND_PROFILE
   CALLGRIND_START_INSTRUMENTATION;
 #endif
-
-  auto persistent_store = host_buffers_manager->get_persistent_store(buf_idx);
 
   // The sequence is only run if there are events to run on
   auto event_start = std::get<0>(runtime_options.event_interval);
@@ -59,14 +56,13 @@ Allen::error Stream::run(const unsigned buf_idx, const RuntimeOptions& runtime_o
     for (unsigned repetition = 0; repetition < runtime_options.number_of_repetitions; ++repetition) {
       // Free memory
       scheduler->free_all();
-      persistent_store->free_all();
 
       try {
         Allen::Monitoring::AccumulatorManager::get()->synchronizeStream(stream_id);
         // Visit all algorithms in configured sequence
-        scheduler->run(runtime_options, constants, persistent_store, m_context);
+        scheduler->run(runtime_options, constants, m_context);
 
-        // Synchronize device
+        // Synchronize stream
         Allen::synchronize(m_context);
         Allen::Monitoring::AccumulatorManager::get()->streamDone(stream_id);
       } catch (const MemoryException& e) {

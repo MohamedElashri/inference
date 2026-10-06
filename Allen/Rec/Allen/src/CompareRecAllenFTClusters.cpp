@@ -1,5 +1,5 @@
 /***************************************************************************** \
- * (c) Copyright 2000-2018 CERN for the benefit of the LHCb Collaboration      *
+ * (c) Copyright 2000-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -19,26 +19,83 @@
 #include "Event/FTLiteCluster.h"
 #include "FTDAQ/FTInfo.h"
 #include "Kernel/LHCbID.h"
-#include <Kernel/EventLocalAllocator.h>
 
 // Allen
 #include "SciFiEventModel.cuh"
-#include "Logger.h"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
-class CompareRecAllenFTClusters final : public Gaudi::Functional::Consumer<void(
-                                          const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-                                          const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-                                          const LHCb::FTLiteCluster::FTLiteClusters&)> {
+using AllenFTClusterIDs = std::vector<uint32_t>;
+
+// ==================================================================
+//  Multi-event converter: raw device buffers → per-event FT channel IDs
+//
+//  Offsets: N_events * (n_zones + 1) unsigned, flat-concatenated
+//  per-event zone-offset blocks.
+// ==================================================================
+
+class ConvertAllenFTClusters final
+  : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<AllenFTClusterIDs>(
+      const Allen::device_buffer<unsigned>&, // per-event-per-zone offsets
+      const Allen::device_buffer<char>&)> {  // raw SciFi hit data
 
 public:
-  /// Standard constructor
+  ConvertAllenFTClusters(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"scifi_offsets", ""}, KeyValue {"scifi_hits", ""}},
+      {KeyValue {"AllenFTClusterIDs", ""}})
+  {}
+
+  std::tuple<std::vector<AllenFTClusterIDs>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<unsigned>& dev_offsets,
+    const Allen::device_buffer<char>& dev_hits) const override
+  {
+    auto h_offsets = dev_offsets.to_host();
+    auto h_hits = dev_hits.to_host();
+
+    const unsigned n_zones = SciFi::Constants::n_zones;
+    const unsigned n_events = (h_offsets.size() - 1) / n_zones;
+    const unsigned n_hits_total = h_offsets[h_offsets.size() - 1];
+
+    SciFi::ConstHits all_hits {h_hits.data(), n_hits_total};
+
+    std::vector<AllenFTClusterIDs> all_events;
+    all_events.reserve(n_events);
+
+    for (unsigned evt = 0; evt < n_events; ++evt) {
+      const unsigned evt_off = evt * n_zones;
+      const unsigned begin = h_offsets[evt_off];
+      const unsigned end = h_offsets[evt_off + n_zones];
+
+      AllenFTClusterIDs ids;
+      ids.reserve(end - begin);
+      for (unsigned i = begin; i < end; ++i)
+        ids.push_back(all_hits.id(i));
+
+      all_events.emplace_back(std::move(ids));
+    }
+
+    return std::make_tuple(std::move(all_events));
+  }
+};
+
+DECLARE_COMPONENT(ConvertAllenFTClusters)
+
+// ==================================================================
+//  Single-event comparison: Allen FT IDs  vs  Rec FTLiteClusters
+// ==================================================================
+
+class CompareRecAllenFTClusters final
+  : public Gaudi::Functional::Consumer<void(const AllenFTClusterIDs&, const LHCb::FTLiteCluster::FTLiteClusters&)> {
+
+public:
   CompareRecAllenFTClusters(const std::string& name, ISvcLocator* pSvcLocator);
 
-  /// Algorithm execution
-  void operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-    const LHCb::FTLiteCluster::FTLiteClusters&) const override;
+  void operator()(const AllenFTClusterIDs& allen_ids, const LHCb::FTLiteCluster::FTLiteClusters& ft_lite_clusters)
+    const override;
 
 private:
   mutable Gaudi::Accumulators::Counter<> m_lonelyAllen {this, "onlyAllen hits"};
@@ -52,62 +109,50 @@ CompareRecAllenFTClusters::CompareRecAllenFTClusters(const std::string& name, IS
   Consumer(
     name,
     pSvcLocator,
-    {KeyValue {"scifi_offsets", ""},
-     KeyValue {"scifi_hits", ""},
-     KeyValue {"FTClusterLocation", LHCb::FTLiteClusterLocation::Default}})
+    {KeyValue {"AllenFTClusterIDs", ""}, KeyValue {"FTClusterLocation", LHCb::FTLiteClusterLocation::Default}})
 {}
 
 void CompareRecAllenFTClusters::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& scifi_offsets,
-  const std::vector<char, LHCb::Allocators::EventLocal<char>>& scifi_hits,
-  LHCb::FTLiteCluster::FTLiteClusters const& ft_lite_clusters) const
+  const AllenFTClusterIDs& allen_ids,
+  const LHCb::FTLiteCluster::FTLiteClusters& ft_lite_clusters) const
 {
-
-  // the goal is to compare SciFiChannelIDs of individual hits from data decoded with HLT1 and HLT2.
-  std::vector<uint32_t> scifi_ids_allen, scifi_ids_rec;
+  std::vector<uint32_t> scifi_ids_rec;
   std::vector<LHCb::Detector::FTChannelID> scifi_ft_channel_ids;
 
-  // read in offsets and hits from the buffer
-  const unsigned n_hits_total_allen = scifi_offsets[SciFi::Constants::n_zones];
-  SciFi::ConstHits scifi_hits_allensoa(scifi_hits.data(), n_hits_total_allen);
+  debug() << "Number of FT clusters (Allen) in this event " << allen_ids.size() << endmsg;
+  debug() << "Number of FT clusters (Rec) in this event   " << ft_lite_clusters.size() << endmsg;
 
-  const auto n_hits_total_rec = ft_lite_clusters.size();
-  debug() << "Number of FT clusters (Allen) in this event " << n_hits_total_allen << endmsg;
-  debug() << "Number of FT clusters (Rec) in this event   " << n_hits_total_rec << endmsg;
-
-  // HLT1: loop module pairs and fill hit container
-  for (unsigned i = scifi_offsets[0]; i < n_hits_total_allen; ++i)
-    scifi_ids_allen.emplace_back(scifi_hits_allensoa.id(i));
-
-  // HLT2: loop cluster hits and fill hit container
-  for (unsigned i {0}; i < LHCb::Detector::FT::nZonesTotal; ++i) {
-    for (int quarter = 0; quarter < 2; quarter++)
-      for (auto const& clus : ft_lite_clusters.range(i * 2 + quarter)) {
+  // Rec side: extract IDs
+  for (unsigned i = 0; i < LHCb::Detector::FT::nZonesTotal; ++i) {
+    for (int quarter = 0; quarter < 2; quarter++) {
+      for (const auto& clus : ft_lite_clusters.range(i * 2 + quarter)) {
         const auto ft_channel_id = clus.channelID();
         scifi_ft_channel_ids.push_back(ft_channel_id);
         scifi_ids_rec.emplace_back(LHCb::LHCbID {LHCb::LHCbID::channelIDtype::FT, ft_channel_id}.lhcbID());
       }
+    }
   }
 
-  for (const auto& cluster_id_allen : scifi_ids_allen) {
+  // Match Allen → Rec
+  for (const auto& id_allen : allen_ids) {
     auto tmp_iter =
-      std::remove_if(scifi_ids_rec.begin(), scifi_ids_rec.end(), [&cluster_id_allen](auto& cluster_id_rec) {
-        return cluster_id_rec == cluster_id_allen;
-      });
-    const auto n_hits_found = std::distance(tmp_iter, scifi_ids_rec.end());
+      std::remove_if(scifi_ids_rec.begin(), scifi_ids_rec.end(), [&](auto& id_rec) { return id_rec == id_allen; });
+    const auto n_found = std::distance(tmp_iter, scifi_ids_rec.end());
     scifi_ids_rec.erase(tmp_iter, scifi_ids_rec.end());
-    if (n_hits_found == 0) {
+
+    if (n_found == 0) {
       debug() << "Could not match this FT cluster decoded by Allen to a FT cluster decoded by Rec" << endmsg;
-      debug() << cluster_id_allen << endmsg;
+      debug() << id_allen << endmsg;
       ++m_lonelyAllen;
     }
-    else if (n_hits_found > 1) {
+    else if (n_found > 1) {
       debug() << "This FT cluster decoded by Allen has multiple FT clusters decoded by Rec" << endmsg;
-      debug() << cluster_id_allen << endmsg;
+      debug() << id_allen << endmsg;
       ++m_multipleAllen;
     }
   }
 
+  // Report lonely Rec hits
   for (const auto& cid : scifi_ft_channel_ids) {
     debug() << cid << " in Allen "
             << static_cast<unsigned>(
@@ -119,10 +164,8 @@ void CompareRecAllenFTClusters::operator()(
             << endmsg;
   }
 
-  if (!scifi_ids_rec.empty()) {
-    for (const auto& ft_cluster_rec : scifi_ids_rec) {
-      ++m_lonelyRec;
-      debug() << "Lonely Rec hit " << ft_cluster_rec << endmsg;
-    }
+  for (const auto& id_rec : scifi_ids_rec) {
+    ++m_lonelyRec;
+    debug() << "Lonely Rec hit " << id_rec << endmsg;
   }
 }

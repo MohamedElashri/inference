@@ -12,6 +12,7 @@
 #include <UTClusterAndPreDecode.cuh>
 #include <WarpIntrinsicsTools.cuh>
 #include <PrefixSum.cuh>
+#include "LHCbID.cuh"
 
 INSTANTIATE_ALGORITHM(ut_cluster_and_pre_decode::ut_cluster_and_pre_decode_t)
 

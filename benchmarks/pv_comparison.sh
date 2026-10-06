@@ -17,6 +17,8 @@
 #       [--set ALG.PROP=VALUE]... [--scan ALG.PROP=V1,V2,...]...
 #       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--sequence SEQ] [--no-record]
 #
+#   Defaults: Allen/build, BF16 best model and the accepted GPU work-list/grids.
+#   --fp32          use float32 in both stages and disable the GPU work list.
 #   --bf16          the BF16 path (precision = bfloat16 for the FC and the UNet),
 #                   as benchmark_pvfinder_batch.sh --use-bf16
 #   --set           one property for every point (VALUE read as JSON if it parses)
@@ -31,18 +33,24 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$REPO/benchmarks/defaults.sh"
 PY="${PY:-${REPO}/.venv/bin/python3}"
 MDF="${REPO}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${REPO}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
 SEQ=pvfinder_pv_validation
 
-LABEL="" MODEL=unet16_lc4_scnone_asym5_final BUILD=build16chL4finalgpu DEVICE=2 EVENTS=0 RECORD=1
-SETS=() SCANS=()
+LABEL="" MODEL=$PVF_MODEL BUILD=$PVF_BUILD_DIR DEVICE=$PVF_DEVICE EVENTS=0 RECORD=1
+SETS=(pvfinder_unet.precision=bfloat16 pvfinder_fc_aggregation.precision=bfloat16
+      pvfinder_fc_aggregation.gpu_work_list=true
+      "pvfinder_fc_aggregation.fused_grid_fraction=$PVF_FC_GRID_FRACTION"
+      "pvfinder_unet.fused_grid_fraction=$PVF_UNET_GRID_FRACTION")
+SCANS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --label) LABEL="$2"; shift 2 ;;
         --model) MODEL="$2"; shift 2 ;;
-        --bf16) SETS+=(pvfinder_unet.precision=bfloat16 pvfinder_fc_aggregation.precision=bfloat16); shift ;;
+        --fp32) SETS+=(pvfinder_unet.precision=float32 pvfinder_fc_aggregation.precision=float32 pvfinder_fc_aggregation.gpu_work_list=false); shift ;;
+        --bf16) SETS+=(pvfinder_unet.precision=bfloat16 pvfinder_fc_aggregation.precision=bfloat16 pvfinder_fc_aggregation.gpu_work_list=true); shift ;;
         --set) SETS+=("$2"); shift 2 ;;
         --scan) SCANS+=("$2"); shift 2 ;;
         -B|--build-dir) BUILD="$2"; shift 2 ;;
@@ -55,7 +63,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 [[ -n "${LABEL}" ]] || { echo "--label is required" >&2; exit 2; }
-B="${REPO}/Allen/${BUILD}"
+if [[ $BUILD == /* ]]; then
+    B="$BUILD"
+else
+    B="${REPO}/Allen/${BUILD}"
+fi
 [[ -x "${B}/Allen" ]] || { echo "no Allen binary in ${B}" >&2; exit 1; }
 MODEL_FILE="${REPO}/weights/out/${MODEL}/pvfinder_model.json"
 [[ -f "${MODEL_FILE}" ]] || { echo "missing ${MODEL_FILE}: make -C weights verify MODEL=${MODEL}" >&2; exit 1; }

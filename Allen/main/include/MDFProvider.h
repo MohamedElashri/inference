@@ -8,6 +8,12 @@
 * granted to it by virtue of its status as an Intergovernmental Organization  *
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
+
+// ----------------------------------------------------------------------------
+// Gaudi input-provider service reading MDF (or ROOT) files: prefetches raw
+// events, transposes them into per-bank-type slices and serves slices to Allen
+// through the get_slice/slice_free interface.
+// ----------------------------------------------------------------------------
 #pragma once
 
 #include <thread>
@@ -42,36 +48,16 @@
 
 #include <BackendCommon.h>
 
+#include "TransposeWorkers.h"
+#include "MDFPrefetch.h"
+#ifndef ALLEN_STANDALONE
+#include "ROOTPrefetch.h"
+#endif
+
 namespace {
   using namespace Allen::Units;
-
   using namespace std::string_literals;
 } // namespace
-
-/**
- * @brief      Configuration parameters for the MDFProvider
- *
- */
-struct MDFProviderConfig {
-  // check the MDF checksum if it is available
-  bool check_checksum = false;
-
-  // number of transpose threads
-  size_t n_transpose_threads = 5;
-
-  // maximum number of events per slice
-  size_t offsets_size = 10001;
-
-  // default of events per prefetch buffer
-  size_t events_per_buffer = 1200;
-
-  // number of loops over input data
-  size_t n_loops = 0;
-
-  bool split_by_run = false;
-
-  std::unordered_set<LHCb::Event::Enum::RawBank::BankType> skip_banks;
-};
 
 /**
  * @brief      Provide transposed events from MDF files
@@ -95,9 +81,160 @@ struct MDFProviderConfig {
  * @param      Configuration struct
  *
  */
-// template<BankTypes... Banks>
-// class MDFProvider final : public InputProvider<MDFProvider<Banks...>> {
+#ifndef ALLEN_STANDALONE
+#include <Gaudi/Parsers/Factory.h>
+#include <GaudiKernel/DataObjID.h>
+#include <GaudiKernel/DataObjectHandle.h>
+#include <GaudiKernel/Service.h>
+
+namespace Allen {
+  enum class InputFileType { MDF, ROOT };
+  std::string toString(InputFileType type);
+  std::ostream& toStream(InputFileType type, std::ostream& stream);
+  StatusCode parse(InputFileType& type, std::string_view input);
+} // namespace Allen
+
+namespace Gaudi::Parsers {
+  StatusCode parse(std::map<std::string, DataObjID>& m, std::string_view in)
+  {
+    m.clear();
+
+    // the first element is branchName and the second on is tesPath
+    std::map<std::string, std::string> ms;
+    return parse(ms, in).andThen([&m, &ms]() -> StatusCode {
+      try {
+        std::ranges::transform(ms, std::inserter(m, m.end()), [](const auto& p) {
+          DataObjID id;
+          parse(id, p.second).orThrow("bad parse");
+          return std::pair {p.first, id};
+        });
+        return StatusCode::SUCCESS;
+      } catch (GaudiException const& e) {
+        return e.code();
+      }
+    });
+  };
+} // namespace Gaudi::Parsers
+
+class MDFProvider final : public extends<Service, IInputProviderSvc> {
+public:
+  using extends::extends;
+
+  Gaudi::Property<size_t> m_nslices {this, "NSlices", 6};
+  Gaudi::Property<size_t> m_events_per_slice {this, "EventsPerSlice", 1000};
+  Gaudi::Property<std::vector<std::string>> m_connections {this, "Connections", {}, "List of .mdf files"};
+  Gaudi::Property<long> m_nevents {this, "EvtMax", -1};
+
+  std::unordered_set<BankTypes> m_bank_types;
+
+  Gaudi::Property<bool> m_check_checksum {this, "CheckChecksum", false, "verify MDF checksums"};
+  Gaudi::Property<size_t> m_n_transpose_threads {this, "TransposeThreads", 2, "number of transpose threads"};
+  Gaudi::Property<size_t> m_n_loops {this, "NLoops", 0, "number of loops over the input files"};
+  Gaudi::Property<bool> m_split_by_run {this, "SplitByRun", false, "Whether to split slices by run number"};
+  Gaudi::Property<bool> m_use_retina {this, "UseRetina", true, "Use Retina RawBanks instead of Super-pixels"};
+
+  Gaudi::Property<Allen::InputFileType> m_input_type {this, "InputType", Allen::InputFileType::MDF, "MDF or ROOT"};
+
+  Gaudi::Property<std::string> m_eventTreeName {
+    this,
+    "EventTreeName",
+    "Event",
+    "Name of the tree containing Events in the Root files"};
+  // The twin of m_eventBranchesMap, to ducoment the index of branches in other vectors
+  std::vector<std::pair<std::string, DataObjID>> m_eventBranches;
+  Gaudi::Property<std::map<std::string, DataObjID>> m_eventBranchesMap {
+    this,
+    "EventBranches",
+    {},
+    [this](auto const&) {
+      std::set<DataObjID> seen;
+      m_eventBranches.clear();
+      for (const auto& [branch, objID] : m_eventBranchesMap.value()) {
+        // check the condition of bijectective
+        // only allow one TES path used for one time in the memory
+        auto [it, inserted] = seen.insert(objID);
+        if (!inserted) {
+          throw GaudiException(
+            "Non-invertible EventBranchesMap detected: Branch " + branch, "RootIOAlgBase", StatusCode::FAILURE);
+        }
+
+        // create the twin of m_eventBranchesMap
+        m_eventBranches.emplace_back(branch, objID);
+      }
+      debug() << "Updated EventBranches: " << m_eventBranches.size() << " entries." << endmsg;
+    },
+    "Map branch property name -> TES location to be retrieved from the Root files"};
+
+  StatusCode initialize() override
+  {
+    auto sc = Service::initialize();
+    if (!sc.isSuccess()) return sc;
+
+    std::optional<size_t> n_events = std::nullopt;
+    if (m_nevents.value() >= 0) n_events = static_cast<size_t>(m_nevents.value());
+
+    m_bank_types = AllBankTypes; /// All banks
+
+    m_config = InputProviderConfig {
+      .check_checksum = m_check_checksum.value(), // verify MDF checksums
+      .n_slices = m_nslices,
+      .n_events = n_events,
+      .events_per_slice = m_events_per_slice,
+      .n_transpose_threads = m_n_transpose_threads,       // number of transpose threads
+      .events_per_buffer = (m_events_per_slice + 9) / 10, // number of events per read buffer
+      .n_loops = m_n_loops,                               // number of loops over the input files
+      .split_by_run = m_split_by_run.value(),             // Whether to split slices by run number
+      .use_ROOT_prefetcher = (m_input_type == Allen::InputFileType::ROOT),
+      .use_retina = m_use_retina.value()};
+
+    init_input(m_nslices, m_events_per_slice, m_bank_types, IInputProvider::Layout::Allen, n_events);
+    init();
+    return sc;
+  }
+
+  StatusCode finalize() override
+  {
+    // Stop and join the background prefetch and transpose threads. Gaudi
+    // services are finalized but not always destructed, so joining here avoids
+    // ThreadSanitizer reporting these threads as leaked.
+    m_prefetch_thread.reset();
+    m_transpose_workers.reset();
+    m_buffer_pool.reset();
+    return Service::finalize();
+  }
+
+  std::vector<DataObject*> getEventBranches(size_t const slice_index, unsigned const event) const override
+  {
+    auto& slice = m_transpose_workers->slice(slice_index);
+    return slice.batch.branches[event];
+  }
+
+  LHCb::RawEvent getRawEvent(size_t const slice_index, unsigned const event) const override
+  {
+    auto& slice = m_transpose_workers->slice(slice_index);
+    LHCb::RawEvent raw_event; // RawEvent don't have a copy constructor, so copy manually:
+    for (LHCb::RawBank const* bank : slice.batch.events[event].banks()) {
+      raw_event.adoptBank(bank, false);
+    }
+    return raw_event;
+  }
+
+  LHCb::IO::InputFileManifest getInputFileManifest(size_t const slice_index, unsigned const event) const override
+  {
+    if (m_input_type != Allen::InputFileType::ROOT) return IInputProviderSvc::getInputFileManifest(slice_index, event);
+    return m_transpose_workers->slice(slice_index).batch.input_file_manifests.at(event);
+  }
+
+  LHCb::ODIN getODIN(size_t const slice_index) const override
+  {
+    return m_transpose_workers->slice(slice_index).batch.odin_data[0];
+  }
+
+#else
 class MDFProvider final : public InputProvider {
+  // File names to read
+  std::vector<std::string> m_connections;
+
 public:
   MDFProvider(
     size_t n_slices,
@@ -105,12 +242,18 @@ public:
     std::optional<size_t> n_events,
     std::vector<std::string> connections,
     std::unordered_set<BankTypes> const& bank_types,
-    MDFProviderConfig config);
+    InputProviderConfig config) :
+    m_connections {std::move(connections)},
+    m_config {config}
+  {
+    init_input(n_slices, events_per_slice, bank_types, IInputProvider::Layout::Allen, n_events);
+    init();
+  }
+#endif
 
-  /// Destructor
-  virtual ~MDFProvider();
+  void init();
 
-  bool release_buffers() override;
+  void startPrefetcher() const override { m_prefetch_thread->start(); }
 
   /**
    * @brief      Obtain event IDs of events stored in a given slice
@@ -159,115 +302,18 @@ public:
    */
   void slice_free(size_t slice_index) override;
 
-  std::span<char const> raw_banks(Allen::ReadBuffer const& buffer, size_t const read_event_start, size_t const event)
-    const;
-
   void event_sizes(
     size_t const slice_index,
     std::span<unsigned int const> const selected_events,
-    std::vector<size_t>& sizes) const override;
+    std::span<size_t> sizes) const override;
 
   void copy_banks(size_t const slice_index, unsigned int const event, std::span<char> output_buffer) const override;
 
 private:
-  size_t count_writable() const;
-
-  /**
-   * @brief      Function to run in each thread transposing events
-   *
-   * @param      thread ID
-   *
-   * @return     void
-   */
-  void transpose(int thread_id);
-  /**
-   * @brief      Open an input file; called from the prefetch thread
-   *
-   * @return     (success, is_mc)
-   */
-  bool open_file() const;
-  /**
-   * @brief      Function to steer prefetching of events; run on separate
-   *             thread
-   *
-   * @return     void
-   */
-  void prefetch();
-
-  // Memory buffers to read binary data into from the file
-  mutable Allen::ReadBuffers m_buffers;
-
-  // data members for prefetch thread
-  std::mutex m_prefetch_mut;
-  std::condition_variable m_prefetch_cond;
-  std::deque<size_t> m_prefetched;
-  std::vector<BufferStatus> m_buffer_status;
-  std::unique_ptr<std::thread> m_prefetch_thread;
-
-  // Atomics to flag errors and completion
-  std::atomic<bool> m_done = false;
-  mutable std::atomic<bool> m_read_error = false;
-  std::atomic<bool> m_transpose_done = false;
-
-  // Buffer to store data read from file if banks are compressed. The
-  // decompressed data will be written to the buffers
-  mutable std::vector<char> m_compress_buffer;
-
-  // Storage to read the header into for each event
-  mutable LHCb::MDFHeader m_header;
-
-  // Memory slices, N for each raw bank type
-  Allen::Slices m_slices;
-  std::vector<std::vector<char>> m_masks;
-  std::vector<LHCb::ODIN> m_odins;
-
-  struct SliceToBuffer {
-    int buffer_index;
-    size_t buffer_event_start;
-  };
-  std::vector<SliceToBuffer> m_slice_to_buffer;
-
-  // Array to store the version of banks per bank type
-  mutable std::vector<std::array<int, NBankTypes>> m_banks_version;
-
-  // Mutex, condition varaible and queue for parallel transposition of slices
-  std::mutex m_transpose_mut;
-  std::condition_variable m_transpose_cond;
-  std::deque<std::tuple<size_t, size_t>> m_transposed;
-
-  // Keep track of what slices are free
-  std::mutex m_slice_mut;
-  std::condition_variable m_slice_cond;
-  std::vector<bool> m_slice_free;
-
-  // Threads transposing data
-  std::vector<std::thread> m_transpose_threads;
-
-  // Array to store the number of banks per subdetector
-  mutable std::array<unsigned int, NBankTypes> m_mfp_count;
-  mutable bool m_sizes_known = false;
-
-  std::optional<bool> m_is_mc = std::nullopt;
-
-  Allen::sd_from_raw_bank m_sd_from_raw;
-
-  Allen::bank_sorter m_bank_sorter;
-
-  // Run and event numbers present in each slice
-  std::vector<EventIDs> m_event_ids;
-
-  // File names to read
-  std::vector<std::string> m_connections;
-
-  // Storage for the currently open file
-  mutable std::optional<Allen::IO> m_input = std::nullopt;
-
-  // Iterator that points to the filename of the currently open file
-  mutable std::vector<std::string>::const_iterator m_current;
-
-  // Input data loop counter
-  mutable size_t m_loop = 0;
-
   // Configuration struct
-  MDFProviderConfig m_config;
+  InputProviderConfig m_config;
+
+  std::unique_ptr<Allen::BufferPool<Allen::ReadBuffer>> m_buffer_pool {nullptr};
+  std::unique_ptr<Allen::TransposeWorkers> m_transpose_workers {nullptr};
+  std::unique_ptr<Allen::FilePrefetcher> m_prefetch_thread {nullptr};
 };

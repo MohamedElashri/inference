@@ -10,6 +10,7 @@
 \*****************************************************************************/
 #include <UTDecodingDecodeClusters.cuh>
 #include <PrefixSum.cuh>
+#include "LHCbID.cuh"
 
 INSTANTIATE_ALGORITHM(ut_decoding_decode_clusters::ut_decoding_decode_clusters_t)
 

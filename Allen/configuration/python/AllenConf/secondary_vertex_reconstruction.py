@@ -11,6 +11,7 @@
 from AllenCore.algorithms import (
     calc_max_combos_t,
     combine_sv_track_t,
+    empty_lepton_id_t,
     extrapolate_states_t,
     filter_sv_track_t,
     filter_svs_t,
@@ -32,7 +33,14 @@ from AllenConf.utils import initialize_number_of_events
 from AllenConf.velo_reconstruction import run_velo_kalman_filter
 
 
-def make_kalman_long(long_tracks, pvs, is_muon_result, is_electron_result=None):
+def make_kalman_long(
+    long_tracks,
+    pvs,
+    is_muon_result,
+    is_electron_result=None,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
+):
     number_of_events = initialize_number_of_events()
 
     kalman = make_algorithm(
@@ -51,6 +59,8 @@ def make_kalman_long(long_tracks, pvs, is_muon_result, is_electron_result=None):
         dev_multi_final_vertices_t=pvs["dev_multi_final_vertices"],
         dev_number_of_multi_final_vertices_t=pvs["dev_number_of_multi_final_vertices"],
         dev_is_muon_t=is_muon_result["dev_is_muon"],
+        outlier_chi2_threshold=outlier_chi2_threshold,
+        max_outlier_iterations=max_outlier_iterations,
     )
 
     return {
@@ -179,6 +189,7 @@ def make_basic_particles(
         dev_lepton_id_t=lepton_id,
     )
     return {
+        "long_tracks": long_tracks,
         "dev_basic_particle": make_long_track_particles.dev_long_track_particle_view_t,
         "dev_multi_event_basic_particles": make_long_track_particles.dev_multi_event_basic_particles_view_t,
         "dev_multi_event_container_basic_particles": make_long_track_particles.dev_multi_event_container_basic_particles_t,

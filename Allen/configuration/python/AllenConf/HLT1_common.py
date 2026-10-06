@@ -10,10 +10,11 @@
 ###############################################################################
 import itertools
 
+from AllenCore.configuration_options import is_allen_standalone
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
-from AllenConf.enum_types import TrackingType, includes_matching
+from AllenConf.enum_types import TrackingType
 from AllenConf.filtermanager import *
 from AllenConf.hlt1_calibration_lines import *
 from AllenConf.hlt1_monitoring_lines import *
@@ -22,7 +23,6 @@ from AllenConf.hlt1_presets import *
 from AllenConf.hlt1_reconstruction import (
     hlt1_reconstruction,
     make_dq_node,
-    validator_node,
 )
 from AllenConf.lumi_reconstruction import lumi_reconstruction
 from AllenConf.odin import make_bxtype, make_event_type, make_odin_orbit
@@ -912,7 +912,7 @@ def add_optional_features(
             force_order=False,
         )
 
-    if enableRateValidator:
+    if enableRateValidator and not is_allen_standalone():
         hlt1_node = CompositeNode(
             "AllenRateValidation",
             [
@@ -946,7 +946,6 @@ def setup_hlt1_base(
     with_lumi: bool = True,
     with_rich: bool = False,
     enableRateValidator: bool = True,
-    withMCChecking: bool = False,
     tracking_type=None,
     with_ut: bool = True,
     with_muon: bool = True,
@@ -1029,29 +1028,6 @@ def setup_hlt1_base(
         **kwargs,
     )
 
-    if not withMCChecking:
-        hlt1_config["control_flow_node"] = hlt1_node
-    else:
-        validation_node = validator_node(
-            reconstructed_objects,
-            line_algorithms,
-            includes_matching(tracking_type),
-            with_ut,
-            with_muon,
-            with_rich,
-            with_AC_split,
-            with_fullKF,
-            with_downstream_KF,
-            filter_manager.get_prefilter_set("default"),
-        )
-        hlt1_config["validator_node"] = validation_node
-
-        node = CompositeNode(
-            "AllenWithValidators",
-            [hlt1_node, validation_node],
-            NodeLogic.NONLAZY_AND,
-            force_order=False,
-        )
-        hlt1_config["control_flow_node"] = node
+    hlt1_config["control_flow_node"] = hlt1_node
 
     return hlt1_config

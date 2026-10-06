@@ -196,6 +196,20 @@ public:
 
 __device__ inline float signselect(const float& s, const float& a, const float& b) { return (s > 0) ? a : b; }
 
+// Correctly-rounded fused multiply-add. Maps to the hardware FMA on CUDA/HIP
+// and to std::fmaf on the host. Writing `a * b + c` directly lets the compiler
+// choose which product to contract, which can break the bit-for-bit symmetry
+// of mathematically symmetric expressions (e.g. DOCA/POCA of a track pair);
+// using this explicitly pins the contraction pattern.
+__host__ __device__ inline float fma_rn(const float a, const float b, const float c)
+{
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+  return __fmaf_rn(a, b, c);
+#else
+  return std::fmaf(a, b, c);
+#endif
+}
+
 __device__ inline auto compress_float_to_16_bits(const float f)
 {
 #if defined(TARGET_DEVICE_CPU)

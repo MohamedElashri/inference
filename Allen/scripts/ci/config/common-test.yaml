@@ -10,39 +10,6 @@
 ###############################################################################
 
 
-.test_physics_efficiency:
-  extends:
-    - .base_job
-    - .default_rules
-  variables:
-    TEST_NAME: "test_physics_efficiency"
-
-  parallel:
-    matrix:
-      - SEQUENCE: "hlt1_pp_validation"
-
-  artifacts:
-    expire_in: 2 hours
-    when: always
-    paths:
-      - ./run_physics_efficiency_output_*/efficiency_*
-      - ./generated_reference_files/*
-      - update-references.patch
-
-  tags: [cvmfs]
-
-
-.test_run_changes:
-  extends:
-    - .base_job
-    - .default_rules
-  variables:
-    TEST_NAME: "test_run_changes"
-  parallel:
-    matrix:
-      - SEQUENCE: "hlt1_pp_validation"
-
-
 .publish_test_throughput:
   stage: publish
   extends:

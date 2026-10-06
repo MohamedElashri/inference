@@ -18,7 +18,15 @@ application
 
 include(GenerateConfiguration)
 
-file(GLOB ALLEN_WRAPPER_SOURCES "src/*.cpp")
+file(GLOB ALLEN_WRAPPER_SOURCES "src/*.cpp" "src/*.cu")
+
+if(TARGET_DEVICE STREQUAL "CPU")
+  foreach(arg IN LISTS ALLEN_WRAPPER_SOURCES)
+  if(${arg} MATCHES "\\.cu$")
+      set_source_files_properties(${arg} PROPERTIES LANGUAGE CXX)
+  endif()
+  endforeach()
+endif()
 
 gaudi_add_module(AllenWrapper
                  SOURCES
@@ -29,6 +37,8 @@ gaudi_add_module(AllenWrapper
                    EventModel
                    HostEventModel
                    Stream
+                   mdf
+                   Configuration
 
                    Gaudi::GaudiAlgLib
                    LHCb::DAQEventLib
@@ -40,8 +50,11 @@ gaudi_add_module(AllenWrapper
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MCEvent
+                   LHCb::PhysEvent
                    LHCb::RecEvent
                    LHCb::RichFutureUtils
+                   LHCb::HLTSchedulerLib
+                   LHCb::IOAlgorithmsLib
                    Rec::RichFutureRecEvent
                    Rec::PrKernel)
 
@@ -68,6 +81,7 @@ gaudi_add_module(AllenAlgorithms
                    LHCb::CaloDetLib
                    LHCb::FTDetLib
                    LHCb::MCEvent
+                   Rec::RichFutureRecEvent
                    Rec::PrKernel)
 
 add_custom_target(gaudi_wrappers_of_allen_algorithms DEPENDS ${ALLEN_ALGORITHM_LIB})
@@ -79,7 +93,20 @@ target_compile_options(AllenAlgorithms PRIVATE -Wno-c++20-extensions)
 
 gaudi_install(PYTHON)
 
+# Expose the generated module alongside Gaudi's build-tree package wrapper.
+# PROJECT_BINARY_DIR is Allen's build directory, also in a monobuild.
+file(CREATE_LINK
+    "${PROJECT_BINARY_DIR}/code_generation/sequences/AllenAlgorithms/allen_standalone_algorithms.py"
+    "${CMAKE_BINARY_DIR}/python/AllenAlgorithms/allen_standalone_algorithms.py"
+    SYMBOLIC)
+
 gaudi_add_pytest(tests/pytest)
+
+gaudi_add_executable(test_input_file_manifest
+    SOURCES tests/src/test_input_file_manifest.cpp
+    LINK Boost::unit_test_framework Boost::thread AllenLib mdf Backend EventModel LHCb::IOAlgorithmsLib
+    TEST
+)
 
 gaudi_add_executable(test_mass_definitions
     SOURCES

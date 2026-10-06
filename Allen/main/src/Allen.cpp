@@ -37,6 +37,7 @@
 #include <tuple>
 #include <stdio.h>
 #include <filesystem>
+#include <queue>
 
 #include <ZeroMQ/IZeroMQSvc.h>
 #include <zmq_compat.h>
@@ -51,8 +52,6 @@
 #include "Timer.h"
 #include "Constants.cuh"
 #include "MuonDefinitions.cuh"
-#include "CheckerInvoker.h"
-#include "HostBuffersManager.cuh"
 #include "FileWriter.h"
 #include "ZMQOutputSender.h"
 #include "Stream.h"
@@ -63,9 +62,11 @@
 #include <tuple>
 #include "Provider.h"
 #include "ROOTService.h"
+#include "SingleEventPassthrough.cuh"
 
 #include "AllenMonitoring.h"
 #include "MVAModelsManager.h"
+#include "OutputManager.h"
 #include "MonitoringPrinter.h"
 #include "ServiceLocator.h"
 
@@ -74,10 +75,7 @@
 #include <TCK.h>
 #endif
 
-namespace {
-  enum class SliceStatus { Empty, Filling, Filled, Processing, Processed, Writing, Written };
-  using namespace zmq;
-} // namespace
+using namespace zmq;
 
 /**
  * @brief      Main entry point
@@ -102,7 +100,6 @@ int allen(
   std::string folder_parameters = "";
 
   unsigned n_slices = 0;
-  unsigned number_of_buffers = 0;
   unsigned number_of_threads = 1;
   unsigned n_repetitions = 1;
   unsigned verbosity = 3;
@@ -117,12 +114,12 @@ int allen(
   std::string file_list;
   bool print_config = 0;
   bool print_status = 0;
-  uint inject_mem_fail = 0;
+  unsigned int inject_mem_fail = 0;
   std::string mon_filename;
   bool disable_run_changes = 0;
   bool prefer_shared = false;
 
-  size_t const n_write = output_handler != nullptr ? output_handler->n_threads() : 1;
+  size_t const n_write = 1;
   size_t const n_io = n_input + n_write;
 
   std::string flag, arg;
@@ -214,6 +211,11 @@ int allen(
   std::cout << std::fixed << std::setprecision(6);
   logger::setVerbosity(verbosity);
 
+  if (n_repetitions > 1 && output_handler != nullptr) {
+    std::cout << "Using an output_handler, forcing n_repetitions to 1." << std::endl;
+    n_repetitions = 1;
+  }
+
   auto io_conf = Allen::io_configuration(n_slices, n_repetitions, number_of_threads);
 
   Allen::set_environment(number_of_threads);
@@ -226,8 +228,6 @@ int allen(
 
   // Show call options
   print_call_options(options, device_name);
-
-  number_of_buffers = number_of_threads + 1;
 
   // items for 0MQ to poll
   std::vector<zmq::pollitem_t> items;
@@ -309,18 +309,6 @@ int allen(
 
   auto const& configuration = config_reader.params();
 
-  // create host buffers
-  std::unique_ptr<HostBuffersManager> buffers_manager =
-    std::make_unique<HostBuffersManager>(number_of_buffers, reserve_host_mb, configuration);
-
-#ifndef ALLEN_STANDALONE
-  buffers_manager->activateMonitoring(monSvc);
-#endif
-
-  if (print_status) {
-    buffers_manager->printStatus();
-  }
-
   auto root_service = std::make_unique<ROOTService>(mon_filename);
 
   // Notify used memory if requested verbose mode
@@ -340,6 +328,9 @@ int allen(
   Allen::MVAModels::MVAModelsManager::get()->loadData(folder_parameters.c_str());
   sched_seq.initialize_algorithms();
 
+  // Start the prefetch thread once all algorithms are initialized.
+  input_provider->startPrefetcher();
+
   std::vector<std::unique_ptr<Stream>> streams;
   for (unsigned t = 0; t < number_of_threads; ++t) {
     streams.emplace_back(new Stream {
@@ -348,9 +339,9 @@ int allen(
       sched_seq,
       print_memory_usage,
       reserve_mb,
+      reserve_host_mb,
       device_memory_alignment,
-      constants,
-      buffers_manager.get()});
+      constants});
   }
 
   // Print configured sequence
@@ -358,6 +349,15 @@ int allen(
 
   // Init monitoring
   Allen::Monitoring::AccumulatorManager::get()->initAccumulators(number_of_threads);
+
+  // Init Output Manager
+  OutputManager::get()->init(
+    number_of_threads + 1, 100 * 1024 * 1024); // 100MB ring buffer / stream TODO: make it configurable
+  // one producer per thread + 1 for the main thread, used for passthrough
+  SingleEventPassthrough single_event_passthrough {configuration};
+#ifndef ALLEN_STANDALONE
+  single_event_passthrough.activateMonitoring(monSvc);
+#endif
 
   // Interrogate stream configured sequence for validation algorithms
   const auto sequence_contains_validation_algorithms = streams.front()->contains_validation_algorithms();
@@ -383,8 +383,6 @@ int allen(
     }
   }
 
-  auto checker_invoker = std::make_unique<CheckerInvoker>();
-
   // Lambda with the execution of a thread-stream pair
   const auto stream_thread = [&](unsigned thread_id, unsigned stream_id) {
     // The InputProvider in RuntimeOptions is a shared_ptr to sort out
@@ -399,7 +397,6 @@ int allen(
       streams[stream_id].get(),
       std::move(provider),
       zmqSvc,
-      checker_invoker.get(),
       root_service.get(),
       io_conf.number_of_repetitions,
       input_provider->layout() == IInputProvider::Layout::MEP,
@@ -415,7 +412,7 @@ int allen(
 
   // Lambda with the execution of the output thread
   const auto output_thread = [&](unsigned thread_id, unsigned output_id) {
-    return std::thread {run_output, thread_id, output_id, zmqSvc, output_handler, buffers_manager.get()};
+    return std::thread {run_output, thread_id, output_id, zmqSvc, output_handler};
   };
 
 #ifndef ALLEN_STANDALONE
@@ -519,29 +516,19 @@ int allen(
     }
   }
 
-  // keep track of what the status of slices is
-  // allow slices to be sub-divided if necessary
-  // key of map corresponds to the first entry in a sub-slice
-  std::vector<std::map<size_t, SliceStatus>> input_slice_status(
-    io_conf.number_of_slices, std::map<size_t, SliceStatus> {{0, SliceStatus::Empty}});
-  std::vector<std::map<size_t, size_t>> events_in_slice(io_conf.number_of_slices, std::map<size_t, size_t> {{0, 0}});
-
-  auto count_status = [&input_slice_status](SliceStatus const status) {
-    return std::accumulate(
-      input_slice_status.begin(), input_slice_status.end(), 0ul, [status](size_t s, auto const stat) {
-        return s + (stat.at(0) == status);
-      });
+  // keep track of slice usage
+  std::vector<unsigned> slice_reference_count(io_conf.number_of_slices, 0);
+  auto all_slices_processed = [&slice_reference_count]() -> bool {
+    return std::all_of(
+      slice_reference_count.begin(), slice_reference_count.end(), [](unsigned count) { return count == 0; });
   };
 
   // counters for bookkeeping
-  size_t prev_processor = 0;
   long n_events_read = 0;
   long n_events_processed = 0, n_events_measured = 0;
   size_t throughput_start = 0;
   std::optional<size_t> throughput_processed;
   size_t slices_processed = 0;
-  std::optional<size_t> slice_index;
-  std::optional<size_t> buffer_index;
 
   size_t n_events_output = 0, n_output_measured = 0;
 
@@ -563,15 +550,13 @@ int allen(
     debug_cout << "Failed to create or bind throughput socket " << e.what() << "\n";
   }
 
-  // queues of slice/buffer pairs to write out
-  // and sub-slices to be resubmitted
-  std::queue<std::tuple<size_t, size_t, size_t>> write_queue;
-  std::queue<std::tuple<size_t, size_t, size_t>> sub_slice_queue;
+  // queues of slices to be submitted for processing (slice_index, first_event, last_event)
+  std::queue<std::tuple<size_t, size_t, size_t>> slice_queue;
 
   // track run changes
   std::optional<LHCb::ODIN> next_odin;
   bool run_change = false;
-  uint current_run_number = 0;
+  unsigned int current_run_number = 0;
 
   // Lambda to check if any event processors are done processing
   auto check_processors = [&]() {
@@ -585,7 +570,6 @@ int allen(
           auto slice_index = zmqSvc->receive<size_t>(socket);
           auto first_event = zmqSvc->receive<size_t>(socket);
           auto last_event = zmqSvc->receive<size_t>(socket);
-          auto buffer_index = zmqSvc->receive<size_t>(socket);
           stream_ready[i] = true;
 
           // if we failed to process a single event then pass through
@@ -593,32 +577,32 @@ int allen(
             // for bookkeeping purposes we'll call this a single event and slice processed
             ++n_events_processed;
             ++slices_processed;
-            write_queue.push(std::make_tuple(slice_index, first_event, buffer_index));
-            input_slice_status[slice_index][first_event] = SliceStatus::Processed;
-            // this also marks the buffer as filled
-            buffers_manager->writeSingleEventPassthrough(buffer_index);
+
+            single_event_passthrough.write(slice_index, first_event, input_provider);
+
+            slice_reference_count[slice_index]--;
+            // if nobody else is using this slice, free it
+            if (io_conf.async_io && slice_reference_count[slice_index] == 0) {
+              input_provider->slice_free(slice_index);
+            }
           }
           else {
             // Split slice and add sub-slices to the queue for processing
             size_t mid_event = (first_event + last_event) / 2;
-            input_slice_status[slice_index][first_event] = SliceStatus::Filled;
-            input_slice_status[slice_index][mid_event] = SliceStatus::Filled;
-            events_in_slice[slice_index][first_event] = mid_event - first_event;
-            events_in_slice[slice_index][mid_event] = last_event - mid_event;
-            sub_slice_queue.push({slice_index, first_event, mid_event});
-            sub_slice_queue.push({slice_index, mid_event, last_event});
-
-            // Release the buffer to be used again
-            buffers_manager->returnBufferUnfilled(buffer_index);
+            slice_reference_count[slice_index]++; // deallocate one, allocate two
+            slice_queue.push({slice_index, first_event, mid_event});
+            slice_queue.push({slice_index, mid_event, last_event});
           }
         }
         else {
           assert(msg == "PROCESSED");
           auto slice_index = zmqSvc->receive<size_t>(socket);
           auto first_event = zmqSvc->receive<size_t>(socket);
-          auto buffer_index = zmqSvc->receive<size_t>(socket);
-          n_events_processed += events_in_slice[slice_index][first_event];
-          n_events_measured += events_in_slice[slice_index][first_event];
+          auto last_event = zmqSvc->receive<size_t>(socket);
+          auto n_processed = last_event - first_event;
+          n_events_processed += n_processed;
+          n_events_measured += n_processed;
+
           ++slices_processed;
           stream_ready[i] = true;
 
@@ -655,11 +639,11 @@ int allen(
             }
           }
 
-          // Add the slice and buffer to the queue for output
-          write_queue.push(std::make_tuple(slice_index, first_event, buffer_index));
-
-          input_slice_status[slice_index][first_event] = SliceStatus::Processed;
-          buffers_manager->returnBufferFilled(buffer_index);
+          slice_reference_count[slice_index]--;
+          // if nobody else is using this slice, free it
+          if (io_conf.async_io && slice_reference_count[slice_index] == 0) {
+            input_provider->slice_free(slice_index);
+          }
         }
       }
     }
@@ -691,38 +675,17 @@ int allen(
   std::optional<Timer> t_stop;
   float stop_timeout = 5.f;
 
-  // Iterator to the first writer thread
-  auto writer_it = io_workers.begin() + n_input;
-
-  // Get a writer thread in round-robin fashion
-  auto get_writer = [&writer_it, &io_workers, n_input = n_input, n_write]() -> zmq::socket_t& {
-    if (n_write == 1) {
-      return std::get<1>(*writer_it);
-    }
-    else {
-      auto it = writer_it;
-      ++writer_it;
-      if (writer_it == io_workers.end()) {
-        writer_it = io_workers.begin() + n_input;
-      }
-      return std::get<1>(*it);
-    }
-  };
-
   // Main event loop
-  // - Check if input slices are available from the input thread
-  // - Distribute new input slices to stream_threads as soon as they arrive
-  //   in a round-robin fashion
-  // - If any slices failed to process then distribute the split sub-slices
-  //   to stream_threads for processing
-  // - Check if any stream_threads are done with a slice and mark it to be written out
-  // - Send any processed slice+buffer pairs to I/O for writing
-  // - Also send host buffers to monitoring thread
+  // - Check if input slices are available from the input thread and push them to the slice queue
+  // - Distribute queued slices to available stream_threads
+  // - If any slices failed to process then push sub-slices to the slice queue
+  // - Check if any stream_threads are done and mark them as ready
   // - Check if the loop should exit
   //
-  // NOTE: special behaviour is implemented for testing without asynch
+  // NOTE: special behaviour is implemented for testing without async
   // I/O and with repetitions. In this case, a single slice is
   // distributed to all stream_threads once.
+  // duplicated n_threads time.
   while (error_count == 0) {
 
     // Wait for messages to come in from the I/O, monitoring or stream threads
@@ -732,9 +695,7 @@ int allen(
     if (run_change) {
       if (next_odin) {
         // Only process the run change once all GPU stream_threads have finished
-        if (
-          stream_ready.count() == number_of_threads &&
-          (count_status(SliceStatus::Empty) + count_status(SliceStatus::Processed)) == io_conf.number_of_slices) {
+        if (stream_ready.count() == number_of_threads && all_slices_processed()) {
           debug_cout << "Run number changing from " << current_run_number << " to " << next_odin->runNumber()
                      << std::endl;
 
@@ -795,7 +756,7 @@ int allen(
       }
     }
 
-    // Check if input slices are ready or events have been written
+    // Check if input slices are ready
     auto const io_start = run_change ? n_input : 0;
     for (size_t i = io_start; i < n_io; ++i) {
       if (items[number_of_threads + i].revents & zmq::POLLIN) {
@@ -803,13 +764,13 @@ int allen(
         auto msg = zmqSvc->receive<std::string>(socket);
 
         if (msg == "SLICE") {
-          slice_index = zmqSvc->receive<size_t>(socket);
+          auto slice_index = zmqSvc->receive<size_t>(socket);
           auto n_filled = zmqSvc->receive<size_t>(socket);
 
           // Check once that raw banks with MC information are available if MC check is requested
           if (n_events_read == 0 && sequence_contains_validation_algorithms) {
-            auto bno_pvs = input_provider->banks(BankTypes::MCVertices, *slice_index);
-            auto bno_tracks = input_provider->banks(BankTypes::MCTracks, *slice_index);
+            auto bno_pvs = input_provider->banks(BankTypes::MCVertices, slice_index);
+            auto bno_tracks = input_provider->banks(BankTypes::MCTracks, slice_index);
             if (bno_pvs.offsets.size() == 1 || bno_tracks.offsets.size() == 1) {
               error_cout << "No raw bank containing MC information found in input file" << std::endl;
               ++error_count;
@@ -826,9 +787,15 @@ int allen(
             t = Timer {};
             previous_time_measurement = t->get_elapsed_time();
           }
-          input_slice_status[*slice_index][0] = SliceStatus::Filled;
-          events_in_slice[*slice_index][0] = n_filled;
           n_events_read += n_filled;
+
+          // Send the slice to the next processor; when async
+          // I/O is disabled send the slice(s) to all stream_threads
+          for (unsigned i = 0; i < (io_conf.async_io ? 1 : number_of_threads); ++i) {
+            slice_reference_count[slice_index]++;
+            slice_queue.push({slice_index, size_t(0), n_filled});
+          }
+
           // If we have a slice we must send it for processing before polling remaining I/O threads
           break;
         }
@@ -847,9 +814,6 @@ int allen(
           }
         }
         else if (msg == "WRITTEN") {
-          auto slc_idx = zmqSvc->receive<size_t>(socket);
-          auto first_evt = zmqSvc->receive<size_t>(socket);
-          auto buf_idx = zmqSvc->receive<size_t>(socket);
           auto success = zmqSvc->receive<bool>(socket);
           auto n_written = zmqSvc->receive<size_t>(socket);
           n_events_output += n_written;
@@ -857,25 +821,6 @@ int allen(
           if (!success) {
             error_cout << "Failed to write output events.\n";
           }
-          input_slice_status[slc_idx][first_evt] = SliceStatus::Written;
-
-          // check to see if any parts of this slice still need to be written
-          bool slice_finished(true);
-          for (auto const& [k, v] : input_slice_status[slc_idx]) {
-            if (v != SliceStatus::Written) {
-              slice_finished = false;
-              break;
-            }
-          }
-          if (io_conf.async_io && slice_finished) {
-            input_slice_status[slc_idx].clear();
-            input_slice_status[slc_idx][0] = SliceStatus::Empty;
-            input_provider->slice_free(slc_idx);
-            events_in_slice[slc_idx].clear();
-            events_in_slice[slc_idx][0] = 0;
-          }
-
-          buffers_manager->returnBufferWritten(buf_idx);
         }
         else if (msg == "DONE") {
           if (!io_done) {
@@ -893,77 +838,28 @@ int allen(
       }
     }
 
-    // If there is a slice, send it to the next processor; when async
-    // I/O is disabled send the slice(s) to all stream_threads
-    if (slice_index) {
-      bool first = true;
-      while ((io_conf.async_io && first) || (!io_conf.async_io && stream_ready.count())) {
-        first = false;
-        size_t processor_index = prev_processor++;
-        if (prev_processor == number_of_threads) {
-          prev_processor = 0;
-        }
-        // send message to processor to process the slice
-        if (io_conf.async_io) {
-          input_slice_status[*slice_index][0] = SliceStatus::Processing;
-        }
-        buffer_index = std::optional<size_t> {buffers_manager->assignBufferToFill()};
-        auto& socket = std::get<1>(stream_threads[processor_index]);
-        zmqSvc->send(socket, "PROCESS", send_flags::sndmore);
-        zmqSvc->send(socket, *slice_index, send_flags::sndmore);
-        zmqSvc->send(socket, size_t(0), send_flags::sndmore);
-        zmqSvc->send(socket, events_in_slice[*slice_index][0], send_flags::sndmore);
-        zmqSvc->send(socket, *buffer_index);
-        stream_ready[processor_index] = false;
-
-        if (logger::verbosity() >= logger::debug) {
-          debug_cout << "Submitted " << std::setw(5) << events_in_slice[*slice_index][0] << " events in slice "
-                     << std::setw(2) << *slice_index << " to stream " << std::setw(2) << processor_index << "\n";
-        }
-      }
-      slice_index.reset();
-    }
-
     // Check if any processors are ready
     check_processors();
 
-    // Check if any sub-slices have been queued for processing
-    while (!sub_slice_queue.empty()) {
-      auto [slice_idx, first_evt, last_evt] = sub_slice_queue.front();
-      sub_slice_queue.pop();
+    // Check if any slices have been queued for processing
+    // and assign them to streams that are ready
+    while (!slice_queue.empty() && stream_ready.any()) {
+      size_t processor_index = stream_ready._Find_first();
+      stream_ready[processor_index] = false;
 
-      size_t processor_index = prev_processor++;
-      if (prev_processor == number_of_threads) {
-        prev_processor = 0;
-      }
-      input_slice_status[slice_idx][first_evt] = SliceStatus::Processing;
-      buffer_index = std::optional<size_t> {buffers_manager->assignBufferToFill()};
+      auto [slice_idx, first_evt, last_evt] = slice_queue.front();
+      slice_queue.pop();
+
       auto& socket = std::get<1>(stream_threads[processor_index]);
       zmqSvc->send(socket, "PROCESS", send_flags::sndmore);
       zmqSvc->send(socket, slice_idx, send_flags::sndmore);
       zmqSvc->send(socket, first_evt, send_flags::sndmore);
-      zmqSvc->send(socket, last_evt, send_flags::sndmore);
-      zmqSvc->send(socket, *buffer_index);
-      stream_ready[processor_index] = false;
+      zmqSvc->send(socket, last_evt);
 
       if (logger::verbosity() >= logger::debug) {
         debug_cout << "Submitted " << std::setw(5) << last_evt - first_evt << " events in slice " << std::setw(2)
                    << slice_idx << " to stream " << std::setw(2) << processor_index << "\n";
       }
-    }
-
-    // Send slices and buffers back to I/O threads for writing
-    while (write_queue.size()) {
-      auto [slc_index, first_event, buf_index] = write_queue.front();
-      write_queue.pop();
-
-      input_slice_status[slc_index][first_event] = SliceStatus::Writing;
-
-      auto& socket = get_writer();
-      zmqSvc->send(socket, "WRITE", send_flags::sndmore);
-      zmqSvc->send(socket, slc_index, send_flags::sndmore);
-      zmqSvc->send(socket, first_event, send_flags::sndmore);
-      zmqSvc->send(socket, buf_index);
     }
 
     if (allen_control && items[control_index].revents & zmq::POLLIN) {
@@ -1012,9 +908,7 @@ int allen(
 
     // Check if we're done
     if (stream_ready.count() == number_of_threads && io_cond) {
-      if (
-        buffers_manager->buffersEmpty() &&
-        (!io_conf.async_io || (io_conf.async_io && count_status(SliceStatus::Empty) == io_conf.number_of_slices))) {
+      if ((!io_conf.async_io || (io_conf.async_io && all_slices_processed()))) {
         info_cout << "Processing complete\n";
 
         // Trigger an aggregation
@@ -1067,14 +961,6 @@ loop_error:
     }
   }
 
-  if (print_status) {
-    buffers_manager->printStatus();
-  }
-
-  // Print checker reports
-  checker_invoker->report(n_events_processed * io_conf.number_of_repetitions);
-  checker_invoker.reset();
-
   // Print throughput measurement result
   if (t && throughput_processed) {
     info_cout << (*throughput_processed / t->get()) << " events/s\n"
@@ -1090,11 +976,10 @@ loop_error:
   }
 
   if (output_handler != nullptr) {
-    info_cout << "Wrote " << n_events_output << "/" << n_events_processed << " events to "
-              << output_handler->connection() << "\n";
+    info_cout << "Wrote " << n_events_output << "/" << n_events_processed * io_conf.number_of_repetitions
+              << " events to " << output_handler->connection() << "\n";
   }
 
-  input_provider->release_buffers();
   updater->release_buffers();
 
 #ifndef ALLEN_STANDALONE

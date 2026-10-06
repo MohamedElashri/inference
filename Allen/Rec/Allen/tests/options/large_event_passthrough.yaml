@@ -1,0 +1,10 @@
+testfiledb_key: "upgrade_Sept2022_minbias_0fb_md_mdf"
+evt_max: 2
+
+n_threads: 1
+events_per_slice: 500
+device_memory_pool: 0  # force out of memory
+repetitions: 1
+
+output_file: 'large_event_passthrough.mdf'
+output_type: "RAW"

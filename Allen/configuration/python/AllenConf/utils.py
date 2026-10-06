@@ -12,9 +12,8 @@ from AllenCore.algorithms import (
     event_list_inversion_t,
     host_dummy_maker_t,
     host_init_number_of_events_t,
-    layout_provider_t,
 )
-from AllenCore.generator import make_algorithm
+from AllenCore.generator import initialize_event_lists, make_algorithm
 from PyConf.control_flow import CompositeNode, NodeLogic
 from PyConf.tonic import configurable
 
@@ -57,14 +56,6 @@ def initialize_number_of_events():
         "host_number_of_events": initialize_number_of_events.host_number_of_events_t,
         "host_event_list": initialize_number_of_events.host_number_of_events_t,
         "dev_number_of_events": initialize_number_of_events.dev_number_of_events_t,
-    }
-
-
-def mep_layout():
-    layout = make_algorithm(layout_provider_t, name="mep_layout")
-    return {
-        "host_mep_layout": layout.host_mep_layout_t,
-        "dev_mep_layout": layout.dev_mep_layout_t,
     }
 
 

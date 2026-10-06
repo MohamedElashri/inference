@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2021 CERN for the benefit of the LHCb Collaboration           *
+* (c) Copyright 2021-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "COPYING".              *
@@ -9,123 +9,132 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 /**
- * Convert VertexFit::TrackMVAVertex into LHCb::Event::v2::RecVertex
+ * Convert Allen secondary vertices (raw device buffers) into
+ * LHCb::Event::v2::RecVertices, with track association.
  *
- * author Tom Boettcher
- *
+ * Two steps:
+ *   (1) ConvertAllenSVs   — multi-event → per-event raw SV vectors
+ *   (2) AssociateAllenSVs — per-event → RecVertices with track linking
  */
 
 #include <sstream>
 
-// Gaudi
 #include "GaudiAlg/Transformer.h"
-#include "GaudiKernel/StdArrayAsProperty.h"
 
-// LHCb
 #include "Event/Track_v2.h"
 #include "Event/RecVertex_v2.h"
-#include <Kernel/EventLocalAllocator.h>
 
-// Allen
-#include "Logger.h"
 #include "VertexDefinitions.cuh"
-/**
- * Convert VertexFit::TrackMVAVertex into LHCb::Event::v2::RecVertex
- *
- * author Tom Boettcher
- *
- */
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
-class GaudiAllenSVsToRecVertexV2 final
-  : public Gaudi::Functional::Transformer<LHCb::Event::v2::RecVertices(
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-      const std::vector<VertexFit::TrackMVAVertex, LHCb::Allocators::EventLocal<VertexFit::TrackMVAVertex>>&,
-      const std::vector<LHCb::Event::v2::Track>&)> {
-public:
-  // Standard constructor
-  GaudiAllenSVsToRecVertexV2(const std::string& name, ISvcLocator* pSvcLocator);
+// ================================================================
+//  Raw per-SV data  (no track pointers)
+// ================================================================
 
-  // Initialization
-  StatusCode initialize() override;
-
-  // Algorithm execution
-  LHCb::Event::v2::RecVertices operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<VertexFit::TrackMVAVertex, LHCb::Allocators::EventLocal<VertexFit::TrackMVAVertex>>&,
-    const std::vector<LHCb::Event::v2::Track>&) const override;
+struct AllenSVData {
+  float x, y, z;
+  float cov00, cov10, cov11, cov20, cov21, cov22;
+  float chi2;
+  unsigned trk1, trk2;
 };
 
-DECLARE_COMPONENT(GaudiAllenSVsToRecVertexV2)
+using AllenSVs = std::vector<AllenSVData>;
 
-GaudiAllenSVsToRecVertexV2::GaudiAllenSVsToRecVertexV2(const std::string& name, ISvcLocator* pSvcLocator) :
-  Transformer(
-    name,
-    pSvcLocator,
-    // Inputs
-    {KeyValue {"allen_atomics_scifi", ""},
-     KeyValue {"allen_sv_offsets", ""},
-     KeyValue {"allen_secondary_vertices", ""},
-     KeyValue {"InputTracks", "Allen/Out/ForwardTracks"}},
-    // Outputs
-    {KeyValue {"OutputSVs", "Allen/Out/RecVertex"}})
-{}
+// ================================================================
+//  Step 1: Multi-event converter → per-event AllenSVs
+// ================================================================
 
-StatusCode GaudiAllenSVsToRecVertexV2::initialize()
-{
-  if (msgLevel(MSG::DEBUG)) debug() << "==> Initialize" << endmsg;
-  return StatusCode::SUCCESS;
-}
+class ConvertAllenSVs final : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<AllenSVs>(
+                                const Allen::device_buffer<unsigned>&,                     // SV offsets (N+1)
+                                const Allen::device_buffer<VertexFit::TrackMVAVertex>&)> { // SV data (concatenated)
 
-LHCb::Event::v2::RecVertices GaudiAllenSVsToRecVertexV2::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_atomics_scifi,
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& allen_sv_offsets,
-  const std::vector<VertexFit::TrackMVAVertex, LHCb::Allocators::EventLocal<VertexFit::TrackMVAVertex>>&
-    allen_secondary_vertices,
-  const std::vector<LHCb::Event::v2::Track>& tracks) const
-{
-  // Check number of tracks
-  const unsigned i_event = 0;
-  const unsigned ev_n_trk = allen_atomics_scifi[i_event + 1] - allen_atomics_scifi[i_event];
-  if (ev_n_trk != tracks.size()) {
-    std::ostringstream oss;
-    oss << "Mismatch in number of input tracks, needed " << ev_n_trk << " but the provided track container has "
-        << tracks.size() << "\n";
-    oss << "Check the data passsed to  InputTracks";
-    throw GaudiException(oss.str(), this->name(), StatusCode::FAILURE);
+public:
+  ConvertAllenSVs(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"allen_sv_offsets", ""}, KeyValue {"allen_secondary_vertices", ""}},
+      {KeyValue {"AllenSVData", ""}})
+  {}
+
+  std::tuple<std::vector<AllenSVs>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<unsigned>& dev_offsets,
+    const Allen::device_buffer<VertexFit::TrackMVAVertex>& dev_vertices) const override
+  {
+    auto h_offsets = dev_offsets.to_host();
+    auto h_vertices = dev_vertices.to_host();
+
+    const unsigned n_events = h_offsets.size() - 1;
+
+    std::vector<AllenSVs> all_svs;
+    all_svs.reserve(n_events);
+
+    for (unsigned evt = 0; evt < n_events; ++evt) {
+      const unsigned begin = h_offsets[evt];
+      const unsigned end = h_offsets[evt + 1];
+
+      AllenSVs svs;
+      svs.reserve(end - begin);
+
+      for (unsigned i = begin; i < end; ++i) {
+        const auto& v = h_vertices[i];
+        svs.push_back({v.x, v.y, v.z, v.cov00, v.cov10, v.cov11, v.cov20, v.cov21, v.cov22, v.chi2, v.trk1, v.trk2});
+      }
+
+      all_svs.emplace_back(std::move(svs));
+    }
+
+    return std::make_tuple(std::move(all_svs));
   }
+};
 
-  const unsigned sv_offset = allen_sv_offsets[i_event];
-  const unsigned n_svs = allen_sv_offsets[i_event + 1] - sv_offset;
+DECLARE_COMPONENT(ConvertAllenSVs)
 
-  if (msgLevel(MSG::DEBUG)) {
-    debug() << "Number of SVs to convert = " << n_svs << endmsg;
-    debug() << "Number of input tracks = " << tracks.size() << endmsg;
+// ================================================================
+//  Step 2: Per-event transformer → RecVertices with track association
+// ================================================================
+
+class AssociateAllenSVs final
+  : public Gaudi::Functional::Transformer<
+      LHCb::Event::v2::RecVertices(const AllenSVs&, const std::vector<LHCb::Event::v2::Track>&)> {
+
+public:
+  AssociateAllenSVs(const std::string& name, ISvcLocator* pSvcLocator) :
+    Transformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"AllenSVData", ""}, KeyValue {"InputTracks", "Allen/Out/ForwardTracks"}},
+      {KeyValue {"OutputSVs", "Allen/Out/RecVertex"}})
+  {}
+
+  LHCb::Event::v2::RecVertices operator()(const AllenSVs& svs, const std::vector<LHCb::Event::v2::Track>& tracks)
+    const override
+  {
+    LHCb::Event::v2::RecVertices sv_container;
+    sv_container.reserve(svs.size());
+
+    for (const auto& sv : svs) {
+      Gaudi::SymMatrix3x3 poscov;
+      poscov(0, 0) = static_cast<double>(sv.cov00);
+      poscov(1, 0) = static_cast<double>(sv.cov10);
+      poscov(1, 1) = static_cast<double>(sv.cov11);
+      poscov(2, 0) = static_cast<double>(sv.cov20);
+      poscov(2, 1) = static_cast<double>(sv.cov21);
+      poscov(2, 2) = static_cast<double>(sv.cov22);
+
+      Gaudi::XYZPoint position {static_cast<double>(sv.x), static_cast<double>(sv.y), static_cast<double>(sv.z)};
+
+      auto& new_sv = sv_container.emplace_back(
+        position, poscov, LHCb::Event::v2::Track::Chi2PerDoF {static_cast<double>(sv.chi2) / 2., 2});
+
+      new_sv.addToTracks(&tracks[sv.trk1], 0.f);
+      new_sv.addToTracks(&tracks[sv.trk2], 0.f);
+    }
+
+    return sv_container;
   }
+};
 
-  LHCb::Event::v2::RecVertices sv_container;
-  sv_container.reserve(n_svs);
-
-  for (unsigned int i = 0; i < n_svs; i++) {
-    if (msgLevel(MSG::DEBUG)) debug() << "  Processing SV " << i << endmsg;
-    const VertexFit::TrackMVAVertex& sv = allen_secondary_vertices[sv_offset + i];
-    Gaudi::SymMatrix3x3 poscov;
-    poscov(0, 0) = static_cast<double>(sv.cov00);
-    poscov(1, 0) = static_cast<double>(sv.cov10);
-    poscov(1, 1) = static_cast<double>(sv.cov11);
-    poscov(2, 0) = static_cast<double>(sv.cov20);
-    poscov(2, 1) = static_cast<double>(sv.cov21);
-    poscov(2, 2) = static_cast<double>(sv.cov22);
-    Gaudi::XYZPoint position {static_cast<double>(sv.x), static_cast<double>(sv.y), static_cast<double>(sv.z)};
-    auto& new_sv = sv_container.emplace_back(
-      position, poscov, LHCb::Event::v2::Track::Chi2PerDoF {static_cast<double>(sv.chi2) / 2., 2});
-    const unsigned i_trackA = sv.trk1;
-    const unsigned i_trackB = sv.trk2;
-    if (msgLevel(MSG::DEBUG)) debug() << "    Track indexes " << i_trackA << ", " << i_trackB << endmsg;
-    new_sv.addToTracks(&tracks[i_trackA], 0.f);
-    new_sv.addToTracks(&tracks[i_trackB], 0.f);
-  }
-
-  return sv_container;
-}
+DECLARE_COMPONENT(AssociateAllenSVs)

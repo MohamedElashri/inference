@@ -31,7 +31,7 @@ def commit(path, message):
 
 
 class UpstreamUpdateTest(unittest.TestCase):
-    def test_two_updates_replay_local_edits_and_preserve_inputs(self):
+    def test_successive_updates_replay_local_edits_and_preserve_inputs(self):
         with tempfile.TemporaryDirectory(prefix="allen-update-test-") as directory:
             base = Path(directory)
             upstream, fork, root = (base / name for name in ("upstream", "fork", "inference"))
@@ -62,8 +62,10 @@ class UpstreamUpdateTest(unittest.TestCase):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             module.ROOT, module.TRACKING, module.URL = root, tracking, str(upstream)
-            for iteration in (1, 2):
+            for iteration in (1, 2, 3):
                 (root / "Allen/pvfinder.txt").write_text(f"local PVFinder edit {iteration}\n")
+                if iteration == 3:
+                    (root / "Allen/api.txt").write_text("PVFinder API hook\n")
                 commit(root, f"PVFinder edit {iteration}")
                 (upstream / "api.txt").write_text(f"upstream API {iteration}\n")
                 if iteration == 1:
@@ -73,27 +75,43 @@ class UpstreamUpdateTest(unittest.TestCase):
                 workdir = base / f"prepared{iteration}"
                 before = git(root, "rev-parse", "HEAD")
                 with contextlib.redirect_stdout(io.StringIO()):
-                    module.prepare(SimpleNamespace(workdir=workdir, target="master"))
+                    if iteration == 3:
+                        with self.assertRaises(SystemExit):
+                            module.prepare(SimpleNamespace(workdir=workdir, target="master"))
+                        (workdir / "api.txt").write_text("upstream API 3 with PVFinder hook\n")
+                        git(workdir, "add", "api.txt")
+                        git(workdir, "-c", "core.editor=true", "rebase", "--continue")
+                    else:
+                        module.prepare(SimpleNamespace(workdir=workdir, target="master"))
                 self.assertEqual(git(root, "rev-parse", "HEAD"), before)
                 manifest_path = workdir.parent / (workdir.name + ".update.json")
                 manifest = json.loads(manifest_path.read_text())
                 self.assertEqual(manifest["upstream_commit"], target)
                 self.assertEqual((workdir / "pvfinder.txt").read_text(), f"local PVFinder edit {iteration}\n")
+                if iteration == 2:
+                    (workdir / "compatibility.txt").write_text("post-rebase API adaptation\n")
+                    committed_fix = commit(workdir, "adapt to the new API")
+                else:
+                    committed_fix = git(workdir, "rev-parse", "HEAD")
                 proof = root / "results/verification.json"
                 proof.parent.mkdir(exist_ok=True)
                 proof.write_text(json.dumps({"status": "PASS", "fork_commit": "wrong revision"}))
                 with self.assertRaises(SystemExit):
                     module.import_tree(SimpleNamespace(manifest=manifest_path, validation=proof))
                 self.assertEqual(git(root, "rev-parse", "HEAD"), before)
-                proof.write_text(json.dumps({"status": "PASS", "fork_commit": manifest["fork_commit"]}))
+                proof.write_text(json.dumps({"status": "PASS", "fork_commit": committed_fix}))
                 with contextlib.redirect_stdout(io.StringIO()):
                     module.import_tree(SimpleNamespace(manifest=manifest_path, validation=proof))
                 git(root, "commit", "-m", f"import {iteration}")
-                self.assertEqual((root / "Allen/api.txt").read_text(), f"upstream API {iteration}\n")
+                self.assertEqual(git(root, "rev-parse", "allen-upstream/master"), target)
+                expected_api = "upstream API 3 with PVFinder hook\n" if iteration == 3 else f"upstream API {iteration}\n"
+                self.assertEqual((root / "Allen/api.txt").read_text(), expected_api)
                 self.assertEqual((root / "Allen/pvfinder.txt").read_text(), f"local PVFinder edit {iteration}\n")
                 self.assertEqual(local_input.read_text(), "local detector data must survive\n")
                 self.assertEqual((root / "Allen/new_source.txt").read_text(), "new upstream source\n")
-                self.assertEqual(git(root, "merge-base", "HEAD", manifest["fork_commit"]), manifest["fork_commit"])
+                self.assertEqual(git(root, "merge-base", "HEAD", committed_fix), committed_fix)
+                if iteration == 2:
+                    self.assertEqual((root / "Allen/compatibility.txt").read_text(), "post-rebase API adaptation\n")
                 self.assertEqual(git(root, "status", "--porcelain", "--untracked-files=no"), "")
 
 

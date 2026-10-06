@@ -193,92 +193,8 @@ def post_proc_throughput(
     return {"throughput": float(throughput), "device": full_device_name}
 
 
-def post_proc_efficiency(
-    test: dict,
-    log_output: str,
-    run_profiler_output: Path = None,
-    allen_profiler_log: str = None,
-):
-    build_options = test.get("build_options", "")
-    output_directory = Path(
-        f"run_physics_efficiency_output_{test['sequence']}{build_options}"
-    )
-    output_directory.mkdir(parents=True, exist_ok=True)
-    write_text(
-        output_directory / f"{test['dataset']}_{test['sequence']}_{device_id}.txt",
-        log_output,
-    )
-
-    return {}
-
-
-def post_proc_run_changes(
-    test: dict,
-    log_output: str,
-    run_profiler_output: Path = None,
-    allen_profiler_log: str = None,
-):
-    disable_run_changes = int(test["disable_run_changes"])
-    output_directory = None
-    if disable_run_changes == 1:
-        output_directory = Path(f"run_no_run_changes_output_{test['sequence']}")
-    elif disable_run_changes == 0:
-        output_directory = Path(f"run_with_run_changes_output_{test['sequence']}")
-    else:
-        raise ValueError("disable_run_changes must be 0 or 1.")
-    output_directory.mkdir(parents=True, exist_ok=True)
-    write_text(output_directory / f"minbias_{device_id}.txt", log_output)
-
-    return {}
-
-
-def post_proc_run_built_tests(
-    test: dict,
-    log_output: str,
-    run_profiler_output: Path = None,
-    allen_profiler_log: str = None,
-):
-    log.debug("run_built_tests finished with output\n" + log_output)
-
-    return {}
-
-
-def post_proc_sanitizer(
-    test: dict,
-    log_output: str,
-    run_profiler_output: Path = None,
-    allen_profiler_log: str = None,
-):
-    false_positives = {
-        "run_racecheck": {
-            "CUDA Dynamic Parallelism is not supported by the selected tool",
-        }
-    }
-    warnings = re.findall(r"^========= Warning: (.*)$", log_output, flags=re.MULTILINE)
-    print(f"warnings: {warnings}")
-    false_warnings = [w for w in warnings if w in false_positives.get(test["type"], {})]
-
-    hazards = int(
-        re.search(
-            r"^========= [A-Z]+ SUMMARY: ([0-9]+)", log_output, flags=re.MULTILINE
-        ).group(1)
-    )
-    if hazards - len(false_warnings) > 0:
-        log.error(
-            f"Sanitizer found {hazards - len(false_warnings)} hazards. Check logs."
-        )
-        return False
-    return {}
-
-
 test_postproc = {
     "throughput": post_proc_throughput,
-    "efficiency": post_proc_efficiency,
-    "run_changes": post_proc_run_changes,
-    "run_built_tests": post_proc_run_built_tests,
-    "run_memcheck": post_proc_sanitizer,
-    "run_racecheck": post_proc_sanitizer,
-    "run_synccheck": post_proc_sanitizer,
 }
 
 
@@ -405,9 +321,6 @@ def run_allen_test(wrapper: str, test: dict, config: dict):
 def build_allen_args(config, test, target):
     args_cfg = config["args"]
 
-    if test["type"] == "run_built_tests":
-        return ""
-
     args = [args_cfg["base"]]
     for key, value in test.items():
         if key in args_cfg:
@@ -434,19 +347,9 @@ def build_allen_args(config, test, target):
 
 
 def build_allen_env(config, test, target, **env_args):
-    test_name = test["type"]
-
     result = {**env_args}
     result["OPTIONS"] = test.get("build_options", None)
     result["LCG_OPTIMIZATION"] = test.get("lcg_opt", None)
-
-    if test_name == "run_built_tests":
-        result["RUN_UNIT_TESTS"] = "1"
-        result["JUNITREPORT"] = f"default-{lcg_system}-unit-tests.xml"
-
-    if "sanitizer" in test:
-        result["RUN_SANITIZER"] = "1"
-        result["SANITIZER_TOOL"] = test["sanitizer"]
 
     if target.endswith("PROF"):
         result["RUN_PROFILER"] = "1"

@@ -18,10 +18,8 @@
 #include <AllenThreads.h>
 
 #include <OutputHandler.h>
-#include <HostBuffersManager.cuh>
-#include <CheckerInvoker.h>
+#include <OutputManager.h>
 #include <ROOTService.h>
-#include <MCRaw.h>
 #include <InputProvider.h>
 #include <Stream.h>
 #include <Tools.h>
@@ -97,12 +95,7 @@ zmq::socket_t make_control(size_t thread_id, IZeroMQSvc* zmqSvc, std::string suf
   return control;
 }
 
-void run_output(
-  const size_t thread_id,
-  const size_t output_id,
-  IZeroMQSvc* zmqSvc,
-  OutputHandler* output_handler,
-  HostBuffersManager* buffer_manager)
+void run_output(const size_t thread_id, const size_t output_id, IZeroMQSvc* zmqSvc, OutputHandler* output_handler)
 {
   // Set thread name for easier debugging
   auto thread_name = std::string {"output_"} + std::to_string(output_id);
@@ -120,9 +113,24 @@ void run_output(
   items[0] = {control, 0, zmq::POLLIN, 0};
 
   while (true) {
-
     // Check if there are messages
-    zmqSvc->poll(&items[0], items.size(), -1);
+    zmqSvc->poll(&items[0], items.size(), 0);
+
+    for (int i = 0; i < OutputManager::get()->n_producers(); i++) {
+      SPSCRingBuffer* rb = OutputManager::get()->buffer(i);
+      if (output_handler != nullptr) {
+        auto [success, n_written] = output_handler->output_selected_events(rb);
+        if (n_written > 0) {
+          zmqSvc->send(control, "WRITTEN", send_flags::sndmore);
+          zmqSvc->send(control, success, send_flags::sndmore);
+          zmqSvc->send(control, n_written);
+        }
+      }
+      else {
+        rb->consume(); // consume data to avoid blocking the queue
+        rb->release();
+      }
+    }
 
     if (client_socket && (items[1].revents & zmq::POLLIN)) {
       output_handler->handle();
@@ -133,25 +141,6 @@ void run_output(
       auto msg = zmqSvc->receive<std::string>(control, &more);
       if (msg == "DONE") {
         break;
-      }
-      else if (msg == "WRITE") {
-        auto slc_idx = zmqSvc->receive<size_t>(control);
-        auto first_evt = zmqSvc->receive<size_t>(control);
-        auto buf_idx = zmqSvc->receive<size_t>(control);
-        bool success = true;
-        size_t n_written = 0;
-
-        if (output_handler != nullptr) {
-          std::tie(success, n_written) = output_handler->output_selected_events(
-            output_id, slc_idx, first_evt, *buffer_manager->get_persistent_store(buf_idx));
-        }
-
-        zmqSvc->send(control, "WRITTEN", send_flags::sndmore);
-        zmqSvc->send(control, slc_idx, send_flags::sndmore);
-        zmqSvc->send(control, first_evt, send_flags::sndmore);
-        zmqSvc->send(control, buf_idx, send_flags::sndmore);
-        zmqSvc->send(control, success, send_flags::sndmore);
-        zmqSvc->send(control, n_written);
       }
       else {
         error_cout << "Output threads got unknown message: " << msg << "\n";
@@ -184,7 +173,7 @@ void run_slices(const size_t thread_id, IZeroMQSvc* zmqSvc, IInputProvider* inpu
   zmq::pollitem_t items[] = {{control, 0, zmq::POLLIN, 0}};
 
   int timeout = -1;
-  uint current_run_number = 0;
+  unsigned int current_run_number = 0;
   while (true) {
 
     // Check if there are messages without blocking
@@ -252,11 +241,10 @@ void run_stream(
   Stream* stream,
   std::shared_ptr<IInputProvider> input_provider,
   IZeroMQSvc* zmqSvc,
-  CheckerInvoker* checker_invoker,
   ROOTService* root_service,
   unsigned n_reps,
   bool mep_layout,
-  uint inject_mem_fail,
+  unsigned int inject_mem_fail,
   [[maybe_unused]] bool prefer_shared)
 {
   Allen::set_device(device_id, stream_id);
@@ -283,7 +271,6 @@ void run_stream(
 
     std::string command;
     std::optional<size_t> idx;
-    size_t buf;
     size_t first;
     size_t last;
     if (items[0].revents & zmq::POLLIN) {
@@ -298,36 +285,32 @@ void run_stream(
         idx = zmqSvc->receive<size_t>(control);
         first = zmqSvc->receive<size_t>(control);
         last = zmqSvc->receive<size_t>(control);
-        buf = zmqSvc->receive<size_t>(control);
       }
     }
 
     if (idx) {
       // Run the stream
       auto status = stream->run(
-        buf,
         {input_provider,
          *idx,
          {static_cast<unsigned>(first), static_cast<unsigned>(last)},
          n_reps,
          mep_layout,
          inject_mem_fail,
-         checker_invoker,
          root_service});
 
       if (status == Allen::error::errorMemoryAllocation) {
         zmqSvc->send(control, "SPLIT", send_flags::sndmore);
         zmqSvc->send(control, *idx, send_flags::sndmore);
         zmqSvc->send(control, first, send_flags::sndmore);
-        zmqSvc->send(control, last, send_flags::sndmore);
-        zmqSvc->send(control, buf);
+        zmqSvc->send(control, last);
       }
       else if (status == Allen::error::success) {
         // signal that we're done
         zmqSvc->send(control, "PROCESSED", send_flags::sndmore);
         zmqSvc->send(control, *idx, send_flags::sndmore);
         zmqSvc->send(control, first, send_flags::sndmore);
-        zmqSvc->send(control, buf);
+        zmqSvc->send(control, last);
       }
     }
   }

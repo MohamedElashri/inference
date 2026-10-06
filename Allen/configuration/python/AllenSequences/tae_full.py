@@ -15,7 +15,7 @@ from AllenConf.hlt1_reconstruction import hlt1_reconstruction
 from AllenConf.odin import odin_error_filter, tae_filter
 from AllenConf.persistency import make_persistency
 from AllenConf.utils import line_maker
-from AllenConf.validators import rate_validation
+from AllenConf.validators import rate_validation_nodes
 from AllenCore.generator import generate
 from PyConf.control_flow import CompositeNode, NodeLogic
 
@@ -67,7 +67,7 @@ lines = CompositeNode(
 
 hlt1_node = CompositeNode(
     "FullTAE",
-    [lines, persistency_node, rate_validation(lines=line_algorithms)],
+    [lines, persistency_node, *rate_validation_nodes(lines=line_algorithms)],
     NodeLogic.NONLAZY_AND,
     force_order=True,
 )

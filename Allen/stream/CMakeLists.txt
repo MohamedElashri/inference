@@ -41,7 +41,6 @@ target_link_libraries(Stream
     Backend
     Calo
     Combiners
-    DeviceValidators
     Examples
     Kalman
     Lumi
@@ -52,7 +51,6 @@ target_link_libraries(Stream
     SciFi
     UT
     Downstream
-    Validators
     Velo
     VertexFitter
     AllenCommon
@@ -61,6 +59,7 @@ target_link_libraries(Stream
     MuonCommon
     Rich
     TTrack
+    mdf
   PUBLIC
     Utils
     Selections
@@ -68,8 +67,8 @@ target_link_libraries(Stream
 
 if(STANDALONE)
   add_dependencies(Stream checkout_lhcb checkout_gaudi)
-endif()
 
-foreach(sequence ${BUILD_SEQUENCES})
-  generate_sequence(${sequence})
-endforeach()
+  foreach(sequence ${ALLEN_JSON_SEQUENCES})
+    generate_sequence(${sequence})
+  endforeach()
+endif()

@@ -22,7 +22,6 @@ from AllenConf.downstream_reconstruction import (
     make_downstream,
 )
 from AllenConf.enum_types import TrackingType
-from AllenConf.filters import make_gec
 from AllenConf.jet_reconstruction import make_cone_jets
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
 from AllenConf.muon_reconstruction import (
@@ -32,7 +31,6 @@ from AllenConf.muon_reconstruction import (
     make_muon_stubs,
     muonid_nn,
 )
-from AllenConf.persistency import make_gather_selections, make_sel_report_writer
 from AllenConf.primary_vertex_reconstruction import make_pvs
 from AllenConf.rich_reco_options import default_rich_reco_options_allen
 from AllenConf.rich_reconstruction import make_rich
@@ -64,18 +62,6 @@ from AllenConf.validators import (
     data_quality_validation_occupancy,
     data_quality_validation_pv,
     data_quality_validation_velo,
-    downstream_kalman_validation,
-    downstream_validation,
-    kalman_validation,
-    long_validation,
-    muon_validation,
-    pv_validation,
-    rich_validation,
-    seeding_validation,
-    seeding_xz_validation,
-    selreport_validation,
-    velo_validation,
-    veloUT_validation,
 )
 from AllenConf.velo_reconstruction import (
     decode_velo,
@@ -99,6 +85,8 @@ def hlt1_reconstruction(
     with_AC_split=False,
     with_fullKF=False,
     with_downstream_KF=False,
+    outlier_chi2_threshold=9.0,
+    max_outlier_iterations=2,
     with_ttracks=False,
     track_max_chi2ndof=10.0,
 ):
@@ -142,6 +130,8 @@ def hlt1_reconstruction(
                 velo_scifi_matches=long_tracks["matched_tracks"],
                 pvs=pvs,
                 with_downstream_KF=with_downstream_KF,
+                outlier_chi2_threshold=outlier_chi2_threshold,
+                max_outlier_iterations=max_outlier_iterations,
                 dev_used_ut_hits_offsets=long_tracks["dev_used_ut_hits_offsets"],
             )
             output.update({"downstream_tracks": downstream_tracks})
@@ -178,6 +168,8 @@ def hlt1_reconstruction(
                 velo_scifi_matches=long_tracks,
                 pvs=pvs,
                 with_downstream_KF=with_downstream_KF,
+                outlier_chi2_threshold=outlier_chi2_threshold,
+                max_outlier_iterations=max_outlier_iterations,
                 dev_used_ut_hits_offsets=long_tracks["dev_used_ut_hits_offsets"],
             )
             output.update({"downstream_tracks": downstream_tracks})
@@ -248,7 +240,13 @@ def hlt1_reconstruction(
     )
 
     if with_fullKF:
-        kalman_long_tracks = make_kalman_long(long_tracks, pvs, muonID)
+        kalman_long_tracks = make_kalman_long(
+            long_tracks,
+            pvs,
+            muonID,
+            outlier_chi2_threshold=outlier_chi2_threshold,
+            max_outlier_iterations=max_outlier_iterations,
+        )
         KF_long_track = kalman_long_tracks
         output.update({"kalman_long_track": kalman_long_tracks})
 
@@ -660,15 +658,6 @@ def hlt1_reconstruction(
     return output
 
 
-def make_composite_node_with_gec(alg_name, alg, with_scifi, with_ut, gec_name="gec"):
-    return CompositeNode(
-        alg_name,
-        [make_gec(count_scifi=with_scifi, count_ut=with_ut), alg],
-        NodeLogic.LAZY_AND,
-        force_order=True,
-    )
-
-
 def make_dq_node(
     reconstructed_matching,
     reconstructed_forward,
@@ -759,112 +748,4 @@ def data_quality_node(reconstructed_objects=None, method="", prefilters=[]):
         )
     return CompositeNode(
         f"DQ_Validators_{method}", validators, NodeLogic.NONLAZY_AND, force_order=False
-    )
-
-
-def validator_node(
-    reconstructed_objects,
-    line_algorithms,
-    matching,
-    with_ut,
-    with_muon,
-    with_rich,
-    with_AC_split,
-    with_fullKF,
-    with_downstream_KF=False,
-    prefilters=[],
-):
-    validators = [velo_validation(reconstructed_objects["velo_tracks"])]
-
-    if matching:
-        validators += [seeding_validation(reconstructed_objects["seeding_tracks"])]
-        validators += [seeding_xz_validation()]
-    elif not matching and with_ut:
-        validators += [veloUT_validation(reconstructed_objects["ut_tracks"])]
-
-    if "downstream_tracks" in reconstructed_objects:
-        validators += [
-            downstream_validation(
-                reconstructed_objects["downstream_tracks"],
-                with_downstream_KF=with_downstream_KF,
-            )
-        ]
-        if with_downstream_KF:
-            validators += [
-                downstream_kalman_validation(
-                    reconstructed_objects["downstream_tracks"],
-                    reconstructed_objects["pvs"],
-                )
-            ]
-
-    if "forward_tracks" in reconstructed_objects:
-        validators += [
-            long_validation(
-                reconstructed_objects["forward_tracks"], name="forward_validator"
-            )
-        ]
-    validators += [long_validation(reconstructed_objects["long_tracks"])]
-
-    if with_muon:
-        validators += [muon_validation(reconstructed_objects["muonID"])]
-
-    if with_rich:
-        validators += [rich_validation(reconstructed_objects["rich"])]
-
-    kf_var = "kalman_long_track" if with_fullKF else "kalman_velo_only"
-    validators += [
-        pv_validation(reconstructed_objects["pvs"]),
-        kalman_validation(reconstructed_objects[kf_var]),
-        selreport_validation(
-            make_sel_report_writer(lines=line_algorithms),
-            make_gather_selections(lines=line_algorithms),
-        ),
-    ]
-
-    if with_AC_split:
-        validators += [
-            make_composite_node_with_gec(
-                "velo_validation_A_side",
-                velo_validation(
-                    reconstructed_objects["velo_tracks_A_side"],
-                    name="velo_validator_A_side",
-                ),
-                with_scifi=True,
-                with_ut=with_ut,
-            )
-        ]
-        validators += [
-            make_composite_node_with_gec(
-                "velo_validation_C_side",
-                velo_validation(
-                    reconstructed_objects["velo_tracks_C_side"],
-                    name="velo_validator_C_side",
-                ),
-                with_scifi=True,
-                with_ut=with_ut,
-            )
-        ]
-        validators += [
-            make_composite_node_with_gec(
-                "pv_validation_A_side",
-                pv_validation(
-                    reconstructed_objects["pvs_A_side"], name="pv_validator_A_side"
-                ),
-                with_scifi=True,
-                with_ut=with_ut,
-            )
-        ]
-        validators += [
-            make_composite_node_with_gec(
-                "pv_validation_C_side",
-                pv_validation(
-                    reconstructed_objects["pvs_C_side"], name="pv_validator_C_side"
-                ),
-                with_scifi=True,
-                with_ut=with_ut,
-            )
-        ]
-
-    return CompositeNode(
-        "Validators", prefilters + validators, NodeLogic.NONLAZY_AND, force_order=True
     )

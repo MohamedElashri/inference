@@ -19,11 +19,12 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO/benchmarks/defaults.sh"
 PY="${PY:-${REPO}/.venv/bin/python3}"
 MDF="${REPO}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
 GEO="${REPO}/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry"
 
-BUILD="" MODEL_FILE="" SEQ="" DUMP="" EVENTS=500 MEMORY=1000 DEVICE=2
+BUILD="$PVF_BUILD_DIR" MODEL_FILE="" SEQ="" DUMP="" EVENTS=$PVF_EVENTS MEMORY=1000 DEVICE=$PVF_DEVICE
 SETS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in

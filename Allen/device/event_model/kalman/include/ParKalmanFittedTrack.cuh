@@ -44,6 +44,11 @@ namespace ParKalmanFilter {
     bool is_muon;
     bool is_electron;
 
+    // Outlier tracking for post-processing
+    KalmanFloat worst_chi2;
+    unsigned short worst_hit_global_id;
+    uint64_t skip_mask; // Accumulated bitmask of removed hits (bit i = hit i skipped)
+
     __device__ __host__ FittedTrack() {}
 
     // Constructor from a VELO state.

@@ -37,7 +37,7 @@ namespace {
     }
   }
 
-  // count number reconstructible tracks in the same way as PrimaryVertexChecker
+  // count number reconstructible tracks in the same way as the PV efficiency checker
   int count_reconstructible_mc_particles(const LHCb::MCVertex& avtx, const MCTrackInfo& trInfo)
   {
     std::vector<const LHCb::MCParticle*> allproducts;

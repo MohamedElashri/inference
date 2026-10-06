@@ -136,6 +136,8 @@ __global__ void rich_prefilter_pd_count_k(
   const float2* segs_point_at_panel,
   const Allen::Rich::ParticleHypos* track_hypos,
   unsigned* pd_counts,
+  uint32_t* pd_mask,
+  const unsigned n_mask_words,
   const float min_separation2,
   const float max_separation2,
   const float scalePreSel,
@@ -152,20 +154,27 @@ __global__ void rich_prefilter_pd_count_k(
 
     // Count hits
     unsigned count_prefilter = 0; // Mass hypo prefilter
+    uint32_t* track_mask = pd_mask + i * n_mask_words;
 
-    for (unsigned j = 0; j < n_pds; j++) {
-      const auto pd_index = j + side * n_pds;
-      if (pdPassesPrefilter(
-            pd_lpos16[pd_index],
-            pd_diag[pd_index],
-            segPanelPnt,
-            hypos,
-            min_separation2,
-            max_separation2,
-            scalePreSel,
-            nSigmaPreSel)) {
-        count_prefilter++;
+    for (unsigned w = 0; w < n_mask_words; w++) {
+      const unsigned j_end = (w + 1) * 32 < n_pds ? (w + 1) * 32 : n_pds;
+      uint32_t word = 0;
+      for (unsigned j = w * 32; j < j_end; j++) {
+        const auto pd_index = j + side * n_pds;
+        if (pdPassesPrefilter(
+              pd_lpos16[pd_index],
+              pd_diag[pd_index],
+              segPanelPnt,
+              hypos,
+              min_separation2,
+              max_separation2,
+              scalePreSel,
+              nSigmaPreSel)) {
+          word |= 1u << (j - w * 32);
+        }
       }
+      track_mask[w] = word;
+      count_prefilter += __popc(word);
     }
     pd_counts[i] = count_prefilter;
   }
@@ -175,22 +184,16 @@ template<Allen::Rich::Detector::DetectorType richIdx>
 __global__ void rich_prefilter_pd_fill_k(
   const rich_quartic_signals::PDShortInfo* pd_infos,
   const unsigned n_pds,
-  const short2* pd_lpos16,
-  const float* pd_diag,
   const unsigned number_of_events,
   const unsigned* track_offsets,
   const unsigned number_of_tracks,
   const float3* segs_best_point,
-  const float2* segs_point_at_panel,
-  const Allen::Rich::ParticleHypos* track_hypos,
   const uint64_t* pd_pixels,
   const unsigned* track_signal_offsets,
+  const uint32_t* pd_mask,
+  const unsigned n_mask_words,
   int* pd_indices,
-  unsigned* pix_counts,
-  const float min_separation2,
-  const float max_separation2,
-  const float scalePreSel,
-  const float nSigmaPreSel)
+  unsigned* pix_counts)
 {
   const unsigned threadId = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned stride = gridDim.x * blockDim.x;
@@ -198,8 +201,6 @@ __global__ void rich_prefilter_pd_fill_k(
 
     // Load segment data
     const auto side = Allen::Rich::side<richIdx>(segs_best_point[i]);
-    const auto segPanelPnt = segs_point_at_panel[i];
-    const auto& hypos = track_hypos[i];
 
     const auto event_number = binary_search_rightmost(track_offsets, number_of_events + 1, i);
     const auto pd_offset =
@@ -209,20 +210,16 @@ __global__ void rich_prefilter_pd_fill_k(
     unsigned pd_count = 0;
     int* track_pd_indices = pd_indices + track_signal_offsets[i];
     unsigned* track_pixel_counts = pix_counts + track_signal_offsets[i];
+    const uint32_t* track_mask = pd_mask + i * n_mask_words;
 
-    for (unsigned j = 0; j < n_pds; j++) {
-      const auto pd_index = j + side * n_pds;
-      if (pdPassesPrefilter(
-            pd_lpos16[pd_index],
-            pd_diag[pd_index],
-            segPanelPnt,
-            hypos,
-            min_separation2,
-            max_separation2,
-            scalePreSel,
-            nSigmaPreSel)) {
+    for (unsigned w = 0; w < n_mask_words; w++) {
+      uint32_t word = track_mask[w];
+      while (word) {
+        const unsigned j = w * 32 + static_cast<unsigned>(__ffs(word) - 1);
+        const auto pd_index = j + side * n_pds;
         track_pixel_counts[pd_count] = __popcll(pd_pixels[pd_offset + pd_infos[pd_index].index()]);
         track_pd_indices[pd_count++] = pd_index;
+        word &= word - 1;
       }
     }
   }
@@ -452,27 +449,42 @@ __global__ void rich_interp_pixel_signals_k(
 }
 
 __global__ void rich_photon_copy_postfilter_k(
+  const unsigned number_of_tracks,
   const unsigned* track_signal_offsets,
   const unsigned* photons_offsets_prefilter,
   const unsigned* photons_offsets,
   const Allen::Rich::PhotonReco::Photon* photons_prefilter,
   Allen::Rich::PhotonReco::Photon* photons)
 {
-  unsigned track_id = blockIdx.x;
-  unsigned in_start = photons_offsets_prefilter[track_signal_offsets[track_id]];
-  unsigned in_size = photons_offsets_prefilter[track_signal_offsets[track_id + 1]] - in_start;
-  unsigned out_start = photons_offsets[track_id];
+  constexpr unsigned lanes_per_warp = static_cast<unsigned>(warp_size);
+  const unsigned thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned lane = thread_id % lanes_per_warp;
+  const unsigned stride = (gridDim.x * blockDim.x) / lanes_per_warp;
 
-  __shared__ unsigned out_idx[1];
-  if (threadIdx.x == 0) *out_idx = 0;
-  __syncthreads();
+  for (unsigned track_id = thread_id / lanes_per_warp; track_id < number_of_tracks; track_id += stride) {
+    const unsigned in_start = photons_offsets_prefilter[track_signal_offsets[track_id]];
+    const unsigned in_size = photons_offsets_prefilter[track_signal_offsets[track_id + 1]] - in_start;
+    const unsigned out_start = photons_offsets[track_id];
 
-  for (unsigned i = threadIdx.x; i < in_size; i += blockDim.x) {
-    auto photon = photons_prefilter[in_start + i];
-    bool keep = !std::isnan(photon.ckTheta);
-    if (keep) {
-      unsigned j = atomicAdd(out_idx, 1); // TODO, warp level compaction
-      photons[out_start + j] = photon;
+    // Rounded up so that every lane reaches the same number of __ballot_sync calls.
+    const unsigned n_rounds = ((in_size + lanes_per_warp - 1) / lanes_per_warp) * lanes_per_warp;
+
+    unsigned out_id = 0;
+    for (unsigned i = lane; i < n_rounds; i += lanes_per_warp) {
+      Allen::Rich::PhotonReco::Photon photon {};
+      bool keep = false;
+      if (i < in_size) {
+        photon = photons_prefilter[in_start + i];
+        keep = !std::isnan(photon.ckTheta);
+      }
+
+      // Ballot compaction instead of an atomic counter: the survivors keep the order
+      // of the prefiltered array, so the photon container is reproducible run to run.
+      const unsigned keep_mask = __ballot_sync(0xffffffff, keep);
+      if (keep) {
+        photons[out_start + out_id + __popc(keep_mask & ((1u << lane) - 1u))] = photon;
+      }
+      out_id += __popc(keep_mask);
     }
   }
 }
@@ -524,7 +536,6 @@ __global__ void rich_geomeff_pd_ids_to_global_k(
 
   for (unsigned i = threadId; i < total_number_of_pds; i += stride) {
     const unsigned track_id = binary_search_rightmost(track_signal_offsets, number_of_tracks + 1, i);
-
     const auto side = Allen::Rich::side<richIdx>(segs_best_point[track_id]);
     const unsigned event_number = binary_search_rightmost(track_offsets, number_of_events + 1, track_id);
     const unsigned panel_offset =
@@ -560,6 +571,7 @@ void rich_quartic_signals::rich_quartic_signals_t::set_arguments_size(
 
   // Temporaries:
   set_size<dev_pd_photon_dir_corners_t>(arguments, 1); // will be allocated when we know the count
+  set_size<dev_rich_prefilter_pd_mask_t>(arguments, number_of_tracks * maskWordsPerTrack() + 1);
 }
 
 template<Allen::Rich::Detector::DetectorType richIdx>
@@ -580,6 +592,9 @@ void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
 
   const float ckBiasCorr = m_ckBiasCorrs.value()[richIdx];
 
+  const unsigned n_mask_words = maskWordsPerTrack();
+  assert(size<dev_rich_prefilter_pd_mask_t>(arguments) >= number_of_tracks * n_mask_words);
+
   Allen::memset_async<dev_rich_geomeff_offsets_t>(arguments, 0, context);
   Allen::memset_async<dev_offsets_rich_photons_t>(arguments, 0, context);
 
@@ -594,6 +609,8 @@ void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
     data<dev_segs_point_at_panel_t>(arguments),
     data<dev_rich_hypos_t>(arguments),
     data<dev_rich_geomeff_offsets_t>(arguments),
+    data<dev_rich_prefilter_pd_mask_t>(arguments),
+    n_mask_words,
     minROIPreSel2,
     maxROIPreSel2,
     scalePreSel,
@@ -610,22 +627,16 @@ void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
   global_function(fill_kernel)(dim3(number_of_events), m_block_dim, context)(
     m_pd_infos,
     m_n_pds,
-    m_pd_lpos16,
-    m_pd_diag,
     number_of_events,
     data<dev_offsets_rich_states_t>(arguments),
     number_of_tracks,
     data<dev_segs_best_point_t>(arguments),
-    data<dev_segs_point_at_panel_t>(arguments),
-    data<dev_rich_hypos_t>(arguments),
     data<dev_pd_pixels_t>(arguments),
     data<dev_rich_geomeff_offsets_t>(arguments),
+    data<dev_rich_prefilter_pd_mask_t>(arguments),
+    n_mask_words,
     data<dev_rich_geomeff_pd_ids_t>(arguments),
-    data<dev_offsets_rich_photons_prefilter_t>(arguments),
-    minROIPreSel2,
-    maxROIPreSel2,
-    scalePreSel,
-    nSigmaPreSel);
+    data<dev_offsets_rich_photons_prefilter_t>(arguments));
 
   // Compute offsets for per PD photons output:
   PrefixSum::prefix_sum<dev_offsets_rich_photons_prefilter_t, host_total_number_of_photons_t>(
@@ -633,7 +644,8 @@ void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
   resize<dev_rich_photons_prefilter_t>(arguments, first<host_total_number_of_photons_t>(arguments));
 
   // Now do the quartic photon reconstruction and compute geom effs:
-  resize<dev_pd_photon_dir_corners_t>(arguments, first<host_total_number_of_geomeffs_t>(arguments));
+  const unsigned total_number_of_pds = first<host_total_number_of_geomeffs_t>(arguments);
+  resize<dev_pd_photon_dir_corners_t>(arguments, total_number_of_pds);
 
   const auto& corners_kernel = rich_quartic_corners_k<richIdx>;
   global_function(corners_kernel)(dim3(32), m_block_dim, context)(
@@ -671,8 +683,8 @@ void rich_quartic_signals::rich_quartic_signals_t::launchForRich(
   // Copy the photons and signals into a post-filtered compact array:
   PrefixSum::prefix_sum<dev_offsets_rich_photons_t, host_total_number_of_photons_t>(*this, arguments, context);
   resize<dev_rich_photons_t>(arguments, first<host_total_number_of_photons_t>(arguments));
-
-  global_function(rich_photon_copy_postfilter_k)(dim3(number_of_tracks), m_block_dim, context)(
+  global_function(rich_photon_copy_postfilter_k)(dim3(32), m_block_dim, context)(
+    number_of_tracks,
     data<dev_rich_geomeff_offsets_t>(arguments),
     data<dev_offsets_rich_photons_prefilter_t>(arguments),
     data<dev_offsets_rich_photons_t>(arguments),

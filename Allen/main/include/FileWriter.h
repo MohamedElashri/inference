@@ -1,5 +1,5 @@
 /*****************************************************************************\
-* (c) Copyright 2018-2020 CERN for the benefit of the LHCb Collaboration      *
+* (c) Copyright 2018-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -12,46 +12,40 @@
 
 #include <read_mdf.hpp>
 #include <OutputHandler.h>
+#include "Logger.h"
 
 class FileWriter final : public OutputHandler {
 public:
-  FileWriter(
-    IInputProvider const* input_provider,
-    std::string filename,
-    size_t const output_batch_size,
-    bool checksum = true) :
-    OutputHandler {input_provider, filename, 1u, output_batch_size, checksum},
-    m_filename {std::move(filename)}
+  FileWriter(std::string filename) : OutputHandler {std::move(filename)}
   {
-    m_output = MDF::open(m_filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    info_cout << "Opening output file " << connection() << "\n";
+    m_output = MDF::open(connection(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (!m_output.good) {
       throw std::runtime_error {"Failed to open output file"};
     }
   }
 
+  std::tuple<bool, size_t> output_selected_events(SPSCRingBuffer* ring_buffer) override
+  {
+    std::span<char> buffer = ring_buffer->consume();
+    bool success = true;
+    if (!buffer.empty()) {
+      success = m_output.write(buffer.data(), buffer.size());
+    }
+    size_t count = count_events(buffer);
+    ring_buffer->release();
+    return {success, count};
+  }
+
   ~FileWriter()
   {
     if (m_output.good) {
+      info_cout << "Closing output file " << connection() << "\n";
       m_output.close();
     }
   }
 
-protected:
-  std::span<char> buffer(size_t, size_t buffer_size, size_t) override
-  {
-    m_buffer.resize(buffer_size);
-    return std::span {&m_buffer[0], static_cast<events_size>(buffer_size)};
-  }
-
-  virtual bool write_buffer(size_t) override { return m_output.write(m_buffer.data(), m_buffer.size()); }
-
 private:
-  // Output filename
-  std::string const m_filename;
   // Storage for the currently open output file
-
   Allen::IO m_output;
-
-  // data buffer
-  std::vector<char> m_buffer;
 };

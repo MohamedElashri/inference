@@ -44,14 +44,8 @@ namespace Utils {
   }
 } // namespace Utils
 
-ZMQOutputSender::ZMQOutputSender(
-  IInputProvider const* input_provider,
-  std::string const receiver_connection,
-  size_t const output_batch_size,
-  IZeroMQSvc* zmqSvc,
-  bool const checksum) :
-  OutputHandler {input_provider, receiver_connection, 1u, output_batch_size, checksum},
-  m_zmq {zmqSvc}
+ZMQOutputSender::ZMQOutputSender(std::string const receiver_connection, IZeroMQSvc* zmqSvc) :
+  OutputHandler {receiver_connection}, m_zmq {zmqSvc}
 {
   auto const pos = receiver_connection.rfind(":");
   auto const receiver = receiver_connection.substr(0, pos);
@@ -107,20 +101,4 @@ void ZMQOutputSender::handle()
   else {
     error_cout << "Received unknown message from output receiver: " << msg << "\n";
   }
-}
-
-std::span<char> ZMQOutputSender::buffer(size_t, size_t buffer_size, size_t)
-{
-  m_buffer.rebuild(buffer_size);
-  return std::span {static_cast<char*>(m_buffer.data()), static_cast<events_size>(buffer_size)};
-}
-
-bool ZMQOutputSender::write_buffer(size_t)
-{
-  if (m_connected) {
-    m_zmq->send(*m_socket, "EVENT", send_flags::sndmore);
-    m_zmq->send(*m_socket, m_buffer);
-  }
-
-  return true;
 }

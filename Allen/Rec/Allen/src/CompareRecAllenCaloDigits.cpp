@@ -1,5 +1,5 @@
 /***************************************************************************** \
- * (c) Copyright 2000-2018 CERN for the benefit of the LHCb Collaboration      *
+ * (c) Copyright 2000-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -13,33 +13,72 @@
 
 // Gaudi
 #include "GaudiAlg/Consumer.h"
-#include <Kernel/EventLocalAllocator.h>
+#include "GaudiAlg/Transformer.h"
 
 // Allen
 #include "CaloDigit.cuh"
-#include "Logger.h"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
 // Calorimeter
 #include <Event/CaloDigit.h>
 #include <Event/CaloDigits_v2.h>
 
-class CompareRecAllenCaloDigits final
-  : public Gaudi::Functional::Consumer<
-      void(const std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>>&, LHCb::Event::Calo::Digits const&)> {
+using AllenCaloDigits = std::vector<CaloDigit>;
+
+// ==================================================================
+//  Multi-event converter: device buffer → per-event CaloDigit vectors
+// ==================================================================
+
+class ConvertAllenCaloDigits final
+  : public LHCb::Algorithm::ScatterEvent::MultiTransformer<
+      std::tuple<AllenCaloDigits>(const Allen::device_buffer<CaloDigit>&, const Allen::device_buffer<unsigned>&)> {
 
 public:
-  /// Standard constructor
+  ConvertAllenCaloDigits(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"ecal_digits", ""}, KeyValue {"ecal_digit_offsets", ""}},
+      {KeyValue {"AllenCaloDigits", ""}})
+  {}
+
+  std::tuple<std::vector<AllenCaloDigits>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<CaloDigit>& dev_digits,
+    const Allen::device_buffer<unsigned>& dev_offsets) const override
+  {
+    auto h_digits = dev_digits.to_host();
+    auto h_offsets = dev_offsets.to_host();
+
+    const unsigned n_events = h_offsets.size() - 1;
+
+    std::vector<AllenCaloDigits> all_digits;
+    all_digits.reserve(n_events);
+
+    for (unsigned evt = 0; evt < n_events; ++evt) {
+      const unsigned begin = h_offsets[evt];
+      const unsigned end = h_offsets[evt + 1];
+      all_digits.emplace_back(h_digits.data() + begin, h_digits.data() + end);
+    }
+
+    return std::make_tuple(std::move(all_digits));
+  }
+};
+
+DECLARE_COMPONENT(ConvertAllenCaloDigits)
+
+// ==================================================================
+//  Single-event comparison: AllenCaloDigits  vs  Rec Calo Digits
+// ==================================================================
+
+class CompareRecAllenCaloDigits final
+  : public Gaudi::Functional::Consumer<void(const AllenCaloDigits&, LHCb::Event::Calo::Digits const&)> {
+
+public:
   CompareRecAllenCaloDigits(const std::string& name, ISvcLocator* pSvcLocator);
 
-  /// Algorithm execution
-  void operator()(
-    const std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>>&,
-    LHCb::Event::Calo::Digits const&) const override;
-
-private:
-  void compare(
-    std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>> const& allenDigits,
-    LHCb::Event::Calo::Digits const& lhcbDigits) const;
+  void operator()(const AllenCaloDigits& allenDigits, LHCb::Event::Calo::Digits const& lhcbDigits) const override;
 };
 
 DECLARE_COMPONENT(CompareRecAllenCaloDigits)
@@ -48,34 +87,21 @@ CompareRecAllenCaloDigits::CompareRecAllenCaloDigits(const std::string& name, IS
   Consumer(
     name,
     pSvcLocator,
-    // Inputs
-    {KeyValue {"ecal_digits", ""}, KeyValue {"EcalDigits", LHCb::CaloDigitLocation::Ecal}})
+    {KeyValue {"AllenCaloDigits", ""}, KeyValue {"EcalDigits", LHCb::CaloDigitLocation::Ecal}})
 {}
 
 void CompareRecAllenCaloDigits::operator()(
-  const std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>>& ecal_digits,
-  LHCb::Event::Calo::Digits const& ecalDigits) const
-{
-  for (auto const& [allenDigits, lhcbDigits] : {std::forward_as_tuple(ecal_digits, ecalDigits)}) {
-    compare(allenDigits, lhcbDigits);
-  }
-}
-
-void CompareRecAllenCaloDigits::compare(
-  std::vector<CaloDigit, LHCb::Allocators::EventLocal<CaloDigit>> const& allenDigits,
+  const AllenCaloDigits& allenDigits,
   LHCb::Event::Calo::Digits const& lhcbDigits) const
 {
-
-  namespace IndexDetails = LHCb::Detector::Calo::DenseIndex::details;
-  unsigned offset = 0;
-
-  for (auto d : lhcbDigits) {
+  for (const auto& d : lhcbDigits) {
     LHCb::Detector::Calo::Index idx {d.cellID()};
-    unsigned digit_index = unsigned {idx} - offset;
-    if (d.adc() != allenDigits[digit_index].adc) {
+    unsigned digit_index = unsigned {idx};
+
+    if (digit_index >= allenDigits.size() || d.adc() != allenDigits[digit_index].adc) {
       std::stringstream msg;
-      error() << "LHCb digit at " << unsigned {idx} << " has different ADC: " << d.adc() << ", then Allen digit at "
-              << digit_index << "with ADC: " << allenDigits[digit_index].adc << endmsg;
+      error() << "LHCb digit at " << unsigned {idx} << " ADC " << d.adc() << " != Allen digit at " << digit_index
+              << " ADC " << (digit_index < allenDigits.size() ? allenDigits[digit_index].adc : -1) << endmsg;
     }
   }
 }

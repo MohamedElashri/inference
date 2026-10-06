@@ -12,34 +12,96 @@
 #include <Gaudi/Accumulators.h>
 
 #include "Event/VPFullCluster.h"
-#include <Kernel/EventLocalAllocator.h>
 
 #include "VeloEventModel.cuh"
-#include "Logger.h"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
 #include <unordered_map>
+#include <vector>
 
-class TestAllenRetinaClusterSize final : public Gaudi::Functional::Consumer<void(
-                                           const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-                                           const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-                                           const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-                                           const std::vector<LHCb::VPFullCluster>&)> {
+// ==================================================================
+//  Multi-event converter: Allen VP raw buffers → per-event channelID+size vectors
+// ==================================================================
+
+struct VPClusterSize {
+  unsigned channelID;
+  int16_t clusterSize;
+};
+using VPClusterSizes = std::vector<VPClusterSize>;
+
+class ConvertAllenVPClusterSizes final
+  : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<VPClusterSizes>(
+      const Allen::device_buffer<unsigned>&, // vp_hits_num (N * n_module_pairs)
+      const Allen::device_buffer<unsigned>&, // vp_hit_offsets (N * (n_module_pairs + 1))
+      const Allen::device_buffer<char>&)> {  // vp_hits
+
+public:
+  ConvertAllenVPClusterSizes(const std::string& name, ISvcLocator* pSvcLocator) :
+    MultiTransformer(
+      name,
+      pSvcLocator,
+      {KeyValue {"vp_hits_num", ""}, KeyValue {"vp_hit_offsets", ""}, KeyValue {"vp_hits", ""}},
+      {KeyValue {"VPClusterSizes", ""}})
+  {}
+
+  std::tuple<std::vector<VPClusterSizes>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<unsigned>& dev_hits_num,
+    const Allen::device_buffer<unsigned>& dev_hit_offsets,
+    const Allen::device_buffer<char>& dev_hits) const override
+  {
+    auto h_hits_num = dev_hits_num.to_host();
+    auto h_hit_offsets = dev_hit_offsets.to_host();
+    auto h_hits = dev_hits.to_host();
+
+    const unsigned n_events = (h_hit_offsets.size() - 1) / Velo::Constants::n_module_pairs;
+    const unsigned n_hits_total = h_hit_offsets[h_hit_offsets.size() - 1];
+    Velo::ConstClusters all_hits {h_hits.data(), n_hits_total};
+
+    std::vector<VPClusterSizes> all_sizes;
+    all_sizes.reserve(n_events);
+
+    for (unsigned evt = 0; evt < n_events; ++evt) {
+      const unsigned base_off = evt * Velo::Constants::n_module_pairs;
+
+      VPClusterSizes sizes;
+      sizes.reserve(h_hit_offsets[base_off + Velo::Constants::n_module_pairs] - h_hit_offsets[base_off]);
+
+      for (unsigned i = 0; i < Velo::Constants::n_module_pairs; ++i) {
+        const unsigned mod_start = h_hit_offsets[base_off + i];
+        const unsigned mod_num = h_hits_num[base_off + i];
+        for (unsigned j = 0; j < mod_num; ++j) {
+          const unsigned idx = mod_start + j;
+          sizes.push_back({all_hits.id(idx) & 0x0FFFFFFF, all_hits.cluster_size(idx)});
+        }
+      }
+      all_sizes.emplace_back(std::move(sizes));
+    }
+
+    return std::make_tuple(std::move(all_sizes));
+  }
+};
+
+DECLARE_COMPONENT(ConvertAllenVPClusterSizes)
+
+// ==================================================================
+//  Single-event comparison: Allen cluster sizes vs Rec VPFullClusters
+// ==================================================================
+
+class TestAllenRetinaClusterSize final
+  : public Gaudi::Functional::Consumer<void(const VPClusterSizes&, const std::vector<LHCb::VPFullCluster>&)> {
 
 public:
   TestAllenRetinaClusterSize(const std::string& name, ISvcLocator* pSvcLocator);
 
-  void operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<char, LHCb::Allocators::EventLocal<char>>&,
-    const std::vector<LHCb::VPFullCluster>&) const override;
+  void operator()(const VPClusterSizes& allen_sizes, const std::vector<LHCb::VPFullCluster>& rec_clusters)
+    const override;
 
 private:
   mutable Gaudi::Accumulators::Counter<> m_n_clusters {this, "Clusters compared"};
   mutable Gaudi::Accumulators::Counter<> m_n_size_mismatch {this, "Size mismatches"};
   mutable Gaudi::Accumulators::Counter<> m_n_unmatched {this, "Allen clusters not in Rec"};
-  // Allen > Rec is benign on MC (HLT2 clips out-of-sensor pixels from wrong
-  // TopologyIDs). Allen < Rec must never happen.
   mutable Gaudi::Accumulators::Counter<> m_n_mismatch_edge {this, "Mismatches Allen>Rec (benign on MC)"};
   mutable Gaudi::Accumulators::Counter<> m_n_mismatch_other {this, "Mismatches Allen<Rec (unexpected)"};
 };
@@ -50,65 +112,38 @@ TestAllenRetinaClusterSize::TestAllenRetinaClusterSize(const std::string& name, 
   Consumer(
     name,
     pSvcLocator,
-    {KeyValue {"vp_hits_num", ""},
-     KeyValue {"vp_hit_offsets", ""},
-     KeyValue {"vp_hits", ""},
-     KeyValue {"VPFullClustersLocation", LHCb::VPFullClusterLocation::Default}})
+    {KeyValue {"VPClusterSizes", ""}, KeyValue {"VPFullClustersLocation", LHCb::VPFullClusterLocation::Default}})
 {}
 
 void TestAllenRetinaClusterSize::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& vp_hits_num,
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& vp_hit_offsets,
-  const std::vector<char, LHCb::Allocators::EventLocal<char>>& vp_hits,
-  std::vector<LHCb::VPFullCluster> const& hit_handler) const
+  const VPClusterSizes& allen_sizes,
+  const std::vector<LHCb::VPFullCluster>& rec_clusters) const
 {
-  const auto n_hits_total_allen = vp_hit_offsets[Velo::Constants::n_module_pairs];
-  Velo::ConstClusters vp_hit_container_allen {vp_hits.data(), n_hits_total_allen};
+  std::unordered_map<unsigned, const LHCb::VPFullCluster*> rec_map;
+  rec_map.reserve(rec_clusters.size());
+  for (const auto& rc : rec_clusters)
+    rec_map.emplace(rc.channelID().channelID(), &rc);
 
-  std::unordered_map<unsigned, const LHCb::VPFullCluster*> rec_by_channelid;
-  rec_by_channelid.reserve(hit_handler.size());
-  for (const auto& rec_cluster : hit_handler) {
-    rec_by_channelid.emplace(rec_cluster.channelID().channelID(), &rec_cluster);
-  }
+  for (const auto& as : allen_sizes) {
+    auto it = rec_map.find(as.channelID);
+    if (it == rec_map.end()) {
+      ++m_n_unmatched;
+      error() << "Allen cluster not in Rec, channelID = 0x" << std::hex << as.channelID << std::dec << endmsg;
+      continue;
+    }
 
-  for (unsigned i = 0; i < Velo::Constants::n_module_pairs; ++i) {
-    const auto module_hit_start = vp_hit_offsets[i];
-    const auto module_hit_num = vp_hits_num[i];
-    for (unsigned hit_number = 0; hit_number < module_hit_num; ++hit_number) {
-      const auto hit_index = module_hit_start + hit_number;
+    const auto rec_size = static_cast<int16_t>(it->second->pixels().size());
+    ++m_n_clusters;
+    if (as.clusterSize == rec_size) continue;
 
-      // Strip the LHCbID detector-type nibble to get the bare channelID.
-      const auto allen_channelid = vp_hit_container_allen.id(hit_index) & 0x0FFFFFFFu;
-      const auto allen_size = vp_hit_container_allen.cluster_size(hit_index);
-
-      auto it = rec_by_channelid.find(allen_channelid);
-      if (it == rec_by_channelid.end()) {
-        ++m_n_unmatched;
-        error() << "Allen cluster not in Rec, channelID = 0x" << std::hex << allen_channelid << std::dec << endmsg;
-        continue;
-      }
-
-      const auto rec_size = static_cast<int16_t>(it->second->pixels().size());
-
-      ++m_n_clusters;
-      if (allen_size == rec_size) continue;
-
-      ++m_n_size_mismatch;
-      if (allen_size > rec_size) {
-        // HLT2 additionally drops pixels that fall outside the sensor via
-        // pixel_in_valid_region. That check only exists for back-compatibility
-        // with MC samples produced with the wrong TopologyID, and is a no-op
-        // on real data and on correct MC. We decided to not implement it in
-        // Allen to avoid possible slow downs.
-        // See LHCb/VP/VPDAQ/src/VPRetinaFullClusterDecoder.cpp L126-L135
-        ++m_n_mismatch_edge;
-      }
-      else {
-        ++m_n_mismatch_other;
-        error() << "Cluster size mismatch Allen < Rec:"
-                << " channelID = 0x" << std::hex << allen_channelid << std::dec << " Allen = " << allen_size
-                << " Rec = " << rec_size << endmsg;
-      }
+    ++m_n_size_mismatch;
+    if (as.clusterSize > rec_size)
+      ++m_n_mismatch_edge;
+    else {
+      ++m_n_mismatch_other;
+      error() << "Cluster size mismatch Allen < Rec:"
+              << " channelID = 0x" << std::hex << as.channelID << std::dec << " Allen = " << as.clusterSize
+              << " Rec = " << rec_size << endmsg;
     }
   }
 }

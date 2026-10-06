@@ -18,12 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
-#include <regex>
 #include <limits.h>
-
-#ifdef __linux__
-#include <ext/stdio_filebuf.h>
-#endif
 
 using std::copysignf;
 using std::max;
@@ -456,6 +451,8 @@ namespace Allen {
 
   void inline host_register(void*, size_t, host_register_kind) {}
 
+  bool inline host_register_read_only_supported() { return true; }
+
   std::tuple<bool, std::string, unsigned, unsigned> set_device(int, size_t);
 
   void inline print_device_memory_consumption() {}
@@ -475,6 +472,9 @@ namespace Allen {
       return dst;
     }
   } // namespace device
+
+  void inline rangePush(const char*) {}
+  void inline rangePop() {}
 } // namespace Allen
 
 inline float __int_as_float(int a) { return Allen::device::bit_cast<float>(a); }

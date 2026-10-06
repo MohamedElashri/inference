@@ -5,7 +5,7 @@
 #   make fetch    MODEL=<name>       copy the checkpoint into checkpoints/<name>.pyt
 #   make convert  MODEL=<name>       write out/<name>/pvfinder_model.json, the file Allen reads
 #   make verify   MODEL=<name>       re-read it the way Allen does, compare with the checkpoint bit for bit
-#   make build    MODEL=<name>       build the Allen variant the model needs (../ballen)
+#   make build    MODEL=<name>       build Allen with the model architecture (benchmarks/build_allen.sh)
 #   make dump     MODEL=<name>       run Allen on one slice with the FC, UNet and peak dumps enabled
 #   make validate MODEL=<name>       check the dump stage by stage: track features, FC, UNet, the full
 #                                    model from Allen's track features, and the peak finder; write a
@@ -14,7 +14,7 @@
 #   make model-path MODEL=<name>     print the model file's path (for Allen's "model" property)
 #   make clean    MODEL=<name>       remove out/<name>
 #
-# MODEL defaults to unet16_lc4_scnone_asym5_final. Optional: DEVICE (GPU index, default 2),
+# MODEL defaults to unet16_lc4_scnone_asym5_best_bf16. Optional: DEVICE (GPU index, default 2),
 # EVENTS (slice size for dump, default 500), JOBS (build jobs, default 16), PY.
 # Variants, for dump and validate alike:
 #   PRECISION=bfloat16   the reduced-precision path (FC and UNet); its dump goes to
@@ -22,7 +22,7 @@
 #   DUMP_SET="ALG.PROP=VALUE ..."  any other Allen property overrides
 #   DUMP_TAG=<tag>       keep the dump in out/<name>/dump_<tag>/
 # LABEL names the run record.
-# ALLEN_BUILD_DIR overrides the full build path (default: Allen/<catalog build>gpu).
+# ALLEN_BUILD_DIR overrides the full build path (default: Allen/build).
 
 SHELL         := /bin/bash
 .SHELLFLAGS   := -eu -o pipefail -c
@@ -36,12 +36,20 @@ PY      ?= $(REPO)/.venv/bin/python3
 CATALOG := $(WEIGHTS)/models.tsv
 SCRIPTS := $(WEIGHTS)/scripts
 
-MODEL   ?= unet16_lc4_scnone_asym5_final
-DEVICE  ?= 2
-EVENTS  ?= 500
+# Read shared defaults once; model-specific architecture comes from the catalog.
+default = $(shell bash -c 'source "$$1"; printf "%s" "$${!2}"' bash "$(REPO)/benchmarks/defaults.sh" "$(1)")
+DEFAULT_MODEL := $(call default,PVF_MODEL)
+DEFAULT_BUILD := $(call default,PVF_BUILD_DIR)
+DEFAULT_DEVICE := $(call default,PVF_DEVICE)
+DEFAULT_EVENTS := $(call default,PVF_EVENTS)
+DEFAULT_FC_GRID := $(call default,PVF_FC_GRID_FRACTION)
+DEFAULT_UNET_GRID := $(call default,PVF_UNET_GRID_FRACTION)
+MODEL   ?= $(DEFAULT_MODEL)
+DEVICE  ?= $(DEFAULT_DEVICE)
+EVENTS  ?= $(DEFAULT_EVENTS)
 JOBS    ?= 16
-PRECISION ?=
-DUMP_SET ?=
+PRECISION ?= $(if $(filter bf16,$(call field,$(MODEL),6)),bfloat16,float32)
+DUMP_SET ?= pvfinder_fc_aggregation.gpu_work_list=$(if $(filter bfloat16,$(PRECISION)),true,false) pvfinder_fc_aggregation.fused_grid_fraction=$(DEFAULT_FC_GRID) pvfinder_unet.fused_grid_fraction=$(DEFAULT_UNET_GRID)
 DUMP_TAG ?= $(PRECISION)
 LABEL    ?= validate$(if $(DUMP_TAG),_$(DUMP_TAG))
 
@@ -52,8 +60,7 @@ MODELS := $(shell awk -F'\t' 'NR > 1 && NF && substr($$1, 1, 1) != "\043" {print
 SOURCE     := $(call field,$(MODEL),2)
 UNET_FEAT  := $(call field,$(MODEL),3)
 LATENT     := $(call field,$(MODEL),4)
-BUILD      := $(call field,$(MODEL),5)
-ALLEN_BUILD_DIR ?= $(REPO)/Allen/$(BUILD)gpu
+ALLEN_BUILD_DIR ?= $(DEFAULT_BUILD)
 
 CKPT := $(WEIGHTS)/checkpoints/$(MODEL).pyt
 OUT  := $(WEIGHTS)/out/$(MODEL)
@@ -68,7 +75,7 @@ help:
 > @sed -n '2,/^$$/s/^# \{0,1\}//p' $(firstword $(MAKEFILE_LIST))
 
 list:
-> @awk -F'\t' '$$1 !~ /^#/ && NF {printf "%-36s %-9s %-6s %-16s %s\n", $$1, $$3, $$4, $$5, $$7}' $(CATALOG)
+> @awk -F'\t' '$$1 !~ /^#/ && NF {printf "%-36s %-9s %-6s %-16s %s\n", $$1, $$3, $$4, $$6, $$5}' $(CATALOG)
 
 check-model:
 > @if [[ -z "$(SOURCE)" ]]; then echo "unknown MODEL '$(MODEL)'; see 'make list'" >&2; exit 1; fi
@@ -97,7 +104,7 @@ $(OUT)/verify.txt: $(OUT)/.converted $(SCRIPTS)/verify.py
 # ---- Allen build, dump, validate ---------------------------------------------
 build: check-model
 > BUILD_DIR="$(ALLEN_BUILD_DIR)" JOBS="$(JOBS)" PVFINDER_UNET_N_FEAT="$(UNET_FEAT)" \
->     PVFINDER_UNET_N_BATCH_CHANNELS="$(LATENT)" bash $(REPO)/benchmarks/build_v9r1.sh
+>     PVFINDER_UNET_N_BATCH_CHANNELS="$(LATENT)" bash $(REPO)/benchmarks/build_allen.sh
 
 dump: verify build
 > $(SCRIPTS)/allen_dump.sh --build $(ALLEN_BUILD_DIR) --model-file $(OUT)/pvfinder_model.json \

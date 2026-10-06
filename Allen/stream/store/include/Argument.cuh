@@ -15,6 +15,22 @@
 #include <typeindex>
 #include <span>
 #include <stdexcept>
+#include <cstdlib>
+#include <cxxabi.h>
+
+namespace {
+  std::string demangle(const std::string& tname)
+  {
+    int status;
+    std::string out;
+    char* demangled_name = abi::__cxa_demangle(tname.c_str(), NULL, NULL, &status);
+    if (status == 0) {
+      out = demangled_name;
+      std::free(demangled_name);
+    }
+    return out;
+  }
+} // namespace
 
 namespace Allen::Store {
   enum class Scope { Host, Device, Invalid };
@@ -31,20 +47,18 @@ namespace Allen::Store {
     {
       if (std::type_index(typeid(T)) != m_type_index) {
         throw std::runtime_error {
-          "Incompatible cast requested between " + std::string {m_type_index.name()} + " and " +
-          std::string {std::type_index(typeid(T)).name()}};
+          "Incompatible cast requested between " + type_name() + " and " + demangle(typeid(T).name())};
       }
       return reinterpret_cast<T*>(pointer());
     }
+
+    std::string type_name() const { return demangle(m_type_index.name()); }
 
   protected:
     std::type_index m_type_index;
     std::string m_name = "";
     Scope m_scope = Scope::Invalid;
     size_t m_type_size = 0;
-
-    virtual void* pointer() const = 0;
-    virtual size_t size() const = 0;
 
   public:
     template<typename T>
@@ -56,6 +70,9 @@ namespace Allen::Store {
     Scope scope() const { return m_scope; }
     std::type_index type() const { return m_type_index; }
     size_t size_bytes() const { return size() * m_type_size; }
+
+    virtual void* pointer() const = 0;
+    virtual size_t size() const = 0;
 
     template<typename T>
     operator std::span<T>()

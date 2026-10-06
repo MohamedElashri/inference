@@ -14,7 +14,6 @@
 #include "SciFiConsolidated.cuh"
 #include "SciFiEventModel.cuh"
 #include "AlgorithmTypes.cuh"
-#include "CopyTrackParameters.cuh"
 
 #include "AllenMonitoring.h"
 

@@ -225,26 +225,41 @@ __global__ void rich_photon_reco_k(
 }
 
 __global__ void rich_photon_copy_postfilter_k(
+  const unsigned number_of_tracks,
   const unsigned* photons_offsets_prefilter,
   const unsigned* photons_offsets,
   const Allen::Rich::PhotonReco::Photon* photons_prefilter,
   Allen::Rich::PhotonReco::Photon* photons)
 {
-  unsigned track_id = blockIdx.x;
-  unsigned in_start = photons_offsets_prefilter[track_id];
-  unsigned in_size = photons_offsets_prefilter[track_id + 1] - in_start;
-  unsigned out_start = photons_offsets[track_id];
+  constexpr unsigned lanes_per_warp = static_cast<unsigned>(warp_size);
+  const unsigned thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned lane = thread_id % lanes_per_warp;
+  const unsigned stride = (gridDim.x * blockDim.x) / lanes_per_warp;
 
-  __shared__ unsigned out_idx[1];
-  if (threadIdx.x == 0) *out_idx = 0;
-  __syncthreads();
+  for (unsigned track_id = thread_id / lanes_per_warp; track_id < number_of_tracks; track_id += stride) {
+    const unsigned in_start = photons_offsets_prefilter[track_id];
+    const unsigned in_size = photons_offsets_prefilter[track_id + 1] - in_start;
+    const unsigned out_start = photons_offsets[track_id];
 
-  for (unsigned i = threadIdx.x; i < in_size; i += blockDim.x) {
-    auto photon = photons_prefilter[in_start + i];
-    bool keep = !std::isnan(photon.ckTheta);
-    if (keep) {
-      unsigned j = atomicAdd(out_idx, 1); // TODO, warp level compaction
-      photons[out_start + j] = photon;
+    // Rounded up so that every lane reaches the same number of __ballot_sync calls.
+    const unsigned n_rounds = ((in_size + lanes_per_warp - 1) / lanes_per_warp) * lanes_per_warp;
+
+    unsigned out_id = 0;
+    for (unsigned i = lane; i < n_rounds; i += lanes_per_warp) {
+      Allen::Rich::PhotonReco::Photon photon {};
+      bool keep = false;
+      if (i < in_size) {
+        photon = photons_prefilter[in_start + i];
+        keep = !std::isnan(photon.ckTheta);
+      }
+
+      // Ballot compaction instead of an atomic counter: the survivors keep the order
+      // of the prefiltered array, so the photon container is reproducible run to run.
+      const unsigned keep_mask = __ballot_sync(0xffffffff, keep);
+      if (keep) {
+        photons[out_start + out_id + __popc(keep_mask & ((1u << lane) - 1u))] = photon;
+      }
+      out_id += __popc(keep_mask);
     }
   }
 }
@@ -350,7 +365,8 @@ void rich_photon_reconstruction::rich_photon_reconstruction_t::launchForRich(
   PrefixSum::prefix_sum<dev_offsets_rich_photons_t, host_total_number_of_photons_t>(*this, arguments, context);
   resize<dev_rich_photons_t>(arguments, first<host_total_number_of_photons_t>(arguments));
 
-  global_function(rich_photon_copy_postfilter_k)(dim3(number_of_tracks), m_block_dim, context)(
+  global_function(rich_photon_copy_postfilter_k)(dim3(32), m_block_dim, context)(
+    number_of_tracks,
     data<dev_offsets_rich_photons_prefilter_t>(arguments),
     data<dev_offsets_rich_photons_t>(arguments),
     data<dev_rich_photons_prefilter_t>(arguments),

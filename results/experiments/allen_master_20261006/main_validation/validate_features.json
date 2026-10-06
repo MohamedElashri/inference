@@ -1,0 +1,45 @@
+{
+  "allen_vs_rules": {
+    "tracks": 122077,
+    "ellipsoid_source": "pv-finder_v2 tools/ellipsoid.py",
+    "poca_max_abs_diff_mm": 0.0007589991255372297,
+    "ellipsoid_max_rel_matrix_diff": 6.437877385221288e-07,
+    "tracks_without_ellipsoid": 36,
+    "status": "PASS"
+  },
+  "rules_vs_training": {
+    "tracks": 459132,
+    "events": 2000,
+    "checks": {
+      "poca_within_1um": 0.9999738637254646,
+      "major_axis_within_0.01deg_of_track": 1.0,
+      "major_minor_ratio_within_0.1pct": 0.9987345687079097,
+      "ellipsoid_matrix_within_1pct": 0.9938732216443201
+    },
+    "status": "PASS"
+  },
+  "minor_axis_quantiles": {
+    "q": [
+      0.05,
+      0.25,
+      0.5,
+      0.75,
+      0.95
+    ],
+    "training": [
+      0.030375059661439722,
+      0.037732711258438786,
+      0.04618483408333554,
+      0.06566650669740733,
+      0.15945860428939695
+    ],
+    "allen_sqrt_c00": [
+      0.027288269911143394,
+      0.03467730275613048,
+      0.042794644311218315,
+      0.060971325876127865,
+      0.13693256008338608
+    ]
+  },
+  "status": "PASS"
+}

@@ -12,7 +12,7 @@
 
 #include "AlgorithmTypes.cuh"
 #include "PV_Definitions.cuh"
-#include "MCEvent.h"
+#include <span>
 
 // Writes the reconstructed primary vertices and the MC primary vertices of
 // every event in the event list to a binary file, for event-by-event
@@ -32,7 +32,9 @@ namespace pvfinder_pv_dump {
     MASK_INPUT(dev_event_list_t) dev_event_list;
     DEVICE_INPUT(dev_multi_final_vertices_t, PV::Vertex) dev_multi_final_vertices;
     DEVICE_INPUT(dev_number_of_multi_final_vertices_t, unsigned) dev_number_of_multi_final_vertices;
-    HOST_INPUT(host_mc_events_t, const MCEvents*) host_mc_events;
+    HOST_INPUT(host_mc_pv_banks_t, std::span<const char>) host_mc_pv_banks;
+    HOST_INPUT(host_mc_pv_offsets_t, std::span<const unsigned>) host_mc_pv_offsets;
+    HOST_INPUT(host_mc_pv_sizes_t, std::span<const unsigned>) host_mc_pv_sizes;
   };
 
   struct pvfinder_pv_dump_t : public ValidationAlgorithm, Parameters {

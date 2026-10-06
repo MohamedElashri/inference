@@ -1,0 +1,53 @@
+{
+  "schema": "allen-upstream-validation/1",
+  "status": "PASS",
+  "fork_commit": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+  "build": {
+    "name": "buildgpu12",
+    "dir": "/tmp/pvfinder-current-master20261006/buildgpu12",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_HOME_DIRECTORY": "/tmp/pvfinder-current-master20261006",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-06T07:33:50-04:00",
+    "source_dir": "/tmp/pvfinder-current-master20261006",
+    "source_git": {
+      "head": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+      "branch": "allen/pvfinder-current",
+      "subject": "Read MC PV banks directly after upstream standalone checker removal",
+      "dirty": false,
+      "dirty_files": [],
+      "diff_sha256": null
+    },
+    "sources_newer_than_build": []
+  },
+  "unit_tests": {
+    "assertions": 314,
+    "cases": 14
+  },
+  "validators": {
+    "fc": "PASS",
+    "unet": "PASS",
+    "model": "PASS",
+    "features": "PASS",
+    "peaks": "PASS"
+  },
+  "physics": {
+    "0.07": "physics/threshold0.07",
+    "0.1": "physics/threshold0.1"
+  },
+  "raw_artifacts": "benchmark_results/allen-upstream-validation-W3sd1j"
+}

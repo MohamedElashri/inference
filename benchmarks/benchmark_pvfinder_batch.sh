@@ -19,37 +19,37 @@ Usage:
 
 Options:
   --label LABEL              Required result label, e.g. reference_A_fp32_head_d1874d8
-  -B, --build-dir NAME       Allen build directory name under Allen/ (default: buildgpu16chL4gpu)
+  -B, --build-dir NAME       Build name under Allen/ or absolute path (default: build)
   -d, --device N             GPU device index (default: 2)
   -t, --threads N            Allen threads / streams (default: 16)
-  -n, --events N             Events to process (default: 100)
-  -m, --memory MB            Device memory per thread / stream (default: 300)
-  -r, --repetitions N        Repetitions per thread / stream (default: 500)
-  --repeats N                Number of repeated benchmark runs (default: 3)
+  -n, --events N             Events to process (default: 500)
+  -m, --memory MB            Device memory per thread / stream (default: 500)
+  -r, --repetitions N        Repetitions per thread / stream (default: 1000)
+  --repeats N                Number of repeated benchmark runs (default: 5)
   --model NAME               Weights from the weights/ pipeline:
-                             weights/out/NAME/{cnn,fc}_weights.bin
-                             (default: unet16_lc4_scnone_asym5_final; see make -C weights list)
+                             weights/out/NAME/pvfinder_model.json
+                             (default: unet16_lc4_scnone_asym5_best_bf16; see make -C weights list)
   --model-file PATH          The model file for both algorithms' "model" property
                              (default: weights/out/<--model>/pvfinder_model.json)
   --use-bf16 BOOL            precision = bfloat16 for pvfinder_fc_aggregation and
-                             pvfinder_unet (default: false, i.e. float32)
-  --gpu-work-list BOOL      Build FC work lists on the GPU (BF16 only; default false)
+                             pvfinder_unet (default: true)
+  --gpu-work-list BOOL      Build FC work lists on the GPU (BF16 only; defaults to --use-bf16)
   --unet-batch-events N      Set pvfinder_unet.unet_batch_events and
                              pvfinder_fc_aggregation.unet_batch_events together
                              (default: 20); float32 cuDNN batch size in events
-  --fc-grid-fraction F       Set pvfinder_fc_aggregation.fused_grid_fraction (default 0.125)
-  --unet-grid-fraction F     Set pvfinder_unet.fused_grid_fraction (default 0.25)
+  --fc-grid-fraction F       Set pvfinder_fc_aggregation.fused_grid_fraction (default 0.0625)
+  --unet-grid-fraction F     Set pvfinder_unet.fused_grid_fraction (default 0.125)
   --profile                  Run each sequence under nsys; the record gets
                              the per-sequence kernel summary
   --result-root DIR          Directory for batches (default: benchmark_results)
   --no-record                Do not write a results/runs/ record (smoke tests)
   -h, --help                 Show this help
 
+Default sequences: plain HLT1 and HLT1 with the full PVFinder shadow chain.
+Set PVF_SEQUENCES="sequence_a sequence_b ..." to compare other stages.
+
 Example:
-  benchmarks/benchmark_pvfinder_batch.sh \
-    --label reference_A_fp32_head_d1874d8 \
-    -B buildgpu16chL4gpu --model unet16_lc4_scnone_asym5_final \
-    -d 2 -t 16 -n 500 -m 500 -r 1000 --repeats 3 --use-bf16 true
+  bash benchmarks/benchmark_pvfinder_batch.sh --label production --repeats 1
 USAGE
 }
 
@@ -57,23 +57,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The script lives in benchmarks/; Allen, weights and results are resolved
 # from the repository root.
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "$SCRIPT_DIR/defaults.sh"
 ORIGINAL_ARGS=("$@")
 
 LABEL=""
-BUILD_NAME="buildgpu16chL4gpu"
-DEVICE=2
-THREADS=16
-EVENTS=100
-MEMORY=300
-REPS=500
-REPEATS=3
-MODEL=unet16_lc4_scnone_asym5_final
+BUILD_NAME="$PVF_BUILD_DIR"
+DEVICE=$PVF_DEVICE
+THREADS=$PVF_THREADS
+EVENTS=$PVF_EVENTS
+MEMORY=$PVF_MEMORY
+REPS=$PVF_REPETITIONS
+REPEATS=$PVF_REPEATS
+MODEL=$PVF_MODEL
 MODEL_FILE_OVERRIDE=""
-USE_BF16=false
-GPU_WORK_LIST=false
+USE_BF16=true
+GPU_WORK_LIST=""
 UNET_BATCH_EVENTS=20
-FC_GRID_FRACTION=0.125
-UNET_GRID_FRACTION=0.25
+FC_GRID_FRACTION=$PVF_FC_GRID_FRACTION
+UNET_GRID_FRACTION=$PVF_UNET_GRID_FRACTION
 PROFILE=0
 RESULT_ROOT="${REPO_ROOT}/benchmark_results"
 RECORD=1
@@ -90,21 +91,11 @@ while [[ $# -gt 0 ]]; do
         --repeats) REPEATS="$2"; shift 2 ;;
         --model) MODEL="$2"; shift 2 ;;
         --model-file) MODEL_FILE_OVERRIDE="$2"; shift 2 ;;
-        --cnn-weights|--fc-weights)
-            echo "ERROR: $1 was replaced by --model-file (one pvfinder_model.json for both algorithms)" >&2; exit 1 ;;
         --use-bf16) USE_BF16="$2"; shift 2 ;;
         --gpu-work-list) GPU_WORK_LIST="$2"; shift 2 ;;
         --unet-batch-events) UNET_BATCH_EVENTS="$2"; shift 2 ;;
         --fc-grid-fraction) FC_GRID_FRACTION="$2"; shift 2 ;;
         --unet-grid-fraction) UNET_GRID_FRACTION="$2"; shift 2 ;;
-        --use-fp16|--use-cuda-graph|--use-fused-cbr|--fwd-algo-ws-budget-mb|--use-fused-rcbn3|\
-        --use-fused-bias-relu-pool|--use-merged-up1|--l6a-m|--use-nonatomic-l6a-reduce|\
-        --use-warp-parallel-reduce|--fc-chunk-size|--use-fused-bias-relu-reduce|--skip-redundant-memset|\
-        --use-grid-stride-reduce|--fc-single-hidden-layer|--l1-l5-hidden-width|--l6a-active-channels|\
-        --use-precomputed-csr-offset|--safe-avg-entries-per-event|--skip-empty-intervals|--fc-fused|\
-        --canonical-track-order|--fc-fused-per-warp|--fc-hidden-dtype|--l6a-dtype|--min-interval-tracks|\
-        --unet-input-dtype|--bf16-layout|--unet-fused-kernel|--unet-input-layout)
-            echo "ERROR: $1 was removed with the experimental PVFinder paths (2026-09-27)" >&2; exit 1 ;;
         --profile) PROFILE=1; shift 1 ;;
         --result-root) RESULT_ROOT="$2"; shift 2 ;;
         --no-record) RECORD=0; shift 1 ;;
@@ -125,6 +116,7 @@ case "${USE_BF16}" in
     *) echo "ERROR: --use-bf16 must be true or false" >&2; exit 1 ;;
 esac
 
+GPU_WORK_LIST=${GPU_WORK_LIST:-$USE_BF16}
 case "${GPU_WORK_LIST}" in
     true|false) ;;
     *) echo "ERROR: --gpu-work-list must be true or false" >&2; exit 1 ;;
@@ -138,7 +130,11 @@ if ! [[ "${UNET_BATCH_EVENTS}" =~ ^[0-9]+$ ]] || [[ "${UNET_BATCH_EVENTS}" -lt 1
     exit 1
 fi
 
-BUILD_DIR="${REPO_ROOT}/Allen/${BUILD_NAME}"
+if [[ $BUILD_NAME == /* ]]; then
+    BUILD_DIR="$BUILD_NAME"
+else
+    BUILD_DIR="${REPO_ROOT}/Allen/${BUILD_NAME}"
+fi
 ALLEN_WRAPPER="${BUILD_DIR}/toolchain/wrapper"
 ALLEN_BIN="${BUILD_DIR}/Allen"
 MDF="${REPO_ROOT}/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf"
@@ -175,24 +171,12 @@ COMMON_ARGS=(
     -t "${THREADS}"
 )
 
-# Default triple: HLT1 alone | HLT1+FC | HLT1+FC+UNet. Two more roles are
-# recognised by name: *_pvs_pvfinder_unet_benchmark ("pvs": + peak finding and
-# the PV fit) and *_pvfinder_replace_benchmark ("replace": PVFinder's vertices
-# replace the beamline PV finder's for all of HLT1), and
-# *_pvfinder_hybrid_benchmark ("hybrid": as replace, the beamline PV finder's
-# seeds kept outside PVFinder's z range).
-# Override with PVF_SEQUENCES="<baseline_seq> <fc_seq> <unet_seq>" to benchmark
-# against a different HLT1 sequence (e.g. a reduced-work HLT1). Names must end
-# in the same _pvfinder_benchmark / _pvfinder_unet_benchmark suffixes so the
-# config patchers and the summary labels still recognise the FC and UNet rows.
+# The default comparison includes every PVFinder stage and retains the baseline PVs.
+# Override PVF_SEQUENCES for FC-only, UNet-only, replacement or hybrid studies.
 if [[ -n "${PVF_SEQUENCES:-}" ]]; then
     read -r -a SEQUENCES <<< "${PVF_SEQUENCES}"
 else
-    SEQUENCES=(
-        "hlt1_pp_default"
-        "hlt1_pp_pvfinder_benchmark"
-        "hlt1_pp_pvfinder_unet_benchmark"
-    )
+    SEQUENCES=("hlt1_pp_default" "hlt1_pp_pvs_pvfinder_unet_benchmark")
 fi
 
 sequence_label() {

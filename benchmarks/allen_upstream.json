@@ -1,0 +1,13 @@
+{
+  "schema": "allen-upstream-tracking/1",
+  "upstream_url": "https://gitlab.cern.ch/lhcb/Allen.git",
+  "upstream_branch": "master",
+  "upstream_commit": "b567e104f23ebfd0670d6272e47d9b1ce37d905c",
+  "fork_branch": "allen/pvfinder",
+  "fork_commit": "2ae31328a5c32e7fa995dc90ec57659c373ecae0",
+  "vendor_tree": "c006ff2aad391d7f4427a758fb03a203ca55ca01",
+  "excluded_from_vendor": [
+    "input/"
+  ],
+  "validation": "results/experiments/allen_master_20261006/preview_verification.json"
+}

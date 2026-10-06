@@ -1,0 +1,33 @@
+{
+  "dump_dir": "/data/home/melashri/iris/inference/benchmark_results/allen_master_rebase20261006/validation_fp32",
+  "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_best.pyt",
+  "max_f32_ulps": 1.0,
+  "csr": {
+    "intervals_differing": 0,
+    "status": "OK"
+  },
+  "features_dtype": "float32",
+  "histogram_dtype": "float32",
+  "interval_features": {
+    "slots_compared": 20000,
+    "non_finite_slots": 0,
+    "max_abs_diff": 4.62646920979023,
+    "max_rel_diff": 0.055955661169264204,
+    "max_f32_ulps": 0.00018359464654925769,
+    "largest_term": 8778362506844.533,
+    "status": "PASS"
+  },
+  "histogram": {
+    "slots_compared": 20000,
+    "non_finite_slots": 0,
+    "max_abs_diff": 0.8015741705748951,
+    "max_rel_diff": 0.06054895417167864,
+    "max_f32_ulps": 6.010475961692105e-05,
+    "largest_term": 501302323803.7367,
+    "status": "PASS"
+  },
+  "n_events": 500,
+  "n_tracks": 122077,
+  "latent_channels": 4,
+  "status": "PASS"
+}

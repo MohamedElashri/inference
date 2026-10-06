@@ -94,7 +94,7 @@ namespace Allen::Monitoring {
     }
   }
 
-  void AccumulatorManager::mergeAndReset(bool singlethreaded)
+  void AccumulatorManager::mergeAndReset()
   {
     // This function is called by the monitoring thread
 
@@ -103,13 +103,11 @@ namespace Allen::Monitoring {
     m_current_buffer.store(!buf, std::memory_order_release);
 
     // * Wait acknowledge from the streams
-    if (!singlethreaded) {
-      auto const next_buf = !buf;
-      for (unsigned i = 0; i < m_stream_current_buffer.size(); i++) {
-        while (m_stream_current_buffer[i].load(std::memory_order_acquire) != next_buf &&
-               !m_stream_done[i].load(std::memory_order_acquire)) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+    auto const next_buf = !buf;
+    for (unsigned i = 0; i < m_stream_current_buffer.size(); i++) {
+      while (m_stream_current_buffer[i].load(std::memory_order_acquire) != next_buf &&
+             !m_stream_done[i].load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     }
 
@@ -120,7 +118,9 @@ namespace Allen::Monitoring {
     // * Reset device buffer to 0
     Allen::memset((void*) m_dev_buffer_ptr[buf], 0, m_buffer_size);
 
-    // * Update accumulators
+    // * Update accumulators. The host-side values are read and reset concurrently by the
+    //   monitoring hub's users, see hostDataMutex().
+    std::lock_guard lock {hostDataMutex()};
     for ([[maybe_unused]] auto& [key, acc] : m_accumulators) {
       acc.owners[0]->fillAccumulator((void*) (m_host_buffer_ptr + acc.offset));
     }

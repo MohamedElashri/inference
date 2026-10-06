@@ -67,7 +67,18 @@ add_custom_command(
   WORKING_DIRECTORY ${ALLEN_PARSER_DIR}
   DEPENDS generate_conf_core default_properties)
 add_custom_target(generate_algorithms_view DEPENDS "${ALGORITHMS_OUTPUTFILE}")
-install(FILES "${ALGORITHMS_OUTPUTFILE}" DESTINATION python/AllenAlgorithms)
+# Install next to the generated AllenAlgorithms/__init__.py and AllenAlgorithmsConf.py, which Gaudi puts in
+# GAUDI_INSTALL_PYTHONDIR (lib/pythonX.Y/site-packages since Gaudi v41r0, python before that): a package split
+# over two directories is not importable, python/AllenAlgorithms would be hidden by the regular package.
+# Without Gaudi (standalone build) the variable is not defined.
+# TODO: this can be removed or simplified (install to ${GAUDI_INSTALL_PYTHONDIR}/AllenAlgorithms unconditionally
+# in a Gaudi build) once support for Gaudi releases older than v41r0 is no longer needed.
+if(DEFINED GAUDI_INSTALL_PYTHONDIR AND NOT "${GAUDI_INSTALL_PYTHONDIR}" STREQUAL "")
+  set(ALLEN_ALGORITHMS_INSTALL_DIR "${GAUDI_INSTALL_PYTHONDIR}/AllenAlgorithms")
+else()
+  set(ALLEN_ALGORITHMS_INSTALL_DIR python/AllenAlgorithms)
+endif()
+install(FILES "${ALGORITHMS_OUTPUTFILE}" DESTINATION "${ALLEN_ALGORITHMS_INSTALL_DIR}")
 
 # Target that the generation of the sequences can depend on
 add_custom_target(Sequences DEPENDS generate_algorithms_view)
@@ -183,6 +194,30 @@ endif()
 
 file(GLOB python_allen_conf "${PROJECT_SOURCE_DIR}/configuration/python/AllenConf/*py")
 file(GLOB python_allen_core "${PROJECT_SOURCE_DIR}/configuration/python/AllenCore/*py")
+
+# The sequence configuration JSON is generated at build time only for the
+# sequences exercised by the CI (throughput and sanitizer jobs), which run the
+# standalone binary from those files. Every other sequence is configured from
+# python at runtime.
+set(ALLEN_JSON_SEQUENCES
+  hlt1_pp_default
+  hlt1_pp_veloSP
+  hlt1_pp_forward_then_matching_and_downstream_veloSP
+  hlt1_pp_lumi
+  hlt1_pp_forward
+  hlt1_pp_matching
+  hlt1_pp_forward_then_matching
+  hlt1_pp_forward_then_matching_no_ut
+  hlt1_pp_forward_then_matching_and_downstream
+  hlt1_pp_forward_then_matching_with_parkf
+  hlt1_pp_forward_then_matching_and_downstream_with_parkf_rich
+  hlt1_pp_forward_then_matching_and_downstream_with_parkf_rich_from_cones
+  hlt1_pp_2025_ttracks
+  hlt1_pp_ref_forward_then_matching
+  hlt1_pp_lowenergy_forward_then_matching_with_parkf_SMOGMBunprescaled
+  hlt1_PbPb_PbSMOG
+  hlt1_LightIon_IonSMOG_veloSP)
+
 function(generate_sequence sequence)
   set(sequence_dir ${PROJECT_SEQUENCE_DIR}/${sequence})
   file(MAKE_DIRECTORY ${sequence_dir})

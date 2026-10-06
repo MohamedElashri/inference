@@ -11,6 +11,7 @@
 #pragma once
 
 #include <span>
+#include "mdf_header.hpp"
 
 namespace Allen {
   constexpr int mdf_header_version = 3;
@@ -20,6 +21,9 @@ namespace Allen {
   {
     return bank_size + (bank_alignment - (bank_size % bank_alignment)) % bank_alignment;
   }
+
+  LHCb::MDFHeader*
+  add_mdf_header(std::span<char> event_span, unsigned const run_number, std::span<unsigned const> routing_bits);
 
   size_t add_raw_bank(
     unsigned char const type,

@@ -15,20 +15,13 @@
 class IZeroMQSvc;
 class OutputHandler;
 struct StreamWrapper;
-struct CheckerInvoker;
-struct HostBuffersManager;
 struct ROOTService;
 struct Stream;
 class IInputProvider;
 
 std::string connection(const size_t id, std::string suffix = "");
 
-void run_output(
-  const size_t thread_id,
-  const size_t output_id,
-  IZeroMQSvc* zmqSvc,
-  OutputHandler* output_handler,
-  HostBuffersManager* buffer_manager);
+void run_output(const size_t thread_id, const size_t output_id, IZeroMQSvc* zmqSvc, OutputHandler* output_handler);
 
 void run_slices(const size_t thread_id, IZeroMQSvc* zmqSvc, IInputProvider* input_provider);
 
@@ -39,11 +32,10 @@ void run_stream(
   Stream* stream,
   std::shared_ptr<IInputProvider> input_provider,
   IZeroMQSvc* zmqSvc,
-  CheckerInvoker* checker_invoker,
   ROOTService* root_service,
   unsigned n_reps,
   bool mep_layout,
-  uint inject_mem_fail,
+  unsigned int inject_mem_fail,
   bool prefer_shared);
 
 struct MonitoringPrinter;

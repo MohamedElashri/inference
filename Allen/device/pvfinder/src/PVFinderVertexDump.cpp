@@ -9,6 +9,8 @@
 * or submit itself to any jurisdiction.                                       *
 \*****************************************************************************/
 #include "PVFinderVertexDump.h"
+#include "PVFinderMCVertices.h"
+#include "MEPTools.h"
 
 #include <fstream>
 #include <mutex>
@@ -22,6 +24,37 @@ namespace {
   // by the first write to it in the process.
   std::mutex dump_mutex;
   std::set<std::string> started_files;
+
+  std::vector<PVFinder::MCVertex> mc_vertices(
+    std::span<const char> banks,
+    std::span<const unsigned> offsets,
+    std::span<const unsigned> sizes,
+    unsigned event)
+  {
+    if (event + 1 >= offsets.size() || offsets[event] > offsets[event + 1] || offsets[event + 1] > banks.size())
+      throw StrException("pvfinder_pv_dump: invalid MC-PV event offsets");
+    const auto raw = banks.subspan(offsets[event], offsets[event + 1] - offsets[event]);
+    auto word = [&raw](size_t offset) {
+      if (offset > raw.size() || raw.size() - offset < sizeof(uint32_t))
+        throw StrException("pvfinder_pv_dump: truncated MC-PV bank header");
+      uint32_t value;
+      std::memcpy(&value, raw.data() + offset, sizeof(value));
+      return value;
+    };
+    const unsigned count = word(0);
+    if (raw.size() < 2 * sizeof(uint32_t) || count > raw.size() / sizeof(uint32_t) - 2)
+      throw StrException("pvfinder_pv_dump: invalid MC-PV bank count");
+    const size_t payload_offset = (static_cast<size_t>(count) + 2) * sizeof(uint32_t);
+    std::vector<char> payload;
+    for (unsigned bank = 0; bank < count; ++bank) {
+      const size_t offset = payload_offset + word((bank + 1) * sizeof(uint32_t)) + sizeof(uint32_t);
+      const size_t length = Allen::bank_size(sizes.data(), event, bank);
+      if (offset > raw.size() || length > raw.size() - offset)
+        throw StrException("pvfinder_pv_dump: truncated MC-PV bank payload");
+      payload.insert(payload.end(), raw.data() + offset, raw.data() + offset + length);
+    }
+    return PVFinder::read_mc_vertices(payload);
+  }
 } // namespace
 
 void pvfinder_pv_dump::pvfinder_pv_dump_t::operator()(
@@ -33,7 +66,8 @@ void pvfinder_pv_dump::pvfinder_pv_dump_t::operator()(
   const auto vertices = make_host_buffer<dev_multi_final_vertices_t>(arguments, context);
   const auto number_of_vertices = make_host_buffer<dev_number_of_multi_final_vertices_t>(arguments, context);
   const auto event_list = make_host_buffer<dev_event_list_t>(arguments, context);
-  const auto& mc_events = *first<host_mc_events_t>(arguments);
+  if (runtime_options.mep_layout || size<host_mc_pv_banks_t>(arguments) != 1)
+    throw StrException("pvfinder_pv_dump: MC comparison requires the MDF bank layout");
 
   std::vector<char> buffer;
   auto put = [&buffer](const auto value) {
@@ -43,12 +77,16 @@ void pvfinder_pv_dump::pvfinder_pv_dump_t::operator()(
 
   const auto batch = m_batch++;
   for (const auto event_number : event_list) {
-    const auto& mc_vertices = mc_events[event_number].m_mcvs;
+    const auto mc_pvs = mc_vertices(
+      first<host_mc_pv_banks_t>(arguments),
+      first<host_mc_pv_offsets_t>(arguments),
+      first<host_mc_pv_sizes_t>(arguments),
+      std::get<0>(runtime_options.event_interval) + event_number);
     const unsigned n_rec = number_of_vertices[event_number];
     put(static_cast<uint32_t>(batch));
     put(static_cast<uint32_t>(std::get<0>(runtime_options.event_interval) + event_number));
     put(static_cast<uint32_t>(n_rec));
-    put(static_cast<uint32_t>(mc_vertices.size()));
+    put(static_cast<uint32_t>(mc_pvs.size()));
     for (unsigned i = 0; i < n_rec; ++i) {
       const auto& pv = vertices[event_number * PV::max_number_vertices + i];
       for (const float value :
@@ -64,7 +102,7 @@ void pvfinder_pv_dump::pvfinder_pv_dump_t::operator()(
         put(value);
       }
     }
-    for (const auto& mc_pv : mc_vertices) {
+    for (const auto& mc_pv : mc_pvs) {
       for (const double value : {mc_pv.x, mc_pv.y, mc_pv.z, static_cast<double>(mc_pv.numberTracks)}) {
         put(value);
       }

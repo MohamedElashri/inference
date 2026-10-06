@@ -37,7 +37,7 @@ __global__ void package_kalman_tracks::package_kalman_tracks(package_kalman_trac
 
   // Long tracks.
   const auto event_long_tracks = parameters.dev_long_tracks_view->container(event_number);
-  const unsigned n_long_tracks = parameters.dev_long_tracks_view->number_of_contained_objects();
+  const unsigned n_long_tracks = event_long_tracks.size();
 
   // Create velo tracks.
   Velo::Consolidated::ConstTracks velo_tracks {

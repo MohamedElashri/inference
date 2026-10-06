@@ -1,5 +1,5 @@
 /***************************************************************************** \
- * (c) Copyright 2000-2018 CERN for the benefit of the LHCb Collaboration      *
+ * (c) Copyright 2000-2026 CERN for the benefit of the LHCb Collaboration      *
 *                                                                             *
 * This software is distributed under the terms of the Apache License          *
 * version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
@@ -10,10 +10,10 @@
 \*****************************************************************************/
 
 /**
- * Convert PV::Vertex into LHCb::Event::PV::PrimaryVertexContainer
+ * Convert PV::Vertex (raw device buffers) into LHCb::Event::PV::PrimaryVertexContainer
  *
- * author Dorothea vom Bruch and Wouter Hulsbergen
- *
+ * Multi-event: receives per-slice raw device buffers, copies to host,
+ * scatters per-event vertex containers to event stores.
  */
 
 // Gaudi
@@ -22,30 +22,30 @@
 
 // LHCb
 #include "Event/PrimaryVertices.h"
-#include <Kernel/EventLocalAllocator.h>
 
 // Allen
-#include "Logger.h"
 #include "PV_Definitions.cuh"
 #include "patPV_Definitions.cuh"
+#include "AllenBuffer.cuh"
+#include "EventTransformer.h"
 
 using Vertices = LHCb::Event::PV::PrimaryVertexContainer;
 
 class GaudiAllenPVsToPrimaryVertexContainer final
-  : public Gaudi::Functional::Transformer<Vertices(
-      const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-      const std::vector<PV::Vertex, LHCb::Allocators::EventLocal<PV::Vertex>>&)> {
+  : public LHCb::Algorithm::ScatterEvent::MultiTransformer<std::tuple<Vertices>(
+      const Allen::device_buffer<unsigned>&,  // number of PVs per event (N elements)
+      const Allen::device_buffer<PV::Vertex>& // all PVs: N * max PVs per event, flat
+      )> {
+
 public:
-  /// Standard constructor
   GaudiAllenPVsToPrimaryVertexContainer(const std::string& name, ISvcLocator* pSvcLocator);
 
-  /// initialization
   StatusCode initialize() override;
 
-  /// Algorithm execution
-  Vertices operator()(
-    const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>&,
-    const std::vector<PV::Vertex, LHCb::Allocators::EventLocal<PV::Vertex>>&) const override;
+  std::tuple<std::vector<Vertices>> operator()(
+    const EventContext& /*ctx*/,
+    const Allen::device_buffer<unsigned>& dev_n_pvs,
+    const Allen::device_buffer<PV::Vertex>& dev_vertices) const override;
 
 private:
   mutable Gaudi::Accumulators::SummingCounter<unsigned int> m_nbPVsCounter {this, "Nb PVs"};
@@ -56,12 +56,10 @@ DECLARE_COMPONENT(GaudiAllenPVsToPrimaryVertexContainer)
 GaudiAllenPVsToPrimaryVertexContainer::GaudiAllenPVsToPrimaryVertexContainer(
   const std::string& name,
   ISvcLocator* pSvcLocator) :
-  Transformer(
+  MultiTransformer(
     name,
     pSvcLocator,
-    // Inputs
     {KeyValue {"number_of_multivertex", ""}, KeyValue {"reconstructed_multi_pvs", ""}},
-    // Outputs
     {KeyValue {"OutputPVs", "Allen/PVs/PrimaryVertices"}})
 {}
 
@@ -71,42 +69,53 @@ StatusCode GaudiAllenPVsToPrimaryVertexContainer::initialize()
   return StatusCode::SUCCESS;
 }
 
-Vertices GaudiAllenPVsToPrimaryVertexContainer::operator()(
-  const std::vector<unsigned, LHCb::Allocators::EventLocal<unsigned>>& number_of_multivertex,
-  const std::vector<PV::Vertex, LHCb::Allocators::EventLocal<PV::Vertex>>& reconstructed_multi_pvs) const
+std::tuple<std::vector<Vertices>> GaudiAllenPVsToPrimaryVertexContainer::operator()(
+  const EventContext& /*ctx*/,
+  const Allen::device_buffer<unsigned>& dev_n_pvs,
+  const Allen::device_buffer<PV::Vertex>& dev_vertices) const
 {
+  // Copy to host
+  auto h_n_pvs = dev_n_pvs.to_host();
+  auto h_vertices = dev_vertices.to_host();
 
-  const unsigned i_event = 0;
-  const unsigned n_pvs = number_of_multivertex[i_event];
+  const unsigned n_events = h_n_pvs.size();
+  constexpr unsigned max_pv = PatPV::max_number_vertices;
 
-  if (msgLevel(MSG::DEBUG)) debug() << "Number of PVs to convert = " << n_pvs << endmsg;
+  std::vector<Vertices> all_containers;
+  all_containers.reserve(n_events);
 
-  Vertices pvcontainer;
-  auto& vertices = pvcontainer.vertices;
-  vertices.reserve(n_pvs);
+  for (unsigned evt = 0; evt < n_events; ++evt) {
+    const unsigned n_pvs = h_n_pvs[evt];
 
-  for (unsigned int i = 0; i < n_pvs; i++) {
-    const PV::Vertex& vertex = reconstructed_multi_pvs[i_event * PatPV::max_number_vertices + i];
+    Vertices pvcontainer;
+    auto& vertices = pvcontainer.vertices;
+    vertices.reserve(n_pvs);
 
-    Gaudi::SymMatrix3x3 poscov;
-    poscov(0, 0) = static_cast<double>(vertex.cov00);
-    poscov(1, 0) = static_cast<double>(vertex.cov10);
-    poscov(1, 1) = static_cast<double>(vertex.cov11);
-    poscov(2, 0) = static_cast<double>(vertex.cov20);
-    poscov(2, 1) = static_cast<double>(vertex.cov21);
-    poscov(2, 2) = static_cast<double>(vertex.cov22);
-    auto& recvertex = vertices.emplace_back(Gaudi::XYZPoint {
-      static_cast<double>(vertex.position.x),
-      static_cast<double>(vertex.position.y),
-      static_cast<double>(vertex.position.z)});
-    recvertex.setCovMatrix(poscov);
-    recvertex.setChi2(static_cast<double>(vertex.chi2));
-    // vertex.nTracks contains the sum of weights from Allen TBLV. To convert it to Number of Degrees of Freedom ->
-    // Nubmer of Tracks we can use linear parametrisation described here
-    // https://indico.cern.ch/event/1370630/contributions/5849852. nTrack = (nDoF+3)/2
-    recvertex.setNDoF(std::lround(2 * (1 + 1.58 * static_cast<double>(vertex.nTracks)) - 3));
+    const unsigned evt_offset = evt * max_pv;
+
+    for (unsigned i = 0; i < n_pvs; ++i) {
+      const PV::Vertex& vertex = h_vertices[evt_offset + i];
+
+      Gaudi::SymMatrix3x3 poscov;
+      poscov(0, 0) = static_cast<double>(vertex.cov00);
+      poscov(1, 0) = static_cast<double>(vertex.cov10);
+      poscov(1, 1) = static_cast<double>(vertex.cov11);
+      poscov(2, 0) = static_cast<double>(vertex.cov20);
+      poscov(2, 1) = static_cast<double>(vertex.cov21);
+      poscov(2, 2) = static_cast<double>(vertex.cov22);
+
+      auto& recvertex = vertices.emplace_back(Gaudi::XYZPoint {
+        static_cast<double>(vertex.position.x),
+        static_cast<double>(vertex.position.y),
+        static_cast<double>(vertex.position.z)});
+      recvertex.setCovMatrix(poscov);
+      recvertex.setChi2(static_cast<double>(vertex.chi2));
+      recvertex.setNDoF(std::lround(2 * (1 + 1.58 * static_cast<double>(vertex.nTracks)) - 3));
+    }
+
+    m_nbPVsCounter += vertices.size();
+    all_containers.emplace_back(std::move(pvcontainer));
   }
 
-  m_nbPVsCounter += vertices.size();
-  return pvcontainer;
+  return std::make_tuple(std::move(all_containers));
 }

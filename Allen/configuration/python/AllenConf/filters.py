@@ -15,6 +15,7 @@ from AllenCore.algorithms import (
     check_ecal_energy_t,
     check_localized_beamline_ip_t,
     check_pvs_t,
+    data_provider_t,
     error_bank_filter_t,
     host_data_provider_t,
     host_scifi_gec_t,
@@ -32,7 +33,7 @@ from PyConf.tonic import configurable
 
 from AllenConf.enum_types import ActivityType
 from AllenConf.odin import decode_odin
-from AllenConf.utils import initialize_number_of_events, mep_layout
+from AllenConf.utils import initialize_number_of_events
 from AllenConf.velo_reconstruction import decode_velo
 
 
@@ -158,8 +159,6 @@ def long_track_activity_filter(
     min_long_tracks=1,
     max_long_tracks=99999999,
 ):
-    number_of_events = initialize_number_of_events()  # noqa: F841
-
     return make_algorithm(
         long_track_activity_filter_t,
         name=name,
@@ -194,8 +193,6 @@ def velo_track_activity_filter(
 def make_pv_activity_filter(
     pvs, name="pv_activity_filter", min_pvs=1, max_pvs=99999999
 ):
-    number_of_events = initialize_number_of_events()  # noqa: F841
-
     return make_algorithm(
         pv_activity_filter_t,
         name=name,
@@ -477,9 +474,7 @@ def regex_filter_lines(line_algorithms, enabled_lines, disabled_lines):
 
 
 def sd_error_filter():
-    number_of_events = initialize_number_of_events()  # noqa: F841
     event_list = initialize_event_lists()
-    layout = mep_layout()
 
     bank_types = {
         "ODIN": {"data_types": ["ODIN"]},
@@ -543,7 +538,6 @@ def sd_error_filter():
         error_bank_filter_t,
         name="error_bank_filter",
         host_event_list_t=event_list.host_event_list_output_t,
-        mep_layout_t=layout["host_mep_layout"],
         sd_bank_types=bank_types,
         daq_error_types=daq_error_types,
     )

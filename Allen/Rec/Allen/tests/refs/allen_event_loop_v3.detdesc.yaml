@@ -1,0 +1,1313 @@
+stdout: |-
+  ApplicationMgr     SUCCESS
+  ====================================================================================================================================
+  ====================================================================================================================================
+  ApplicationMgr        INFO Application Manager Configured successfully
+  MultiEventScheduler                    INFO Start initialization
+  MultiEventScheduler                    INFO Configured sequence:
+  MultiEventScheduler                    INFO    ProvideRuntimeOptions in: true
+  MultiEventScheduler                    INFO    FakeRunNumberProducer in: true
+  MultiEventScheduler                    INFO    reserveIOV in: true
+  MultiEventScheduler                    INFO    AAAAProvideConstants in: true
+  MultiEventScheduler                    INFO    initialize_number_of_events in: true
+  MultiEventScheduler                    INFO    populate_odin_banks in: true
+  MultiEventScheduler                    INFO    odin_error_filter in: true
+  MultiEventScheduler                    INFO    make_event_list_3301c977 in: true
+  MultiEventScheduler                    INFO    BX_BeamEmpty in: odin_error_filter
+  MultiEventScheduler                    INFO    BX_BeamBeam in: odin_error_filter
+  MultiEventScheduler                    INFO    ODIN_EvenType_VeloClosed in: (BX_BeamBeam|BX_BeamEmpty|odin_error_filter)
+  MultiEventScheduler                    INFO    ODIN_EvenType_ee_far_from_activity in: ODIN_EvenType_VeloClosed
+  MultiEventScheduler                    INFO    Hlt1ODINeeFarFromActivity in: ODIN_EvenType_ee_far_from_activity
+  MultiEventScheduler                    INFO    Hlt1SMOG2BENoBias in: ODIN_EvenType_VeloClosed
+  MultiEventScheduler                    INFO    Hlt1ODINCalib in: odin_error_filter
+  MultiEventScheduler                    INFO    error_bank_filter in: true
+  MultiEventScheduler                    INFO    Hlt1ErrorBank in: error_bank_filter
+  MultiEventScheduler                    INFO    tae_filter in: true
+  MultiEventScheduler                    INFO    Hlt1TAEPassthrough in: tae_filter
+  MultiEventScheduler                    INFO    calo_count_digits_8f5cd83e in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    ODIN_EvenType_Lumi in: Hlt1ODINCalib
+  MultiEventScheduler                    INFO    ODIN_Orbit_30_1 in: ODIN_EvenType_Lumi
+  MultiEventScheduler                    INFO    Hlt1ODIN1kHzLumi in: ODIN_Orbit_30_1
+  MultiEventScheduler                    INFO    Hlt1ODINLumi in: ODIN_EvenType_Lumi
+  MultiEventScheduler                    INFO    ODIN_NonZSFilter in: Hlt1ODINCalib
+  MultiEventScheduler                    INFO    Hlt1NonZeroSuppress in: ODIN_NonZSFilter
+  MultiEventScheduler                    INFO    Hlt1Passthrough in: Hlt1ODINCalib
+  MultiEventScheduler                    INFO    ODIN_EvenType_VeloOpen in: Hlt1ODINCalib
+  MultiEventScheduler                    INFO    host_scifi_banks in: (ODIN_EvenType_VeloClosed|odin_error_filter)
+  MultiEventScheduler                    INFO    scifi_gec in: (ODIN_EvenType_VeloClosed|odin_error_filter)
+  MultiEventScheduler                    INFO    velo_banks in: (scifi_gec|ODIN_EvenType_VeloClosed|odin_error_filter|ODIN_EvenType_VeloOpen)
+  MultiEventScheduler                    INFO    calculate_number_of_retinaclusters_each_sensor_pair in: (scifi_gec|ODIN_EvenType_VeloClosed|odin_error_filter|ODIN_EvenType_VeloOpen)
+  MultiEventScheduler                    INFO    decode_retinaclusters in: calculate_number_of_retinaclusters_each_sensor_pair
+  MultiEventScheduler                    INFO    velo_gec in: scifi_gec
+  MultiEventScheduler                    INFO    prescaler_Hlt1MaterialVertexSeeds_DWFS in: (scifi_gec&velo_gec)
+  MultiEventScheduler                    INFO    Hlt1GECPassthrough in: (scifi_gec&velo_gec)
+  MultiEventScheduler                    INFO    BX_NoBeamBeam in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    prescaler_Hlt1MaterialVertexSeedsDownstreamz in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    velo_search_by_triplet in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed|BX_NoBeamBeam|prescaler_Hlt1MaterialVertexSeedsDownstreamz|prescaler_Hlt1MaterialVertexSeeds_DWFS|odin_error_filter|ODIN_EvenType_VeloOpen)
+  MultiEventScheduler                    INFO    velo_three_hit_tracks_filter in: velo_search_by_triplet
+  MultiEventScheduler                    INFO    velo_copy_track_hit_number in: velo_search_by_triplet
+  MultiEventScheduler                    INFO    velo_consolidate_tracks in: ((scifi_gec&velo_gec)|BX_NoBeamBeam|prescaler_Hlt1MaterialVertexSeedsDownstreamz|prescaler_Hlt1MaterialVertexSeeds_DWFS|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    velo_kalman_filter in: velo_consolidate_tracks
+  MultiEventScheduler                    INFO    BGIPseudoPVsIR in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsIRBeamBeam in: BGIPseudoPVsIR
+  MultiEventScheduler                    INFO    ut_select_velo_tracks_772c3d70 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    BGIPseudoPVsAll in: BX_NoBeamBeam
+  MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsNoBeam in: BGIPseudoPVsAll
+  MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsBeamOne in: Hlt1BGIPseudoPVsNoBeam
+  MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsBeamTwo in: Hlt1BGIPseudoPVsNoBeam
+  MultiEventScheduler                    INFO    pv_beamline_extrapolate in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    pv_beamline_histo in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_peak in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_calculate_denom in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_multi_fitter in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    pv_beamline_cleanup in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    check_SMOG2_PV in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1PassthroughPVinSMOG2 in: check_SMOG2_PV
+  MultiEventScheduler                    INFO    Hlt1SMOG2MinimumBias in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    BGIPseudoPVsUp in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsUpBeamBeam in: BGIPseudoPVsUp
+  MultiEventScheduler                    INFO    BGIPseudoPVsDown in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1BGIPseudoPVsDownBeamBeam in: BGIPseudoPVsDown
+  MultiEventScheduler                    INFO    count_materialinteraction_candidates_fbc7c5e5 in: (prescaler_Hlt1MaterialVertexSeedsDownstreamz|prescaler_Hlt1MaterialVertexSeeds_DWFS)
+  MultiEventScheduler                    INFO    count_materialinteraction_vertices_5926ac13 in: count_materialinteraction_candidates_fbc7c5e5
+  MultiEventScheduler                    INFO    Hlt1MaterialVertexSeedsDownstreamz in: prescaler_Hlt1MaterialVertexSeedsDownstreamz
+  MultiEventScheduler                    INFO    Hlt1MaterialVertexSeeds_DWFS in: prescaler_Hlt1MaterialVertexSeeds_DWFS
+  MultiEventScheduler                    INFO    Hlt1VeloLargeClusters in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1BeamGas in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1VeloMicroBias in: Hlt1ODINCalib
+  MultiEventScheduler                    INFO    Hlt1VeloMicroBiasVeloClosing in: ODIN_EvenType_VeloOpen
+  MultiEventScheduler                    INFO    quirks_tools in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Quirks in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    muon_banks_ee050286 in: ((scifi_gec&velo_gec)|check_SMOG2_PV|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    muon_calculate_srq_size_762053f8 in: ((scifi_gec&velo_gec)|check_SMOG2_PV|ODIN_EvenType_VeloClosed)
+  MultiEventScheduler                    INFO    muon_populate_tile_and_tdc_aaaf801a in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    muon_add_coords_crossing_maps_8ee987f2 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    muon_populate_hits_3d94b506 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    find_muon_hits_853c9dc3 in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    consolidate_muon_t_d6c0a2a1 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1OneMuonTrackLine in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    scifi_banks_834c3679 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    scifi_calculate_cluster_count_3380ec70 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    scifi_pre_decode_92288b30 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    scifi_raw_bank_decoder_6dafd748 in: muon_calculate_srq_size_762053f8
+  MultiEventScheduler                    INFO    seed_xz_a1b8b6e8 in: ((scifi_gec&velo_gec)|check_SMOG2_PV)
+  MultiEventScheduler                    INFO    seed_confirmTracks_715ef2c7 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    seeding_copy_track_hit_number_df7d1dab in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    scifi_consolidate_seeds_matching in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_banks in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_get_bank_offsets_eadfcf29 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_get_hit_offsets_1f232807 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_predecode_hits_15c72b09 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_hit_clustering_ed244ef2 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ut_decoding_decode_clusters_b623646a in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    track_matching_veloSciFi_a59fe43c in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    matching_copy_track_ut_hit_number_b5527ba6 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    matching_consolidate_tracks_matching in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    is_muon in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    consolidate_is_muon_ff568e97 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    kalman_velo_only_64637078 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    chi2_muon_4a6b79e5 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    muonid_nn_6bbef087 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    ecal_banks_77f78c36 in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed|check_SMOG2_PV)
+  MultiEventScheduler                    INFO    calo_decode_e508553f in: ((scifi_gec&velo_gec)|ODIN_EvenType_VeloClosed|check_SMOG2_PV)
+  MultiEventScheduler                    INFO    track_digit_selective_matching_faae9f8e in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    electronid_nn_317af5a8 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    make_lepton_id_bfe81379 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    make_long_track_particles in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    Hlt1RICH1Alignment in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TrackMVA in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1RICH2Alignment in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2SingleTrackHighPt in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    filter_tracks_a408a317 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_prompt_dihadron_secondary_vertices in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    Hlt1SMOG2JPsiToMuMuTaP_PosTag in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1DiProtonHighMass in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2etacTopp in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1SMOG22BodyGenericPrompt in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1SMOG2JPsiToMuMuTaP_NegTag in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    filter_tracks_edb75c20 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_dilepton_secondary_vertices in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    Hlt1DiMuonNoIPNorm in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonJpsiMassAlignment in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDisplaced in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonHighMass in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonNoIP_SS in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDisplacedSoftPT in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDisplacedSoftPT_SS in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonNoIP in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonNoIPNorm_SS in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDrellYan_VLowMass in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDrellYan_VLowMass_SS in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDrellYan in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonDrellYan_SS in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2DisplacedDiMuon in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1SMOG2DiMuonHighMass in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1UpsilonAlignment in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_tracks_d5ed4e7a in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_dihadron_secondary_vertices in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    Hlt1D2KK in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG22BodyGeneric in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    filter_sv_track_bc2987fa in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_3217e2d3 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Dst2D0Pi in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Dst2D0PiAlignment in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DetJpsiToMuMuNegTagLine in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    two_track_mva_evaluator_ee342122 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TwoTrackMVA in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1D2KPi in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1D2PiPi in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_49fd0b08 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_1fd356f8 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    flatten_svs_25b24e86 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Kplus2PiPiPi in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Kplus2PiEE in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Kplus2PiMuMu in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2D2Kpi in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1DetJpsiToMuMuPosTagLine in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1D2KPiAlignment in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2KsTopipi in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1SingleHighPtMuonNoMuID in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2SingleMuon in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    filter_tracks_935f55f1 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    fit_dihadrons_noipcut_secondary_vertices in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_73fa2e58 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_1e6c0d46 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TauToPhiMu in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_tracks_4b5826c8 in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    fit_v0_secondary_vertices in: seed_xz_a1b8b6e8
+  MultiEventScheduler                    INFO    calc_max_combos_d8f3fd31 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_svs_3c296589 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    svs_pair_candidate_5952759b in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TwoKs in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_aa925f41 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_46fc7691 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1LambdaLLDetachedTrack in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_4949d903 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_f8c2bbbd in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_72ded4b0 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_1f2e714e in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1XiOmegaLLL in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1KsToPiPi in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1KsToPiPiDoubleMuonMisID in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TwoTrackKs in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_sv_track_2eeb5a0a in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    combine_sv_track_f79340ee in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1KsLLDetachedTrack in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calc_max_combos_two_svs_22234a26 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_two_svs_c22e8ec9 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    generic_svs_pair_candidate_40c4fc31 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1D2Kshh in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2L0Toppi in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    Hlt1SingleHighPtMuon in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    filter_tracks_a52d6d2d in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    fit_dilepton_secondary_vertices_nopt in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiMuonSoft in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TrackMuonMVA in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SMOG2SingleTrackVeryHighPt in: Hlt1PassthroughPVinSMOG2
+  MultiEventScheduler                    INFO    brem_recovery_883739ee in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    momentum_brem_correction_74f15bf2 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronHighMass in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronSoft in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1SingleHighPtElectron in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronHighMass_SS in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_NoIP in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1TrackElectronMVA in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronDisplaced in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_SS_NoIP in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_NoIPNorm in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_SS_NoIPNorm in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_Displaced in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiElectronLowMass_SS_Displaced in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_seed_clusters_3a42dddc in: pv_beamline_extrapolate
+  MultiEventScheduler                    INFO    LowMultElectrons in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    Hlt1SMOG2BELowMultElectrons in: LowMultElectrons
+  MultiEventScheduler                    INFO    LowMult_5 in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    Hlt1SMOG2PassThroughLowMult5 in: LowMult_5
+  MultiEventScheduler                    INFO    calo_overlap_clusters_60a76296 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_find_clusters in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    make_neutral_particles_d5bb4901 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    build_cone_jets_1b69cc3a in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    make_neutral_particles_3252639f in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1ConeJet30GeV in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1ConeJet15GeV in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1ConeJet50GeV in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1ConeJet100GeV in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_prefilter_clusters_681cf9e5 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_filter_clusters_f5c112a0 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    calo_find_twoclusters_21db73c6 in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1DiPhotonHighMass in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaMiddle in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Pi02GammaGamma in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaOuter in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaMiddleOuterMixed in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaMiddleInnerMixed in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    Hlt1Pi02GammaGammaInner in: Hlt1GECPassthrough
+  MultiEventScheduler                    INFO    gather_selections in: true
+  MultiEventScheduler                    INFO    dec_reporter in: true
+  MultiEventScheduler                    INFO    global_decision in: true
+  MultiEventScheduler                    INFO    host_routingbits_writer in: true
+  MultiEventScheduler                    INFO    make_selected_object_lists in: true
+  MultiEventScheduler                    INFO    make_subbanks in: make_selected_object_lists
+  MultiEventScheduler                    INFO    make_selreps in: make_selected_object_lists
+  MultiEventScheduler                    INFO    calc_lumi_sum_size in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    muon_lumi_counters in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    velo_total_tracks in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    pv_lumi_counters in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    calo_lumi_counters in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    scifi_lumi_counters in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    Plume_banks in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    plume_decode in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    plume_lumi_counters in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    make_lumi_summary in: Hlt1SMOG2BENoBias
+  MultiEventScheduler                    INFO    host_dummy_maker in: make_selected_object_lists
+  MultiEventScheduler                    INFO    output_handler in: make_selected_object_lists
+  MultiEventScheduler                    INFO    rate_validator in: make_selected_object_lists
+  OutputWriter                           INFO Initialize
+  MultiEventScheduler                    INFO Concurrency level information:
+  MultiEventScheduler                    INFO  o Number of streams: 2
+  MultiEventScheduler                    INFO  o Events per slice: 500
+  MultiEventScheduler                    INFO  o Number of events slots: 1000
+  MultiEventScheduler                    INFO ---> End of Initialization. This took n ms
+  ApplicationMgr                         INFO Application Manager Initialized successfully
+  ApplicationMgr                         INFO Application Manager Started successfully
+  MultiEventScheduler                    INFO Called nextEvent with: 10000
+  AAAAProvideConstants                   INFO Conditions DB is compatible with FT bank version 7 and 8.
+  Loading magfield grid, nbins x,y,z : (81, 81, 146)
+  dx, xmin, xmax: (100.000000, -4000.000000, 4000.000000)
+  dy, ymin, ymax: (100.000000, -4000.000000, 4000.000000)
+  dz, zmin, zmax: (100.000000, -500.000000, 14000.000000)
+  Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_mdf_input_v3_hist_counts.json
+  calo_find_clusters                     INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  error_bank_filter                      INFO Booked 3 Histogram(s) : 1D=3 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  fit_dihadron_secondary_vertices        INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  fit_dihadrons_noipcut_secondary_...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  fit_dilepton_secondary_vertices        INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  fit_dilepton_secondary_vertices_...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  fit_prompt_dihadron_secondary_ve...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  fit_v0_secondary_vertices              INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  gather_selections                      INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  make_long_track_particles              INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  matching_consolidate_tracks_matc...    INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  pv_beamline_cleanup                    INFO Booked 2 Histogram(s) : 1D=2 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  scifi_consolidate_seeds_matching       INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  velo_consolidate_tracks                INFO Booked 1 Histogram(s) : 1D=1 2D=0 3D=0 1DProf=0 2DProf=0 3DProf=0
+  ApplicationMgr                         INFO Application Manager Stopped successfully
+  MultiEventScheduler                    INFO StateTree: CFNode   #executed  #passed
+  NONLAZY_AND: allen_algorithms                                                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+   NONLAZY_OR: allen_non_event_data                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+    ProvideConstants/AAAAProvideConstants                                      #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+   NONLAZY_AND: AllenRateValidation                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+    NONLAZY_AND: AllenWithLumi                                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+     NONLAZY_AND: Allen                                                        #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+      NONLAZY_OR: SetupAllLines                                                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TrackMVA_node                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        track_mva_line_t/Hlt1TrackMVA                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TwoTrackMVA_node                                          #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_track_mva_line_t/Hlt1TwoTrackMVA                                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1D2KK_node                                                 #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        d2kk_line_t/Hlt1D2KK                                                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1D2KPi_node                                                #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        d2kpi_line_t/Hlt1D2KPi                                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1D2PiPi_node                                               #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        d2pipi_line_t/Hlt1D2PiPi                                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Dst2D0Pi_node                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        dst_d2kpi_line_t/Hlt1Dst2D0Pi                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiProtonHighMass_node                                     #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        diproton_highmass_line_t/Hlt1DiProtonHighMass                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Kplus2PiEE_node                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        kplus_to_three_tracks_line_t/Hlt1Kplus2PiEE                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Kplus2PiMuMu_node                                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        kplus_to_three_tracks_line_t/Hlt1Kplus2PiMuMu                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Kplus2PiPiPi_node                                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        kplus_to_three_tracks_line_t/Hlt1Kplus2PiPiPi                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TauToPhiMu_node                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        tautophimu_line_t/Hlt1TauToPhiMu                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Quirks_node                                               #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        quirks_line_t/Hlt1Quirks                                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1KsToPiPi_node                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        kstopipi_line_t/Hlt1KsToPiPi                                           #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1KsToPiPiDoubleMuonMisID_node                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        kstopipi_line_t/Hlt1KsToPiPiDoubleMuonMisID                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TwoTrackKs_node                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_track_line_ks_t/Hlt1TwoTrackKs                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TwoKs_node                                                #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_ks_line_t/Hlt1TwoKs                                                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1LambdaLLDetachedTrack_node                                #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lambda_ll_detached_track_line_t/Hlt1LambdaLLDetachedTrack              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1KsLLDetachedTrack_node                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        ks_ll_detached_track_line_t/Hlt1KsLLDetachedTrack                      #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1XiOmegaLLL_node                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        xi_omega_lll_line_t/Hlt1XiOmegaLLL                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1D2Kshh_node                                               #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        d2kshh_line_t/Hlt1D2Kshh                                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1SingleHighPtMuon_node                                     #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        single_high_pt_muon_line_t/Hlt1SingleHighPtMuon                        #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1SingleHighPtMuonNoMuID_node                               #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        single_high_pt_muon_no_muid_line_t/Hlt1SingleHighPtMuonNoMuID          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonHighMass_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_line_t/Hlt1DiMuonHighMass                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDisplaced_node                                      #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_line_t/Hlt1DiMuonDisplaced                                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDisplacedSoftPT_node                                #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_line_t/Hlt1DiMuonDisplacedSoftPT                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDisplacedSoftPT_SS_node                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_line_t/Hlt1DiMuonDisplacedSoftPT_SS                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonSoft_node                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_soft_line_t/Hlt1DiMuonSoft                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TrackMuonMVA_node                                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        track_muon_mva_line_t/Hlt1TrackMuonMVA                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonNoIP_node                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_no_ip_line_t/Hlt1DiMuonNoIP                                    #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonNoIP_SS_node                                        #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_no_ip_line_t/Hlt1DiMuonNoIP_SS                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonNoIPNorm_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_line_t/Hlt1DiMuonNoIPNorm                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonNoIPNorm_SS_node                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_line_t/Hlt1DiMuonNoIPNorm_SS                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDrellYan_VLowMass_node                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_drell_yan_line_t/Hlt1DiMuonDrellYan_VLowMass                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDrellYan_VLowMass_SS_node                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_drell_yan_line_t/Hlt1DiMuonDrellYan_VLowMass_SS                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDrellYan_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_drell_yan_line_t/Hlt1DiMuonDrellYan                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonDrellYan_SS_node                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_drell_yan_line_t/Hlt1DiMuonDrellYan_SS                         #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DetJpsiToMuMuPosTagLine_node                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        det_jpsitomumu_tap_line_t/Hlt1DetJpsiToMuMuPosTagLine                  #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DetJpsiToMuMuNegTagLine_node                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        det_jpsitomumu_tap_line_t/Hlt1DetJpsiToMuMuNegTagLine                  #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TrackElectronMVA_node                                     #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        track_electron_mva_line_t/Hlt1TrackElectronMVA                         #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1SingleHighPtElectron_node                                 #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        single_high_pt_electron_line_t/Hlt1SingleHighPtElectron                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronDisplaced_node                                  #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        displaced_dielectron_line_t/Hlt1DiElectronDisplaced                    #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiPhotonHighMass_node                                     #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1DiPhotonHighMass                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Pi02GammaGammaMiddleOuterMixed_node                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1Pi02GammaGammaMiddleOuterMixed            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Pi02GammaGammaMiddleInnerMixed_node                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1Pi02GammaGammaMiddleInnerMixed            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Pi02GammaGamma_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1Pi02GammaGamma                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Pi02GammaGammaOuter_node                                  #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1Pi02GammaGammaOuter                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Pi02GammaGammaMiddle_node                                 #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1Pi02GammaGammaMiddle                      #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Pi02GammaGammaInner_node                                  #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        two_calo_clusters_line_t/Hlt1Pi02GammaGammaInner                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronHighMass_SS_node                                #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        highmass_dielectron_line_t/Hlt1DiElectronHighMass_SS                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronHighMass_node                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        highmass_dielectron_line_t/Hlt1DiElectronHighMass                      #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronSoft_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_electron_soft_line_t/Hlt1DiElectronSoft                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1ConeJet15GeV_node                                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        cone_jet_line_t/Hlt1ConeJet15GeV                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1ConeJet30GeV_node                                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        cone_jet_line_t/Hlt1ConeJet30GeV                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1ConeJet50GeV_node                                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        cone_jet_line_t/Hlt1ConeJet50GeV                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1ConeJet100GeV_node                                        #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        cone_jet_line_t/Hlt1ConeJet100GeV                                      #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronLowMass_NoIP_node                               #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lowmass_dielectron_line_t/Hlt1DiElectronLowMass_NoIP                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronLowMass_SS_NoIP_node                            #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lowmass_dielectron_line_t/Hlt1DiElectronLowMass_SS_NoIP                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronLowMass_NoIPNorm_node                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lowmass_dielectron_line_t/Hlt1DiElectronLowMass_NoIPNorm               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronLowMass_SS_NoIPNorm_node                        #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lowmass_dielectron_line_t/Hlt1DiElectronLowMass_SS_NoIPNorm            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronLowMass_Displaced_node                          #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lowmass_dielectron_line_t/Hlt1DiElectronLowMass_Displaced              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiElectronLowMass_SS_Displaced_node                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        lowmass_dielectron_line_t/Hlt1DiElectronLowMass_SS_Displaced           #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1NonZeroSuppress_node                                      #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_nzsfilter_t/ODIN_NonZSFilter                                      #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1NonZeroSuppress                                 #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2BENoBias_node                                        #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamEmpty                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1SMOG2BENoBias                                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1SMOG2PassThroughLowMult5_node                             #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        low_occupancy_t/LowMult_5                                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1SMOG2PassThroughLowMult5                        #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2BELowMultElectrons_node                              #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamEmpty                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        low_occupancy_t/LowMultElectrons                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1SMOG2BELowMultElectrons                         #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2MinimumBias_node                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        SMOG2_minimum_bias_line_t/Hlt1SMOG2MinimumBias                         #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1SMOG2D2Kpi_node                                           #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_ditrack_line_t/Hlt1SMOG2D2Kpi                                    #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2etacTopp_node                                        #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_ditrack_line_t/Hlt1SMOG2etacTopp                                 #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2KsTopipi_node                                        #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_kstopipi_line_t/Hlt1SMOG2KsTopipi                                #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG22BodyGeneric_node                                    #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_ditrack_line_t/Hlt1SMOG22BodyGeneric                             #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG22BodyGenericPrompt_node                              #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_ditrack_line_t/Hlt1SMOG22BodyGenericPrompt                       #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2SingleTrackVeryHighPt_node                           #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_singletrack_line_t/Hlt1SMOG2SingleTrackVeryHighPt                #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2SingleTrackHighPt_node                               #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_singletrack_line_t/Hlt1SMOG2SingleTrackHighPt                    #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2DiMuonHighMass_node                                  #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_dimuon_highmass_line_t/Hlt1SMOG2DiMuonHighMass                   #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2SingleMuon_node                                      #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_single_muon_line_t/Hlt1SMOG2SingleMuon                           #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2DisplacedDiMuon_node                                 #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2_displaced_di_muon_line_t/Hlt1SMOG2DisplacedDiMuon                #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2JPsiToMuMuTaP_PosTag_node                            #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2jpsitomumu_tap_line_t/Hlt1SMOG2JPsiToMuMuTaP_PosTag               #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2JPsiToMuMuTaP_NegTag_node                            #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        SMOG2jpsitomumu_tap_line_t/Hlt1SMOG2JPsiToMuMuTaP_NegTag               #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1SMOG2L0Toppi_node                                         #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        lambda2ppi_line_t/Hlt1SMOG2L0Toppi                                     #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1Passthrough_node                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1Passthrough                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1TAEPassthrough_node                                       #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_tae_filter_t/tae_filter                                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1TAEPassthrough                                  #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1GECPassthrough_node                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1GECPassthrough                                  #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1PassthroughPVinSMOG2_node                                 #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_pvs_t/check_SMOG2_PV                                             #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1PassthroughPVinSMOG2                            #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1ODINLumi_node                                             #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_Lumi                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1ODINLumi                                        #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1ODIN1kHzLumi_node                                         #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_Lumi                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_orbitnumber_t/ODIN_Orbit_30_1                                     #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        passthrough_line_t/Hlt1ODIN1kHzLumi                                    #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1ODINCalib_node                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_calib_line_t/Hlt1ODINCalib                                        #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1ODINeeFarFromActivity_node                                #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_ee_far_from_activity                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1ODINeeFarFromActivity                           #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1ErrorBank_node                                            #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        error_bank_filter_t/error_bank_filter                                  #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        passthrough_line_t/Hlt1ErrorBank                                       #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BGIPseudoPVsNoBeam_node                                   #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        event_list_inversion_t/BX_NoBeamBeam                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        check_localized_beamline_ip_t/BGIPseudoPVsAll                          #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        beam_crossing_line_t/Hlt1BGIPseudoPVsNoBeam                            #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BGIPseudoPVsBeamOne_node                                  #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        event_list_inversion_t/BX_NoBeamBeam                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        check_localized_beamline_ip_t/BGIPseudoPVsAll                          #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        beam_crossing_line_t/Hlt1BGIPseudoPVsBeamOne                           #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BGIPseudoPVsBeamTwo_node                                  #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        event_list_inversion_t/BX_NoBeamBeam                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        check_localized_beamline_ip_t/BGIPseudoPVsAll                          #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        beam_crossing_line_t/Hlt1BGIPseudoPVsBeamTwo                           #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BGIPseudoPVsUpBeamBeam_node                               #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_localized_beamline_ip_t/BGIPseudoPVsUp                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        beam_crossing_line_t/Hlt1BGIPseudoPVsUpBeamBeam                        #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BGIPseudoPVsDownBeamBeam_node                             #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_localized_beamline_ip_t/BGIPseudoPVsDown                         #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        beam_crossing_line_t/Hlt1BGIPseudoPVsDownBeamBeam                      #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BGIPseudoPVsIRBeamBeam_node                               #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        check_localized_beamline_ip_t/BGIPseudoPVsIR                           #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        beam_crossing_line_t/Hlt1BGIPseudoPVsIRBeamBeam                        #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1RICH1Alignment_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        rich_1_line_t/Hlt1RICH1Alignment                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1RICH2Alignment_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        rich_2_line_t/Hlt1RICH2Alignment                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1D2KPiAlignment_node                                       #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        d2kpi_line_t/Hlt1D2KPiAlignment                                        #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1Dst2D0PiAlignment_node                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        dst_d2kpi_line_t/Hlt1Dst2D0PiAlignment                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1DiMuonJpsiMassAlignment_node                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_alignment_line_t/Hlt1DiMuonJpsiMassAlignment              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1OneMuonTrackLine_node                                     #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        one_muon_track_line_t/Hlt1OneMuonTrackLine                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1UpsilonAlignment_node                                     #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        di_muon_mass_alignment_line_t/Hlt1UpsilonAlignment                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1MaterialVertexSeedsDownstreamz_node                       #=1       Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        prescaler_t/prescaler_Hlt1MaterialVertexSeedsDownstreamz               #=1000    Sum=1           Eff=|(0.1000000 +- 0.0999500)%|
+        z_range_materialvertex_seed_line_t/Hlt1MaterialVertexSeedsDownstreamz  #=1       Sum=1           Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1MaterialVertexSeeds_DWFS_node                             #=10      Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamBeam                                    #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        prescaler_t/prescaler_Hlt1MaterialVertexSeeds_DWFS                     #=1000    Sum=10          Eff=|( 1.000000 +- 0.314643)%|
+        z_range_materialvertex_seed_line_t/Hlt1MaterialVertexSeeds_DWFS        #=10      Sum=10          Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1VeloLargeClusters_node                                    #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        velo_large_clusters_line_t/Hlt1VeloLargeClusters                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1VeloMicroBias_node                                        #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        velo_micro_bias_line_t/Hlt1VeloMicroBias                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       LAZY_AND: Hlt1VeloMicroBiasVeloClosing_node                             #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloOpen                                #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        velo_micro_bias_line_t/Hlt1VeloMicroBiasVeloClosing                    #=0       Sum=0           Eff=|(-100.0000 +- -100.000)%|
+       LAZY_AND: Hlt1BeamGas_node                                              #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        host_odin_error_filter_t/odin_error_filter                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        odin_beamcrossingtype_t/BX_BeamEmpty                                   #=1000    Sum=0           Eff=|( 0.000000 +- 0.00000 )%|
+        odin_eventtype_t/ODIN_EvenType_VeloClosed                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        LAZY_AND: gec_node                                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         host_scifi_gec_t/scifi_gec                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+         velo_clusters_gec_t/velo_gec                                          #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+        beam_gas_line_t/Hlt1BeamGas                                            #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+      NONLAZY_AND: Persistency                                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       dec_reporter_t/dec_reporter                                             #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       global_decision_t/global_decision                                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       host_routingbits_writer_t/host_routingbits_writer                       #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       make_selected_object_lists_t/make_selected_object_lists                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       make_subbanks_t/make_subbanks                                           #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       make_selrep_t/make_selreps                                              #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       host_output_handler_t/output_handler                                    #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+     LAZY_AND: LumiWithPrefilter                                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+      host_odin_error_filter_t/odin_error_filter                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+      odin_eventtype_t/ODIN_EvenType_VeloClosed                                #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+      NONLAZY_AND: AllenLumiNode                                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       velo_lumi_counters_t/velo_total_tracks                                  #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       pv_lumi_counters_t/pv_lumi_counters                                     #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       scifi_lumi_counters_t/scifi_lumi_counters                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       muon_lumi_counters_t/muon_lumi_counters                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       calo_lumi_counters_t/calo_lumi_counters                                 #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       plume_lumi_counters_t/plume_lumi_counters                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+       make_lumi_summary_t/make_lumi_summary                                   #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+    RateValidator/rate_validator                                               #=1000    Sum=1000        Eff=|( 100.0000 +- 0.00000 )%|
+  OutputWriter                           INFO Finalize
+  ApplicationMgr                         INFO Application Manager Finalized successfully
+  ApplicationMgr                         INFO Application Manager Terminated successfully
+histos:
+  calo_find_clusters:
+    n_ecal_clusters:
+      nEntries: 1000.0
+      title: NClusters
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  error_bank_filter:
+    ODIN_banks:
+      nEntries: 1000
+      title: ODIN_banks
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+    Plume_banks:
+      nEntries: 3000
+      title: Plume_banks
+      sum: 3000
+      meanX: 0.0
+      stdDevX: 0.0
+    n_data_banks:
+      nEntries: 4000
+      title: n_data_banks
+      sum: 4000
+      meanX: 7.25
+      stdDevX: 3.031089
+  fit_dihadron_secondary_vertices:
+    number_of_svs:
+      nEntries: 1000.0
+      title: NSVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  fit_dihadrons_noipcut_secondary_vertices:
+    number_of_svs:
+      nEntries: 1000.0
+      title: NSVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  fit_dilepton_secondary_vertices:
+    number_of_svs:
+      nEntries: 1000.0
+      title: NSVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  fit_dilepton_secondary_vertices_nopt:
+    number_of_svs:
+      nEntries: 1000.0
+      title: NSVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  fit_prompt_dihadron_secondary_vertices:
+    number_of_svs:
+      nEntries: 1000.0
+      title: NSVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  fit_v0_secondary_vertices:
+    number_of_svs:
+      nEntries: 1000.0
+      title: NSVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  gather_selections:
+    line_passes:
+      nEntries: 1000.0
+      title: line passes
+      sum: 1000
+      meanX: 59.5
+      stdDevX: 0.0
+    line_rates:
+      nEntries: 1000.0
+      title: line rates
+      sum: 1000
+      meanX: 59.5
+      stdDevX: 0.0
+  make_long_track_particles:
+    number_of_trks:
+      nEntries: 1000.0
+      title: NTrks
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  matching_consolidate_tracks_matching:
+    n_long_tracks_matching_event:
+      nEntries: 1000.0
+      title: n_long_tracks_matching_event
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  pv_beamline_cleanup:
+    n_pvs_event:
+      nEntries: 1000.0
+      title: n_pvs_event
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+    n_smog2_PVs:
+      nEntries: 1000.0
+      title: n_smog2_PVs
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  scifi_consolidate_seeds_matching:
+    n_scifi_seeds_event:
+      nEntries: 1000.0
+      title: n_scifi_seeds_event
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+  velo_consolidate_tracks:
+    n_velo_tracks_event:
+      nEntries: 1000.0
+      title: n_velo_tracks_event
+      sum: 1000
+      meanX: 0.0
+      stdDevX: 0.0
+ttrees: {}
+counters:
+  ProvideRuntimeOptions:
+    Number of events processed:
+      nEntries: 1000
+  calo_filter_clusters_f5c112a0:
+    n_calo_clusters:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+  gather_selections:
+    Hlt1ODINCalibPass:
+      nEntries: 1000.0
+    Hlt1ODINCalibRate:
+      nEntries: 1000.0
+  matching_consolidate_tracks_matching:
+    n_long_tracks_matching:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+  output_handler:
+    BatchSize:
+      mean: 10.0
+      nEntries: 100
+      sum: 1000.0
+    NBatches:
+      mean: 50.0
+      nEntries: 2
+      sum: 100.0
+    NOutput:
+      nEntries: 1000
+    NProcessed:
+      nEntries: 1000
+  pv_beamline_cleanup:
+    n_PVs:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+  rate_validator:
+    Number of events:
+      nEntries: 1000
+    Selected by Hlt1GlobalDecision:
+      nEntries: 1000
+    Selected by Hlt1ODINCalib:
+      nEntries: 1000
+    Selected by Technical group:
+      nEntries: 1000
+  scifi_consolidate_seeds_matching:
+    n_seed_tracks:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+  velo_consolidate_tracks:
+    n_velo_tracks:
+      mean: 0.0
+      nEntries: 1000.0
+      sum: 0.0
+stderr: ''

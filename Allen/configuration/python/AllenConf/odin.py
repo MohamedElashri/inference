@@ -20,7 +20,7 @@ from AllenCore.algorithms import (
 from AllenCore.generator import make_algorithm
 from PyConf.tonic import configurable
 
-from AllenConf.utils import initialize_number_of_events, mep_layout
+from AllenConf.utils import initialize_number_of_events
 
 
 def decode_odin():
@@ -28,7 +28,6 @@ def decode_odin():
         odin_provider_t,
         name="populate_odin_banks",
         host_number_of_events_t=initialize_number_of_events()["host_number_of_events"],
-        host_mep_layout_t=mep_layout()["host_mep_layout"],
     )
 
     return {
@@ -133,6 +132,9 @@ def tae_filter(name="tae_filter", accept_sub_events=False):
         host_odin_data_t=odin["host_odin_data"],
         accept_sub_events=accept_sub_events,
     )
+    from .persistency import make_output_handler
+
+    make_output_handler.global_bind(tae_filter=host_tae_filter)
     return host_tae_filter
 
 

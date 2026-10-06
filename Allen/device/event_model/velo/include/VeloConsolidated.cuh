@@ -26,8 +26,7 @@ namespace Allen {
         struct Hit {
         private:
           constexpr static unsigned offset_coordinates = sizeof(unsigned) / sizeof(half_t);
-          constexpr static unsigned offset_cluster_size =
-            (sizeof(unsigned) + 3 * sizeof(half_t) + sizeof(int16_t)) / sizeof(int16_t);
+          constexpr static unsigned offset_cluster_size = (sizeof(unsigned) + 3 * sizeof(half_t)) / sizeof(int16_t);
 
           const half_t* m_base_pointer = nullptr;
           unsigned m_index = 0;
@@ -323,16 +322,16 @@ namespace Velo {
      * @brief Structure to access VELO hits.
      */
     template<typename T>
-    struct Hits_t : Velo::Clusters_t<T> {
-      using Velo::Clusters_t<T>::m_base_pointer;
-      using Velo::Clusters_t<T>::m_total_number_of_hits;
-      using Velo::Clusters_t<T>::m_offset;
+    struct Hits_t : Velo::Clusters_t<T, false> {
+      using Velo::Clusters_t<T, false>::m_base_pointer;
+      using Velo::Clusters_t<T, false>::m_total_number_of_hits;
+      using Velo::Clusters_t<T, false>::m_offset;
 
       __host__ __device__ Hits_t(T* base_pointer, const unsigned offset, const unsigned total_number_of_hits) :
-        Velo::Clusters_t<T>(base_pointer, total_number_of_hits, offset)
+        Velo::Clusters_t<T, false>(base_pointer, total_number_of_hits, offset)
       {}
 
-      __host__ __device__ Hits_t(const Hits_t<T>& hits) : Velo::Clusters_t<T>(hits) {}
+      __host__ __device__ Hits_t(const Hits_t<T>& hits) : Velo::Clusters_t<T, false>(hits) {}
 
       __host__ __device__ void set(const unsigned index, const ::Velo::Hit& hit)
       {
