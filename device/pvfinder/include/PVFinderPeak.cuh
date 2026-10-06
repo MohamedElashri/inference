@@ -1,0 +1,97 @@
+/*****************************************************************************\
+* (c) Copyright 2026 CERN for the benefit of the LHCb Collaboration           *
+*                                                                             *
+* This software is distributed under the terms of the Apache License          *
+* version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              *
+*                                                                             *
+* In applying this licence, CERN does not waive the privileges and immunities *
+* granted to it by virtue of its status as an Intergovernmental Organization  *
+* or submit itself to any jurisdiction.                                       *
+\*****************************************************************************/
+#pragma once
+
+#include "AlgorithmTypes.cuh"
+#include "AllenMonitoring.h"
+#include "PVFinderPeakFinding.cuh"
+
+#include <atomic>
+
+// Primary-vertex z seeds from the PVFinder KDE. The output has the layout of
+// pv_beamline_peak's, so the beamline PV track association and fit
+// (pv_beamline_calculate_denom, pv_beamline_multi_fitter, pv_beamline_cleanup)
+// run on these seeds unchanged.
+//
+// The peaks are those of PVFinderPeakFinding (pv-finder's pv_locations_updated).
+namespace pvfinder_peak {
+  struct Parameters {
+    HOST_INPUT(host_number_of_events_t, unsigned) host_number_of_events;
+    MASK_INPUT(dev_event_list_t) dev_event_list;
+    // [events][PVFinderConstants::KDE::n_bins], from pvfinder_unet.
+    DEVICE_INPUT(dev_pvfinder_kde_output_t, float) dev_pvfinder_kde_output;
+    DEVICE_OUTPUT(dev_zpeaks_t, float) dev_zpeaks;
+    DEVICE_OUTPUT(dev_number_of_zpeaks_t, unsigned) dev_number_of_zpeaks;
+  };
+
+  __global__ void pvfinder_peak(
+    Parameters,
+    const PVFinderPeakFinding::Cuts,
+    Allen::Monitoring::AveragingCounter<>::DeviceType,
+    Allen::Monitoring::Counter<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType,
+    Allen::Monitoring::Histogram<>::DeviceType);
+
+  struct pvfinder_peak_t : public DeviceAlgorithm, Parameters {
+    void set_arguments_size(ArgumentReferences<Parameters> arguments, const RuntimeOptions&, const Constants&) const;
+
+    void operator()(
+      const ArgumentReferences<Parameters>& arguments,
+      const RuntimeOptions&,
+      const Constants&,
+      const Allen::Context& context) const;
+
+  private:
+    // 512 is fastest on the RTX 3090 (0.027 ms per 500-event slice; 32: 0.11 ms).
+    Allen::Property<dim3> m_block_dim {this, "block_dim", {512, 1, 1}, "block dimensions"};
+    Allen::Property<float> m_threshold {
+      this,
+      "threshold",
+      PVFinderConstants::Peak::threshold,
+      "minimum KDE value of a bin in a peak"};
+    Allen::Property<float> m_integral_threshold {
+      this,
+      "integral_threshold",
+      PVFinderConstants::Peak::integral_threshold,
+      "minimum sum of the KDE over a peak's bins"};
+    Allen::Property<unsigned> m_min_width {
+      this,
+      "min_width",
+      PVFinderConstants::Peak::min_width,
+      "minimum number of bins in a peak"};
+    Allen::Property<bool> m_split_peaks {
+      this,
+      "split_peaks",
+      true,
+      "split a run of bins above threshold where the KDE rises again after a "
+      "significant drop (pv_locations_updated; false = pv_locations)"};
+    // Validation dump: when non-empty, the first call writes the seeds of every
+    // event of the slice to <dump_validation>/allen_zpeaks.bin: uint32 magic,
+    // uint32 number of events, then per event uint32 number of seeds and
+    // float32[PV::max_number_vertices] seeds (0 seeds for events not in the list).
+    Allen::Property<std::string> m_dump_dir {
+      this,
+      "dump_validation",
+      "",
+      "if non-empty, dump the seeds of the first slice to this directory"};
+    mutable std::atomic<bool> m_dump_done {false};
+
+    Allen::Monitoring::AveragingCounter<> m_seeds {this, "n_seeds"};
+    // Events with more peaks than PV::max_number_vertices (the highest in z dropped).
+    Allen::Monitoring::Counter<> m_truncated {this, "n_events_seeds_truncated"};
+    Allen::Monitoring::Histogram<> m_histogram_n_seeds {this, "n_seeds_event", "n_seeds_event", {33u, -0.5f, 32.5f}};
+    Allen::Monitoring::Histogram<> m_histogram_seed_z {
+      this,
+      "seed_z",
+      "seed_z",
+      {400u, PVFinderConstants::KDE::z_min, PVFinderConstants::KDE::z_max}};
+  };
+} // namespace pvfinder_peak

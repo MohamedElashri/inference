@@ -1,0 +1,98 @@
+###############################################################################
+# (c) Copyright 2021 CERN for the benefit of the LHCb Collaboration           #
+#                                                                             #
+# This software is distributed under the terms of the Apache License          #
+# version 2 (Apache-2.0), copied verbatim in the file "LICENSE".              #
+#                                                                             #
+# In applying this licence, CERN does not waive the privileges and immunities #
+# granted to it by virtue of its status as an Intergovernmental Organization  #
+# or submit itself to any jurisdiction.                                       #
+###############################################################################
+from AllenCore.algorithms import pvfinder_fc_aggregation_t
+from AllenCore.generator import make_algorithm
+from PyConf.control_flow import CompositeNode, NodeLogic
+from PyConf.tonic import configurable
+
+from AllenConf.utils import initialize_number_of_events
+from AllenConf.velo_reconstruction import run_velo_kalman_filter
+
+
+def pvfinder_node(producer):
+    """PVFinder behind the HLT1 physics prefilters.
+
+    The same filters, built with the same arguments, as setup_hlt1_node's
+    physics lines (ODIN errors, beam-beam crossings, VELO closed, GEC), so they
+    are the same algorithm instances. PVFinder then runs on the events whose
+    VELO tracks HLT1 reconstructs for its lines, and the shared VELO chain keeps
+    the event lists it has in hlt1_pp_default.
+    """
+    from AllenConf.HLT1 import create_filter_manager
+
+    prefilters = create_filter_manager({}).get_prefilter_set("default")
+    return CompositeNode(
+        "PVFinderWithPrefilter",
+        prefilters + [producer],
+        NodeLogic.LAZY_AND,
+        force_order=True,
+    )
+
+
+@configurable
+def make_pvfinder_fc(
+    velo_tracks,
+    pv_name="",
+    model=None,
+    precision="float32",
+    unet_batch_events=20,
+    dump_validation="",
+):
+    """PVFinder FC aggregation (it computes the per-track features itself).
+
+    model: the trained model file (tensor model JSON of kind "pvfinder"), relative to Allen's
+    parameters directory (--params) or absolute; None keeps the algorithms'
+    default. make_pvfinder_unet takes it from here.
+    precision: "float32" (exact, any CUDA GPU) or "bfloat16" (tensor cores,
+    compute capability 8.0 or newer); make_pvfinder_unet takes it from here.
+    unet_batch_events: the UNet's float32 batch size in events, also from here.
+    dump_validation: directory for the validation dumps, "" = off.
+    """
+    if precision not in ("float32", "bfloat16"):
+        raise ValueError(f"precision must be float32 or bfloat16, not {precision!r}")
+
+    number_of_events = initialize_number_of_events()
+    host_number_of_events = number_of_events["host_number_of_events"]
+
+    host_number_of_reconstructed_velo_tracks = velo_tracks[
+        "host_number_of_reconstructed_velo_tracks"
+    ]
+
+    velo_states = run_velo_kalman_filter(velo_tracks, pv_name)
+
+    # FC aggregation: per-track features (9 per track, computed in its CSR
+    # build), the FC network and the sum over each interval's tracks.
+    model_property = {} if model is None else {"model": model}
+    pvfinder_fc_aggregation = make_algorithm(
+        pvfinder_fc_aggregation_t,
+        name="pvfinder_fc_aggregation" + pv_name,
+        host_number_of_events_t=host_number_of_events,
+        host_number_of_reconstructed_velo_tracks_t=host_number_of_reconstructed_velo_tracks,
+        dev_velo_tracks_view_t=velo_tracks["dev_velo_tracks_view"],
+        dev_velo_states_view_t=velo_states["dev_velo_kalman_beamline_states_view"],
+        precision=precision,
+        unet_batch_events=unet_batch_events,
+        dump_validation=dump_validation,
+        **model_property,
+    )
+
+    return {
+        "dev_pvfinder_output_histogram": pvfinder_fc_aggregation.dev_pvfinder_output_histogram_t,
+        "dev_pvfinder_interval_features": pvfinder_fc_aggregation.dev_pvfinder_interval_features_t,
+        "host_pvfinder_unet_rows": pvfinder_fc_aggregation.host_pvfinder_unet_rows_t,
+        "dev_pvfinder_slot_row": pvfinder_fc_aggregation.dev_pvfinder_slot_row_t,
+        "dev_pvfinder_row_slot": pvfinder_fc_aggregation.dev_pvfinder_row_slot_t,
+        "host_number_of_events": host_number_of_events,
+        "pv_name": pv_name,
+        "model": model,
+        "precision": precision,
+        "unet_batch_events": unet_batch_events,
+    }

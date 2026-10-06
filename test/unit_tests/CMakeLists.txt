@@ -16,7 +16,11 @@ add_definitions(-D${TARGET_DEFINITION})
 
 allen_add_executable(unit_tests ${generic_tests} ${cu_generic_tests})
 
-target_link_libraries(unit_tests Catch2::Catch2WithMain HostEventModel EventModel Gear AllenCommon Backend HostCommon)
+target_link_libraries(unit_tests Catch2::Catch2WithMain HostEventModel EventModel Gear AllenCommon Backend HostCommon TensorModel PVFinderHeaders)
+
+if(WITH_CUDNN AND TARGET_DEVICE STREQUAL "CUDA")
+  target_link_libraries(unit_tests AllenCuDNN)
+endif()
 
 if (NOT STANDALONE)
   # Make test discovery work in stack builds

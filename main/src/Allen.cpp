@@ -321,8 +321,11 @@ int allen(
   // Instantiate and configure sequence once to get dependencies
   Allen::ScheduledSequence sched_seq {config_reader.configured_sequence()};
 
-  // Configure the algorithms according to the properties' values
+  // Configure the algorithms according to the properties' values, read their
+  // models (which may depend on the properties), then initialize them (which
+  // may use the models).
   sched_seq.configure_algorithms(configuration);
+  Allen::MVAModels::MVAModelsManager::get()->loadData(folder_parameters.c_str());
   sched_seq.initialize_algorithms();
 
   // Start the prefetch thread once all algorithms are initialized.
@@ -346,9 +349,6 @@ int allen(
 
   // Init monitoring
   Allen::Monitoring::AccumulatorManager::get()->initAccumulators(number_of_threads);
-
-  // Init MVA models manager
-  Allen::MVAModels::MVAModelsManager::get()->loadData(folder_parameters.c_str());
 
   // Init Output Manager
   OutputManager::get()->init(

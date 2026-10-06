@@ -231,6 +231,7 @@ set(ALLEN_ALGORITHM_LIB
   Lumi
   Muon
   PV_beamline
+  PVFinder
   Plume
   Rich
   SciFi
@@ -312,6 +313,16 @@ if(TARGET_DEVICE STREQUAL "CUDA")
   endif()
   message(STATUS "CMAKE_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}")
   message(STATUS "Device architecture set to ${DEVICE_ARCHITECTURE}")
+endif()
+
+# --- CuDNN optional support (CUDA only) ---
+if(TARGET_DEVICE STREQUAL "CUDA")
+  option(WITH_CUDNN "Enable cuDNN support for CNN inference algorithms" OFF)
+  if(WITH_CUDNN)
+    find_package(CuDNN REQUIRED)
+    add_compile_definitions(ALLEN_WITH_CUDNN)
+    message(STATUS "cuDNN integration enabled (version ${CUDNN_VERSION})")
+  endif()
 endif()
 
 # Setup project for the configured target
@@ -757,6 +768,16 @@ allen_add_host_library(AllenLib SHARED
 
 target_compile_definitions(AllenLib PUBLIC ${TARGET_DEFINITION})
 target_compile_definitions(AllenLib PUBLIC "CMAKE_ALLEN_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
+
+# Relocatable CUDA code is linked into both AllenLib and standalone tools.
+# Keep the generated registration functions in their own ELF image; exporting
+# them lets the executable interpose a registration for a different fatbinary.
+if (STANDALONE AND TARGET_DEVICE STREQUAL "CUDA" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_options(AllenLib PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/CudaRegistration.map")
+  set_property(TARGET AllenLib APPEND PROPERTY LINK_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CudaRegistration.map")
+endif()
 
 target_include_directories(AllenLib PUBLIC
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)

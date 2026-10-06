@@ -62,6 +62,8 @@ public:
   StatusCode initialize() override
   {
     m_algorithm.set_name(this->name());
+    // The properties are set; models must be available to init().
+    Allen::MVAModels::MVAModelsManager::get()->loadData((m_cached_root + "/data").c_str());
     Allen::initialize_algorithm(m_algorithm);
 
     const StatusCode sc = Algorithm::initialize();

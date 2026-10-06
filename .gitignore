@@ -38,3 +38,5 @@ cache_preload.cmake
 *.swp
 doc/_build/
 doc/_env.*/
+*.mdf
+nocudnn*

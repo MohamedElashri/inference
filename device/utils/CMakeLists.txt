@@ -40,6 +40,13 @@ target_include_directories(Utils PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scan_reduce/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reduction/include>)
 
+# Tensor model files (mva_models/include/TensorModel.h): host code only, so
+# that tests can use it without the device libraries.
+allen_add_host_library(TensorModel STATIC mva_models/src/TensorModel.cpp)
+target_link_libraries(TensorModel PUBLIC AllenCommon Backend)
+target_include_directories(TensorModel PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/mva_models/include>)
+
 allen_add_executable(prefix_sum_test prefix_sum/test/prefix_sum_test.cu)
 target_link_libraries(prefix_sum_test PRIVATE AllenLib Utils AllenRuntime)
 
