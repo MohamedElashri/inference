@@ -57,6 +57,7 @@ CMAKE_KEYS = (
     "CMAKE_BUILD_TYPE", "CUDA_ARCH", "CMAKE_CUDA_ARCHITECTURES", "CMAKE_CUDA_COMPILER",
     "CMAKE_TOOLCHAIN_FILE", "WITH_CUDNN", "CUDNN_VERSION", "WITH_CUBLAS",
     "PVFINDER_UNET_N_FEAT", "PVFINDER_UNET_N_BATCH_CHANNELS", "BUILD_TESTING",
+    "CMAKE_HOME_DIRECTORY", "CMAKE_CUDA_FLAGS", "CMAKE_CUDA_RUNTIME_LIBRARY",
 )
 # Kernels always kept in a profile summary, whatever their rank.
 PVFINDER_KERNEL_RE = re.compile(r"pvfinder|unet|cudnn|cublas|gemm|conv|softplus|maxpool|bf16|f16|sm80|sm86|sm75",
@@ -193,17 +194,17 @@ def gpu_info(device):
     return gpu
 
 
-def git_info():
-    head = (run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT) or "").strip() or None
-    status = run(["git", "status", "--porcelain"], cwd=REPO_ROOT) or ""
+def git_info(repo=REPO_ROOT):
+    head = (run(["git", "rev-parse", "HEAD"], cwd=repo) or "").strip() or None
+    status = run(["git", "status", "--porcelain"], cwd=repo) or ""
     # Run records themselves are not code: a new record does not make the tree dirty.
     dirty = [line[3:] for line in status.splitlines() if line.strip() and not line[3:].startswith("results/")]
-    diff = subprocess.run(["git", "diff", "HEAD", "--binary", "--", ".", ":(exclude)results"], cwd=REPO_ROOT,
+    diff = subprocess.run(["git", "diff", "HEAD", "--binary", "--", ".", ":(exclude)results"], cwd=repo,
                           capture_output=True).stdout if head else b""
     return {
         "head": head,
-        "branch": (run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=REPO_ROOT) or "").strip() or None,
-        "subject": (run(["git", "log", "-1", "--format=%s"], cwd=REPO_ROOT) or "").strip() or None,
+        "branch": (run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo) or "").strip() or None,
+        "subject": (run(["git", "log", "-1", "--format=%s"], cwd=repo) or "").strip() or None,
         "dirty": bool(dirty),
         "dirty_files": dirty[:200],
         # Hash of the uncommitted tracked changes: two runs with the same head
@@ -236,13 +237,16 @@ def build_info(build_dir):
         "cmake": cmake_cache(build_dir),
         "lib_mtime": dt.datetime.fromtimestamp(mtime).astimezone().isoformat(timespec="seconds") if mtime else None,
     }
+    source_dir = info["cmake"].get("CMAKE_HOME_DIRECTORY") or os.path.join(REPO_ROOT, "Allen")
+    info["source_dir"] = rel(source_dir)
+    info["source_git"] = git_info(source_dir)
     # Tracked Allen sources edited after the library was linked. mtime-based,
     # so a checkout can raise false alarms, but an empty list with a clean tree
     # means the binary was built from what is checked in.
     if mtime:
-        files = (run(["git", "ls-files", "--", "Allen/device", "Allen/host", "Allen/backend",
-                      "Allen/stream", "Allen/main", "Allen/integration"], cwd=REPO_ROOT) or "").splitlines()
-        newer = [f for f in files if os.path.getmtime(os.path.join(REPO_ROOT, f)) > mtime]
+        files = (run(["git", "ls-files", "--", "device", "host", "backend",
+                      "stream", "main", "integration"], cwd=source_dir) or "").splitlines()
+        newer = [f for f in files if os.path.getmtime(os.path.join(source_dir, f)) > mtime]
         info["sources_newer_than_build"] = newer[:50]
     return info
 
