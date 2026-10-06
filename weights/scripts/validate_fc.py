@@ -35,7 +35,7 @@ a header uint32 {0xFC01, n_events, n_tracks, n_latent_channels}.
 
 Usage:
     make -C weights validate MODEL=<name>        (normal use, after make dump)
-    python3 weights/scripts/validate_fc.py --dump-dir DIR [--weights MODEL.pyt]
+    python3 weights/scripts/validate_fc.py --dump-dir DIR --weights MODEL.pyt
 """
 
 import argparse
@@ -51,9 +51,8 @@ REPO_ROOT = os.path.dirname(WEIGHTS_DIR)
 parser = argparse.ArgumentParser(description="Validate Allen FC aggregation against a checkpoint")
 parser.add_argument("--dump-dir", required=True,
                     help="directory written by pvfinder_fc_aggregation.dump_validation")
-parser.add_argument("--weights",
-                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_final.pyt"),
-                    help="checkpoint (.pyt) the Allen run is supposed to implement")
+parser.add_argument("--weights", required=True,
+                    help="checkpoint (.pyt) used by this Allen run")
 parser.add_argument("--max-f32-ulps", type=float, default=1.0,
                     help="PASS limit on |Allen - reference|, in float32 rounding steps (ulps) of the "
                          "magnitude envelope feeding each output (default 1)")

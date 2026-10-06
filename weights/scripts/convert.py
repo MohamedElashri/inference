@@ -22,7 +22,7 @@ Usage (normally through the pipeline: make -C weights convert MODEL=<name>):
 The UNet has no skip connections; a checkpoint trained with them is rejected.
 Allen must be built to match the model's widths, e.g. for the 16-feature,
 latentChannels-4 model:
-  ./ballen -a gpu --cudnn --unet-feat 16 --unet-batch-channels 4
+  PVFINDER_UNET_N_FEAT=16 PVFINDER_UNET_N_BATCH_CHANNELS=4 bash benchmarks/build_allen.sh
 """
 
 import argparse
@@ -102,8 +102,8 @@ def main():
     n = sum(len(t["data"]) for t in model["tensors"].values())
     print(f"Wrote {args.out}: {len(model['tensors'])} tensors, {n:,} floats, "
           f"N_FEAT={model['metadata']['unet_features']}, latentChannels={model['metadata']['latent_channels']}")
-    print(f"Allen build for this model: ./ballen -a gpu --cudnn --unet-feat {model['metadata']['unet_features']} "
-          f"--unet-batch-channels {model['metadata']['latent_channels']}")
+    print(f"Allen build for this model: PVFINDER_UNET_N_FEAT={model['metadata']['unet_features']} "
+          f"PVFINDER_UNET_N_BATCH_CHANNELS={model['metadata']['latent_channels']} bash benchmarks/build_allen.sh")
 
 
 if __name__ == "__main__":

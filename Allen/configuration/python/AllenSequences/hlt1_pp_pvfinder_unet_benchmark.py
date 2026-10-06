@@ -8,8 +8,8 @@
 # granted to it by virtue of its status as an Intergovernmental Organization  #
 # or submit itself to any jurisdiction.                                       #
 ###############################################################################
-# HLT1 + PVFinder full pipeline benchmark sequence.
-# Adds the complete PVFinder chain (FC + UNet) to standard HLT1, behind the
+# HLT1 + PVFinder neural-network benchmark sequence.
+# Adds the FC and UNet stages to standard HLT1, behind the
 # HLT1 physics prefilters, sharing the VELO tracks reconstructed by HLT1.
 # Pipeline:
 #   HLT1 default reco

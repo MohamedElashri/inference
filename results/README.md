@@ -1,7 +1,7 @@
 # Run records
 
 
-Every Allen run made through the repository's tooling leaves one JSON file in
+Benchmark, profile, weights-validation and physics commands write JSON run records in
 `results/runs/`, and these files are tracked in git. A record says what ran
 (model, weights, build flags, algorithm configuration, git state), where it
 ran (host, GPU, driver, other processes on that GPU) and what came out
@@ -14,7 +14,6 @@ under `artifacts`.
 | Producer | `kind` |
 |---|---|
 | `benchmarks/benchmark_pvfinder_batch.sh` | `benchmark` (or `profile` with `--profile`) |
-| `benchmarks/validate_allen_upstream.sh` | GPU/numerical/MC verification for a prepared update |
 | `make -C weights dump validate` | `validation` |
 | `benchmarks/pv_comparison.sh` | `physics` (PVFinder vs the beamline PV finder on MC, one point per configuration) |
 | `benchmarks/runs.py import <batch_dir>` | an older batch, marked `"imported": true` |
@@ -50,13 +49,18 @@ benchmarks/runs.py compare <run_a> <run_b>           # throughput ratio + every 
 | `gpu` | name, UUID, driver, compute capability, memory, max SM clock, power limit, `processes_at_start` |
 | `git` | `head`, `branch`, `dirty`, `dirty_files`, `diff_sha256` (hash of the uncommitted diff, excluding `results/`) |
 | `build` | build directory, CMake cache (`PVFINDER_UNET_N_FEAT`, `PVFINDER_UNET_N_BATCH_CHANNELS`, cuDNN/cuBLAS, CUDA and GCC versions, `CUDA_ARCH`), source checkout and its Git state, library mtime, `sources_newer_than_build` |
-| `model` | catalog row from `weights/models.tsv`, SHA-256 of the checkpoint and both weight files, `verified` |
+| `model` | catalog row from `weights/models.tsv`, SHA-256 of the checkpoint and tensor model JSON, `verified` |
 | `workload` | input MDF, geometry, `events` (-n), `memory_mb` (-m), `repetitions` (-r), `threads` (-t), `repeats`, `device`, sequences |
-| `options` | every benchmark-script option (precision, fusions, batch sizes, ...) |
+| `options` | every benchmark-script option (precision, GPU work list, grid fractions, batch sizes, ...) |
 | `config` | the `pvfinder_*` algorithm blocks of each sequence's effective Allen configuration, the ground truth for what Allen ran |
 | `results` | benchmark: per-repeat events/s for each selected sequence (`baseline`, `fc`, `unet`, `pvs`, `replace`, `hybrid`), overheads, slice splits, and medians with baseline spread. Validation: the validators' JSON reports: `validate_fc.py`, `validate_unet.py`, `validate_model.py`, `validate_features.py` and `validate_peaks.py` (`fc`, `unet`, `model`, `features`, `peaks`) |
 | `profile` | with `--profile`: per sequence, the nsys `cuda_gpu_kern_sum` merged over repeats (median), top 25 kernels plus every PVFinder/cuDNN/cuBLAS kernel |
 | `artifacts` | where the raw output lives on the machine that ran it |
+
+`benchmarks/validate_allen_upstream.sh` also writes a verification record into
+its requested `results/experiments/` directory, alongside numerical reports and
+MC summaries. This record is separate from the `pvfinder-run/1` schema; the
+physics command it invokes still writes its usual run record.
 
 `build.sources_newer_than_build` lists tracked Allen sources modified after
 `libAllenLib.so` was linked. It is based on file mtimes, so a checkout can put

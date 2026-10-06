@@ -99,7 +99,8 @@ Example
 ``pvfinder_unet`` (``device/pvfinder``) runs its float32 UNet with these
 layers: five convolution + bias + ReLU layers, two max-pools, two transposed
 convolutions and an output convolution with softplus and scale, all built in
-``init()`` with one shared workspace argument.
+``init()`` with one shared workspace argument. Its BF16 path uses custom fused
+CUDA kernels; it does not execute these cuDNN layers.
 
 Tests
 ^^^^^

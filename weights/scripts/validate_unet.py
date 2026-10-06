@@ -4,7 +4,7 @@ validate_unet.py — Numerical validation of the Allen UNet inference against Py
 
 Usage:
     make -C weights validate MODEL=<name>        (normal use, after make dump)
-    python3 weights/scripts/validate_unet.py --dump-dir DUMP_DIR [--weights WEIGHTS_PATH]
+    python3 weights/scripts/validate_unet.py --dump-dir DUMP_DIR --weights WEIGHTS_PATH
                                    [--device cpu|cuda] [--plot]
 
 Reads:
@@ -37,11 +37,10 @@ REPO_ROOT = os.path.dirname(WEIGHTS_DIR)
 # Argument parsing
 # ---------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description="Validate Allen UNet against PyTorch")
-parser.add_argument("--dump-dir",  default="validation_dump",
+parser.add_argument("--dump-dir", required=True,
                     help="Directory containing allen_ncw_input.bin and allen_kde_output.bin")
-parser.add_argument("--weights",
-                    default=os.path.join(WEIGHTS_DIR, "checkpoints", "unet16_lc4_scnone_asym5_final.pyt"),
-                    help="PyTorch weight file (.pyt); default: the unet16_lc4_scnone_asym5_final checkpoint fetched by the pipeline")
+parser.add_argument("--weights", required=True,
+                    help="checkpoint (.pyt) used by this Allen run")
 parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"],
                     help="Device for PyTorch inference (default: cpu)")
 parser.add_argument("--plot",      action="store_true",

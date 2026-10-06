@@ -14,7 +14,8 @@
 # read as JSON when it parses, as a string otherwise.
 #
 # Usage:
-#   allen_dump.sh --build ALLEN_BUILD_DIR --model-file FILE --sequence NAME --dump-dir DIR
+#   allen_dump.sh --model-file FILE --sequence NAME --dump-dir DIR
+#                 [--build ALLEN_BUILD_DIR] (default: Allen/build)
 #                 [--events N] [--memory MB] [--device N] [--set ALG.PROP=VALUE]...
 set -euo pipefail
 
@@ -36,6 +37,7 @@ while [[ $# -gt 0 ]]; do
         --memory) MEMORY="$2"; shift 2 ;;
         --device) DEVICE="$2"; shift 2 ;;
         --set) SETS+=("$2"); shift 2 ;;
+        -h|--help) sed -n '2,/^set -euo pipefail/{/^set -euo pipefail/d;s/^# \{0,1\}//p;}' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done

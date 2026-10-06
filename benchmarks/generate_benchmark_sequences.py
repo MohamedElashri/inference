@@ -70,7 +70,7 @@ from AllenCore.generator import generate
 from AllenConf.enum_types import TrackingType
 from AllenConf.get_thresholds import get_thresholds
 from AllenConf.matching_reconstruction import make_velo_scifi_matches
-from AllenConf.velo_reconstruction import make_pr_velo_tracks
+from AllenConf.velo_reconstruction import decode_velo, make_velo_tracks
 """
 
 SETUP_CALL = """\
@@ -82,9 +82,7 @@ SETUP_CALL = """\
 """
 
 BIND = """\
-with make_velo_scifi_matches.bind(
-        ghost_killer_threshold=0.8), make_pr_velo_tracks.bind(
-            missing_modules=[21]):
+with make_velo_scifi_matches.bind(ghost_killer_threshold=0.8):
 """
 
 PLAIN_BODY = """
@@ -95,43 +93,39 @@ generate(hlt1_node)
 """
 
 PVF_IMPORTS = {
-    "fc": "from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc\n",
-    "unet": ("from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc\n"
+    "fc": "from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc, pvfinder_node\n",
+    "unet": ("from AllenConf.pvfinder_fc_reconstruction import make_pvfinder_fc, pvfinder_node\n"
              "from AllenConf.pvfinder_unet_reconstruction import make_pvfinder_unet\n"),
 }
 
 PVF_TAIL = {
     "fc": """\
     producer = pvfinder_fc_output["dev_pvfinder_output_histogram"].producer
-    hlt1_graph.children = tuple(list(hlt1_graph.children) + [producer])
+    hlt1_graph.children = tuple(list(hlt1_graph.children) + [pvfinder_node(producer)])
 """,
     "unet": """\
     pvfinder_unet_output = make_pvfinder_unet(pvfinder_fc_output)
     unet_producer = pvfinder_unet_output["unet_producer"]
-    hlt1_graph.children = tuple(list(hlt1_graph.children) + [unet_producer])
+    hlt1_graph.children = tuple(list(hlt1_graph.children) + [pvfinder_node(unet_producer)])
 """,
 }
 
 PVF_BODY = """
 
-def hook_pvfinder_to_hlt1():
-    hlt1_node_dict = setup_hlt1_node(
-""" + SETUP_CALL + """
-    hlt1_graph = hlt1_node_dict["control_flow_node"]
-    reco = hlt1_node_dict["reconstruction"]
-
-    pvfinder_fc_output = make_pvfinder_fc(reco["velo_tracks"])
+def hook_pvfinder_to_hlt1(hlt1_graph):
+    # These calls reuse the VELO reconstruction instances in the HLT1 graph.
+    velo_tracks = make_velo_tracks(decode_velo())
+    pvfinder_fc_output = make_pvfinder_fc(velo_tracks)
 
 {tail}
     return hlt1_graph
 
 
 """ + BIND + """\
-    benchmark_node = hook_pvfinder_to_hlt1()
-
+    benchmark_node = setup_hlt1_node(
+""" + SETUP_CALL.replace("{kwargs}", "{kwargs},\n        user_hooks=hook_pvfinder_to_hlt1,") + """
 generate(benchmark_node)
 """
-
 
 def lite_files():
     for n, kw in LITE.items():
@@ -158,6 +152,9 @@ def main():
     parser.add_argument("--check", action="store_true",
                         help="compare against existing files in --out-dir instead of writing")
     args = parser.parse_args()
+
+    if not args.check:
+        os.makedirs(args.out_dir, exist_ok=True)
 
     mismatched = 0
     for name, text in list(lite_files()) + list(copy_files()):

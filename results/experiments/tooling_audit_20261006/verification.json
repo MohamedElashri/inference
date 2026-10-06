@@ -1,0 +1,49 @@
+{
+  "schema": "pvfinder-tooling-audit/1",
+  "status": "PASS",
+  "base_commit": "762c792d32e87e4800fb86c5c4391ca81c14b23e",
+  "checks": {
+    "incremental_build": "PASS",
+    "gpu_unit_tests": {
+      "status": "PASS",
+      "cases": 14,
+      "assertions": 314
+    },
+    "generated_sequence_configurations": {
+      "status": "PASS",
+      "count": 26
+    },
+    "generated_files_match_generator": "PASS",
+    "update_tool_integration_test": "PASS",
+    "python_syntax": {
+      "status": "PASS",
+      "files": 28
+    },
+    "shell_syntax": "PASS",
+    "active_markdown_links": "PASS",
+    "checkpoint_model_verification": "PASS",
+    "fc_validator_existing_bf16_dump": "PASS",
+    "unet_validator_existing_bf16_dump": "PASS",
+    "obsolete_active_workflow_references": 0
+  },
+  "changed_source_sha256": {
+    "Allen/configuration/python/AllenSequences/hlt1_pp_pvfinder_unet_benchmark.py": "296492eca74fec26881a2e70218a92a818b10aa8c6284cba54dd025d6763ab52",
+    "Allen/device/pvfinder/CMakeLists.txt": "6bde3dad6e65997d6450d8807f82b728c5dc5cee760fa0022eb5beacd3414281",
+    "Allen/device/pvfinder/include/PVFinderModel.h": "0acca78cd7b5ec200d2b30d44c4847a840ed878e6a673ab1ee9517de1044eb12",
+    "Allen/doc/develop/allen_cudnn.rst": "616e6ffce031f006f187f2162f32e26d1d3e93e02a8efd8495848584c6d9ef01",
+    "Allen/test/unit_tests/generic/src/TestPVFinder.cu": "b79f624defb3be8a83ed4479f4fba027f20f8efb2832cbf9ce5a3738bb8b2cdf",
+    "benchmarks/generate_benchmark_sequences.py": "57c30d3ca1ad12bac6eda95bba93293474286cd20ba7dc2fa7d5a3206d4f195c",
+    "benchmarks/pv_comparison.sh": "cc50e00129405dff15c197e71021a3f9f007884d8caafef9b14fa8398f250c3a",
+    "benchmarks/runs.py": "5bbb27032f5e264173e8bfb54f7549492bc86f0580c16b9494b3d818e6b83902",
+    "results/README.md": "639237cd967e8c225c4975cf77ad5a646b8adbf03ec553fe4e391a2ca3ff6123",
+    "weights/README.md": "858d3d54101316edeb7cbd3c93badd8c2de1698f37af881ab829364ac8286891",
+    "weights/scripts/allen_dump.sh": "34527e17793ee2549f6b39f9cb0a5ee103931ecd311255a82749ed4cfd70b99f",
+    "weights/scripts/compare_pvs.py": "1fbd912eb6c67e954de5981a4b114b0a4019edd077a7757259e533290b359f70",
+    "weights/scripts/convert.py": "9d8c31b8e74a85e742cade3e0c7345ef30ab3b47c98016a105748418d0573813",
+    "weights/scripts/validate_fc.py": "6defc6338d0660cccb30603f603c384f05be1b9f623b7b629fcae5f34401acde",
+    "weights/scripts/validate_unet.py": "9a373229e6fbb531dac97fe85c745b5b8de8f188a1437072a3581e489e573fa8",
+    "weights/scripts/verify.py": "f05bae8c89a1dbaef8aad3a9af7b7707c38e08d07a048491cca8acbe13d7f484"
+  },
+  "raw_build_log": "/tmp/pvfinder_stale_audit_final_build.log",
+  "sequence_logs": "/tmp/pvfinder-sequence-audit-yb6_l3gr/"
+}

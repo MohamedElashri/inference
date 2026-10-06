@@ -5,9 +5,9 @@ the beamline PV finder's vertices and PVFinder's, with the MC PVs of the same
 events. Reports, for both:
 
   * MC efficiency, false rate and z resolution with the rules of Allen's
-    PrimaryVertexChecker (host_pv_validator), first over all z (this
-    reproduces the pv_validator printout exactly, a check of the dump), then
-    for MC and reconstructed PVs inside PVFinder's z range only;
+    former standalone PrimaryVertexChecker, first over all z, then for
+    MC and reconstructed PVs inside PVFinder's z range only. MC truth is read
+    directly from the dumped MDF MC-PV banks; no standalone checker is run;
   * event by event, inside the range: MC PVs found by both, by one only, by
     neither; how many events have the same number of PVs; how far the two
     reconstructions' PVs are apart when they found the same MC PV.

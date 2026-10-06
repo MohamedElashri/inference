@@ -13,7 +13,7 @@
 # Raw outputs stay in benchmark_results/<stamp>_<label>/<point>/.
 #
 # Usage:
-#   benchmarks/pv_comparison.sh --label LABEL [--model NAME] [--bf16]
+#   benchmarks/pv_comparison.sh --label LABEL [--model NAME] [--fp32]
 #       [--set ALG.PROP=VALUE]... [--scan ALG.PROP=V1,V2,...]...
 #       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--sequence SEQ] [--no-record]
 #

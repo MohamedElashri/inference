@@ -30,9 +30,9 @@ if(WITH_CUDNN AND TARGET_DEVICE STREQUAL "CUDA")
 endif()
 
 # The network's widths are compile-time constants and must match the model
-# file (the algorithms check every tensor's shape in init()). The defaults are
-# those of the default model, unet16_lc4_scnone_asym5_final; the bfloat16 path
-# supports only these.
+# file (the algorithms check every tensor's shape in init()). The defaults
+# match the 16-feature, 4-latent-channel architecture in the model catalog;
+# the bfloat16 path supports only these widths.
 set(PVFINDER_UNET_N_FEAT 16 CACHE STRING "PVFinder UNet feature maps (N_FEAT)")
 set(PVFINDER_UNET_N_BATCH_CHANNELS 4 CACHE STRING
     "PVFinder latent channels: FC outputs per bin and UNet input channels (latentChannels)")

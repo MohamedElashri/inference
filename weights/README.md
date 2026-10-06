@@ -60,6 +60,10 @@ beamline PV finder on MC) is not part of this pipeline:
 `benchmarks/pv_comparison.sh` runs it with `scripts/compare_pvs.py` and
 `scripts/validate_peaks.py`.
 
+For direct numerical-validator calls, pass the dump directory and the matching
+checkpoint explicitly: `--dump-dir DIR --weights MODEL.pyt` for FC, UNet and
+full-model checks. `make validate` supplies those paths from the selected model.
+
 ## The model file
 
 One JSON file holds the FC network and the UNet. It is an Allen tensor model

@@ -69,7 +69,8 @@ if extra:
 
 n_values = sum(len(t["data"]) for t in tensors.values())
 print(f"{args.model_file}: {len(tensors)} tensors, {n_values:,} floats; N_FEAT={n_feat}, latentChannels={n_latent}")
-print(f"Allen build: ./ballen -a gpu --cudnn --unet-feat {n_feat} --unet-batch-channels {n_latent}")
+print(f"Allen build: PVFINDER_UNET_N_FEAT={n_feat} PVFINDER_UNET_N_BATCH_CHANNELS={n_latent} "
+      "bash benchmarks/build_allen.sh")
 if problems:
     for p in problems:
         print(f"  MISMATCH {p}")

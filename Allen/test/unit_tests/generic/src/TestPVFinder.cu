@@ -308,7 +308,7 @@ TEST_CASE("pvfinder model file", "[PVFinder]")
     REQUIRE(model.unet_features() == 16);
     REQUIRE(model.bn_eps() == 1e-5f);
     // A build for other widths: the error says how to build for this model.
-    REQUIRE(contains(error_of([&] { model.tensor("b", {3}); }), "--unet-feat and --unet-batch-channels"));
+    REQUIRE(contains(error_of([&] { model.tensor("b", {3}); }), "PVFINDER_UNET_N_FEAT and PVFINDER_UNET_N_BATCH_CHANNELS"));
   }
 
   SECTION("other kinds and missing metadata are rejected")

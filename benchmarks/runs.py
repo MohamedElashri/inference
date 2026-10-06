@@ -781,7 +781,8 @@ def cmd_show(args):
     print(f"  git       {str(git.get('head'))[:12]} {git.get('branch') or ''}{' (dirty)' if git.get('dirty') else ''}  {git.get('subject') or ''}")
     cm = b.get("cmake") or {}
     print(f"  build     {b.get('name')}  N_FEAT={cm.get('PVFINDER_UNET_N_FEAT')} latent={cm.get('PVFINDER_UNET_N_BATCH_CHANNELS')} "
-          f"cuDNN={cm.get('CUDNN_VERSION')} cuBLAS={cm.get('WITH_CUBLAS')} CUDA={cm.get('CMAKE_CUDA_COMPILER_VERSION')} arch={cm.get('CUDA_ARCH')}")
+          f"cuDNN={cm.get('CUDNN_VERSION')} CUDA={cm.get('CMAKE_CUDA_COMPILER_VERSION')} arch={cm.get('CUDA_ARCH')}"
+          + (f" cuBLAS={cm['WITH_CUBLAS']}" if 'WITH_CUBLAS' in cm else ""))
     if b.get("sources_newer_than_build"):
         print(f"  WARNING   {len(b['sources_newer_than_build'])} tracked Allen source(s) newer than the build")
     ws = m.get("weights") or {}

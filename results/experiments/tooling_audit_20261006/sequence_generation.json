@@ -1,0 +1,158 @@
+[
+  {
+    "sequence": "hlt1_pp_lite1.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite1/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite1_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite1_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite1_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite1_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite2.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite2/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite2_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite2_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite2_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite2_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite3.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite3/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite3_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite3_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite3_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite3_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite4.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite4/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite4_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite4_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite4_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite4_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite5.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite5/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite5_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite5_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite5_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite5_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite6.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite6/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite6_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite6_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite6_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite6_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite7.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite7/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite7_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite7_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_lite7_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_lite7_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "velo_only.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/velo_only/generate.log"
+  },
+  {
+    "sequence": "velo_only_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/velo_only_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "velo_only_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/velo_only_pvfinder_unet_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_default_pvfinder_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_default_pvfinder_benchmark/generate.log"
+  },
+  {
+    "sequence": "hlt1_pp_default_pvfinder_unet_benchmark.py",
+    "status": "PASS",
+    "returncode": 0,
+    "log": "/tmp/pvfinder-sequence-audit-yb6_l3gr/hlt1_pp_default_pvfinder_unet_benchmark/generate.log"
+  }
+]

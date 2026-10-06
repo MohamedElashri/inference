@@ -26,7 +26,8 @@ namespace PVFinder {
     Model(std::string name, std::function<std::string()> path) :
       TensorModel(std::move(name), std::move(path), "pvfinder")
     {
-      m_shape_hint = "(the build's --unet-feat and --unet-batch-channels must match the model)";
+      m_shape_hint = "(set PVFINDER_UNET_N_FEAT and PVFINDER_UNET_N_BATCH_CHANNELS to match the model "
+                     "before running benchmarks/build_allen.sh)";
     }
 
     void readData(std::string parameters_path) override
