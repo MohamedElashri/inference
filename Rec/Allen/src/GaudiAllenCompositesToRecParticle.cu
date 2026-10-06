@@ -68,6 +68,9 @@ struct AllenCompositeData {
   float chi2 = 0.f;
   unsigned ndof = 0;
   float mass = 0.f;
+  float pv_x = 0.f, pv_y = 0.f, pv_z = 0.f;
+  float pv_c00 = 0.f, pv_c10 = 0.f, pv_c11 = 0.f, pv_c20 = 0.f, pv_c21 = 0.f, pv_c22 = 0.f;
+  float pv_chi2 = 0.f, pv_ndof = 0.f;
   std::array<AllenCompositeDaughter, max_composite_children> children {};
 };
 
@@ -112,6 +115,17 @@ namespace {
         data.chi2 = vertex.chi2();
         data.ndof = vertex.ndof();
         data.mass = composite.m();
+        data.pv_c00 = composite.pv().cov00;
+        data.pv_c10 = composite.pv().cov10;
+        data.pv_c11 = composite.pv().cov11;
+        data.pv_c20 = composite.pv().cov20;
+        data.pv_c21 = composite.pv().cov21;
+        data.pv_c22 = composite.pv().cov22;
+        data.pv_chi2 = composite.pv().chi2;
+        data.pv_ndof = composite.pv().ndof;
+        data.pv_x = composite.pv().position.x;
+        data.pv_y = composite.pv().position.y;
+        data.pv_z = composite.pv().position.z;
       }
 
       for (unsigned j = 0; j < n_children; ++j) {
@@ -251,6 +265,7 @@ public:
     LHCb::Particles rec_daughters;
     LHCb::ProtoParticles proto_particles;
     LHCb::Vertices vertices;
+    LHCb::VertexBases pvs;
 
     for (const auto& composite : composites) {
       auto mother = std::make_unique<LHCb::Particle>(LHCb::ParticleID {0});
@@ -301,6 +316,24 @@ public:
       }
       mother_ptr->setEndVertex(vertex_ptr);
 
+      // Create PV, fill it with info from Allen, and link it to the composite vertex.
+      auto pv = std::make_unique<LHCb::VertexBase>();
+      auto* pv_ptr = pv.get();
+      pvs.insert(pv.release());
+      pv_ptr->setPosition(Gaudi::XYZPoint {
+        static_cast<double>(composite.pv_x), static_cast<double>(composite.pv_y), static_cast<double>(composite.pv_z)});
+      Gaudi::SymMatrix3x3 pv_cov;
+      pv_cov[0][0] = static_cast<double>(composite.pv_c00);
+      pv_cov[1][0] = static_cast<double>(composite.pv_c10);
+      pv_cov[1][1] = static_cast<double>(composite.pv_c11);
+      pv_cov[2][0] = static_cast<double>(composite.pv_c20);
+      pv_cov[2][1] = static_cast<double>(composite.pv_c21);
+      pv_cov[2][2] = static_cast<double>(composite.pv_c22);
+      pv_ptr->setCovMatrix(pv_cov);
+      pv_ptr->setChi2(static_cast<double>(composite.pv_chi2));
+      pv_ptr->setNDoF(static_cast<int>(composite.pv_ndof));
+
+      mother_ptr->setPV(pv_ptr);
       fill_composite(mother_ptr);
     }
 
