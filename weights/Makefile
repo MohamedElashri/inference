@@ -15,7 +15,7 @@
 #   make clean    MODEL=<name>       remove out/<name>
 #
 # MODEL defaults to unet16_lc4_scnone_asym5_best_bf16. Optional: DEVICE (GPU index, default 2),
-# EVENTS (slice size for dump, default 500), JOBS (build jobs, default 16), PY.
+# EVENTS (slice size for dump, default 500), JOBS (build jobs, default 12), PY.
 # Variants, for dump and validate alike:
 #   PRECISION=bfloat16   the reduced-precision path (FC and UNet); its dump goes to
 #                        out/<name>/dump_bfloat16/
@@ -47,7 +47,7 @@ DEFAULT_UNET_GRID := $(call default,PVF_UNET_GRID_FRACTION)
 MODEL   ?= $(DEFAULT_MODEL)
 DEVICE  ?= $(DEFAULT_DEVICE)
 EVENTS  ?= $(DEFAULT_EVENTS)
-JOBS    ?= 16
+JOBS    ?= 12
 PRECISION ?= $(if $(filter bf16,$(call field,$(MODEL),6)),bfloat16,float32)
 DUMP_SET ?= pvfinder_fc_aggregation.gpu_work_list=$(if $(filter bfloat16,$(PRECISION)),true,false) pvfinder_fc_aggregation.fused_grid_fraction=$(DEFAULT_FC_GRID) pvfinder_unet.fused_grid_fraction=$(DEFAULT_UNET_GRID)
 DUMP_TAG ?= $(PRECISION)

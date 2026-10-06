@@ -73,3 +73,23 @@ configuring CMake. `.cache/allen-dependencies` references the existing dependenc
 source cache. A fresh checkout creates a real `Allen/build/` and needs its
 dependency cache configured as documented. Other old build folders are not
 used by the default tools.
+
+## Fresh paired throughput verification
+
+`bash benchmarks/benchmark_pvfinder_batch.sh --label unified_workflow_verify --repeats 1`
+ran from clean source commit `79a8f111db8c85df1b4db54aea7922f2e9ef02d4`, with
+no tracked sources newer than the linked library and no other GPU processes at
+its start. Both stages used BF16, the GPU work list was enabled, FC/UNet grid
+fractions were 0.0625/0.125 and the PV fitter used `block_dim_y=4`.
+
+At 500 events, 500 MB per stream, 1,000 repetitions and 16 streams on the RTX
+3090, baseline HLT1 measured **86,493.5 events/s** and the full PVFinder shadow
+chain measured **81,650.2 events/s**: **5.5996% throughput loss**. This is one
+paired verification measurement. It does not establish a reliable margin
+below 5%; the historical optimization campaign cannot substitute for repeated
+measurements of this revision.
+
+Run record:
+`results/runs/20261006_084913_rtx3090_unet16-lc4-scnone-asym5-best-bf16_unified-workflow-verify.json`.
+`main_verification.json` records the build/source provenance, binary hashes,
+unit/numerical/physics results and this throughput check.

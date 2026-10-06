@@ -94,8 +94,9 @@ are in the ParamFiles package. Until then, pass an absolute path:
 
 Allen reads the file once, before the algorithms' `init()`, and each
 algorithm checks every tensor's shape against its build there. The Allen build
-must match the model: `N_FEAT` (`--unet-feat`) and latentChannels
-(`--unet-batch-channels`) are compile-time constants. `make build` passes the catalog architecture to the shared build script.
+must match the model: `PVFINDER_UNET_N_FEAT` and
+`PVFINDER_UNET_N_BATCH_CHANNELS` are compile-time settings. `make build` passes
+the catalog architecture to the shared build script.
 `ALLEN_BUILD_DIR` overrides the build location for isolated work.
 
 ## Model architecture

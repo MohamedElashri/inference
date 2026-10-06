@@ -1,0 +1,78 @@
+{
+  "schema": "allen-main-verification/1",
+  "status": "PASS",
+  "source_commit": "79a8f111db8c85df1b4db54aea7922f2e9ef02d4",
+  "upstream_commit": "b567e104f23ebfd0670d6272e47d9b1ce37d905c",
+  "vendor_tree": "c006ff2aad391d7f4427a758fb03a203ca55ca01",
+  "source_files_match_validated_checkout": 1643,
+  "build": {
+    "name": "build",
+    "dir": "Allen/build",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_HOME_DIRECTORY": "/data/home/melashri/iris/inference/Allen",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-06T07:56:09-04:00",
+    "source_dir": "Allen",
+    "source_git": {
+      "head": "79a8f111db8c85df1b4db54aea7922f2e9ef02d4",
+      "branch": "master",
+      "subject": "Integrate Allen upstream and unify build, benchmark and validation workflows",
+      "dirty": false,
+      "dirty_files": [],
+      "diff_sha256": null
+    },
+    "sources_newer_than_build": []
+  },
+  "sha256": {
+    "Allen": "6e0a764a535bf109adf8469b2634ea12681791222ad8d07541625ed8ee7ae96d",
+    "libAllenLib.so": "c7995a2f64d60b226926cf686f783f3bbddb632720e15b40297b5cac1fecc02b",
+    "test/unit_tests/unit_tests": "b30c96ef394d7a6922555e91af333bace7992d8aed6641abb01b81e66d869efc"
+  },
+  "unit_tests": {
+    "cases": 14,
+    "assertions": 314,
+    "status": "PASS"
+  },
+  "numerical_validators": {
+    "fc": "PASS",
+    "unet": "PASS",
+    "model": "PASS",
+    "features": "PASS",
+    "peaks": "PASS"
+  },
+  "physics": {
+    "events": 10000,
+    "thresholds": [
+      0.07,
+      0.1
+    ],
+    "counts_identical_to_isolated_checks": true,
+    "summary_comparison_tolerance": 1e-12
+  },
+  "benchmark": {
+    "record": "results/runs/20261006_084913_rtx3090_unet16-lc4-scnone-asym5-best-bf16_unified-workflow-verify.json",
+    "repeats": 1,
+    "baseline_events_per_s": 86493.5,
+    "pvs_events_per_s": 81650.2,
+    "loss_pct": 5.5996115315023705,
+    "interpretation": "One paired verification measurement; does not establish a reliable under-5% operating point."
+  },
+  "local_aliases": {
+    "Allen/build": "Allen/buildupstreamgpu12",
+    ".cache/allen-dependencies": "Allen/build16chL4finalgpu/external"
+  }
+}
