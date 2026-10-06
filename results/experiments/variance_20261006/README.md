@@ -23,3 +23,16 @@ and PVFinder→baseline, with `-n 500 -m 500 -r 1000 -t 16`. No GPU setting or
 inference implementation is changed. A CPU-affinity control will follow if
 the telemetry warrants it. Numerical correctness and the existing out-of-window
 POCA diagnostic are unchanged.
+
+Summarize a diagnostic batch (including a batch still running) with:
+
+```bash
+python3 benchmarks/analyze_benchmark_telemetry.py BATCH_DIR --report REPORT.json
+```
+
+The report includes only samples inside Allen's throughput timer, excluding
+startup and shutdown. CPU placement describes the last CPU reported for all
+Allen threads, including idle threads; resident-page fractions cover all process
+mappings. These are placement indicators, not measurements of memory traffic.
+Scheduling deltas are approximate when threads exit. GPU telemetry is sampled
+every two seconds and can miss brief interference.
