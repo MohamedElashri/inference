@@ -1,0 +1,233 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "benchmark",
+  "id": "20261006_105549_variance_unbound",
+  "label": "variance_unbound",
+  "status": "failed",
+  "imported": false,
+  "started_at": "2026-10-06T10:55:54-04:00",
+  "finished_at": "2026-10-06T11:12:51-04:00",
+  "command": "benchmarks/benchmark_pvfinder_batch.sh --label variance_unbound --repeats 4 --alternate-order --telemetry",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "52e185d63b215d909618e8fabec8a6ee9a85e224",
+    "branch": "master",
+    "subject": "Add benchmark telemetry and alternating order diagnostics",
+    "dirty": false,
+    "dirty_files": [],
+    "diff_sha256": null
+  },
+  "build": {
+    "name": "build",
+    "dir": "Allen/build",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_HOME_DIRECTORY": "/data/home/melashri/iris/inference/Allen",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-06T07:56:09-04:00",
+    "source_dir": "Allen",
+    "source_git": {
+      "head": "52e185d63b215d909618e8fabec8a6ee9a85e224",
+      "branch": "master",
+      "subject": "Add benchmark telemetry and alternating order diagnostics",
+      "dirty": false,
+      "dirty_files": [],
+      "diff_sha256": null
+    },
+    "sources_newer_than_build": [
+      "device/pvfinder/CMakeLists.txt",
+      "device/pvfinder/include/PVFinderModel.h"
+    ]
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "notes": "default model; BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "mdf": "/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/rta/samples/data/321834-LHCb-MEP/MEP_2025_pp_pD2_bu_321834_LHCb_ECEB01_BU_0.mdf",
+    "geometry": "/cvmfs/lhcb.cern.ch/lib/lhcb/ALLEN/ALLEN_v9r2/input/allen_geometries/geometry_run3_2025-v00.01",
+    "events": 500,
+    "memory_mb": 500,
+    "repetitions": 1000,
+    "threads": 16,
+    "repeats": 4,
+    "device": 2,
+    "sequences": [
+      "hlt1_pp_default",
+      "hlt1_pp_pvs_pvfinder_unet_benchmark"
+    ]
+  },
+  "options": {
+    "alternate_order": 1,
+    "cpu_affinity": null,
+    "fc_grid_fraction": 0.0625,
+    "gpu_work_list": true,
+    "precision": "bfloat16",
+    "telemetry": 1,
+    "unet_batch_events": 20,
+    "unet_grid_fraction": 0.125,
+    "use_bf16": true
+  },
+  "config": {
+    "baseline": {
+      "sha256": "aed2653a568de31a4988e36cc3ea3c15d4f1355c1745006ae27b4af726e32813",
+      "algorithms": {}
+    },
+    "pvs": {
+      "sha256": "a216e593445d9a60b524db3c8f4f3536f62570dcffbcba2246f45e59fc86f11c",
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.0625,
+          "gpu_work_list": true,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_peak_pvfinder": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "integral_threshold": 0.699999988079071,
+          "min_width": 0,
+          "split_peaks": true,
+          "threshold": 0.07000000029802322,
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "units": "events/s",
+    "repeats": [
+      {
+        "run": 1,
+        "events_per_s": {
+          "baseline": 78160.7,
+          "pvs": 74220.8
+        },
+        "sequence_order": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ],
+        "pvs_overhead_pct": 5.040768570394065,
+        "pvs_retention_pct": 94.95923142960594
+      },
+      {
+        "run": 2,
+        "events_per_s": {
+          "pvs": 74159.5,
+          "baseline": 77641.3
+        },
+        "sequence_order": [
+          "hlt1_pp_pvs_pvfinder_unet_benchmark",
+          "hlt1_pp_default"
+        ],
+        "pvs_overhead_pct": 4.4844689617510305,
+        "pvs_retention_pct": 95.51553103824897
+      },
+      {
+        "run": 3,
+        "events_per_s": {
+          "baseline": 77667.8,
+          "pvs": 73469.8
+        },
+        "sequence_order": [
+          "hlt1_pp_default",
+          "hlt1_pp_pvs_pvfinder_unet_benchmark"
+        ],
+        "pvs_overhead_pct": 5.405071342306593,
+        "pvs_retention_pct": 94.59492865769342
+      }
+    ],
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 77667.8,
+        "pvs": 74159.5
+      },
+      "median_pvs_overhead_pct": 5.040768570394065,
+      "median_pvs_retention_pct": 94.95923142960594,
+      "baseline_spread_pct": 0.6687456062872827,
+      "contention": "acceptable",
+      "slice_splits": false
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "batch_dir": "benchmark_results/20261006_105549_variance_unbound",
+    "telemetry": "benchmark_results/20261006_105549_variance_unbound/telemetry.jsonl",
+    "telemetry_events": "benchmark_results/20261006_105549_variance_unbound/telemetry_events.jsonl"
+  },
+  "duration_s": 1017
+}

@@ -216,7 +216,7 @@ fi
 RUNS_PY="${REPO_ROOT}/benchmarks/runs.py"
 
 extract_rate() {
-    grep -oP '[0-9]+\.[0-9]+(?=\s+events/s)' "$1" | tail -1
+    grep -oP '[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?(?=\s+events/s)' "$1" | tail -1
 }
 
 write_command() {
@@ -355,8 +355,7 @@ run_sequence() {
     fi
 
     local rate
-    rate="$(extract_rate "${log}")"
-    if [[ -z "${rate}" ]]; then
+    if ! rate="$(extract_rate "${log}")" || [[ -z "${rate}" ]]; then
         echo "ERROR: could not extract rate for ${seq}; see ${log}" >&2
         exit 1
     fi
