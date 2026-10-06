@@ -97,3 +97,24 @@ separately in `master_verification.json`.
 The settings have been measured on the RTX 3090 only. This is the full PV shadow configuration, with baseline PV reconstruction still present. No claim is made here for other GPUs, samples, or replacement configurations.
 
 The earlier tensor-instruction audit found no other tensor-core algorithm in this benchmarked v9r1 HLT1 build. The experiments do not provide a complete causal attribution of the v7r9-to-v9r1 regression.
+
+## Verification after transfer to master
+
+The main rebuild passed the same 12 GPU tests (299 assertions) and all five
+numerical validators on 500 events. Its Allen git tree is identical to the
+accepted isolated source tree. Fixed-slice FC, UNet, seed and fitted-PV outputs
+are byte-identical; raw track packing differs only by order within each event.
+Both 10,000-event working points reproduce every physics metric and every
+reconstructed-PV/MC event payload. Raw full-sample dump order differs between
+runs, so the event payload comparison excludes runtime batch/event labels.
+
+The corrected benchmark command also completed one pair at the full operating
+point from clean master: HLT1 **87,030.87 events/s**, full PV shadow chain
+**82,490.53 events/s**, loss **5.217%**, with no slice splitting. This verifies
+the rebuilt executable and command; it is one pair and does not replace the
+five-repeat statistics above. The below-5% margin remains unconfirmed.
+
+`master_verification.json` links the fresh tracked run records, build flags and
+binary hashes. `master_validation/`, `master_physics/` and `master_benchmark/`
+contain their compact evidence. The benchmark summary now includes full-PV,
+replacement and hybrid roles; unmeasured stages are left empty.

@@ -1,0 +1,421 @@
+{
+  "schema": "pvfinder-run/1",
+  "kind": "validation",
+  "id": "20261006_060941_v9r1-master-gpu-worklist-validation",
+  "label": "v9r1-master-gpu-worklist-validation",
+  "status": "ok",
+  "imported": false,
+  "started_at": "2026-10-06T06:08:57-04:00",
+  "finished_at": "2026-10-06T06:09:41-04:00",
+  "host": {
+    "hostname": "sleepy.geop.uc.edu",
+    "os": "Linux-5.14.0-503.38.1.el9_5.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz",
+    "cpu_count": 96,
+    "user": "melashri"
+  },
+  "gpu": {
+    "index": 2,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-45d31422-143d-4539-334e-69eac0bc7b97",
+    "driver": "570.124.06",
+    "compute_capability": "8.6",
+    "memory_total_mib": 24576,
+    "pci_bus_id": "00000000:AF:00.0",
+    "max_sm_clock_mhz": 2100,
+    "power_limit_w": 350.0,
+    "processes_at_start": []
+  },
+  "git": {
+    "head": "5d6ac6d7fee16093fbe29676c9574f7f6af3f300",
+    "branch": "master",
+    "subject": "Rebase PVFinder on Allen v9r1 and preserve the GPU work-list optimization",
+    "dirty": false,
+    "dirty_files": [],
+    "diff_sha256": null
+  },
+  "build": {
+    "name": "buildv9r1gpu12",
+    "dir": "Allen/buildv9r1gpu12",
+    "cmake": {
+      "BUILD_TESTING": "ON",
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_ARCHITECTURES": "52",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "CUDNN_VERSION": "9.6.0",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "WITH_CUDNN": "ON",
+      "CMAKE_CUDA_COMPILER_VERSION": "12.8.93",
+      "CMAKE_CXX_COMPILER_VERSION": "13.1.0"
+    },
+    "lib_mtime": "2026-10-06T06:07:02-04:00",
+    "sources_newer_than_build": []
+  },
+  "model": {
+    "name": "unet16_lc4_scnone_asym5_best_bf16",
+    "catalog": {
+      "name": "unet16_lc4_scnone_asym5_best_bf16",
+      "source": "/share/lazy/mpeters/output/FCN6L_20-ch_UNet_16-ch_latentChannels-4_sc_none/asym_5/weights/weights_bf16_both.pyt",
+      "unet_feat": "16",
+      "latent": "4",
+      "build": "buildgpu16chL4",
+      "notes": "training team BF16 export of asym5_best: conv/linear weights rounded to bfloat16 (FC and UNet), BatchNorm kept float32",
+      "precision": "bf16"
+    },
+    "checkpoint": {
+      "path": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "sha256": "fb819376eaed18d15e59eb4fa51c28badbb8f9f883d676eeb05e932e3f23c914"
+    },
+    "weights": {
+      "model": {
+        "path": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+        "sha256": "ff61d4db8cc77b400e887823ea58b42eb8dbefef13fdcbbb226a3305431719b1"
+      }
+    },
+    "verified": true
+  },
+  "workload": {
+    "events": 500,
+    "threads": 1,
+    "device": 2,
+    "sequence": "pvfinder_pv_validation"
+  },
+  "config": {
+    "dump": {
+      "algorithms": {
+        "pvfinder_fc_aggregation": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "benchmark_results/v9r1_master_transfer20261006/validation",
+          "fused_grid_fraction": 0.0625,
+          "gpu_work_list": true,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        },
+        "pvfinder_peak_pvfinder": {
+          "block_dim": [
+            512,
+            1,
+            1
+          ],
+          "dump_validation": "benchmark_results/v9r1_master_transfer20261006/validation",
+          "integral_threshold": 0.699999988079071,
+          "min_width": 0,
+          "split_peaks": true,
+          "threshold": 0.07000000029802322,
+          "verbosity": 3
+        },
+        "pvfinder_pv_validator": {
+          "pp_minNumTracksPerVertex": 4.0,
+          "root_output_filename": "PrCheckerPlots.root",
+          "verbosity": 3
+        },
+        "pvfinder_unet": {
+          "block_dim": [
+            256,
+            1,
+            1
+          ],
+          "dump_validation": "benchmark_results/v9r1_master_transfer20261006/validation",
+          "fused_grid_fraction": 0.125,
+          "model": "weights/out/unet16_lc4_scnone_asym5_best_bf16/pvfinder_model.json",
+          "precision": "bfloat16",
+          "unet_batch_events": 20,
+          "verbosity": 3
+        }
+      }
+    }
+  },
+  "results": {
+    "fc": {
+      "dump_dir": "/data/home/melashri/iris/inference/benchmark_results/v9r1_master_transfer20261006/validation",
+      "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "max_f32_ulps": 1.0,
+      "csr": {
+        "intervals_differing": 0,
+        "status": "OK"
+      },
+      "features_dtype": "bfloat16",
+      "histogram_dtype": "bfloat16",
+      "interval_features": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 34826.4136445527,
+        "max_rel_diff": 6304.0760529157415,
+        "max_f32_ulps": 5.022089610549722e-05,
+        "largest_term": 8779422771643.462,
+        "status": "PASS"
+      },
+      "histogram": {
+        "slots_compared": 20000,
+        "non_finite_slots": 0,
+        "max_abs_diff": 33017.840370167556,
+        "max_rel_diff": 5408.515625,
+        "max_f32_ulps": 1.7810155952721657e-05,
+        "largest_term": 501447157931.54407,
+        "status": "PASS"
+      },
+      "n_events": 500,
+      "n_tracks": 122077,
+      "latent_channels": 4,
+      "status": "PASS"
+    },
+    "unet": {
+      "dump_dir": "/data/home/melashri/iris/inference/benchmark_results/v9r1_master_transfer20261006/validation",
+      "weights": "/data/home/melashri/iris/inference/weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+      "n_events": 500,
+      "n_intervals": 20000,
+      "non_finite_input_intervals": 0,
+      "max_abs_diff": 0.06788039207458496,
+      "abs_percentiles": {
+        "P50": 1.1119986174408384e-15,
+        "P90": 6.061486590436265e-11,
+        "P95": 2.290752421085783e-10,
+        "P99": 1.4245516504161066e-05,
+        "P99.9": 0.005583287954330718,
+        "Pmax": 0.06788039207458496
+      },
+      "rel_percentiles": {
+        "P50": 1.111997380901288e-06,
+        "P90": 0.015562395960031452,
+        "P95": 0.049245815941501285,
+        "P99": 0.147317782785264,
+        "P99.9": 0.5141242829980913,
+        "Pmax": 79.44847335757248
+      },
+      "pearson_r": 0.9999805594718079,
+      "r_squared": 0.999959405807272,
+      "signal_region": {
+        "n_bins": 20088,
+        "max_abs_diff": 0.06788039207458496
+      },
+      "background_region": {
+        "n_bins": 1977688,
+        "max_abs_diff": 0.004624277091352269
+      },
+      "worst_event": {
+        "event": 148,
+        "interval": 11
+      },
+      "layer_stats": {
+        "x1_rcbn1": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.7429836392402649,
+          "std": 1.6410859823226929,
+          "min": 0.0,
+          "max": 204.00552368164062
+        },
+        "x2_rcbn2_mp": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.5452225804328918,
+          "std": 1.3553130626678467,
+          "min": 0.0,
+          "max": 115.02883911132812
+        },
+        "x3_rcbn3_mp": {
+          "shape": [
+            20000,
+            16,
+            25
+          ],
+          "non_finite": 0,
+          "mean": 1.077136516571045,
+          "std": 1.9311779737472534,
+          "min": 0.0,
+          "max": 113.92020416259766
+        },
+        "xu1_up1": {
+          "shape": [
+            20000,
+            16,
+            50
+          ],
+          "non_finite": 0,
+          "mean": 0.6394269466400146,
+          "std": 1.3108774423599243,
+          "min": 0.0,
+          "max": 58.90599060058594
+        },
+        "xu2_up2": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.06246278062462807,
+          "std": 0.15294981002807617,
+          "min": 0.0,
+          "max": 13.10672664642334
+        },
+        "x_oint": {
+          "shape": [
+            20000,
+            16,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -0.3142967224121094,
+          "std": 2.9569575786590576,
+          "min": -111.97101593017578,
+          "max": 737.183837890625
+        },
+        "logits": {
+          "shape": [
+            20000,
+            1,
+            100
+          ],
+          "non_finite": 0,
+          "mean": -28.368566513061523,
+          "std": 77.7987289428711,
+          "min": -237.58056640625,
+          "max": 5026.82421875
+        },
+        "pt_kde": {
+          "shape": [
+            20000,
+            100
+          ],
+          "non_finite": 0,
+          "mean": 0.004002016503363848,
+          "std": 0.07444757968187332,
+          "min": 0.0,
+          "max": 5.026824474334717
+        }
+      },
+      "tiers": {
+        "fp32_noise": false,
+        "tight": false,
+        "acceptable": false,
+        "loose": false
+      },
+      "best_tier": null,
+      "signal_region_under_1e-4": false,
+      "threshold": 0.001,
+      "bf16_path": true,
+      "peaks": {
+        "bins_off_by_more_than_0.01": 0.000465,
+        "n_peaks": 2529,
+        "median_rel_peak_height_change": 0.0031054072845797674,
+        "max_rel_peak_height_change": 0.06400404405856946,
+        "intervals_with_peak": 2339,
+        "highest_bin_moved": 17,
+        "highest_bin_moved_more_than_one_bin": 3
+      },
+      "criterion": "BF16 path: bins off by > 0.01 < 1%, median peak height change < 2%, highest bin moved > 1 bin < 1% of intervals with a peak",
+      "status": "PASS"
+    },
+    "model": {
+      "n_events": 500,
+      "empty_interval_fraction": 0.7275,
+      "intervals_capped_at_max_tracks": 0,
+      "max_abs_diff": 0.22614026069641113,
+      "mean_abs_diff": 8.098541720963934e-05,
+      "intervals_with_peak_above_1e-3": {
+        "allen": 0.1228,
+        "pytorch": 0.1228
+      },
+      "bins_above_1e-3_per_event": {
+        "allen": 40.13,
+        "pytorch": 40.132
+      },
+      "threshold": 0.001,
+      "bf16_path": true,
+      "peaks": {
+        "bins_off_by_more_than_0.01": 0.002084,
+        "n_peaks": 2532,
+        "median_rel_peak_height_change": 0.005902579850543387,
+        "max_rel_peak_height_change": 0.1988968544307707,
+        "intervals_with_peak": 2341,
+        "highest_bin_moved": 72,
+        "highest_bin_moved_more_than_one_bin": 4
+      },
+      "criterion": "BF16 path: bins off by > 0.01 < 1%, median peak height change < 2%, highest bin moved > 1 bin < 1% of intervals with a peak",
+      "status": "PASS"
+    },
+    "features": {
+      "allen_vs_rules": {
+        "tracks": 122077,
+        "ellipsoid_source": "pv-finder_v2 tools/ellipsoid.py",
+        "poca_max_abs_diff_mm": 0.0007589991255372297,
+        "ellipsoid_max_rel_matrix_diff": 6.437877385221288e-07,
+        "tracks_without_ellipsoid": 36,
+        "status": "PASS"
+      },
+      "rules_vs_training": {
+        "tracks": 459132,
+        "events": 2000,
+        "checks": {
+          "poca_within_1um": 0.9999738637254646,
+          "major_axis_within_0.01deg_of_track": 1.0,
+          "major_minor_ratio_within_0.1pct": 0.9987345687079097,
+          "ellipsoid_matrix_within_1pct": 0.9938732216443201
+        },
+        "status": "PASS"
+      },
+      "minor_axis_quantiles": {
+        "q": [
+          0.05,
+          0.25,
+          0.5,
+          0.75,
+          0.95
+        ],
+        "training": [
+          0.030375059661439722,
+          0.037732711258438786,
+          0.04618483408333554,
+          0.06566650669740733,
+          0.15945860428939695
+        ],
+        "allen_sqrt_c00": [
+          0.027288269911143394,
+          0.03467730275613048,
+          0.042794644311218315,
+          0.060971325876127865,
+          0.13693256008338608
+        ]
+      },
+      "status": "PASS"
+    },
+    "peaks": {
+      "settings": {
+        "threshold": 0.07000000029802322,
+        "integral_threshold": 0.699999988079071,
+        "min_width": 0,
+        "split_peaks": true
+      },
+      "events": 500,
+      "seeds": 2455,
+      "events_with_different_number_of_seeds": 0,
+      "max_abs_dz_mm": 3.3569335926131316e-05,
+      "events_over_seed_cap": 0,
+      "events_with_first_bin_above_threshold": 5,
+      "status": "PASS"
+    }
+  },
+  "profile": null,
+  "artifacts": {
+    "dump_dir": "benchmark_results/v9r1_master_transfer20261006/validation"
+  },
+  "duration_s": 44
+}

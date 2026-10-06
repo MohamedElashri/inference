@@ -1,0 +1,153 @@
+{
+  "schema": "pvfinder-master-transfer/1",
+  "completed_at": "2026-10-06T10:18:36+00:00",
+  "status": "PASS",
+  "source": {
+    "master_source_commit": "5d6ac6d7fee16093fbe29676c9574f7f6af3f300",
+    "verification_revision": "5157a52a6d08ec5516dde600fe7e75e102455dc7",
+    "accepted_isolated_commit": "b427d449b0c393734e361279e3922aa8aebea57c",
+    "allen_tree": "95a320d93e0c71e086f76e25ed8a24fb9c9ddd82",
+    "allen_tree_matches_accepted": true,
+    "tracked_allen_files": 1805
+  },
+  "build": {
+    "directory": "Allen/buildv9r1gpu12",
+    "command": [
+      "bash",
+      "benchmarks/build_v9r1.sh"
+    ],
+    "successful_command_exit_code": 0,
+    "logs": [
+      "benchmark_results/v9r1_master_transfer20261006/build.log",
+      "benchmark_results/v9r1_master_transfer20261006/build_incremental.log"
+    ],
+    "note": "The first invocation compiled both targets but its shell script had been edited while running. An unchanged-script rerun completed successfully; its exit code and final products are the build verification.",
+    "cmake": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CUDA_COMPILER": "/usr/local/cuda-12.8/bin/nvcc",
+      "CMAKE_CUDA_FLAGS": "--device-entity-has-hidden-visibility=true --static-global-template-stub=true",
+      "CMAKE_CUDA_RUNTIME_LIBRARY": "Shared",
+      "CMAKE_TOOLCHAIN_FILE": "/cvmfs/lhcb.cern.ch/lib/lhcb/lcg-toolchains/LCG_108c/x86_64_v3-el9-gcc13+cuda12_4-opt+g.cmake",
+      "CUDA_ARCH": "86",
+      "WITH_CUDNN": "ON",
+      "CUDNN_LIBRARY": "/data/home/melashri/local/cuda/lib64/libcudnn.so",
+      "CUDNN_INCLUDE_DIR": "/data/home/melashri/local/cuda/include",
+      "BUILD_TESTING": "ON",
+      "PVFINDER_UNET_N_FEAT": "16",
+      "PVFINDER_UNET_N_BATCH_CHANNELS": "4",
+      "LHCBROOT": "/data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/LHCb",
+      "GAUDIROOT": "/data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/Gaudi",
+      "PARAMFILESROOT": "/data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/ParamFiles"
+    },
+    "dependency_sources": {
+      "LHCBROOT": {
+        "path": "/data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/LHCb",
+        "git_head": "742caca2d1d2b915b1558db57f2bf5a8e1a28bc4"
+      },
+      "GAUDIROOT": {
+        "path": "/data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/Gaudi",
+        "git_head": "53dee381b4d58d162ed9de749025ee56312d6994"
+      },
+      "PARAMFILESROOT": {
+        "path": "/data/home/melashri/iris/inference/Allen/build16chL4finalgpu/external/ParamFiles",
+        "git_head": "e07783c90ba80e5bd3daecae163250e475dfe576"
+      }
+    },
+    "sha256": {
+      "Allen/buildv9r1gpu12/Allen": "c7d91e3f55ad66ac79e021a875088524d153a89322703c04f8c17e821e0d531f",
+      "Allen/buildv9r1gpu12/libAllenLib.so": "7da88bd4a4ecc221c64d4de3217438caace75a7d6a92a9cecd05d7d7876cf39c",
+      "Allen/buildv9r1gpu12/test/unit_tests/unit_tests": "fe188b90dfbc2a03bfe9ce67db23a117d1fd4d631bbde0a7da614ba9fc16bfdf",
+      "Allen/buildv9r1gpu12/CMakeCache.txt": "65d35646a07b6fae6f64e40f4a73934cc420339e0269c6a98353d97f8056ee9a"
+    }
+  },
+  "unit_tests": {
+    "status": "PASS",
+    "cases": 12,
+    "assertions": 299,
+    "report": "master_validation/unit_tests.txt"
+  },
+  "numerical_validation": {
+    "events": 500,
+    "tracks": 122077,
+    "validators": {
+      "fc": "PASS",
+      "unet": "PASS",
+      "model": "PASS",
+      "features": "PASS",
+      "peaks": "PASS"
+    },
+    "comparison": "master_validation/byte_comparison.json"
+  },
+  "physics": {
+    "events": 10000,
+    "thresholds": [
+      0.07,
+      0.1
+    ],
+    "all_metrics_identical": true,
+    "pv_mc_event_payload_multisets_byte_identical": true,
+    "comparison": "master_physics/checks.json"
+  },
+  "benchmark": {
+    "status": "PASS",
+    "workload": {
+      "mdf": "Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf",
+      "geometry": "Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry",
+      "events": 500,
+      "memory_mb": 500,
+      "repetitions": 1000,
+      "threads": 16,
+      "repeats": 1,
+      "device": 2,
+      "sequences": [
+        "hlt1_pp_default",
+        "hlt1_pp_pvs_pvfinder_unet_benchmark"
+      ]
+    },
+    "summary": {
+      "median_events_per_s": {
+        "baseline": 87030.870868,
+        "pvs": 82490.530449
+      },
+      "median_pvs_overhead_pct": 5.216930927746718,
+      "median_pvs_retention_pct": 94.78306907225328,
+      "baseline_spread_pct": 0.0,
+      "contention": "acceptable",
+      "slice_splits": false
+    },
+    "configuration": {
+      "gpu_work_list": true,
+      "precision": "bfloat16",
+      "fc_grid_fraction": 0.0625,
+      "unet_grid_fraction": 0.125
+    },
+    "source_checkout_clean": true,
+    "tracked_sources_newer_than_build": [],
+    "interpretation": "One paired operating-point verification, not a replacement for the prior five-repeat campaign. Loss was 5.216930927746718%; a reliable below-5% margin remains unconfirmed."
+  },
+  "run_records": {
+    "numerical_validation": {
+      "path": "results/runs/20261006_060941_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-master-gpu-worklist-validation.json",
+      "id": "20261006_060941_v9r1-master-gpu-worklist-validation"
+    },
+    "physics": {
+      "path": "results/runs/20261006_061015_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-master-physics.json",
+      "id": "20261006_061015_v9r1-master-physics"
+    },
+    "short_smoke": {
+      "path": "results/runs/20261006_061015_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-master-smoke.json",
+      "id": "20261006_061015_v9r1_master_smoke"
+    },
+    "operating_point_check": {
+      "path": "results/runs/20261006_061257_rtx3090_unet16-lc4-scnone-asym5-best-bf16_v9r1-master-verify.json",
+      "id": "20261006_061257_v9r1_master_verify"
+    }
+  },
+  "raw_artifacts": "benchmark_results/v9r1_master_transfer20261006",
+  "reporting_regression_checks": {
+    "full_shadow_rate_and_loss_reported": true,
+    "unmeasured_fc_unet_stages_not_reported_as_zero": true,
+    "historical_fc_unet_summary_unchanged": true,
+    "invalid_fp32_gpu_work_list_combination_rejected": true
+  }
+}

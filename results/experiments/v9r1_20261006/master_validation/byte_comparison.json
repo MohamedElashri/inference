@@ -1,0 +1,30 @@
+{
+  "byte_equal": {
+    "allen_fc_beamline.bin": true,
+    "allen_fc_csr.bin": true,
+    "allen_fc_histogram.bin": true,
+    "allen_fc_interval_features.bin": true,
+    "allen_fc_track_features.bin": false,
+    "allen_fc_track_idx.bin": false,
+    "allen_fc_track_offsets.bin": true,
+    "allen_fc_track_states.bin": false,
+    "allen_kde_output.bin": true,
+    "allen_ncw_input.bin": true,
+    "allen_zpeaks.bin": true,
+    "pvs_beamline.bin": true,
+    "pvs_pvfinder.bin": true
+  },
+  "required_output_files": [
+    "allen_fc_csr.bin",
+    "allen_fc_interval_features.bin",
+    "allen_fc_histogram.bin",
+    "allen_kde_output.bin",
+    "allen_ncw_input.bin",
+    "allen_zpeaks.bin",
+    "pvs_beamline.bin",
+    "pvs_pvfinder.bin"
+  ],
+  "required_outputs_byte_identical": true,
+  "track_state_feature_multisets_equal_per_event": true,
+  "note": "Raw track packing order differs; joint state/feature rows are byte-identical as multisets within each event. CSR counts and FC/UNet/peak/fitted-PV outputs are byte-identical."
+}

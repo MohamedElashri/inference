@@ -1,0 +1,1 @@
+/data/home/melashri/iris/inference/benchmarks/benchmark_pvfinder_batch.sh --label v9r1_optimized -B buildv9r1gpu12 -d 2 --model unet16_lc4_scnone_asym5_best_bf16 --use-bf16 true --gpu-work-list true --fc-grid-fraction 0.0625 --unet-grid-fraction 0.125 -n 500 -m 500 -r 1000 -t 16 --repeats 5 --label v9r1_master_verify --repeats 1 
