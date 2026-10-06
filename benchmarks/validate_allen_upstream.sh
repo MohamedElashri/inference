@@ -26,7 +26,8 @@ export LD_LIBRARY_PATH="${CUDNN_ROOT:-$HOME/local/cuda}/lib64:${LD_LIBRARY_PATH:
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
 CUDA_VISIBLE_DEVICES="$gpu_uuid" "$build_dir/toolchain/wrapper" \
     "$build_dir/test/unit_tests/unit_tests" '[PVFinder],[TensorModel],[AllenCuDNN]' > "$result_dir/unit_tests.txt" 2>&1
-weights/scripts/allen_dump.sh --build "$build_dir" \
+# Import verification retains its fixed MC regression fixture for both checks.
+MDF_FILE="$PVF_MC_MDF" GEOMETRY_DIR="$PVF_MC_GEOMETRY" weights/scripts/allen_dump.sh --build "$build_dir" \
     --model-file "$REPO_ROOT/weights/out/$model/pvfinder_model.json" --sequence pvfinder_pv_validation \
     --dump-dir "$raw/numerical" --events 500 --device "$device" \
     --set pvfinder_fc_aggregation.precision=bfloat16 --set pvfinder_unet.precision=bfloat16 \
@@ -64,7 +65,7 @@ for threshold in ('0.07', '0.1'):
     for name in ('compare.json', 'validate_peaks.json'):
         shutil.copy2(point / name, target / name)
     compare = json.loads((point / 'compare.json').read_text())
-    # The benchmark MDF is the fixed 10,000-event 2024 MC sample.
+    # The physics reference is the fixed 10,000-event 2024 MC sample.
     assert compare['events'] == 10000
     for algorithm in ('beamline', 'pvfinder'):
         assert compare['all_z'][algorithm]['mc'] == 53447

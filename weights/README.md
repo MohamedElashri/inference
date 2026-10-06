@@ -17,6 +17,13 @@ The default is `unet16_lc4_scnone_asym5_best_bf16`, with BF16 arithmetic and the
 accepted GPU work list and grid fractions. All models use `Allen/build/`;
 architecture changes reconfigure that build through the shared script.
 
+The default dump input is RTA's unbiased 2025 real data from run 321834,
+with its upstream CI geometry pair. Set `MDF_FILE` and `GEOMETRY_DIR` together
+to use another matched pair. MC-based physics checks select their input
+separately through `MC_MDF_FILE` and `MC_GEOMETRY_DIR`.
+The current real-data check retains one failed POCA tolerance check for a track
+outside the model window; see [the recorded diagnostic](../results/experiments/rta_2025_321834_20261006/feature_outliers.json).
+
 ## Stages
 
 | Target | What it does | Output (`out/<MODEL>/`, ignored by git) |

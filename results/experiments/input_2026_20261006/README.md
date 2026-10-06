@@ -1,5 +1,10 @@
 # 2026 input and geometry availability
 
+Follow-up: RTA supplied an unbiased 2025 sample, and the user accepted 2025
+for this work. That sample and its documented CI geometry are available on
+CVMFS; see [the follow-up checks](../rta_2025_321834_20261006/README.md).
+The initial 2026-only investigation below is retained as historical evidence.
+
 Checked on 6 October 2026 following RTA feedback that the 2024 minimum-bias
 input should be replaced. **2026 data and geometry are available on CVMFS,
 but an equivalent unselected, 6.8 TeV beam-energy Run 3 minimum-bias sample

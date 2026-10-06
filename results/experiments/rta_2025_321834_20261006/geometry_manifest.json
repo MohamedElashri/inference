@@ -1,0 +1,96 @@
+{
+  "local": "/data/home/melashri/iris/inference/Allen/input/allen_geometries/geometry_run3_2025-v00.01",
+  "cvmfs": "/cvmfs/lhcb.cern.ch/lib/lhcb/ALLEN/ALLEN_v9r2/input/allen_geometries/geometry_run3_2025-v00.01",
+  "files": [
+    {
+      "name": "beamline.bin",
+      "bytes": 48,
+      "sha256": "8470166ecfd2764ed13c6778c1a441d3c0a115dc81de16908f016a41d448e14d",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "ecal_geometry.bin",
+      "bytes": 202524,
+      "sha256": "b8cccb67c4c2d7151e64cdd63398a232a15d1884e6551bd0b0895d6f0ab9ac17",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "magfield.bin",
+      "bytes": 15326544,
+      "sha256": "bc0184eb5c95c1a7df48a10fb7c14217c74e6f213d1f73c2425871d82062cd94",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "muon_geometry.bin",
+      "bytes": 211468,
+      "sha256": "d7759e6e2e1180c09c292386e67af808a7f4862885b10be4e49cc8d99b0a7bc6",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "muon_tables.bin",
+      "bytes": 1052980,
+      "sha256": "957d359e6ee6088d5e0cf72f3a713c8a49ea0466a9668d1fb104c00dac91b924",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "polarity.bin",
+      "bytes": 4,
+      "sha256": "e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "rich_1_geometry.bin",
+      "bytes": 260504,
+      "sha256": "4bcefa245ee427fe6979fa154f9e89a4b7931ee5b78154030887ecc78c9e8185",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "rich_2_geometry.bin",
+      "bytes": 882344,
+      "sha256": "5c5be7117e8a77af4fac87b8be82600f173c7b19f66ca1fdf2358c1a3f9ff0f3",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "rich_pdmdbmaps.bin",
+      "bytes": 9692,
+      "sha256": "33cfb545126f2d01d18406f730bf6571a0e7fbc373af57883c2c1dc407ba996f",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "rich_tel40maps.bin",
+      "bytes": 469512,
+      "sha256": "e1cfe917582a3afb9c7e6a8cec484ae8686904104670dea816e10b5ff55022d5",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "scifi_geometry.bin",
+      "bytes": 3249928,
+      "sha256": "b9bf39e43e53cc9a0961bc81bb8f1dcaee2bd550e1e7ff72bbfb6f3b48fad74c",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "ut_boards.bin",
+      "bytes": 42344,
+      "sha256": "4b85c464ef4cccbbdbb69557d477b7f8355d3454f7bc0f011a50d24cb32d51fa",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "ut_geometry.bin",
+      "bytes": 46116,
+      "sha256": "f0a0adad10c65ab4a8824da5ddafecb11becb2f928fb8036057870dc54c4ca93",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "ut_tables.bin",
+      "bytes": 15544,
+      "sha256": "37efd0dd4be96d35d72e557eba16613251b3241c95b703156e6271da0e29da7c",
+      "local_matches_cvmfs": true
+    },
+    {
+      "name": "velo_geometry.bin",
+      "bytes": 16376,
+      "sha256": "380f59b70dc1faa409f421feb2891dc7a3feed36da0a9ae7996b2c1836e793f7",
+      "local_matches_cvmfs": true
+    }
+  ]
+}

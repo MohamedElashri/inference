@@ -11,6 +11,9 @@ PVF_REPEATS=5
 PVF_FC_GRID_FRACTION=0.0625
 PVF_UNET_GRID_FRACTION=0.125
 export LD_LIBRARY_PATH="${CUDNN_ROOT:-$HOME/local/cuda}/lib64:${LD_LIBRARY_PATH:-}"
-# Input and its matching dumped geometry are selected together for every tool.
-PVF_MDF=${MDF_FILE:-$PVF_REPO_ROOT/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf}
-PVF_GEOMETRY=${GEOMETRY_DIR:-$PVF_REPO_ROOT/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry}
+# RTA-recommended unbiased real data and its upstream CI geometry pair.
+# Throughput and numerical checks use this pair; truth-based checks use MC.
+PVF_MDF=${MDF_FILE:-/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/rta/samples/data/321834-LHCb-MEP/MEP_2025_pp_pD2_bu_321834_LHCb_ECEB01_BU_0.mdf}
+PVF_GEOMETRY=${GEOMETRY_DIR:-/cvmfs/lhcb.cern.ch/lib/lhcb/ALLEN/ALLEN_v9r2/input/allen_geometries/geometry_run3_2025-v00.01}
+PVF_MC_MDF=${MC_MDF_FILE:-${MDF_FILE:-$PVF_REPO_ROOT/Allen/input/Beam6800GeV-expected-2024-MagDown-nu7.6_MinBiasMD.mdf}}
+PVF_MC_GEOMETRY=${MC_GEOMETRY_DIR:-${GEOMETRY_DIR:-$PVF_REPO_ROOT/Allen/input/allen_geometries/geometry_dddb-20231017_sim-20231017-vc-md100_new_SciFi_geometry}}

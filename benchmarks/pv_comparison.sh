@@ -16,7 +16,8 @@
 #   benchmarks/pv_comparison.sh --label LABEL [--model NAME] [--fp32]
 #       [--set ALG.PROP=VALUE]... [--scan ALG.PROP=V1,V2,...]...
 #       [-B BUILD_DIR] [-d DEVICE] [-n EVENTS] [--sequence SEQ] [--no-record]
-# Set MDF_FILE and GEOMETRY_DIR together to select MC and its matching geometry.
+# Set MC_MDF_FILE and MC_GEOMETRY_DIR together to select MC and matching geometry.
+# MDF_FILE and GEOMETRY_DIR remain supported as general input overrides.
 #
 #   Defaults: Allen/build, BF16 best model and the accepted GPU work-list/grids.
 #   --fp32          use float32 in both stages and disable the GPU work list.
@@ -36,8 +37,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$REPO/benchmarks/defaults.sh"
 PY="${PY:-${REPO}/.venv/bin/python3}"
-MDF="$PVF_MDF"
-GEO="$PVF_GEOMETRY"
+MDF="$PVF_MC_MDF"
+GEO="$PVF_MC_GEOMETRY"
 SEQ=pvfinder_pv_validation
 
 LABEL="" MODEL=$PVF_MODEL BUILD=$PVF_BUILD_DIR DEVICE=$PVF_DEVICE EVENTS=0 RECORD=1

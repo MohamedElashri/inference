@@ -1,0 +1,82 @@
+{
+  "testfiledb_key": "hlt1_input_data_2025_run_321834_mdf",
+  "cvmfs_path": "/cvmfs/lhcbdev.cern.ch/testfiledb-mirror/rta/samples/data/321834-LHCb-MEP/MEP_2025_pp_pD2_bu_321834_LHCb_ECEB01_BU_0.mdf",
+  "bytes": 2008416688,
+  "geometry_version": "run3/2025-v00.01",
+  "conditions_version": "master",
+  "simulation": false,
+  "selection": "unbiased; MEP converted with passthrough sequence",
+  "average_mu": 5.26,
+  "gas": "Deuterium",
+  "first_records": {
+    "records": 500,
+    "bytes": 34795996,
+    "sha256": "7b6ad654de5e2f8b6cb32c8dda1b98f4db760cce77d0678a9e65585eeb5a8bd2",
+    "run_counts": {
+      "321834": 500
+    },
+    "odin_agrees_with_mdf_header": true,
+    "bank_versions": [
+      {
+        "type": 9,
+        "version": 10,
+        "count": 71500
+      },
+      {
+        "type": 13,
+        "version": 3,
+        "count": 22000
+      },
+      {
+        "type": 16,
+        "version": 7,
+        "count": 500
+      },
+      {
+        "type": 17,
+        "version": 3,
+        "count": 500
+      },
+      {
+        "type": 53,
+        "version": 0,
+        "count": 500
+      },
+      {
+        "type": 54,
+        "version": 12,
+        "count": 500
+      },
+      {
+        "type": 64,
+        "version": 8,
+        "count": 120000
+      },
+      {
+        "type": 66,
+        "version": 4,
+        "count": 107994
+      },
+      {
+        "type": 68,
+        "version": 4,
+        "count": 6
+      },
+      {
+        "type": 73,
+        "version": 4,
+        "count": 51000
+      },
+      {
+        "type": 77,
+        "version": 5,
+        "count": 45500
+      },
+      {
+        "type": 84,
+        "version": 4,
+        "count": 2000
+      }
+    ]
+  }
+}

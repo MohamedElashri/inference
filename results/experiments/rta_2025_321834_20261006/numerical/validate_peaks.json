@@ -1,0 +1,15 @@
+{
+  "settings": {
+    "threshold": 0.07000000029802322,
+    "integral_threshold": 0.699999988079071,
+    "min_width": 0,
+    "split_peaks": true
+  },
+  "events": 500,
+  "seeds": 2296,
+  "events_with_different_number_of_seeds": 0,
+  "max_abs_dz_mm": 3.0517578125e-05,
+  "events_over_seed_cap": 0,
+  "events_with_first_bin_above_threshold": 0,
+  "status": "PASS"
+}

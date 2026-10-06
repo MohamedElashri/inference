@@ -1,0 +1,28 @@
+{
+  "n_events": 500,
+  "empty_interval_fraction": 0.7722,
+  "intervals_capped_at_max_tracks": 0,
+  "max_abs_diff": 0.31437617540359497,
+  "mean_abs_diff": 7.95839781371403e-05,
+  "intervals_with_peak_above_1e-3": {
+    "allen": 0.1088,
+    "pytorch": 0.10895
+  },
+  "bins_above_1e-3_per_event": {
+    "allen": 38.934,
+    "pytorch": 38.976
+  },
+  "threshold": 0.001,
+  "bf16_path": true,
+  "peaks": {
+    "bins_off_by_more_than_0.01": 0.0019935,
+    "n_peaks": 2348,
+    "median_rel_peak_height_change": 0.006204347168543178,
+    "max_rel_peak_height_change": 0.5419167097349735,
+    "intervals_with_peak": 2092,
+    "highest_bin_moved": 73,
+    "highest_bin_moved_more_than_one_bin": 1
+  },
+  "criterion": "BF16 path: bins off by > 0.01 < 1%, median peak height change < 2%, highest bin moved > 1 bin < 1% of intervals with a peak",
+  "status": "PASS"
+}

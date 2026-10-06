@@ -18,8 +18,8 @@ the UNet predicts a density whose peaks seed primary vertices.
 
 Requirements: NVIDIA GPU with compute capability at least 8.0, CVMFS
 (`/cvmfs/lhcb.cern.ch`), cuDNN under `~/local/cuda`, and Python with NumPy and
-PyTorch in `.venv/`. The input MDF and its matching geometry belong in
-`Allen/input/` and stay outside Git.
+PyTorch in `.venv/`. The default throughput input and geometry are read from
+CVMFS. The MC physics reference belongs in `Allen/input/` and stays outside Git.
 
 ```bash
 bash benchmarks/build_allen.sh
@@ -66,11 +66,11 @@ MDF_FILE=/path/to/sample.mdf GEOMETRY_DIR=/path/to/matching_geometry \
     bash benchmarks/benchmark_pvfinder_batch.sh --label new_sample
 ```
 
-The same environment variables apply to physics comparisons and the weights
-validation pipeline. The default input still reproduces the historical 2024
-MC results; selecting a representative 2026 replacement is pending. The
-[2026 availability checks](results/experiments/input_2026_20261006/README.md)
-record available data, matching geometry and compatibility tests.
+Throughput and numerical checks default to RTA's unbiased real-data sample
+`hlt1_input_data_2025_run_321834_mdf`: full machine, average mu 5.26, plus
+Deuterium. The matching geometry is the pair used by Allen's throughput CI.
+`MDF_FILE` and `GEOMETRY_DIR` override both throughput and numerical checks.
+See the [sample checks](results/experiments/rta_2025_321834_20261006/README.md).
 
 ```bash
 bash benchmarks/benchmark_pvfinder_batch.sh --label production
@@ -114,11 +114,12 @@ for PVFinder and Allen's beamline PV finder, both over all z and within the
 network's z range. It uses the same build, model and BF16 settings. `--fp32`
 selects float32 arithmetic; also select the FP32 checkpoint with `--model`.
 `--set ALG.PROPERTY=VALUE` changes a property; repeated `--scan` arguments
-produce their Cartesian product. The historical default MC sample is 2024
-minimum bias, MagDown, nu 7.6, at 6.8 TeV beam energy. Input paths are selected
-in [the shared defaults](benchmarks/defaults.sh). Real collision data supports
-compatibility and throughput studies but has no MC truth for these efficiency
-and false-positive measurements.
+produce their Cartesian product. Physics checks retain the 2024 MC reference:
+minimum bias, MagDown, nu 7.6, at 6.8 TeV beam energy. The real-data throughput
+sample has no MC truth for efficiency and false-positive measurements.
+Set `MC_MDF_FILE` and `MC_GEOMETRY_DIR` together to change the physics sample;
+the general `MDF_FILE`/`GEOMETRY_DIR` overrides also remain supported.
+Input paths are selected in [the shared defaults](benchmarks/defaults.sh).
 
 ## Inspect results
 

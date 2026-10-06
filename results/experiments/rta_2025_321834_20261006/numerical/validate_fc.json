@@ -1,0 +1,33 @@
+{
+  "dump_dir": "benchmark_results/rta_2025_321834_20261006/full_chain_smoke",
+  "weights": "weights/checkpoints/unet16_lc4_scnone_asym5_best_bf16.pyt",
+  "max_f32_ulps": 1.0,
+  "csr": {
+    "intervals_differing": 0,
+    "status": "OK"
+  },
+  "features_dtype": "bfloat16",
+  "histogram_dtype": "bfloat16",
+  "interval_features": {
+    "slots_compared": 20000,
+    "non_finite_slots": 0,
+    "max_abs_diff": 39802.900454597635,
+    "max_rel_diff": 3125.6009218944364,
+    "max_f32_ulps": 5.2878670891032186e-05,
+    "largest_term": 10939847914273.879,
+    "status": "PASS"
+  },
+  "histogram": {
+    "slots_compared": 20000,
+    "non_finite_slots": 0,
+    "max_abs_diff": 7050.847385610519,
+    "max_rel_diff": 5952.84423828125,
+    "max_f32_ulps": 1.727484827688665e-05,
+    "largest_term": 590323429970.8787,
+    "status": "PASS"
+  },
+  "n_events": 500,
+  "n_tracks": 118002,
+  "latent_channels": 4,
+  "status": "PASS"
+}
