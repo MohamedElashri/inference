@@ -316,14 +316,15 @@ def read_splits(run_dir):
 
 
 def derived(rates):
-    b, f, u = (rates.get(k) for k in SEQUENCE_KEYS)
+    b = rates.get("baseline")
     out = {}
     if b:
-        if f is not None:
-            out["fc_overhead_pct"] = (b - f) / b * 100.0
-        if u is not None:
-            out["unet_overhead_pct"] = (b - u) / b * 100.0
-            out["unet_retention_pct"] = u / b * 100.0
+        for seq in ALL_SEQUENCE_KEYS[1:]:
+            rate = rates.get(seq)
+            if rate is not None:
+                out[f"{seq}_overhead_pct"] = (b - rate) / b * 100.0
+                if seq != "fc":
+                    out[f"{seq}_retention_pct"] = rate / b * 100.0
     return out
 
 
@@ -432,9 +433,9 @@ def results_block(batch_dir):
         repeats.append(entry)
     summary = {}
     if repeats:
-        med = {k: median([r["events_per_s"].get(k) for r in repeats]) for k in SEQUENCE_KEYS}
+        med = {k: median([r["events_per_s"].get(k) for r in repeats]) for k in ALL_SEQUENCE_KEYS}
         summary["median_events_per_s"] = {k: v for k, v in med.items() if v is not None}
-        for key in ("fc_overhead_pct", "unet_overhead_pct", "unet_retention_pct"):
+        for key in derived({k: 1 for k in ALL_SEQUENCE_KEYS}):
             v = median([r.get(key) for r in repeats])
             if v is not None:
                 summary[f"median_{key}"] = v
@@ -731,7 +732,7 @@ def headline(r):
     def fmt(v):
         return f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
 
-    return f"base {fmt(m.get('baseline'))}  fc {fmt(m.get('fc'))}  unet {fmt(m.get('unet'))}"
+    return "  ".join(f"{seq} {fmt(m[seq])}" for seq in ALL_SEQUENCE_KEYS if seq in m)
 
 
 def cmd_list(args):
@@ -788,7 +789,7 @@ def cmd_show(args):
         print("  options   " + ", ".join(f"{k}={v}" for k, v in opts.items() if v is not None))
     print(f"  result    {headline(r)}")
     s = (r.get("results") or {}).get("summary") or {}
-    for k in ("median_fc_overhead_pct", "median_unet_overhead_pct", "median_unet_retention_pct", "baseline_spread_pct"):
+    for k in tuple(f"median_{key}" for key in derived({seq: 1 for seq in ALL_SEQUENCE_KEYS})) + ("baseline_spread_pct",):
         if k in s:
             print(f"            {k} = {s[k]:.2f}")
     prof = r.get("profile")
@@ -832,7 +833,9 @@ def cmd_compare(args):
     mb = ((b.get("results") or {}).get("summary") or {}).get("median_events_per_s") or {}
     if ma or mb:
         print(f"  {'sequence':10s} {'A ev/s':>12s} {'B ev/s':>12s} {'B/A':>8s}")
-        for k in SEQUENCE_KEYS:
+        for k in ALL_SEQUENCE_KEYS:
+            if k not in ma and k not in mb:
+                continue
             va, vb = ma.get(k), mb.get(k)
             ratio = f"{vb / va:8.4f}" if va and vb else "       -"
             print(f"  {k:10s} {va or float('nan'):12,.1f} {vb or float('nan'):12,.1f} {ratio}")

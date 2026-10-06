@@ -425,9 +425,6 @@ if [[ "${RECORD}" -eq 1 ]]; then
     trap 'exit 143' TERM
 fi
 
-printf 'run\tbaseline\tfc\tunet\tfc_overhead_pct\tunet_overhead_pct\tunet_retention_pct\n' \
-    > "${BATCH_DIR}/summary.tsv"
-
 for run_idx in $(seq 1 "${REPEATS}"); do
     run_dir="${BATCH_DIR}/run_$(printf '%02d' "${run_idx}")"
     mkdir -p "${run_dir}"
@@ -439,58 +436,9 @@ for run_idx in $(seq 1 "${REPEATS}"); do
         run_sequence "${seq}" "${run_dir}" | tee -a "${rates_file}"
     done
 
-    baseline="$(awk '$1=="baseline"{print $2}' "${rates_file}")"
-    fc="$(awk '$1=="fc"{print $2}' "${rates_file}")"
-    unet="$(awk '$1=="unet"{print $2}' "${rates_file}")"
-
-    awk -v run="${run_idx}" -v base="${baseline}" -v fc="${fc}" -v unet="${unet}" '
-      BEGIN {
-        fc_over = (base > 0) ? (base - fc) / base * 100.0 : 0.0;
-        unet_over = (base > 0) ? (base - unet) / base * 100.0 : 0.0;
-        retain = (base > 0) ? unet / base * 100.0 : 0.0;
-        printf "%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n",
-          run, base, fc, unet, fc_over, unet_over, retain;
-      }' >> "${BATCH_DIR}/summary.tsv"
 done
 
-awk '
-  NR == 1 { next }
-  {
-    b[NR-1] = $2; f[NR-1] = $3; u[NR-1] = $4;
-    fo[NR-1] = $5; uo[NR-1] = $6; r[NR-1] = $7;
-    n = NR-1;
-  }
-  function sort(a, n, i, j, t) {
-    for (i = 1; i <= n; ++i) for (j = i + 1; j <= n; ++j) if (a[j] < a[i]) {
-      t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-  }
-  function median(a, n) {
-    sort(a, n);
-    return (n % 2) ? a[(n + 1) / 2] : (a[n / 2] + a[n / 2 + 1]) / 2.0;
-  }
-  END {
-    if (n == 0) exit;
-    mb = median(b, n); mf = median(f, n); mu = median(u, n);
-    mfo = median(fo, n); muo = median(uo, n); mr = median(r, n);
-    minb = b[1]; maxb = b[n];
-    spread = (mb > 0) ? (maxb - minb) / mb * 100.0 : 0.0;
-    printf "# PVFinder benchmark summary\n\n";
-    printf "- repeats: %d\n", n;
-    printf "- median baseline events/s: %.2f\n", mb;
-    printf "- median FC events/s: %.2f\n", mf;
-    printf "- median FC+UNet events/s: %.2f\n", mu;
-    printf "- median FC overhead: %.2f%%\n", mfo;
-    printf "- median FC+UNet overhead: %.2f%%\n", muo;
-    printf "- median FC+UNet retention: %.2f%%\n", mr;
-    printf "- baseline spread: %.2f%%\n", spread;
-    if (spread > 5.0) {
-      printf "- contention status: contended, repeat later\n";
-    } else {
-      printf "- contention status: acceptable\n";
-    }
-  }
-' "${BATCH_DIR}/summary.tsv" > "${BATCH_DIR}/summary.md"
+"${RECORD_PY}" "${REPO_ROOT}/benchmarks/summarize_batch.py" "${BATCH_DIR}"
 
 printf '\nBatch complete: %s\n' "${BATCH_DIR}"
 cat "${BATCH_DIR}/summary.md"
