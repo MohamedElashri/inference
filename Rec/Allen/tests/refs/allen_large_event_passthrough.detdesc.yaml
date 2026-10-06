@@ -292,7 +292,6 @@ stdout: |-
   Max memory required: 0 MB
   Insufficient memory to process slice - will sub-divide and retry.
   Slice cannot be split further - passthrough.
-  MultiEventScheduler                    INFO Measured 0 events over n s (skipped 1 warm-up and 1 cool-down iterations out of 1)
   Gaudi__Monitoring__JSONSink            INFO Writing JSON file test_large_event_passthrough_hist_counts.json
   ApplicationMgr                         INFO Application Manager Stopped successfully
   MultiEventScheduler                    INFO StateTree: CFNode   #executed  #passed
