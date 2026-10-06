@@ -52,7 +52,7 @@ class UpstreamUpdateTest(unittest.TestCase):
             (root / "Allen/input").mkdir()
             local_input = root / "Allen/input/sample.dat"
             local_input.write_text("local detector data must survive\n")
-            (root / ".gitignore").write_text("/Allen/input/\n")
+            (root / ".gitignore").write_text("/Allen/input/\n/Allen/new_source.txt\n/benchmark_results/\n")
             (root / "benchmarks").mkdir()
             tracking = root / "benchmarks/allen_upstream.json"
             tracking.write_text(json.dumps({"upstream_commit": upstream_base, "fork_commit": fork_commit}))
@@ -66,6 +66,9 @@ class UpstreamUpdateTest(unittest.TestCase):
                 (root / "Allen/pvfinder.txt").write_text(f"local PVFinder edit {iteration}\n")
                 commit(root, f"PVFinder edit {iteration}")
                 (upstream / "api.txt").write_text(f"upstream API {iteration}\n")
+                if iteration == 1:
+                    (upstream / "new_source.txt").write_text("new upstream source\n")
+                    (root / "Allen/new_source.txt").write_text("new upstream source\n")
                 target = commit(upstream, f"upstream update {iteration}")
                 workdir = base / f"prepared{iteration}"
                 before = git(root, "rev-parse", "HEAD")
@@ -89,6 +92,7 @@ class UpstreamUpdateTest(unittest.TestCase):
                 self.assertEqual((root / "Allen/api.txt").read_text(), f"upstream API {iteration}\n")
                 self.assertEqual((root / "Allen/pvfinder.txt").read_text(), f"local PVFinder edit {iteration}\n")
                 self.assertEqual(local_input.read_text(), "local detector data must survive\n")
+                self.assertEqual((root / "Allen/new_source.txt").read_text(), "new upstream source\n")
                 self.assertEqual(git(root, "merge-base", "HEAD", manifest["fork_commit"]), manifest["fork_commit"])
                 self.assertEqual(git(root, "status", "--porcelain", "--untracked-files=no"), "")
 

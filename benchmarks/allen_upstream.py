@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import shutil
 
 ROOT = Path(__file__).resolve().parent.parent
 TRACKING = ROOT / "benchmarks/allen_upstream.json"
@@ -89,8 +90,39 @@ def import_tree(args):
             git(workdir, "update-index", "--force-remove", "-z", "--stdin", data=inputs, env=env)
         tree = git(workdir, "write-tree", env=env).decode().strip()
     patch = git(workdir, "diff", "--binary", manifest["inference_before"] + ":Allen", tree)
-    if patch:
-        git(ROOT, "apply", "--check", "--index", "--directory=Allen", "-", data=patch)
+    additions = git(workdir, "diff", "--name-only", "-z", "--diff-filter=A",
+                    manifest["inference_before"] + ":Allen", tree).decode().split("\0")
+    collisions = []
+    for name in filter(None, additions):
+        local = ROOT / "Allen" / name
+        if not local.exists() and not local.is_symlink():
+            continue
+        if local.is_symlink() or not local.is_file():
+            raise SystemExit(f"Untracked source collision: {local}")
+        content = local.read_bytes()
+        matches = False
+        for ref in (manifest["previous_upstream"], manifest["fork_commit"]):
+            blob = subprocess.run(["git", "-C", str(workdir), "show", f"{ref}:{name}"], capture_output=True)
+            matches |= blob.returncode == 0 and blob.stdout == content
+        if not matches:
+            raise SystemExit(f"Untracked file differs from upstream; preserve it before importing: {local}")
+        collisions.append(name)
+    backup = None
+    if collisions:
+        (ROOT / "benchmark_results").mkdir(exist_ok=True)
+        backup = Path(tempfile.mkdtemp(prefix="allen-import-source-backup-", dir=ROOT / "benchmark_results"))
+        for name in collisions:
+            target = backup / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(ROOT / "Allen" / name), str(target))
+        print(f"Preserved {len(collisions)} previously untracked upstream source files in {backup}")
+    try:
+        if patch:
+            git(ROOT, "apply", "--check", "--index", "--directory=Allen", "-", data=patch)
+    except subprocess.CalledProcessError:
+        for name in collisions:
+            shutil.move(str(backup / name), str(ROOT / "Allen" / name))
+        raise
     # Preserve upstream ancestry in master as well as the named Allen branch.
     fetch_options = []
     if (git(ROOT, "rev-parse", "--is-shallow-repository").strip() == b"true"
